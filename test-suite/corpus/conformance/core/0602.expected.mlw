@@ -7,6 +7,8 @@ module PyCSL_Program
     invariant { (pos >= 0) }
     by { pos = 0 }
 
+  goal _check_class_inv_py_match : forall pos : int. pos = 0 -> ((pos >= 0))
+
   let m : py_match = { pos = 0 }
 
   let peek () : int

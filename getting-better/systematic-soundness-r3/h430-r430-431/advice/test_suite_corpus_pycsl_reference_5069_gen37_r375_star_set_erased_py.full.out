@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-h430/test-suite/corpus/pycsl-reference/5069_gen37_r375_star_set_erased.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'm' line 7: `*self` is HASHED by `{*self}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, an un-annotated value: e.g. `m.get(k)` on a `Dict[str, Any]`), so it may be a list / dict / set at run time and CPython may raise TypeError, while this function claims `#@ no_exception` covering TypeError and the model lowers the collection as an opaque value (route R-gate, dict-value-model-r3; measured: `{m.get("a")}` under `#@ no_exception \all` proved). Derive the value from a source declared with a hashable type (a parameter, field or container element annotated `str` / `int` / a frozen record), or drop the claim.

@@ -1,0 +1,18 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "'UnixFs.Dir.slot_inode_byte_decode' does not depend on any axioms\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.7489213949302211,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.slot_inode_byte_decode",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.slot_inode_byte_decode",
+      true,
+      []
+    ]
+  ]
+}

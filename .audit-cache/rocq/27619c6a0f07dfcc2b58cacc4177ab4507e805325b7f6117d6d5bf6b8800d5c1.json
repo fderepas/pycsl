@@ -1,0 +1,28 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.3416574450675398,
+  "qualname_results": [
+    [
+      "Pycsl.Struct.Std.round_trip_u16",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Struct.Std.round_trip_u16",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Struct.Std.round_trip_u32",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Struct.Std.round_trip_u32",
+      true,
+      []
+    ]
+  ]
+}

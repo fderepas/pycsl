@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-h430/getting-better/systematic-soundness-r3/h430-r430-431/advice/a430_drop_claim.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_lhvd2bjt.mlw", line 17, characters 15-27:
+Sub-goal postcondition of goal h'vc.
+Prover result is: Valid (0.00s, 275 steps).
+
+File "/tmp/.pycsl_lhvd2bjt.mlw", line 23, characters 15-27:
+Sub-goal postcondition of goal caller'vc.
+Prover result is: Valid (0.00s, 275 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_lhvd2bjt.mlw", line 19, characters 8-9: unused variable s
+Warning, file "/tmp/.pycsl_lhvd2bjt.mlw", line 16, characters 9-10: unused variable m
+
+[+] Verification SUCCESS! All contracts formally proven.

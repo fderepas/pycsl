@@ -1,0 +1,30 @@
+start fa7cbb1aa op 2026-10-28T20:20:22Z
+sync rc=0
+mcheck rc=0
+sweep-root rc=0 2026-10-28T20:32:11Z
+cmp-root rc=1
+cmp-pyref rc=0
+sweep-mirror rc=0 2026-10-28T20:33:13Z
+cmp-mirror rc=0
+SWEEPSDONE 2026-10-28T20:33:13Z
+part2 start 2026-10-28T20:33:34Z
+census rc=0
+planes rc=0 2026-10-28T20:45:46Z
+trusted-reasons rc=0
+doc rc=0
+assumed rc=0
+clause rc=0
+check-refusal-witness-coverage rc=0
+check-refusal-advice-audited rc=0
+check-dropped-mutation rc=0
+check-getattr-erasure rc=0
+check-open-route-carriers rc=0
+check-trusted-frame-honesty rc=0
+check-trusted-raises-honesty rc=0
+check-stdlib-modules-verify rc=0
+trusted 442
+lib-screen identical rc=1 (104 files)
+witnesses-final done
+G2MAIN 2026-10-28T21:19:36Z
+M1DONE 2026-10-28T21:20:41Z
+GATESDONE 2026-10-28T21:20:41Z

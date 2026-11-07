@@ -1,0 +1,162 @@
+diff --git a/session.txt b/session.txt
+index 877e2936..765e318e 100644
+--- a/session.txt
++++ b/session.txt
+@@ -1 +1 @@
+-opencode -s ses_105833cd3ffeXOb22S1OTyqMAN
++claude --permission-mode  bypassPermissions   --resume 9dd932d0-43ec-4eaf-b2b4-3686bbb5f588
+diff --git a/src/formal-semantics/rocq/.lia.cache b/src/formal-semantics/rocq/.lia.cache
+index 6f2707ce..390f1a00 100644
+Binary files a/src/formal-semantics/rocq/.lia.cache and b/src/formal-semantics/rocq/.lia.cache differ
+diff --git a/src/pycsl/frontend/ir_resolve.py b/src/pycsl/frontend/ir_resolve.py
+index c8c5242a..fdfbe405 100644
+--- a/src/pycsl/frontend/ir_resolve.py
++++ b/src/pycsl/frontend/ir_resolve.py
+@@ -427,6 +427,14 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
+                                     ("kw_defaults", "irlist"),
+                                     ("kwarg", "iropt_ir"),
+                                     ("defaults", "irlist")]),
++    # `Compare(left, ops, comparators)` — `_NODE_SPEC['Compare'] == ('expr',
++    # ('left','ops','comparators'), None)`, all three total. `ops` is a list of 0-FIELD
++    # `cmpop` SINGLETONS (`_N("NotIn")()`), each carried as its class-name STRING (the
++    # increment-10 rule), so the slot is a pure `seq string` — legal inside the
++    # mutable-free emit_ir group (the `IrComposeFromDecl (seq string)` precedent), and no
++    # new ADT is needed. `comparators` is the expression list.
++    "Compare": ("IrPyCompare", [("left", "emit_ir"), ("ops", "seq string"),
++                                ("comparators", "irlist")]),
+     # `Lambda(args, body)` — `_NODE_SPEC['Lambda'] == ('expr', ('args','body'), None)`,
+     # both total: the `arguments` node and the body expression.
+     "Lambda": ("IrPyLambda", [("args", "emit_ir"), ("body", "emit_ir")]),
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 217b30d7..4f46da2e 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -3572,6 +3572,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         """True if an IR expression is string-typed: a literal, a string-producing op, or a
+         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
+         t = ir.get("type")
++        # PYTHON-AST NODE CTOR FAMILY (relaunch #8): a 0-FIELD ASDL SINGLETON construction
++        # is a STRING expression — `_N("NotIn")()` lowers to `"NotIn"`, its class-name (the
++        # increment-10 rule), and so does the const-dict form `_N(_CMP[<k>])()`. Without
++        # this a `seq` accumulator of such singletons (`comparison`'s `ops`) is classified
++        # `seq int` and every appended class name is INT-HASHED — measured as
++        # `Seq.snoc !ops 441879163`. Gated on `_uses_pyast_parser` -> byte-inert.
++        if self._uses_pyast_parser() and not ir.get("args") and not ir.get("keywords"):
++            _sing0 = set(self.ir.get("pyast_singleton_nodes", []) or [])
++            if (t == "Call" and isinstance(ir.get("func"), str)
++                    and ir["func"] in _sing0):
++                return True
++            if t == "ClassByNameCall":
++                _ce0 = ir.get("class_expr") or {}
++                if (isinstance(_ce0, dict) and _ce0.get("type") == "Subscript"
++                        and isinstance(_ce0.get("value"), dict)
++                        and _ce0["value"].get("type") == "Var"):
++                    _cdn0 = self._const_dict_name(_ce0["value"].get("name"))
++                    _cdt0 = (getattr(self, "_module_const_dicts", {}) or {}).get(_cdn0)
++                    if _cdt0 and _sing0 and all(_v0 in _sing0 for _v0 in _cdt0.values()):
++                        return True
+         # W8 capability (iii): a `str` field projected off an `array <record>` SELF-FIELD
+         # element (`self.toks[self.i].string`, or `t.string` on the record-typed local
+         # bound to such a read) is STRING-typed. Without this the projection keeps the
+@@ -9079,6 +9099,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                     parts.append(f"(IrSSome {bound[f]})")
+                     continue
+                 return None
++            if _irlist_slots.get(f) == "seq string":
++                # A STRING-LIST child (`Compare.ops` is `cmpop*`, a list of 0-FIELD
++                # singletons, each carried as its class-name string; `MatchClass.kwd_attrs`
++                # and `Global.names` are `identifier*`). The emit_ir group is emitted
++                # mutable-FREE, so a pure `seq string` is a legal payload type — no new ADT
++                # is needed (the `IrComposeFromDecl (seq string)` precedent). DECLINES
++                # unless the actual really is a `!<local>` deref of a seq local KNOWN to
++                # carry strings, so the slot can never be filled with an int-erased list.
++                _rs = str(bound[f]).strip()
++                if not (_rs.startswith("!") and _rs[1:].isidentifier()
++                        and _rs[1:] in getattr(self, "_seq_locals", set())
++                        and getattr(self, "_seq_value_types", {}).get(
++                            _rs[1:]) == "string"):
++                    return None
++                parts.append(_rs)
++                continue
+             if _irlist_slots.get(f) == "irlist":
+                 _raw = str(bound[f]).strip()
+                 # AN EMPTY LIST LITERAL IS A GENUINELY EMPTY CHILD LIST, not a decline.
+@@ -13199,11 +13235,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                     _kx = self._expr_to_whyml(
+                         _ce.get("slice") or _ce.get("index") or {},
+                         local_refs, invariant_ctx, subst)
++                    # BIND THE KEY ONCE. The key expression can have an EFFECT —
++                    # `_CMP[self.advance().string]` in `comparison` advances the cursor —
++                    # and the chain mentions it once per entry, so inlining it would move
++                    # the cursor N times. A `let` makes the emitted term evaluate it
++                    # exactly once, as Python does.
+                     _ch = '""'
+                     for _kk, _vv in reversed(list(_cdt.items())):
+-                        _ch = (f"(if (str_eq_op {_kx} {whyml_string_literal(_kk)}) "
++                        _ch = (f"(if (str_eq_op _cdk {whyml_string_literal(_kk)}) "
+                                f"then {whyml_string_literal(_vv)} else {_ch})")
+-                    return _ch
++                    return f"(let _cdk = {_kx} in {_ch})"
+             _cnt = getattr(self, "_class_name_ternary_locals", {}) or {}
+             _ent = (_cnt.get(_ce.get("name"))
+                     if isinstance(_ce, dict) and _ce.get("type") == "Var" else None)
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index ba7c2345..9f3906ae 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -7318,7 +7318,9 @@ class PreambleEmissionMixin:
+         in table order; empty off the `_uses_pyast_parser` gate."""
+         from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
+         return "".join(
+-            " | " + _ctor + "".join(" " + _ty for _fn, _ty in _payload)
++            " | " + _ctor + "".join(
++                " " + (f"({_ty})" if " " in _ty else _ty)
++                for _fn, _ty in _payload)
+             for _ctor, _payload in _PYC.values())
+ 
+     def _uses_pyast_parser(self) -> bool:
+diff --git a/src/self-annotate/src/frontend/pure_ast.py b/src/self-annotate/src/frontend/pure_ast.py
+index 5f33098f..75097d55 100644
+--- a/src/self-annotate/src/frontend/pure_ast.py
++++ b/src/self-annotate/src/frontend/pure_ast.py
+@@ -1760,13 +1760,38 @@ class _Parser:
+     # STAYS \trusted. `-> "ExprIR"` records that the result IS an expression node
+     # (`emit_ir`); the non-regression clause is backed by the live body, which moves the
+     # cursor only through `advance`/`accept_*`/`expect_*`.
+-    #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+     #@ ensures self.i >= \old(self.i)
+     #@ assigns self.i
+     def comparison(self) -> "ExprIR":
+-        pass
++        t = self.cur()
++        left = self.expr()
++        ops = []; comparators = []
++        #@ ghost i24 = self.i
++        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
++        #@ loop invariant self.i >= i24
++        #@ loop variant \length(self.toks) - self.i
++        while True:
++            if self.at_kw("not") and self.peek(1).string == "in" and self.peek(1).type == _tokenize.NAME:
++                self.advance(); self.advance()
++                ops.append(_N("NotIn")())
++            elif self.at_kw("is"):
++                self.advance()
++                if self.at_kw("not"):
++                    self.advance(); ops.append(_N("IsNot")())
++                else:
++                    ops.append(_N("Is")())
++            elif self.at_kw("in"):
++                self.advance(); ops.append(_N("In")())
++            elif self.cur().type == _tokenize.OP and self.cur().string in _CMP:
++                ops.append(_N(_CMP[self.advance().string])())
++            else:
++                break
++            comparators.append(self.expr())
++        if ops:
++            return self._fin(_N("Compare")(left=left, ops=ops, comparators=comparators), t)
++        return left
+ 
+     # RETURN INTERFACE + CURSOR NON-REGRESSION (the `_name_str` / `test` precedents).
+     # STAYS \trusted. `-> "ExprIR"` records that the result IS an expression node

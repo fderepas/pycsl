@@ -1,0 +1,12 @@
+[!]   MOVED 0742.mlw — if that is an intended SOURCE repair, pass --expect-moved 0742.
+[!]   MOVED 0958_term_string_pp.mlw — if that is an intended SOURCE repair, pass --expect-moved 0958_term_string_pp.
+[!]   MOVED 0959_term_string_pp_twin.mlw — if that is an intended SOURCE repair, pass --expect-moved 0959_term_string_pp_twin.
+[!]   MOVED 1956_gen36_ipm_sc4_str_list_literal_seq.mlw — if that is an intended SOURCE repair, pass --expect-moved 1956_gen36_ipm_sc4_str_list_literal_seq.
+[!]   MOVED 1957_gen36_ipm_sc4_str_list_literal_seq_false_claim.mlw — if that is an intended SOURCE repair, pass --expect-moved 1957_gen36_ipm_sc4_str_list_literal_seq_false_claim.
+[!]   MOVED 1958_gen36_reassigned_re_sub_string_local.mlw — if that is an intended SOURCE repair, pass --expect-moved 1958_gen36_reassigned_re_sub_string_local.
+[!]   MOVED 1959_gen36_reassigned_re_sub_string_local_false_claim.mlw — if that is an intended SOURCE repair, pass --expect-moved 1959_gen36_reassigned_re_sub_string_local_false_claim.
+[!]   MOVED 5700_r5str_split_elem_strip_eq.mlw — if that is an intended SOURCE repair, pass --expect-moved 5700_r5str_split_elem_strip_eq.
+[!]   MOVED 6106_r417_contract_newline_eq.mlw — if that is an intended SOURCE repair, pass --expect-moved 6106_r417_contract_newline_eq.
+[!]   MOVED 6107_r417_contract_newline_single.mlw — if that is an intended SOURCE repair, pass --expect-moved 6107_r417_contract_newline_single.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 2497 baseline / 2497 candidate .mlw; 10 MOVED (10 unexpected), 0 GONE (0 unexpected), 0 APPEARED.

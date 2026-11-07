@@ -70,6 +70,9 @@ from typing import List
 # `[field_to_str(d1,off,width), field_to_str(d0,off,width)]` fires exactly once (both decode
 # terms are present in the ensures). `field_to_str` is the SAME abstract UnixFs.Field codec
 # 0708 validates and 0712's slot_name bridge composes with.
+# (#49) route #262: the cited lemma reads a RAW byte reader; a contract read is Python-indexed, so the
+# two agree only for a non-negative offset — the codec's domain, now stated (it was implied by conflation).
+#@ requires 0 <= off
 #@ requires 0 <= width
 #@ requires \forall i: int; (0 <= i and i < width) ==> d0[off + i] == d1[off + i]
 #@ ensures field_to_str(d0, off, width) == field_to_str(d1, off, width)

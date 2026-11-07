@@ -1,0 +1,28 @@
+r"""Test 8702 -- route #550 (expected FAIL: PROVED at base `no_exception \all`, REFUSED PYCSL-R315-UNMODELLED-CONSTRUCTOR; red team 52 probe g1303/bd1230_dunder_len_huge.py): a constructor takes `len(L())` with `__len__` returning 2 ** 70; CPython OverflowError
+"""
+# pycsl-expected: FAIL
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterator, Sequence, FrozenSet
+from dataclasses import dataclass
+
+class L:
+    def __len__(self) -> int:
+        return 2 ** 70
+
+
+class C:
+    def __init__(self, n: int) -> None:
+        self.n = len(L())
+
+
+#@ no_exception \all
+def f(k: int) -> int:
+    c = C(k)
+    return 1
+
+
+if __name__ == "__main__":
+    try:
+        r = f(1)
+        print('result', r)
+    except Exception as e:
+        print("VIOLATION", type(e).__name__, e)

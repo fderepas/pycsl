@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/monomorphize.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+File "src/self-annotate/src/frontend/monomorphize.mlw", line 240, characters 121-131:
+unbound function or predicate symbol 'wf_ir_deep'

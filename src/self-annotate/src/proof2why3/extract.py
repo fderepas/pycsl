@@ -17,12 +17,48 @@ from typing import Dict, List
 def extract_rocq_statements(proof_file: Path, qualnames: List[str]) -> int:
     return {}
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _split_rocq_check_output(stdout: str, qualnames: List[str]) -> int:
-    return {}
+def _split_rocq_check_output(stdout: str, qualnames: List[str]) -> Dict[str, str]:
+    result: Dict[str, str] = {}
+    # Lookahead per qualname (qualnames printed in source order).
+    # Each block starts with the qualname on its own line, followed by
+    # an indented `: <type>` continuation.
+    lines = stdout.splitlines()
+    i = 0
+    #@ loop invariant 0 <= i
+    for qn in qualnames:
+        # Find the start of this block.
+        #@ loop invariant 0 <= i
+        #@ loop variant len(lines) - i
+        while i < len(lines):
+            if lines[i].strip() == qn:
+                i += 1
+                break
+            i += 1
+        # Collect the type lines: starts with whitespace + ":" then
+        # may continue across multiple indented lines.
+        block: List[str] = []
+        if i < len(lines) and lines[i].lstrip().startswith(": "):
+            block.append(lines[i].lstrip()[2:])
+            i += 1
+            #@ loop invariant 0 <= i
+            #@ loop variant len(lines) - i
+            while i < len(lines):
+                stripped = lines[i].strip()
+                if not stripped or stripped == qualnames[qualnames.index(qn) + 1] \
+                        if qn != qualnames[-1] and stripped == \
+                        qualnames[(qualnames.index(qn) + 1) % len(qualnames)] \
+                        else False:
+                    break
+                # Simpler: if the line is just another qualname, stop.
+                if stripped in qualnames:
+                    break
+                block.append(stripped)
+                i += 1
+        result[qn] = " ".join(block).strip()
+    return result
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

@@ -1,0 +1,26 @@
+NO-LIVE-SOURCE       StatementEmissionMixin._add_abstract_op  
+NO-LIVE-SOURCE       StatementEmissionMixin._resolve_dotted_signature  
+NO-LIVE-SOURCE       StatementEmissionMixin._is_emit_ir_expr  
+NO-LIVE-SOURCE       StatementEmissionMixin._coerce_to_int  
+NO-LIVE-SOURCE       StatementEmissionMixin._expr_to_whyml  
+NO-LIVE-SOURCE       StatementEmissionMixin._expr_to_whyml_string_ctx  
+NO-LIVE-SOURCE       StatementEmissionMixin._is_string_expr  
+NO-LIVE-SOURCE       StatementEmissionMixin._track_collection_metadata  
+NO-LIVE-SOURCE       StatementEmissionMixin._e  
+NO-LIVE-SOURCE       StatementEmissionMixin._maybe_emit_no_exception_assert  
+NO-LIVE-SOURCE       StatementEmissionMixin._mutex_inv_application  
+NO-LIVE-SOURCE       StatementEmissionMixin._handle_return_stmt  
+L3TC-FAIL            StatementEmissionMixin._emit_first_assign  ["PARAM-LIST DIVERGES mirror=['self', 'kind', 'indent', 'safe_target', 'target', 'val', 'val_ir'] live=['self', 'kind', 'indent', 'safe_target', 'target', 'val', 'val_ir', 'local_refs']", 'This expression has type string -> option.Option.option int, but is expected to have type int']
+L3TC-FAIL            StatementEmissionMixin._emit_array_local_reassign  ['This expression has type array.Array.array PyCSL_Program.emit_ir @rho, but is expected to have type int']
+L3TC-FAIL            StatementEmissionMixin._handle_assign_stmt  ['This expression has type int, but is expected to have type PyCSL_Program.']
+L3TC-FAIL            StatementEmissionMixin._seq_init_expr  ['This expression has type int -> option.Option.option int, but is expected to have type int']
+L3TC-FAIL            StatementEmissionMixin._seq_operand  ['  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))']
+L3TC-FAIL            StatementEmissionMixin._handle_ghost_assign_stmt  ['This expression has type array.Array.array PyCSL_Program.emit_ir @rho, but is expected to have type int']
+L3TC-FAIL            StatementEmissionMixin._handle_tuple_unpack_stmt  ['This expression has type PyCSL_Program.emit_ir, but is expected to have type int']
+L3TC-FAIL            StatementEmissionMixin._handle_array_set_stmt  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            StatementEmissionMixin._handle_augassign_stmt  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            StatementEmissionMixin._handle_expr_stmt  ['  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))']
+L3TC-FAIL            StatementEmissionMixin._stmts_to_whyml  ['This expression has type int, but is expected to have type string -> option.']
+L3TC-FAIL            StatementEmissionMixin._emit_frame_condition  ["This expression has type seq.Seq.seq 'mu, but is expected to have type int"]
+L3TC-FAIL            StatementEmissionMixin._typed_local_vars  ['This expression has type int, but is expected to have type PyCSL_Program.']
+L3TC-FAIL            StatementEmissionMixin._emit_body_code  ['This expression has type int, but is expected to have type string']

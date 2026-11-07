@@ -1,0 +1,6 @@
+L3TC-FAIL            _Inliner._expand  ['This expression has type array.Array.array int @rho, but is expected to have type int']
+L3TC-FAIL            _Inliner._hoist_calls_in_expr  ['This expression has type int, but is expected to have type PyCSL_Program.']
+L3TC-FAIL            _Inliner.inline_stmts  ['This expression has type int, but is expected to have type PyCSL_Program.']
+L3TC-FAIL            <module>._recursive_methods  ['This expression has type (), but is expected to have type int']
+L3TC-FAIL            <module>._inline_calls  ['This expression has type array.Array.array int @rho, but is expected to have type PyCSL_Program._union__inline_calls_2']
+L3TC-FAIL            <module>.apply_inline_globals  ['This expression has type int, but is expected to have type array.Array.array']

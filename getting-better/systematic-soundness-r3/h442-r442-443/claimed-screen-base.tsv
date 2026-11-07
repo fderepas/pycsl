@@ -1,0 +1,1054 @@
+0353.py	-
+0354.py	-
+0355.py	-
+0356.py	function 'conflicted' (line 11): contradictory annotations — no_exception ZeroDivisionError and raises { ZeroDivisionError -> ... } cannot both apply.
+0357.py	function 'passthrough' (line 8): no_exception names unknown exception 'NotARealException'. Known: ['IndexError', 'KeyError', 'StopIteration', 'ValueError', 'ZeroDivisionError'].
+0358.py	-
+0359.py	-
+0360.py	-
+0361.py	-
+0362.py	-
+0363.py	-
+0365.py	-
+0366.py	-
+0367.py	-
+0368.py	-
+0376.py	-
+0381.py	-
+0382.py	-
+0383.py	-
+0386.py	`external_helper(...)` is not a function of the verified program and not on the list of operations known never to raise the exceptions `#@ no_exception` tracks, and this function claims `#@ no_exception`. Such a call low
+0391.py	-
+0392.py	-
+0393.py	function 'conflicted' (line 9): no_exception \all requires the raises set to be empty; found raises { ZeroDivisionError -> ... }.
+0524.py	-
+0525.py	-
+0526.py	-
+0532.py	-
+0543.py	-
+0726.py	-
+0755.py	-
+0757.py	-
+0758.py	-
+0772.py	-
+0774.py	-
+0776.py	-
+0800.py	-
+0928_self_field_array_projection.py	-
+0929_sibling_record_call_projection.py	-
+0934_negative_literal_array_index.py	-
+0984_assert_in_try_refused.py	a Python `assert` inside a `try` whose handler can catch `AssertionError` is not modelled: the `assert` is lowered to a NO-OP, so the handler branch is DEAD in the model while it is the branch Python takes, and the run w
+1112_route57_dict_get_missing_is_zero.py	-
+1149_route64_byte_range_no_exception.py	-
+1150_route64_in_range_still_discharges.py	-
+1151_route65_divmod_dead_trigger_row.py	`divmod(...)` can raise `ZeroDivisionError` in Python, and this function claims `#@ no_exception` over it. `exception_model.TRIGGERS` HAS a row for this operation, but no emitter site ever looks that row up, so the oblig
+1152_route65_index_tautology_row.py	`xs.index(...)` can raise `ValueError` in Python, and this function claims `#@ no_exception` over it. `exception_model.TRIGGERS` HAS a row for this operation, but no emitter site ever looks that row up, so the obligation
+1153_route65_wired_row_still_discharges.py	-
+1154_route66_del_missing_key.py	-
+1155_route66_del_present_key.py	-
+1156_route66_int_of_string.py	`int(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception` over `ValueError`. There is no trigger row for this operation at all, and it lowers to an OPAQUE `val str_to_
+1157_route66_int_of_number.py	-
+1158_route66_chr_out_of_range.py	-
+1159_route66_chr_in_range.py	-
+1160_route67_str_index_out_of_range.py	-
+1161_route67_str_index_in_range.py	-
+1162_route68_zero_pow_negative.py	-
+1163_route68_negative_shift.py	-
+1164_route68_valid_pow_and_shift.py	-
+1165_route68_float_of_string.py	`float(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception` over `ValueError`. There is no trigger row for this operation at all, and it lowers to an OPAQUE `val str_t
+1166_route69_ord_nonascii_bound.py	`ord(...)` over a NON-ASCII string is out of scope: PyCSL emits a string literal as its UTF-8 BYTES and models characters with Why3's `Char`, whose codes are 0..255, so `ord` reads the FIRST BYTE rather than the Python c
+1171_route71_erased_op_satisfies_no_exception.py	`t.remove(...)` can raise `KeyError` in Python, and this function claims `#@ no_exception` over it — but the mutation of a by-value collection PARAMETER inside a `@mutable_state` class is lowered to a NO-OP, so the opera
+1172_route71_noop_boundary_untouched.py	-
+1173_route72_split_empty_separator.py	`s.split(...)` raises `ValueError` in Python on an EMPTY separator, and this function claims `#@ no_exception` over `ValueError`. There is no trigger row for `split`, and the separator is HASHED TO AN INT before it reach
+1174_route72_split_valid_separator.py	-
+1175_route73_arity_oracle_shadows_user_function.py	-
+1188_route76_eq_class_identity.py	comparing class instances with `==`/`!=` in a `#@` clause is out of scope for class `C`: PyCSL models an instance as a Why3 RECORD, whose `=` is equality of the FIELD VALUES, while Python's `==` on this class is IDENTITY
+1201_route80_del_attribute_refused.py	[ir-emit]: `del <obj>.<attr>` (an ATTRIBUTE delete) is not modelled: it was lowered to a bare no-op, so the model KEEPS the deleted instance field while Python removes it and a later read FALLS BACK TO THE CLASS ATTRIBUT
+1285_route100_no_exception_dropped_for_a_self_method_call.py	-
+1286_route100_ctl_guarded_method_no_exception_still_proves.py	-
+1287_route100_ref_free_function_spelling_was_always_refused.py	-
+1294_route105_raises_obligation_dropped_for_a_record_var_receiver.py	-
+1295_route105_ctl_a_guarded_record_var_caller_still_proves.py	-
+1296_route106_inlining_deleted_the_call_and_with_it_the_obligation.py	-
+1297_route106_ctl_a_guarded_global_caller_still_proves.py	-
+1301_route108_callee_raise_in_an_else_was_caught_by_that_same_try.py	-
+1414_route140_raises_condition_rendered_in_the_callers_scope.py	-
+1415_route140_keyword_argument_is_never_bound_on_the_dotted_path.py	-
+1417_route140_explicit_argument_still_discharges_the_raises_assert.py	-
+1418_route140_self_receiver_default_fill_still_discharges.py	-
+1420_route141_raises_condition_over_a_field_rendered_in_the_callers_scope.py	-
+1464_route143_imported_raises_condition_folded_against_the_importers_constant.py	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT module's binding; in '1464_route143_imported_raises_condition_folded_against_the_importers_constant.py' the name is
+1465_route143_module_import_spelling.py	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT module's binding; in '1465_route143_module_import_spelling.py' the name is bound by the importing module itself, an
+1466_route143_wildcard_import_rebound_afterwards.py	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT module's binding; in '1466_route143_wildcard_import_rebound_afterwards.py' the name is bound by the importing modul
+1467_route143_imported_class_method_condition.py	Imported contract of 'k__m' (from 'r143_cls.py') reads the module-level name 'LIM', which denotes THAT module's binding; in '1467_route143_imported_class_method_condition.py' the name is bound by the importing module its
+1468_route143_name_imported_from_another_module.py	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT module's binding; in '1468_route143_name_imported_from_another_module.py' the name is imported as `LIM` from `multi
+1469_route143_name_bound_inside_a_module_level_if.py	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT module's binding; in '1469_route143_name_bound_inside_a_module_level_if.py' the name is bound by the importing modu
+1470_route143_name_reaching_through_another_modules_wildcard.py	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT module's binding; in '1470_route143_name_reaching_through_another_modules_wildcard.py' the name is bound by the wil
+1471_route143_contract_calls_a_helper_the_importer_redefines.py	Imported contract of 'g' (from 'r143_fnlib.py') reads the module-level name 'lim', which denotes THAT module's binding; in '1471_route143_contract_calls_a_helper_the_importer_redefines.py' the name is bound by the import
+1473_route143_dependency_binds_the_name_through_its_own_wildcard.py	Imported contract of 'f3' (from 'r143_starlib.py') reads the module-level name 'LIM', which denotes THAT module's binding; in '1473_route143_dependency_binds_the_name_through_its_own_wildcard.py' the name is bound by the
+1474_route143_name_reaching_through_a_two_hop_wildcard.py	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT module's binding; in '1474_route143_name_reaching_through_a_two_hop_wildcard.py' the name is bound by the wildcard 
+1538_route159_index_into_an_empty_local_list.py	-
+1539_route159_index_into_the_empty_literal.py	-
+1540_route159_seq_get_past_the_appended_length.py	-
+1541_route159_store_into_an_empty_local_list.py	-
+1542_route159_string_index_past_the_end.py	-
+1543_route159_tuple_index_past_the_end.py	-
+1544_route159_append_then_in_range_read_still_proves.py	-
+1545_route159_literal_in_range_read_still_proves.py	-
+1546_route159_key_into_the_empty_dict_literal.py	-
+1547_route160_range_with_a_zero_step.py	`range(start, stop, step)` raises `ValueError` for a zero step, and this function claims `#@ no_exception` over it. There is no trigger row for this builtin and no faithful obligation to inject, so the claim would be pro
+1548_route160_split_on_an_expression_receiver_with_an_empty_separator.py	`split(...)` raises `ValueError` in Python on an EMPTY separator, and this function claims `#@ no_exception` over `ValueError`. There is no trigger row for `split`, and the separator is HASHED TO AN INT before it reaches
+1549_route160_pow_with_a_negative_exponent.py	`pow(base, exp)` raises `ZeroDivisionError` (or `ValueError` with a modulus) for a negative exponent, and this function claims `#@ no_exception` over it. There is no trigger row for this builtin and no faithful obligatio
+1550_route160_max_of_an_empty_iterable.py	`max(iterable)` raises `ValueError` on an empty iterable without `default=`, and this function claims `#@ no_exception` over it. There is no trigger row for this builtin and no faithful obligation to inject, so the claim
+1551_route160_range_with_a_nonzero_literal_step_is_allowed.py	-
+1552_route160_split_with_a_literal_separator_is_allowed.py	-
+1553_route160_max_with_default_is_allowed.py	-
+1554_route161_str_format_index_error.py	`format(...)` is not a function of the verified program and not on the list of operations known never to raise the exceptions `#@ no_exception` tracks, and this function claims `#@ no_exception`. Such a call lowers to an
+1555_route161_math_factorial_value_error.py	`math.factorial(...)` is not a function of the verified program and not on the list of operations known never to raise the exceptions `#@ no_exception` tracks, and this function claims `#@ no_exception`. Such a call lowe
+1558_route163_int_of_a_str_returning_call.py	`int(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception` over `ValueError`. There is no trigger row for this operation at all, and it lowers to an OPAQUE `val str_to_
+1559_route163_int_of_a_string_field.py	`int(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception` over `ValueError`. There is no trigger row for this operation at all, and it lowers to an OPAQUE `val str_to_
+1560_route164_erased_mapping_read_key_error.py	-
+1583_route170_caught_missing_key_read_proves_the_placeholder.py	-
+1588_route171_caught_index_error_on_a_placeholder_array.py	-
+1596_route173_tuple_unpack_arity_under_no_exception.py	a tuple unpack of a value whose length is not statically the target count raises `ValueError` in Python on a mismatch, and this function claims (or, through an exception handler, relies on) freedom from `ValueError`. No 
+1598_route173_tuple_display_unpack_still_proves.py	-
+1604_route173_for_tuple_target_over_strings.py	a `for` loop with a tuple target unpacks every element, which raises `ValueError` in Python when an element's length is not the target count, and this function claims (or, through an exception handler, relies on) freedom
+1605_route173_for_three_targets_over_items.py	a `for` loop with a tuple target unpacks every element, which raises `ValueError` in Python when an element's length is not the target count, and this function claims (or, through an exception handler, relies on) freedom
+1620_route177_comprehension_missing_key_under_no_exception.py	a comprehension contains a subscript (IndexError / KeyError), and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehension is lowered without per-element obligatio
+1621_route177_comprehension_division_by_zero.py	a comprehension contains a division (ZeroDivisionError), and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehension is lowered without per-element obligations, s
+1622_route177_generator_in_sum_division_by_zero.py	a comprehension contains a division (ZeroDivisionError), and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehension is lowered without per-element obligations, s
+1623_route177_dict_comprehension_missing_key.py	a comprehension contains a subscript (IndexError / KeyError), and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehension is lowered without per-element obligatio
+1624_route177_safe_comprehension_still_proves.py	-
+1625_route178_helper_missing_key_under_callers_no_exception.py	`get(...)` calls code that can raise `KeyError` implicitly (a dict or list subscript, an unpack, `int()`/`float()`) without declaring `#@ no_exception` for it, where that raise is not modelled; this function claims (or, 
+1628_route178_helper_declaring_no_exception_still_proves.py	-
+1629_route178_imported_helper_missing_key.py	`get(...)` calls code that can raise `KeyError` implicitly (a dict or list subscript, an unpack, `int()`/`float()`) without declaring `#@ no_exception` for it, where that raise is not modelled; this function claims (or, 
+1630_route179_raising_constructor_under_no_exception.py	[whyml-emit]: 'probe' constructs an object whose `__init__` / `__post_init__` can raise `ValueError` (ROUTE #179), directly or through a call, and either claims `no_exception` for it or catches it; a construction is lowe
+1633_route179_raising_constructor_without_a_claim_still_proves.py	-
+1641_route181_imported_raising_constructor_under_no_exception.py	[whyml-emit]: 'probe' constructs an object whose `__init__` / `__post_init__` can raise `ValueError` (ROUTE #179), directly or through a call, and either claims `no_exception` for it or catches it; a construction is lowe
+1642_route181_imported_class_without_a_claim_still_proves.py	-
+1643_route182_imported_division_under_no_exception.py	`div(...)` calls code that can raise `ZeroDivisionError` implicitly (a dict or list subscript, an unpack, `int()`/`float()`) without declaring `#@ no_exception` for it, where that raise is not modelled; this function cla
+1646_route182_helper_negative_shift_under_no_exception.py	`shift(...)` calls code that can raise `ValueError` implicitly (a dict or list subscript, an unpack, `int()`/`float()`) without declaring `#@ no_exception` for it, where that raise is not modelled; this function claims (
+1658_route186_declared_raises_through_a_field_receiver.py	-
+1660_route186_guarded_call_under_the_declared_condition_still_proves.py	-
+1711_route206_total_target_calls_trusted_stub.py	`happy availability`: total target 'parse' reaches 'spin', which is marked `#@ \trusted`, `#@ \abstract` or `#@ \diverges` and therefore carries NO termination VC (the first two are emitted as a bodyless `val` with no go
+1712_route206_total_target_calls_verified_helper_control.py	-
+1713_route207_no_exception_through_a_trusted_method.py	`self.boom(...)` resolves to a `#@ \trusted` or `#@ \abstract` method of this program, and this function claims `#@ no_exception`. A bodyless `val` carries no `raises`, so the claim would be proved by ASSUMPTION — the sa
+1714_route207_no_exception_trusted_method_with_raises_control.py	-
+1715_route208_total_target_calls_diverges_helper.py	`happy availability`: total target 'parse' reaches 'spin', which is marked `#@ \trusted`, `#@ \abstract` or `#@ \diverges` and therefore carries NO termination VC (the first two are emitted as a bodyless `val` with no go
+1828_gen31_no_exception_inside_a_dunder_is_now_checked.py	-
+1829_gen31_no_exception_non_dunder_control.py	-
+1869_gen31_empty_list_return_length_false_twin.py	-
+1890_gen31_class_invariant_constructor_never_establishes.py	-
+1909_gen32_arith_on_a_definite_none_local.py	[whyml]: the operator `-` is applied to `v`, which is `None` on this path, and that is not modelled: `None` is not a number, so EVERY such operation raises `TypeError` in Python and the function has no value at all. The 
+1910_gen32_strict_order_on_a_definite_none_local.py	[whyml]: the operator `<` is applied to `v`, which is `None` on this path, and that is not modelled: `None` is not a number, so EVERY such operation raises `TypeError` in Python and the function has no value at all. The 
+1911_gen32_arith_on_the_literal_none.py	[whyml]: the operator `+` is applied to the literal `None`, and that is not modelled: `None` is not a number, so EVERY such operation raises `TypeError` in Python and the function has no value at all. The model gives a `
+1912_gen32_ctl_a_rebound_none_local_is_not_refused.py	-
+1913_gen32_ctl_an_ambiguous_none_local_is_not_refused.py	-
+1920_gen36_r230_dict_annotated_optional_subscript.py	-
+1921_gen36_r230_dict_unannotated_subscript.py	-
+1922_gen36_r230_list_annotated_optional.py	-
+1923_gen36_r230_list_literal_none.py	-
+1924_gen36_r230_dict_get_stored_none.py	-
+1925_gen36_r230_dict_get_missing_key.py	-
+1926_gen36_r230_append_none.py	-
+1927_gen36_r230_direct_subscript_operands.py	-
+1928_gen36_r230_optional_container_param.py	-
+1929_gen36_r230_ctl_guarded_read_verifies.py	-
+1930_gen36_r230_ctl_get_with_default_verifies.py	-
+1931_gen36_r230_ctl_plain_int_dict_verifies.py	-
+1982_gen36_kwonly_positional_actual_refused.py	call to 'f': 1 positional actual(s) but only 0 positional parameter(s) -- Python raises TypeError here (route #232: refused fail-closed).
+1985_gen36_kwonly_method_positional_actual_refused.py	call to 'c.m' (method 'c__m'): a positional actual reaching a keyword-only parameter -- Python raises TypeError here (route #232: refused fail-closed).
+2260_gen36_ch16_self_list_field_sort_inplace.py	-
+2264_gen36_ch16_self_list_field_sort_no_exception_refused.py	`self.xs.sort(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause, so the mutation would be SILENTLY ABSE
+2479_gen36_r252_no_exception_any_sub_false_claim.py	-
+2480_gen36_r252_no_exception_any_eq_false_claim.py	-
+2481_gen36_r252_no_exception_any_lt_false_claim.py	-
+2482_gen36_r252_no_exception_any_neg_false_claim.py	-
+2493_gen36_r252_no_exception_int_arithmetic_control.py	-
+2701_gen36_r259_pow_mod_zero_no_exception_false_claim.py	`pow(base, exp, mod)` raises `ValueError` for a zero modulus, and this function claims `#@ no_exception` over it. There is no trigger row for this builtin and no faithful obligation to inject, so the claim would be prove
+2705_gen36_r259_pow_keyword_mod_zero_no_exception_false_claim.py	`pow(base, exp, mod)` raises `ValueError` for a zero modulus, and this function claims `#@ no_exception` over it. There is no trigger row for this builtin and no faithful obligation to inject, so the claim would be prove
+2709_gen36_r259_pow_literal_modulus_control.py	-
+2771_gen36_r263_method_recursion_no_exception_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2771_gen36_r263_method_recursion_no_exception_false_claim.py: the functions ['c__m'] call one another in a cycle that passes through a MET
+2884_gen36_r269_listcomp_vanished_raising_call_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2884_gen36_r269_listcomp_vanished_raising_call_false_claim.py: 'c__m' calls 'chk', which may RAISE or has a precondition, inside a compreh
+2885_gen36_r269_diverges_no_exception_method_recursion_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2885_gen36_r269_diverges_no_exception_method_recursion_false_claim.py: 'c__m' is `#@ \diverges` and declares `#@ no_exception \all`, but i
+2886_gen36_r269_diverges_no_exception_function_recursion_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2886_gen36_r269_diverges_no_exception_function_recursion_false_claim.py: 'f' is `#@ \diverges` and declares `#@ no_exception \all`, but it
+2887_gen36_r269_diverges_no_exception_reaches_recursion_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2887_gen36_r269_diverges_no_exception_reaches_recursion_false_claim.py: 'top' is `#@ \diverges` and declares `#@ no_exception \all`, but i
+2890_gen36_r269_divergence_and_recursion_controls.py	-
+2891_gen36_r269_listcomp_vanished_precondition_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2891_gen36_r269_listcomp_vanished_precondition_false_claim.py: 'c__m' calls 'inv', which may RAISE or has a precondition, inside a compreh
+2920_gen36_ch21_for_over_str_list_call_fstring_append.py	-
+2940_gen36_r272_selfcall_undeclared_raise_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2940_gen36_r272_selfcall_undeclared_raise_false_claim.py: 'c__m' claims `#@ no_exception` and calls `self.chk(...)` (resolved to 'c__chk')
+2941_gen36_r272_typed_param_receiver_undeclared_raise_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2941_gen36_r272_typed_param_receiver_undeclared_raise_false_claim.py: 'm' claims `#@ no_exception` and calls `c.chk(...)` (resolved to 'c_
+2942_gen36_r272_static_method_undeclared_raise_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2942_gen36_r272_static_method_undeclared_raise_false_claim.py: 'm' claims `#@ no_exception` and calls `C.chk(...)` (resolved to 'c__chk'),
+2943_gen36_r272_fresh_receiver_undeclared_raise_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2943_gen36_r272_fresh_receiver_undeclared_raise_false_claim.py: 'm' claims `#@ no_exception` and calls `chk(...)` (resolved to 'c__chk'), 
+2944_gen36_r272_field_receiver_undeclared_raise_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2944_gen36_r272_field_receiver_undeclared_raise_false_claim.py: 'c__m' claims `#@ no_exception` and calls `self.d.chk(...)` (resolved to '
+2945_gen36_r272_transitive_method_chain_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2945_gen36_r272_transitive_method_chain_false_claim.py: 'c__m' claims `#@ no_exception` and calls `self.mid(...)` (resolved to 'c__mid'), 
+2946_gen36_r272_chain_through_module_function_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2946_gen36_r272_chain_through_module_function_false_claim.py: 'm' claims `#@ no_exception` and calls `f(...)` (resolved to 'f'), which may
+2947_gen36_r272_static_method_declared_raise_dropped_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2947_gen36_r272_static_method_declared_raise_dropped_false_claim.py: 'm' claims `#@ no_exception` and calls `C.chk(...)` (resolved to 'c__
+2948_gen36_r272_fresh_receiver_declared_raise_dropped_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2948_gen36_r272_fresh_receiver_declared_raise_dropped_false_claim.py: 'm' claims `#@ no_exception` and calls `chk(...)` (resolved to 'c__c
+2949_gen36_r272_declared_condition_bypassed_by_hidden_raise_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2949_gen36_r272_declared_condition_bypassed_by_hidden_raise_false_claim.py: 'm' claims `#@ no_exception` and calls `c.mid(...)` (resolved 
+2950_gen36_r272_named_no_exception_selfcall_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2950_gen36_r272_named_no_exception_selfcall_false_claim.py: 'c__m' claims `#@ no_exception` and calls `self.chk(...)` (resolved to 'c__chk
+2951_gen36_r272_declared_selfcall_guarded_control.py	-
+2952_gen36_r272_caught_or_unrelated_controls.py	-
+2953_gen36_r272_module_function_raise_still_typed_control.py	-
+2960_gen36_r273_nested_def_default_raises_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2960_gen36_r273_nested_def_default_raises_false_claim.py: 'f' defines the nested 'inner' (line 14) with the default value `10 // x`, which
+2964_gen36_r273_nested_class_body_raises_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/2964_gen36_r273_nested_class_body_raises_false_claim.py: 'f' defines the nested 'K' (line 13) with the default value `10 // x`, which Pyth
+2988_gen36_r275_print_keywords_control.py	-
+3028_gen37_r276_latin1_controls.py	-
+3029_gen37_r276_strict_latin1_controls.py	-
+3104_gen37_r278_override_raises_undeclared_false_claim.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/3104_gen37_r278_override_raises_undeclared_false_claim.py: override 'b__m' of 'a__m' may raise `ValueError`, which `a__m` does not declare
+3111_gen37_r278_override_weakens_raise_condition_false_claim.py	-
+3112_gen37_r278_override_drops_no_exception_false_claim.py	[ir-semantic]: 'use' line 35: `xs` (an instance of ['a list / dict / set']) is HASHED by `a.get(xs, k)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, whe
+3113_gen37_r278_refining_override_controls.py	-
+3114_gen37_r281_str_of_huge_int_false_claim.py	-
+3115_gen37_r281_fstring_of_huge_int_false_claim.py	-
+3116_gen37_r281_print_of_huge_int_false_claim.py	-
+3117_gen37_r281_str_of_huge_int_named_false_claim.py	-
+3118_gen37_r281_repr_and_formatted_huge_int_false_claim.py	-
+3119_gen37_r281_int_str_controls.py	-
+3260_gen37_r284_fstring_d_spec_huge_int_false_claim.py	-
+3261_gen37_r284_fstring_text_and_d_spec_huge_int_false_claim.py	-
+3262_gen37_r284_fstring_width_spec_huge_int_false_claim.py	-
+3263_gen37_r284_fstring_zero_pad_d_huge_int_false_claim.py	-
+3264_gen37_r284_fstring_n_and_grouping_huge_int_false_claim.py	-
+3265_gen37_r284_fstring_align_width_huge_int_false_claim.py	-
+3266_gen37_r284_fstring_s_spec_on_int_false_claim.py	-
+3267_gen37_r284_fstring_precision_on_int_false_claim.py	-
+3268_gen37_r284_fstring_d_spec_on_str_false_claim.py	-
+3269_gen37_r284_percent_unsupported_format_char_false_claim.py	[whyml]: `%` string formatting under `no_exception` is admitted only when it is positively checked: the formatted value is an opaque string and the operation can raise TypeError (an operand of the wrong type, too many or
+3270_gen37_r284_fstring_computed_spec_false_claim.py	-
+3271_gen37_r284_format_spec_controls.py	-
+3272_gen37_r285_listcomp_str_of_huge_int_false_claim.py	a comprehension contains an operation that the trigger row ('call', 'int_str') can make raise ValueError, and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehens
+3273_gen37_r285_genexp_join_str_of_huge_int_false_claim.py	a comprehension contains an operation that the trigger row ('call', 'int_str') can make raise ValueError, and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehens
+3274_gen37_r285_listcomp_fstring_of_huge_int_false_claim.py	a comprehension contains an operation that the trigger row ('call', 'int_str') can make raise ValueError, and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehens
+3275_gen37_r285_listcomp_repr_of_huge_int_false_claim.py	a comprehension contains an operation that the trigger row ('call', 'int_str') can make raise ValueError, and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehens
+3276_gen37_r285_listcomp_chr_out_of_range_false_claim.py	a comprehension contains an operation that the trigger row ('call', 'chr') can make raise ValueError, and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehension 
+3277_gen37_r285_listcomp_negative_left_shift_false_claim.py	a comprehension contains an operation that the trigger row ('binop', '<<') can make raise ValueError, and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehension 
+3278_gen37_r285_listcomp_negative_right_shift_false_claim.py	a comprehension contains an operation that the trigger row ('binop', '>>') can make raise ValueError, and this function claims (or, through an exception handler, relies on) freedom from that exception; the comprehension 
+3279_gen37_r285_comprehension_trigger_controls.py	-
+3280_gen37_dvw_hval_receiver_get_nonmap_param_noexc_false_claim.py	-
+3281_gen37_dvw_hval_receiver_get_str_local_noexc_false_claim.py	-
+3282_gen37_dvw_hval_receiver_get_empty_map_noexc.py	-
+3289_gen37_dvw_hval_doubled_get_nonmap_noexc_false_claim.py	-
+3340_gen37_r287_sorted_key_div_no_exception.py	a lambda's body contains a division (ZeroDivisionError), and this function claims (or, through an exception handler, relies on) freedom from that exception; the builtin a lambda is handed to (`sorted`/`min`/`max` `key=`,
+3341_gen37_r287_sorted_key_dict_subscript.py	[ir-semantic]: 'f' line 10: `v` is HASHED by `d[v]` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, an u
+3342_gen37_r287_sorted_key_list_subscript.py	[ir-semantic]: 'f' line 10: `v` is HASHED by `xs[v]` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, an 
+3345_gen37_r287_controls.py	-
+3500_gen37_r296_bare_int_carrier_noexc_false_claim.py	-
+3720_gen37_r304_named_value.py	-
+3721_gen37_r304_all_value.py	-
+3722_gen37_r304_all_key.py	-
+3723_gen37_r304_all_zerodiv.py	-
+3724_gen37_r304_all_type.py	-
+3725_gen37_r304_all_runtime.py	-
+3726_gen37_r304_all_custom.py	-
+3727_gen37_r304_named_user_sub.py	-
+3728_gen37_r304_named_key_user_sub.py	-
+3729_gen37_r304_named_two_level_sub.py	-
+3730_gen37_r304_method_all.py	-
+3731_gen37_r304_try_other_handler.py	-
+3732_gen37_r304_raise_in_handler.py	-
+3733_gen37_r304_controls.py	-
+3780_gen37_r305_user_keyerror_under_lookuperror.py	[whyml-emit]: a class at line 4 (of this file or a module it imports) binds `KeyError`, a name the exception model keys on (ROUTE #305): handler matching and the WhyML exception tag read the BUILTIN `KeyError` (its hiera
+3781_gen37_r305_user_lookuperror_catches_builtin.py	[whyml-emit]: a class at line 4 (of this file or a module it imports) binds `LookupError`, a name the exception model keys on (ROUTE #305): handler matching and the WhyML exception tag read the BUILTIN `LookupError` (its
+3782_gen37_r305_user_keyerror_named_no_exception.py	[whyml-emit]: a class at line 4 (of this file or a module it imports) binds `KeyError`, a name the exception model keys on (ROUTE #305): handler matching and the WhyML exception tag read the BUILTIN `KeyError` (its hiera
+3783_gen37_r305_implicit_keyerror_caught_by_user_class.py	[whyml-emit]: a class at line 5 (of this file or a module it imports) binds `KeyError`, a name the exception model keys on (ROUTE #305): handler matching and the WhyML exception tag read the BUILTIN `KeyError` (its hiera
+3784_gen37_r305_local_class_keyerror.py	a name's runtime value is not the one the model reads (builtin `KeyError` rebound by a nested def / class or a local import (route #386) and read at line 11). An imported name bound twice keeps the FIRST import (measured
+3785_gen37_r305_nested_class_keyerror.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/3785_gen37_r305_nested_class_keyerror.py line 13: an effectful expression is erased here (route #310): line 13 raises an exception whose s
+3786_gen37_r305_imported_module_keyerror.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/3786_gen37_r305_imported_module_keyerror.py line 11: an effectful expression is erased here (route #310): line 11 raises an exception whos
+3787_gen37_r305_user_named_exception_control.py	-
+3801_gen37_r306_get_default_divzero.py	-
+3803_gen37_r306_get_default_index.py	-
+3804_gen37_r306_selffield_get_default_divzero.py	-
+3805_gen37_r306_get_default_divzero_param.py	-
+3807_gen37_r306_typeddict_get_default_divzero.py	-
+3808_gen37_r306_strkey_get_default_divzero.py	-
+3811_gen37_r306_hval_get_default_divzero.py	-
+3812_gen37_r306_constdict_get_default_index.py	-
+3814_gen37_r306_get_literal_default_control.py	-
+3815_gen37_r306_get_div_default_guarded_control.py	-
+3818_gen37_r306_selffield_get_div_guarded_control.py	-
+3819_gen37_r306_constdict_get_default_guarded_control.py	-
+4351_gen37_r331_none_field_noexc.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4351_gen37_r331_none_field_noexc.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'g', the value 'r' comes from 'field 'C.r' (None / O
+4352_gen37_r331_optional_field_noexc.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4352_gen37_r331_optional_field_noexc.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'g', the value 'r' comes from 'field 'C.r' (None
+4353_gen37_r331_str_field_noexc.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4353_gen37_r331_str_field_noexc.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'g', the value 's' comes from 'field 'C.s'', a non-in
+4380_gen37_r332_assert_witness.py	-
+4381_gen37_r332_assert_in_loop.py	-
+4382_gen37_r332_assert_in_branch.py	-
+4383_gen37_r332_assert_in_method.py	-
+4384_gen37_r332_assert_nested_def.py	-
+4385_gen37_r332_assert_effectful_msg.py	-
+4386_gen37_r332_assert_test_raises.py	-
+4387_gen37_r332_assert_truthy_list.py	-
+4388_gen37_r332_assert_loop_target_after.py	-
+4389_gen37_r332_assert_true_assert_control.py	-
+4390_gen37_r332_assert_erasure_control.py	-
+4391_gen37_r332_assert_fact_control.py	-
+4392_gen37_r332_assert_loop_true_control.py	-
+4393_gen37_r332_assert_truthy_control.py	-
+4394_gen37_r332_assert_effectful_msg_control.py	-
+4395_gen37_r332_assert_named_set_control.py	-
+4396_gen37_r332_assert_named_assertionerror.py	function 'g' (line 7): no_exception names unknown exception 'AssertionError'. Known: ['IndexError', 'KeyError', 'StopIteration', 'ValueError', 'ZeroDivisionError'].
+4400_gen37_r333_exc_underscore_vs_builtin.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4400_gen37_r333_exc_underscore_vs_builtin.py line 4: /W/test-suite/corpus/pycsl-reference/4400_gen37_r333_e
+4404_gen37_r333_ctl_private_exception.py	-
+4425_gen37_r334_local_none_field_noexc.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4425_gen37_r334_local_none_field_noexc.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'g', the value 'r' comes from 'field 'C.r' (No
+4426_gen37_r334_local_str_field_noexc.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4426_gen37_r334_local_str_field_noexc.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'g', the value 's' comes from 'field 'C.s'', a 
+4431_gen37_r334_integral_float_field_strmul.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4431_gen37_r334_integral_float_field_strmul.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'g', the value 'r' comes from 'field 'C.r
+4462_gen37_r335_init_stores_other_field.py	PYCSL-R335-INHERITED-INVARIANT-CONSTRUCTION (route #335) — class 'S' inherits a `#@ class invariant` over 'self.n', but the constructor Python runs for 'S' (its MRO ['S', 'B']) never stores 'self.n' — a subclass `__init_
+4491_gen37_r336_typealias_str_noexc.py	-
+4492_gen37_r336_annotated_str_noexc.py	-
+4493_gen37_r336_typealias_none_noexc.py	function 'f_alias_none': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `return` of a function declared `-> int`. Python does not enforce the annotation (a user `__
+4494_gen37_r336_typealias_bytes_noexc.py	-
+4495_gen37_r336_type_param_noexc.py	function 'f_type_param': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `return` of a function declared `-> int`. Python does not enforce the annotation (a user `__
+4496_gen37_r336_literal_none_noexc.py	function 'f_literal_none': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `return` of a function declared `-> int`. Python does not enforce the annotation (a user `
+4510_gen37_r337_fieldless_class_lt_noexc.py	-
+4511_gen37_r337_fieldless_class_mul_noexc.py	function 'f_mul_noexc': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `return` of a function declared `-> int`. Python does not enforce the annotation (a user `__s
+4518_gen37_r336_readonly_tuple_view_store.py	[ir-emit]: PYCSL-R336-READONLY-VIEW-STORE (route #336) — in 'f', the parameter 'xs' is annotated with a READ-ONLY view (`Sequence`, `tuple[T, ...]`, `Mapping`), which PyCSL reads as a list / dict; a store into it, a muta
+4519_gen37_r336_readonly_sequence_view_store.py	[ir-emit]: PYCSL-R336-READONLY-VIEW-STORE (route #336) — in 'f', the parameter 'xs' is annotated with a READ-ONLY view (`Sequence`, `tuple[T, ...]`, `Mapping`), which PyCSL reads as a list / dict; a store into it, a muta
+4520_gen37_r336_readonly_mapping_view_store.py	[ir-emit]: PYCSL-R336-READONLY-VIEW-STORE (route #336) — in 'f', the parameter 'd' is annotated with a READ-ONLY view (`Sequence`, `tuple[T, ...]`, `Mapping`), which PyCSL reads as a list / dict; a store into it, a mutat
+4527_gen37_r337_self_operator_lt_noexc.py	[ir-emit]: PYCSL-R337-SELF-OPERATOR (route #337) — in 'm' (line 8), an arithmetic or ordering operator is applied to `self`. Python runs the class's own dunder (or raises TypeError), while the model would apply the int l
+4557_gen37_r342_own_for_target_store.py	[ir-semantic]: class 'B' line 8: its `__init__` stores or deletes the invariant field `self.x` by a form other than a top-level `self.x = ...` statement (a `for` / `with` / tuple / augmented / `del` target, or a store in
+4558_gen37_r342_own_tuple_target_store.py	[ir-semantic]: class 'B' line 8: its `__init__` stores or deletes the invariant field `self.x` by a form other than a top-level `self.x = ...` statement (a `for` / `with` / tuple / augmented / `del` target, or a store in
+4559_gen37_r342_own_del_field.py	[ir-semantic]: class 'B' line 8: its `__init__` stores or deletes the invariant field `self.x` by a form other than a top-level `self.x = ...` statement (a `for` / `with` / tuple / augmented / `del` target, or a store in
+4560_gen37_r342_own_with_target_store.py	[ir-semantic]: class 'B' line 8: its `__init__` stores or deletes the invariant field `self.x` by a form other than a top-level `self.x = ...` statement (a `for` / `with` / tuple / augmented / `del` target, or a store in
+4561_gen37_r342_sub_del_after_super.py	[ir-semantic]: class 'S' line 12: its `__init__` stores or deletes the invariant field `self.x` by a form other than a top-level `self.x = ...` statement (a `for` / `with` / tuple / augmented / `del` target, or a store i
+4562_gen37_r342_sub_setattr_after_super.py	[ir-semantic]: class 'S' line 12: its `__init__` lets `self` escape or be aliased (a bare `self` as an argument — `setattr`, `vars`, a helper — an alias `s = self`, or a value). 'S' carries (or its constructor runs for) 
+4563_gen37_r342_sub_for_target_after_super.py	[ir-semantic]: class 'S' line 12: its `__init__` stores or deletes the invariant field `self.x` by a form other than a top-level `self.x = ...` statement (a `for` / `with` / tuple / augmented / `del` target, or a store i
+4564_gen37_r342_sub_tuple_target_after_super.py	[ir-semantic]: class 'S' line 13: its `__init__` stores or deletes the invariant field `self.x` by a form other than a top-level `self.x = ...` statement (a `for` / `with` / tuple / augmented / `del` target, or a store i
+4565_gen37_r342_own_setattr.py	[ir-semantic]: class 'B' line 8: its `__init__` lets `self` escape or be aliased (a bare `self` as an argument — `setattr`, `vars`, a helper — an alias `s = self`, or a value). 'B' carries (or its constructor runs for) a
+4566_gen37_r342_own_augassign.py	[ir-semantic]: class 'B' line 8: its `__init__` stores or deletes the invariant field `self.x` by a form other than a top-level `self.x = ...` statement (a `for` / `with` / tuple / augmented / `del` target, or a store in
+4567_gen37_r342_own_setattr_comprehension.py	[ir-semantic]: class 'B' line 9: its `__init__` stores or deletes the invariant field `self.x` by a form other than a top-level `self.x = ...` statement (a `for` / `with` / tuple / augmented / `del` target, or a store in
+4593_gen37_r339_enum_lt_no_exception.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4593_gen37_r339_enum_lt_no_exception.py: 'f' uses a member of the enum class 'C' in `x < x` (line 14): an enum member is NOT an int — a pl
+4594_gen37_r339_enum_sub_no_exception.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4594_gen37_r339_enum_sub_no_exception.py: 'f' uses a member of the enum class 'C' in `x - x` (line 14): an enum member is NOT an int — a p
+4595_gen37_r339_enum_mul_no_exception.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4595_gen37_r339_enum_mul_no_exception.py: 'f' uses a member of the enum class 'C' in `x * 0` (line 14): an enum member is NOT an int — a p
+4596_gen37_r339_enum_neg_no_exception.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4596_gen37_r339_enum_neg_no_exception.py: 'f' uses a member of the enum class 'C' in `-x + x` (line 14): an enum member is NOT an int — a 
+4597_gen37_r339_enum_index_no_exception.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4597_gen37_r339_enum_index_no_exception.py: 'f' uses a member of the enum class 'C' in `x * 0` (line 16): an enum member is NOT an int — a
+4598_gen37_r339_enum_square_no_exception.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4598_gen37_r339_enum_square_no_exception.py: 'f' uses a member of the enum class 'C' in `x * x` (line 14): an enum member is NOT an int — 
+4599_gen37_r339_enum_into_int_param.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4599_gen37_r339_enum_into_int_param.py: 'f' uses a member of the enum class 'C' in `h(C.A)` (line 18): an enum member is NOT an int — a pl
+4601_gen37_r339_ctl_intenum_arith.py	-
+4605_gen37_r340_nested_default_zero_div.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4605_gen37_r340_nested_default_zero_div.py: 'f' defines the nested 'g' (line 10) with the bare-name default `i`, a name REBOUND in the enc
+4611_gen37_r343_self_lt_alias_noexc.py	-
+4612_gen37_r343_self_abs_noexc.py	function 'p__m': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `return` of a function declared `-> int`. Python does not enforce the annotation (a user `__sub__`/`
+4614_gen37_r343_self_range_noexc.py	-
+4616_gen37_r343_self_return_int.py	function 'p__m': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `return` of a function declared `-> int`. Python does not enforce the annotation (a user `__sub__`/`
+4619_gen37_r343_self_to_int_param.py	function 'p__m': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `int` parameter `n` of `h` (body). Python does not enforce the annotation (a user `__sub__`/`__eq__`
+4620_gen37_r343_self_in_int_list.py	function 'p__m': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `return` of a function declared `-> int`. Python does not enforce the annotation (a user `__sub__`/`
+4621_gen37_r343_self_max_noexc.py	[ir-semantic]: 'm' line 7: `max(self, 0)` compares values that may be `P`: `max` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_exception` covering Typ
+4622_gen37_r343_any_range_noexc.py	-
+4630_gen37_r343_ctl_fieldless_self_method_call.py	-
+4632_gen37_r343_ctl_builtin_int_noexc.py	-
+4663_gen37_r347_branch_init_field.py	[ir-semantic]: 'f' line 12: it claims `#@ no_exception` (covering AttributeError) and reads `r.x`, but `x` is a field some constructor of this file does NOT definitely assign (a store under `if` / a loop / `try` / `with`
+4664_gen37_r347_early_return_init.py	[ir-semantic]: 'f' line 13: it claims `#@ no_exception` (covering AttributeError) and reads `r.x`, but `x` is a field some constructor of this file does NOT definitely assign (a store under `if` / a loop / `try` / `with`
+4665_gen37_r347_try_init_store.py	[ir-semantic]: 'f' line 14: it claims `#@ no_exception` (covering AttributeError) and reads `r.x`, but `x` is a field some constructor of this file does NOT definitely assign (a store under `if` / a loop / `try` / `with`
+4666_gen37_r347_method_only_field.py	[ir-semantic]: 'f' line 12: it claims `#@ no_exception` (covering AttributeError) and reads `r.x`, but `x` is a field some constructor of this file does NOT definitely assign (a store under `if` / a loop / `try` / `with`
+4667_gen37_r347_method_reads_maybe_absent.py	[ir-semantic]: 'get' line 11: it claims `#@ no_exception` (covering AttributeError) and reads `self.x`, but `x` is a field some constructor of this file does NOT definitely assign (a store under `if` / a loop / `try` / `
+4668_gen37_r347_dataclass_field_init_false.py	[ir-semantic]: 'f' line 13: it claims `#@ no_exception` (covering AttributeError) and reads `d.x`, but `x` is a field some constructor of this file does NOT definitely assign (a store under `if` / a loop / `try` / `with`
+4669_gen37_r348_namedtuple_param_store.py	[ir-semantic]: 'f' line 13: `n.x` stores or deletes an attribute and its receiver `n` is an instance of the immutable record(s) ['N']. A `NamedTuple` / `namedtuple` / frozen `@dataclass` instance is immutable — CPython r
+4670_gen37_r348_namedtuple_local_store.py	[ir-semantic]: 'f' line 13: `n.x` stores or deletes an attribute and its receiver `n` is an instance of the immutable record(s) ['N']. A `NamedTuple` / `namedtuple` / frozen `@dataclass` instance is immutable — CPython r
+4671_gen37_r348_frozen_dataclass_store.py	[ir-semantic]: 'f' line 13: `d.x` stores or deletes an attribute and its receiver `d` is an instance of the immutable record(s) ['D']. A `NamedTuple` / `namedtuple` / frozen `@dataclass` instance is immutable — CPython r
+4672_gen37_r348_collections_namedtuple_store.py	[ir-semantic]: 'f' line 10: `p.x` stores or deletes an attribute and its receiver `p` is an instance of the immutable record(s) ['P']. A `NamedTuple` / `namedtuple` / frozen `@dataclass` instance is immutable — CPython r
+4673_gen37_r348_namedtuple_augassign.py	[ir-semantic]: 'f' line 13: `n.x` stores or deletes an attribute and its receiver `n` is an instance of the immutable record(s) ['N']. A `NamedTuple` / `namedtuple` / frozen `@dataclass` instance is immutable — CPython r
+4674_gen37_r348_frozen_setattr.py	[ir-semantic]: 'f' line 12: `setattr(d, 'x', 5)` stores or deletes an attribute and its receiver `d` is an instance of the immutable record(s) ['D']. A `NamedTuple` / `namedtuple` / frozen `@dataclass` instance is immuta
+4675_gen37_r348_frozen_subclass_store.py	[ir-semantic]: 'f' line 16: `e.x` stores or deletes an attribute and its receiver `e` is an instance of the immutable record(s) ['E']. A `NamedTuple` / `namedtuple` / frozen `@dataclass` instance is immutable — CPython r
+4676_gen37_r348_frozen_method_self_store.py	[ir-semantic]: 'bump' line 11: `self.x` stores or deletes an attribute and its receiver `self` is an instance of the immutable record(s) ['D']. A `NamedTuple` / `namedtuple` / frozen `@dataclass` instance is immutable — 
+4677_gen37_r348_typing_namedtuple_functional.py	[ir-semantic]: 'f' line 9: `p.x` stores or deletes an attribute and its receiver `p` is an instance of the immutable record(s) ['P']. A `NamedTuple` / `namedtuple` / frozen `@dataclass` instance is immutable — CPython ra
+4678_gen37_r349_explicit_hash_none_set.py	[ir-semantic]: 'g' line 14: `r` (an instance of ['R']) is HASHED by `{r}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4679_gen37_r349_dataclass_set_element.py	[ir-semantic]: 'g' line 13: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4680_gen37_r349_eq_without_hash_set.py	[ir-semantic]: 'g' line 13: `r` (an instance of ['R']) is HASHED by `{r}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4681_gen37_r349_dataclass_dict_key.py	[ir-semantic]: 'g' line 13: `d` (an instance of ['D']) is HASHED by `{d: 1}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may
+4682_gen37_r349_dataclass_hash_call.py	[ir-semantic]: 'g' line 13: `d` (an instance of ['D']) is HASHED by `hash(d)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, ma
+4683_gen37_r349_constructed_set_element.py	[ir-semantic]: 'g' line 13: `D(1)` (an instance of ['D']) is HASHED by `{D(1)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, 
+4684_gen37_r349_set_annotation_add.py	[ir-semantic]: line 14: the annotation `Set[D]` puts an UNHASHABLE class (['D']) in a set element / dict key position. Its instances have `__hash__ = None` (an explicit `__hash__ = None`, a `@dataclass` with `eq` and wit
+4685_gen37_r349_membership_in_set.py	[ir-semantic]: 'g' line 13: `d` (an instance of ['D']) is HASHED by `d in {D(2)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived
+4686_gen37_r346_ctl_post_init_no_invariant.py	-
+4688_gen37_r347_ctl_both_branches.py	-
+4689_gen37_r347_ctl_class_attr_default.py	-
+4690_gen37_r347_ctl_super_chain.py	-
+4691_gen37_r347_ctl_raise_path.py	-
+4692_gen37_r348_ctl_namedtuple_read.py	-
+4693_gen37_r348_ctl_mutable_dataclass_store.py	-
+4694_gen37_r349_ctl_explicit_hash.py	-
+4695_gen37_r349_ctl_frozen_set_element.py	-
+4696_gen37_r349_ctl_plain_class_set_element.py	-
+4711_gen37_r350_default_none_for_str.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4711_gen37_r350_default_none_for_str.py: 'f' (line 6) gives the parameter 's: str' the default `None`, which is not of the annotation's ki
+4713_gen37_r350_kwonly_default_none_for_int.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4713_gen37_r350_kwonly_default_none_for_int.py: 'f' (line 6) gives the parameter 'x: int' the default `None`, which is not of the annotati
+4714_gen37_r350_nested_default_str_for_int.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4714_gen37_r350_nested_default_str_for_int.py: 'g' (line 7) gives the parameter 'x: int' the default `'a'`, which is not of the annotation
+4716_gen37_r350_default_bool_for_str.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4716_gen37_r350_default_bool_for_str.py: 'f' (line 6) gives the parameter 's: str' the default `False`, which is not of the annotation's k
+4717_gen37_r350_alias_default_none_for_int.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4717_gen37_r350_alias_default_none_for_int.py: 'f' (line 7) gives the parameter 'x: Num' the default `None`, which is not of the annotatio
+4719_gen37_r350_default_tuple_for_list.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4719_gen37_r350_default_tuple_for_list.py: 'f' (line 7) gives the parameter 'xs: List[int]' the default `(1, 2)`, which is not of the anno
+4722_gen37_r351_view_returned_as_list.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4722_gen37_r351_view_returned_as_list.py: in 'as_list' (line 8), the value of 'xs' — a READ-ONLY view parameter (`Sequence`, `tuple[T, ...
+4723_gen37_r351_view_returned_by_conditional.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4723_gen37_r351_view_returned_by_conditional.py: in 'as_list' (line 8), the value of 'xs' — a READ-ONLY view parameter (`Sequence`, `tuple
+4724_gen37_r351_mapping_returned_as_dict.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4724_gen37_r351_mapping_returned_as_dict.py: in 'as_dict' (line 8), the value of 'd' — a READ-ONLY view parameter (`Sequence`, `tuple[T, .
+4725_gen37_r351_view_alias_returned.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4725_gen37_r351_view_alias_returned.py: in 'as_list' (line 9), the value of 'ys' — a READ-ONLY view parameter (`Sequence`, `tuple[T, ...]`
+4726_gen37_r351_view_bound_to_list_local.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4726_gen37_r351_view_bound_to_list_local.py: in 'f' (line 10), the value of 'xs' — a READ-ONLY view parameter (`Sequence`, `tuple[T, ...]`
+4727_gen37_r351_view_stored_into_field.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4727_gen37_r351_view_stored_into_field.py: in '__init__' (line 8), the value of 'xs' — a READ-ONLY view parameter (`Sequence`, `tuple[T, .
+4728_gen37_r351_view_alias_store.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4728_gen37_r351_view_alias_store.py: in 'f' (line 11), the value of 'ys' — a READ-ONLY view parameter (`Sequence`, `tuple[T, ...]`, `Mappi
+4750_gen37_r352_enum_import_alias_sub.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4750_gen37_r352_enum_import_alias_sub.py: 'f' uses a member of the enum class 'C' in `x - x` (line 14): an enum member is NOT an int — a p
+4754_gen37_r353_mixin_eq_no_hash.py	[ir-semantic]: 'f' line 16: `x` (an instance of ['C']) is HASHED by `hash(x)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, ma
+4758_gen37_r354_intflag_strict_or.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4758_gen37_r354_intflag_strict_or.py: 'f' uses a member of the enum class 'F' in `x | 4` (line 13): an enum member is NOT an int — a plain
+4759_gen37_r354_intflag_strict_xor.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4759_gen37_r354_intflag_strict_xor.py: 'f' uses a member of the enum class 'F' in `x ^ 8` (line 13): an enum member is NOT an int — a plai
+4761_gen37_r355_intenum_ctor_miss.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4761_gen37_r355_intenum_ctor_miss.py: 'f' uses a member of the enum class 'C' in `C(99) (a value lookup that may raise ValueError)` (line 
+4762_gen37_r355_enum_ctor_miss.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4762_gen37_r355_enum_ctor_miss.py: 'f' uses a member of the enum class 'C' in `C(99) (a value lookup that may raise ValueError)` (line 11)
+4763_gen37_r355_ctor_param_lookup.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4763_gen37_r355_ctor_param_lookup.py: 'f' uses a member of the enum class 'C' in `C(v) (a value lookup that may raise ValueError)` (line 1
+4764_gen37_r355_str_mixin_ctor_int.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4764_gen37_r355_str_mixin_ctor_int.py: 'f' uses a member of the enum class 'C' in `C(1) (a value lookup that may raise ValueError)` (line 
+4765_gen37_r356_members_values_loop.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4765_gen37_r356_members_values_loop.py: 'f' uses a member of the enum class 'C' in `C.__members__ (an attribute of the enum class object)`
+4766_gen37_r356_value2member_map_loop.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4766_gen37_r356_value2member_map_loop.py: 'f' uses a member of the enum class 'C' in `C._value2member_map_ (an attribute of the enum class
+4770_gen37_r352_ctl_enum_module_alias_intenum.py	-
+4771_gen37_r352_ctl_alias_identity.py	-
+4772_gen37_r353_ctl_int_enum_mixin.py	-
+4773_gen37_r354_ctl_intflag_identity.py	-
+4774_gen37_r355_ctl_ctor_literal_member.py	-
+4803_gen37_r357_self_method_result_lt_noexc.py	-
+4805_gen37_r357_self_method_result_into_int.py	function 'q__m': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `int` parameter `n` of `h` (body). Python does not enforce the annotation (a user `__sub__`/`__eq__`
+4806_gen37_r357_type_self_ctor_noexc.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4806_gen37_r357_type_self_ctor_noexc.py line 10: a construction through the runtime class is out of scope (route #357): line 10 calls `typ
+4807_gen37_r358_for_over_self_noexc.py	-
+4808_gen37_r358_self_missing_attr_noexc.py	-
+4809_gen37_r358_truth_self_len_noexc.py	-
+4810_gen37_r358_join_self_noexc.py	[ir-semantic]: 'm' line 7: `''.join([self])` joins elements that may be ['P'], not all ['str']: `''.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeError and the mod
+4811_gen37_r358_object_for_noexc.py	-
+4812_gen37_r358_object_attr_noexc.py	-
+4813_gen37_r358_any_attr_noexc.py	-
+4814_gen37_r358_not_self_len_noexc.py	-
+4815_gen37_r358_self_missing_attr_sub.py	-
+4819_gen37_r359_mro_builtin_before_definer.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4819_gen37_r359_mro_builtin_before_definer.py: override 'C.hex' of 'A.hex' resolves `hex` through `float`, a class from outside this file 
+4820_gen37_r359_mro_mixin_inherits_builtin.py	[ir-semantic]: class 'B' at line 10: its base `float` is the standard-library / builtin class `builtins.float`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and the 
+4824_gen37_r358_ifexp_truth_self_noexc.py	-
+4825_gen37_r358_any_result_attr_noexc.py	-
+4826_gen37_r358_str_method_any_arg_noexc.py	-
+4827_gen37_r358_list_count_self_noexc.py	-
+4830_gen37_r357_ctl_method_int_result_type_self_unused.py	-
+4831_gen37_r358_ctl_typed_protocol_ops_noexc.py	-
+4850_gen37_r360_slots_store_unslotted.py	[ir-semantic]: '__init__' line 8: `self.y` stores or deletes the attribute `y` of an instance of 'R', whose every class declares `__slots__` (MRO ['R']; slots ['x']). Such an instance has no `__dict__`, so CPython raises
+4851_gen37_r360_slots_inherited_extra.py	[ir-semantic]: '__init__' line 14: `self.z` stores or deletes the attribute `z` of an instance of 'B', whose every class declares `__slots__` (MRO ['B', 'A']; slots ['x', 'y']). Such an instance has no `__dict__`, so CPy
+4852_gen37_r360_empty_slots_init_store.py	[ir-semantic]: '__init__' line 7: `self.x` stores or deletes the attribute `x` of an instance of 'R', whose every class declares `__slots__` (MRO ['R']; slots []). Such an instance has no `__dict__`, so CPython raises At
+4853_gen37_r360_slots_init_param.py	[ir-semantic]: '__init__' line 8: `self.b` stores or deletes the attribute `b` of an instance of 'R', whose every class declares `__slots__` (MRO ['R']; slots ['a']). Such an instance has no `__dict__`, so CPython raises
+4854_gen37_r360_slots_list_form.py	[ir-semantic]: '__init__' line 8: `self.y` stores or deletes the attribute `y` of an instance of 'R', whose every class declares `__slots__` (MRO ['R']; slots ['x']). Such an instance has no `__dict__`, so CPython raises
+4855_gen37_r360_slots_external_store.py	[ir-semantic]: 'f' line 12: `r.y` stores or deletes the attribute `y` of an instance of 'R', whose every class declares `__slots__` (MRO ['R']; slots ['x']). Such an instance has no `__dict__`, so CPython raises Attribut
+4856_gen37_r360_slots_setattr_store.py	[ir-semantic]: '__init__' line 8: `setattr(self, 'y', 1)` stores or deletes the attribute `y` of an instance of 'R', whose every class declares `__slots__` (MRO ['R']; slots ['x']). Such an instance has no `__dict__`, so
+4857_gen37_r360_slots_non_literal.py	[ir-semantic]: class 'R' line 7: `__slots__ = SL` is not a literal `__slots__` (a string, or a tuple / list / set of strings, or a dict with string keys, bound once). `__slots__` decides which instance attributes CPython
+4858_gen37_r360_slots_string_form.py	[ir-semantic]: '__init__' line 8: `self.y` stores or deletes the attribute `y` of an instance of 'R', whose every class declares `__slots__` (MRO ['R']; slots ['x']). Such an instance has no `__dict__`, so CPython raises
+4859_gen37_r360_dataclass_slots_true_extra_store.py	[ir-semantic]: 'bump' line 10: `self.z` stores or deletes the attribute `z` of an instance of 'D', whose every class declares `__slots__` (MRO ['D']; slots ['x']). Such an instance has no `__dict__`, so CPython raises At
+4860_gen37_r361_initvar_read.py	[ir-semantic]: 'f' line 13: `d.k` accesses `k`, which a `@dataclass` of this file declares as an `InitVar` / `KW_ONLY` PSEUDO-FIELD (['D']). A pseudo-field is an `__init__` parameter (or a sentinel), never an instance at
+4861_gen37_r361_kw_only_sentinel_read.py	[ir-semantic]: 'f' line 14: `d._` accesses `_`, which a `@dataclass` of this file declares as an `InitVar` / `KW_ONLY` PSEUDO-FIELD (['D']). A pseudo-field is an `__init__` parameter (or a sentinel), never an instance at
+4864_gen37_r361_initvar_string_dotted.py	[ir-semantic]: 'f' line 14: `d.k` accesses `k`, which a `@dataclass` of this file declares as an `InitVar` / `KW_ONLY` PSEUDO-FIELD (['D']). A pseudo-field is an `__init__` parameter (or a sentinel), never an instance at
+4868_gen37_r363_super_skip_class.py	[ir-semantic]: 'f' line 15: it claims `#@ no_exception` (covering AttributeError) and reads `b.x`, but `x` is a field some constructor of this file does NOT definitely assign (a store under `if` / a loop / `try` / `with`
+4869_gen37_r363_super_skip_reads_m.py	[ir-semantic]: 'f' line 20: it claims `#@ no_exception` (covering AttributeError) and reads `b.m`, but `m` is a field some constructor of this file does NOT definitely assign (a store under `if` / a loop / `try` / `with`
+4880_gen37_r360_ctl_slots_in_slot_stores.py	-
+4881_gen37_r360_ctl_slots_with_dict.py	-
+4882_gen37_r360_ctl_slotted_sub_of_plain_base.py	-
+4884_gen37_r362_ctl_initvar_no_invariant.py	-
+4885_gen37_r363_ctl_super_explicit_skip_reads_base.py	-
+4886_gen37_r363_ctl_super_own_class.py	-
+4900_gen37_r364_eq_lambda_assign_set.py	[ir-semantic]: 'g' line 10: `r` (an instance of ['R']) is HASHED by `{r}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4901_gen37_r364_hash_none_via_name.py	[ir-semantic]: 'g' line 12: `r` (an instance of ['R']) is HASHED by `{r}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4902_gen37_r364_hash_none_ifexp.py	[ir-semantic]: 'g' line 10: `r` (an instance of ['R']) is HASHED by `{r}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4903_gen37_r364_eq_under_if.py	[ir-semantic]: 'g' line 12: `r` (an instance of ['R']) is HASHED by `{r}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4904_gen37_r364_hash_none_tuple_assign.py	[ir-semantic]: 'g' line 10: `r` (an instance of ['R']) is HASHED by `{r}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4905_gen37_r364_eq_tuple_target.py	[ir-semantic]: 'g' line 10: `r` (an instance of ['R']) is HASHED by `{r}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4906_gen37_r365_record_in_tuple_set.py	[ir-semantic]: 'g' line 13: `(d, 1)` (an instance of ['D']) is HASHED by `{(d, 1)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be deriv
+4907_gen37_r365_tuple_hash.py	[ir-semantic]: 'g' line 14: `t` (an instance of ['D']) is HASHED by `hash(t)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, ma
+4908_gen37_r365_tuple_typed_set_elem.py	[ir-semantic]: 'g' line 14: `t` (an instance of ['D']) is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4909_gen37_r365_dict_tuple_key.py	[ir-semantic]: 'g' line 13: `(d, 1)` (an instance of ['D']) is HASHED by `{(d, 1): 0}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be de
+4910_gen37_r365_nested_tuple_set.py	[ir-semantic]: 'g' line 13: `((d, 1), 2)` (an instance of ['D']) is HASHED by `{((d, 1), 2)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it canno
+4911_gen37_r365_optional_tuple_hash.py	[ir-semantic]: 'g' line 14: `t` (an instance of ['D']) is HASHED by `hash(t)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, ma
+4912_gen37_r365_list_in_tuple_set.py	[ir-semantic]: 'g' line 9: `(xs, 1)` (an instance of ['a list / dict / set']) is HASHED by `{(xs, 1)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when
+4913_gen37_r366_frozen_object_field.py	[ir-semantic]: 'g' line 13: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4914_gen37_r366_unsafe_hash_list_field.py	[ir-semantic]: 'g' line 14: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4915_gen37_r366_forward_ref_namedtuple_field.py	[ir-semantic]: 'g' line 17: `a` (an instance of ['A']) is HASHED by `{a}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4916_gen37_r366_forward_ref_dataclass_field.py	[ir-semantic]: 'g' line 17: `a` (an instance of ['A']) is HASHED by `{a}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4917_gen37_r366_tuple_field_of_dataclass.py	[ir-semantic]: 'g' line 18: `a` (an instance of ['A']) is HASHED by `{a}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4918_gen37_r366_namedtuple_object_field.py	[ir-semantic]: 'g' line 12: `n` (an instance of ['N']) is HASHED by `{n}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4919_gen37_r366_union_list_field.py	[ir-semantic]: 'g' line 14: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+4920_gen37_r366_namedtuple_any_field.py	[ir-semantic]: 'g' line 12: `n` (an instance of ['N']) is HASHED by `hash(n)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, ma
+4921_gen37_r367_ignore_ctor.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4921_gen37_r367_ignore_ctor.py: 'f' uses a member of the enum class 'C' in `C(2) (a value lookup that may raise ValueError)` (line 14): an
+4922_gen37_r367_ignore_attr.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4922_gen37_r367_ignore_attr.py: 'f' uses a member of the enum class 'C' in `C.B (an attribute of the enum class object)` (line 14): an enu
+4923_gen37_r367_private_not_member.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4923_gen37_r367_private_not_member.py: 'f' uses a member of the enum class 'C' in `C(1) (a value lookup that may raise ValueError)` (line 
+4924_gen37_r367_ignore_string_form.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4924_gen37_r367_ignore_string_form.py: 'f' uses a member of the enum class 'C' in `C(2) (a value lookup that may raise ValueError)` (line 
+4925_gen37_r367_ignore_tuple_form.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4925_gen37_r367_ignore_tuple_form.py: 'f' uses a member of the enum class 'C' in `C(2) (a value lookup that may raise ValueError)` (line 1
+4926_gen37_r367_ignore_nonliteral.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4926_gen37_r367_ignore_nonliteral.py: '?' uses a member of the enum class 'C' in `class C: its `_ignore_` is not one top-level binding to 
+4927_gen37_r367_private_attr.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4927_gen37_r367_private_attr.py: 'f' uses a member of the enum class 'C' in `C.__B (an attribute of the enum class object)` (line 13): an 
+4928_gen37_r367_ignore_under_if.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4928_gen37_r367_ignore_under_if.py: '?' uses a member of the enum class 'C' in `class C: its `_ignore_` is not one top-level binding to a 
+4929_gen37_r367_ignore_comma_string.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4929_gen37_r367_ignore_comma_string.py: 'f' uses a member of the enum class 'C' in `C(4) (a value lookup that may raise ValueError)` (line
+4930_gen37_r367_annotation_only_not_member.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4930_gen37_r367_annotation_only_not_member.py: 'f' uses a member of the enum class 'C' in `C.B (an attribute of the enum class object)` (l
+4933_gen37_r367_nonmember_ctor.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/4933_gen37_r367_nonmember_ctor.py: 'f' uses a member of the enum class 'C' in `C(3) (a value lookup that may raise ValueError)` (line 13):
+4940_gen37_r364_ctl_eq_and_hash_defs.py	-
+4941_gen37_r365_ctl_tuple_hashable.py	-
+4942_gen37_r366_ctl_frozen_fields_hashable.py	-
+4943_gen37_r367_ctl_ignore_member_lambda.py	-
+4990_gen37_r369_initvar_alias.py	[ir-semantic]: class 'D' line 9: the `@dataclass` member `k` has the annotation head `IV`, an ALIAS of `dataclasses.InitVar`. PyCSL's dataclass model recognises `ClassVar` / `InitVar` / `KW_ONLY` / `field` by their liter
+4991_gen37_r369_classvar_alias_ctor.py	[ir-semantic]: class 'D' line 10: the `@dataclass` member `k` has the annotation head `CV`, an ALIAS of `typing.ClassVar`. PyCSL's dataclass model recognises `ClassVar` / `InitVar` / `KW_ONLY` / `field` by their literal 
+4992_gen37_r369_field_alias_init_false.py	[ir-semantic]: class 'D' line 9: the `@dataclass` member `y` has the default `fld(init=False)` whose callee resolves to `dataclasses.field` (the model reads `dataclasses.field` by its literal name `field`). PyCSL's datac
+4993_gen37_r369_kwonly_alias.py	[ir-semantic]: class 'D' line 9: the `@dataclass` member `_` has the annotation head `KO`, an ALIAS of `dataclasses.KW_ONLY`. PyCSL's dataclass model recognises `ClassVar` / `InitVar` / `KW_ONLY` / `field` by their liter
+4995_gen37_r369_classvar_alias_read_nodefault.py	[ir-semantic]: class 'D' line 10: the `@dataclass` member `k` has the annotation head `CV`, an ALIAS of `typing.ClassVar`. PyCSL's dataclass model recognises `ClassVar` / `InitVar` / `KW_ONLY` / `field` by their literal 
+4996_gen37_r369_typing_module_alias_classvar.py	[ir-semantic]: 'f' line 14: the construction `D(1, 5)` takes 1 positional argument(s) but 2 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as s
+4997_gen37_r369_initvar_alias_assign.py	[ir-semantic]: class 'D' line 10: the `@dataclass` member `k` has the annotation head `IV`, an ALIAS of `dataclasses.InitVar`. PyCSL's dataclass model recognises `ClassVar` / `InitVar` / `KW_ONLY` / `field` by their lite
+4998_gen37_r369_kwonly_alias_assign.py	[ir-semantic]: class 'D' line 10: the `@dataclass` member `_` has the annotation head `K`, an ALIAS of `dataclasses.KW_ONLY`. PyCSL's dataclass model recognises `ClassVar` / `InitVar` / `KW_ONLY` / `field` by their liter
+5003_gen37_r369_field_alias_init_false_ctor_arg.py	[ir-semantic]: class 'D' line 9: the `@dataclass` member `y` has the default `fld(init=False, default=4)` whose callee resolves to `dataclasses.field` (the model reads `dataclasses.field` by its literal name `field`). Py
+5004_gen37_r369_kwonly_alias_positional.py	[ir-semantic]: class 'D' line 9: the `@dataclass` member `_` has the annotation head `KO`, an ALIAS of `dataclasses.KW_ONLY`. PyCSL's dataclass model recognises `ClassVar` / `InitVar` / `KW_ONLY` / `field` by their liter
+5007_gen37_r369_field_kw_only_required.py	[ir-semantic]: 'f' line 13: the construction `D(5)` is missing the required argument(s) ['x'] — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succeeding
+5008_gen37_r369_explicit_init_arity.py	[ir-semantic]: 'f' line 10: the construction `D(1, 5)` takes 1 positional argument(s) but 2 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as s
+5009_gen37_r369_dataclass_arity.py	[ir-semantic]: 'f' line 12: the construction `D(1, 5)` takes 1 positional argument(s) but 2 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as s
+5010_gen37_r370_explicit_mangled_private.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5010_gen37_r370_explicit_mangled_private.py: 'f' uses a member of the enum class 'C' in `C(2) (a value lookup that may raise ValueError)` 
+5011_gen37_r370_nested_class_not_member.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5011_gen37_r370_nested_class_not_member.py: 'f' uses a member of the enum class 'C' in `C.B (a class-body name that is NOT a member: a nes
+5012_gen37_r370_staticmethod_value.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5012_gen37_r370_staticmethod_value.py: 'f' uses a member of the enum class 'C' in `C.B (a class-body name that is NOT a member: a nested c
+5013_gen37_r370_partial_value.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5013_gen37_r370_partial_value.py: 'f' uses a member of the enum class 'C' in `C.B (an attribute of the enum class object)` (line 14): an e
+5014_gen37_r370_classmethod_ref.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5014_gen37_r370_classmethod_ref.py: 'f' uses a member of the enum class 'C' in `C.B (a class-body name that is NOT a member: a nested clas
+5015_gen37_r370_property_member.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5015_gen37_r370_property_member.py: 'f' uses a member of the enum class 'C' in `C.B (an attribute of the enum class object)` (line 14): an
+5016_gen37_r370_ignore_append_later.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5016_gen37_r370_ignore_append_later.py: '?' uses a member of the enum class 'C' in `class C: its `_ignore_` is not one top-level binding t
+5017_gen37_r370_ignore_append_attr.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5017_gen37_r370_ignore_append_attr.py: '?' uses a member of the enum class 'C' in `class C: its `_ignore_` is not one top-level binding to
+5018_gen37_r370_partial_by_value.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5018_gen37_r370_partial_by_value.py: 'f' uses a member of the enum class 'C' in `C.B (an attribute of the enum class object)` (line 14): a
+5019_gen37_r370_ignore_comma_member_attr.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5019_gen37_r370_ignore_comma_member_attr.py: 'f' uses a member of the enum class 'C' in `C._C__B (an attribute of the enum class object)` 
+5020_gen37_r370_mangled_intenum_cmp.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5020_gen37_r370_mangled_intenum_cmp.py: 'f' uses a member of the enum class 'C' in `C(2) (a value lookup that may raise ValueError)` (line
+5021_gen37_r370_nested_class_member_cmp.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5021_gen37_r370_nested_class_member_cmp.py: 'f' uses a member of the enum class 'C' in `C.B (a class-body name that is NOT a member: a nes
+5022_gen37_r370_nested_def_member.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5022_gen37_r370_nested_def_member.py: 'f' uses a member of the enum class 'C' in `C.B (a class-body name that is NOT a member: a nested cl
+5023_gen37_r370_property_named_value.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5023_gen37_r370_property_named_value.py: 'f' uses a member of the enum class 'C' in `C.B (a class-body name that is NOT a member: a nested
+5024_gen37_r370_intenum_nested_class_value.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5024_gen37_r370_intenum_nested_class_value.py: 'f' uses a member of the enum class 'C' in `C.B (a class-body name that is NOT a member: a 
+5025_gen37_r371_mixin_hash_none_second_base.py	[ir-semantic]: 'g' line 17: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5026_gen37_r371_mixin_eq_second_base.py	[ir-semantic]: 'g' line 18: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5027_gen37_r371_mixin_second_base_dc_eq.py	[ir-semantic]: 'g' line 19: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5028_gen37_r371_mixin_third_base.py	[ir-semantic]: 'g' line 21: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5029_gen37_r371_mixin_via_intermediate_second.py	[ir-semantic]: 'g' line 20: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5030_gen37_r371_second_base_frozen_field.py	[ir-semantic]: 'g' line 22: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5031_gen37_r372_list_index_not_hash.py	[ir-semantic]: 'g' line 15: `xs[0]` (an instance of ['D']) is HASHED by `{xs[0]}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived
+5032_gen37_r372_record_field_elem_set.py	[ir-semantic]: 'g' line 17: `r.d` (an instance of ['D']) is HASHED by `{r.d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, ma
+5033_gen37_r372_tuple_index_elem_set.py	[ir-semantic]: 'g' line 14: `t[0]` (an instance of ['D']) is HASHED by `{t[0]}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, 
+5034_gen37_r372_self_field_elem_set.py	[ir-semantic]: 'g' line 17: `self.d` (an instance of ['D']) is HASHED by `{self.d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be deriv
+5035_gen37_r372_dict_items_value.py	[ir-semantic]: 'g' line 15: `m[0]` (an instance of ['D']) is HASHED by `{m[0]}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, 
+5037_gen37_r369_kwonly_literal_positional.py	[ir-semantic]: 'f' line 14: the construction `D(1, 2)` takes 1 positional argument(s) but 2 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as s
+5038_gen37_r369_init_false_literal_ctor_arg.py	[ir-semantic]: 'f' line 13: the construction `D(1, 2)` takes 1 positional argument(s) but 2 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as s
+5039_gen37_r372_for_element_set.py	[ir-semantic]: 'g' line 15: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5040_gen37_r369_ctl_specifiers_literal.py	-
+5041_gen37_r369_ctl_ctor_arity_ok.py	-
+5042_gen37_r370_ctl_enum_members_ok.py	-
+5043_gen37_r371_ctl_mro_first_hash_wins.py	-
+5044_gen37_r372_ctl_hashable_elements_ok.py	-
+5045_gen37_r372_nested_field_set.py	[ir-semantic]: 'g' line 21: `r.e.d` (an instance of ['D']) is HASHED by `{r.e.d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived
+5058_gen37_r374_slots_mangled_subclass.py	[ir-semantic]: '__init__' line 10: `self.__x` stores or deletes the attribute `_B__x` of an instance of 'B', whose every class declares `__slots__` (MRO ['B', 'A']; slots ['_A__x']). Such an instance has no `__dict__`, s
+5059_gen37_r374_slots_mangled_external.py	[ir-semantic]: 'f' line 11: `a.__x` stores or deletes the attribute `__x` of an instance of 'A', whose every class declares `__slots__` (MRO ['A']; slots ['_A__x']). Such an instance has no `__dict__`, so CPython raises 
+5060_gen37_r374_slots_mangled_subclass_read.py	[ir-semantic]: '__init__' line 11: `self.__x` stores or deletes the attribute `_B__x` of an instance of 'B', whose every class declares `__slots__` (MRO ['B', 'A']; slots ['_A__x', 'y']). Such an instance has no `__dict_
+5061_gen37_r374_slots_mangled_external_store.py	[ir-semantic]: 'f' line 12: `a.__x` stores or deletes the attribute `__x` of an instance of 'A', whose every class declares `__slots__` (MRO ['A']; slots ['_A__x', 'y']). Such an instance has no `__dict__`, so CPython ra
+5062_gen37_r374_slots_mangled_subclass_v.py	[ir-semantic]: '__init__' line 11: `self.__v` stores or deletes the attribute `_B__v` of an instance of 'B', whose every class declares `__slots__` (MRO ['B', 'A']; slots ['_A__v', 'w']). Such an instance has no `__dict_
+5063_gen37_r374_slots_literal_mangled_name_subclass.py	[ir-semantic]: '__init__' line 13: `self.__x` stores or deletes the attribute `_B__x` of an instance of 'B', whose every class declares `__slots__` (MRO ['B', 'A']; slots ['_A__x']). Such an instance has no `__dict__`, s
+5064_gen37_r374_slots_dunder_not_mangled.py	[ir-semantic]: '__init__' line 11: `self.__y` stores or deletes the attribute `_B__y` of an instance of 'B', whose every class declares `__slots__` (MRO ['B', 'A']; slots ['__x__']). Such an instance has no `__dict__`, s
+5065_gen37_r374_slots_mangled_underscore_class.py	[ir-semantic]: '__init__' line 14: `self.__x` stores or deletes the attribute `_B__x` of an instance of 'B', whose every class declares `__slots__` (MRO ['B', '_A']; slots ['_A__x']). Such an instance has no `__dict__`, 
+5066_gen37_r375_star_list_erased.py	-
+5067_gen37_r375_augadd_self_alias.py	-
+5068_gen37_r375_augadd_param_alias.py	-
+5069_gen37_r375_star_set_erased.py	[ir-semantic]: 'm' line 7: `*self` is HASHED by `{*self}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`
+5070_gen37_r375_mulassign_self_alias.py	-
+5071_gen37_r375_star_tuple_erased.py	-
+5072_gen37_r375_star_call_erased.py	-
+5073_gen37_r375_star_len_any.py	-
+5074_gen37_r375_augadd_any_value.py	-
+5091_gen37_r374_ctl_slots_mangled_store.py	-
+5092_gen37_r375_ctl_augassign_int.py	-
+5100_gen37_r226_length_inv_list_param_no_exception.py	-
+5104_gen37_r226_length_inv_repeat_literal_wrong_length.py	-
+5106_gen37_r226_length_inv_cursor_index_bound.py	-
+5107_gen37_r226_length_inv_dataclass_list_field.py	-
+5110_gen37_r226_ctl_length_inv_requires_establishes.py	-
+5112_gen37_r226_ctl_length_inv_paramless_literal.py	-
+5145_gen37_r379_kwargs_unknown_key_noexc.py	[ir-semantic]: 'f' line 13: the call `D(**kw)` constructs the file class `D`. The verifier drops a `*` / `**` argument at a call (or counts a `*xs` as one positional), so the keys, length and values it supplies never rea
+5146_gen37_r379_kwargs_unknown_key_init.py	[ir-semantic]: 'f' line 11: the call `C(**kw)` constructs the file class `C`. The verifier drops a `*` / `**` argument at a call (or counts a `*xs` as one positional), so the keys, length and values it supplies never rea
+5147_gen37_r379_kwargs_dup_positional.py	[ir-semantic]: 'f' line 13: the call `D(1, **kw)` constructs the file class `D`. The verifier drops a `*` / `**` argument at a call (or counts a `*xs` as one positional), so the keys, length and values it supplies never 
+5151_gen37_r379_kwargs_param_dict_noexc.py	[ir-semantic]: 'f' line 14: the call `D(**kw)` constructs the file class `D`. The verifier drops a `*` / `**` argument at a call (or counts a `*xs` as one positional), so the keys, length and values it supplies never rea
+5153_gen37_r379_kwargs_function_noexc.py	[ir-semantic]: 'f' line 11: the call `h(1, **kw)` passes a `**` mapping. The verifier drops a `*` / `**` argument at a call (or counts a `*xs` as one positional), so the keys, length and values it supplies never reach th
+5154_gen37_r380_dc_init_false_call.py	[ir-semantic]: 'f' line 12: the construction `D(1)` takes 0 positional argument(s) but 1 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succ
+5155_gen37_r380_super_init_unknown_kw.py	[ir-semantic]: '__init__' line 10: the construction `super().__init__(y=1)` got an unexpected keyword argument 'y' — CPython raises TypeError here, while the record model binds the arguments it can and verifies the const
+5157_gen37_r380_dc_init_false_required_field.py	[ir-semantic]: 'f' line 12: the construction `D(1)` takes 0 positional argument(s) but 1 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succ
+5158_gen37_r380_super_init_too_many.py	[ir-semantic]: '__init__' line 10: the construction `super().__init__(5)` takes 0 positional argument(s) but 1 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies th
+5159_gen37_r380_super_init_object.py	[ir-semantic]: '__init__' line 6: the construction `super().__init__(5)` takes 0 positional argument(s) but 1 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the
+5170_gen37_r380_ctl_init_false_no_arg.py	-
+5240_gen37_r384_literal_then_pop.py	-
+5241_gen37_r385_empty_repeat_is_empty.py	-
+5242_gen37_r384_negative_repeat_is_empty.py	-
+5243_gen37_r384_literal_then_clear.py	-
+5244_gen37_r384_param_then_self_pop.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5244_gen37_r384_param_then_self_pop.py: class 'Cur' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor oblig
+5245_gen37_r385_param_alias_cleared.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5245_gen37_r385_param_alias_cleared.py: class 'Cur' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor oblig
+5247_gen37_r385_tuple_restore.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5247_gen37_r385_tuple_restore.py: class 'D' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor obligation (r
+5248_gen37_r384_default_factory_lambda.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5248_gen37_r384_default_factory_lambda.py: class 'D' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor obli
+5249_gen37_r384_field_alias_pop.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5249_gen37_r384_field_alias_pop.py: class 'D' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor obligation 
+5250_gen37_r384_loop_pop.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5250_gen37_r384_loop_pop.py: class 'D' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor obligation (route 
+5251_gen37_r384_pop_in_if.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5251_gen37_r384_pop_in_if.py: class 'D' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor obligation (route
+5252_gen37_r384_concat_initialiser.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5252_gen37_r384_concat_initialiser.py: class 'D' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor obligati
+5253_gen37_r384_comprehension_initialiser.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5253_gen37_r384_comprehension_initialiser.py: class 'D' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor o
+5254_gen37_r384_walrus_pop.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5254_gen37_r384_walrus_pop.py: class 'D' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor obligation (rout
+5255_gen37_r385_super_init_empty_list.py	[ir-semantic]: class 'Sub' line 33: `super().__init__([])` runs the constructor of 'Cur', whose `__init__` carries a `#@ requires`. That precondition is read as a premise of the class's constructor-invariant goal and of 
+5256_gen37_r385_super_init_slice.py	[ir-semantic]: class 'Sub' line 34: `super().__init__(toks[1:])` runs the constructor of 'Cur', whose `__init__` carries a `#@ requires`. That precondition is read as a premise of the class's constructor-invariant goal a
+5257_gen37_r384_param_rebound_before_store.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5257_gen37_r384_param_rebound_before_store.py: class 'Cur' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructo
+5258_gen37_r384_second_store_repeat_zero.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5258_gen37_r384_second_store_repeat_zero.py: class 'D' carries a `#@ class invariant` over `\length(self.<field>)`, but its constructor ob
+5259_gen37_r384_list_repeat_then_pop.py	-
+5270_gen37_r384_ctl_literal_append_pop.py	-
+5271_gen37_r384_ctl_literal_extend.py	-
+5272_gen37_r384_ctl_empty_then_append.py	-
+5273_gen37_r384_ctl_module_constant_bytearray.py	-
+5274_gen37_r384_ctl_element_store_after.py	-
+5275_gen37_r385_ctl_param_len_read_after_store.py	-
+5303_gen37_r387_class_body_global_init.py	a name's runtime binding is not the `def` the model resolves it to (`global __init__` at line 6 in class `C`: the body's binding of `__init__` is not a class attribute (route #387)). A decorator whose effect is not model
+5306_gen37_r387_class_body_global_get_no_exception.py	a name's runtime binding is not the `def` the model resolves it to (`global get` at line 5 in class `C`: the body's binding of `get` is not a class attribute (route #387)). A decorator whose effect is not modelled is sil
+5330_gen37_r381_userlist.py	[ir-semantic]: class 'D' at line 6: its base `UserList` is the standard-library / builtin class `collections.UserList`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file 
+5331_gen37_r381_userdict.py	[ir-semantic]: class 'D' at line 6: its base `UserDict` is the standard-library / builtin class `collections.UserDict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file 
+5332_gen37_r381_deque.py	[ir-semantic]: class 'D' at line 6: its base `deque` is the standard-library / builtin class `collections.deque`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and th
+5333_gen37_r381_ordereddict.py	[ir-semantic]: class 'D' at line 6: its base `OrderedDict` is the standard-library / builtin class `collections.OrderedDict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this
+5334_gen37_r381_counter.py	[ir-semantic]: class 'D' at line 6: its base `Counter` is the standard-library / builtin class `collections.Counter`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file an
+5335_gen37_r381_defaultdict.py	[ir-semantic]: class 'D' at line 6: its base `defaultdict` is the standard-library / builtin class `collections.defaultdict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this
+5336_gen37_r381_simplenamespace.py	[ir-semantic]: class 'D' at line 6: its base `SimpleNamespace` is the standard-library / builtin class `types.SimpleNamespace`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of th
+5337_gen37_r381_array.py	[ir-semantic]: class 'D' at line 6: its base `array.array` is the standard-library / builtin class `array.array`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and th
+5338_gen37_r381_argparse_ns.py	[ir-semantic]: class 'D' at line 6: its base `Namespace` is the standard-library / builtin class `argparse.Namespace`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file a
+5339_gen37_r381_collections_mod.py	[ir-semantic]: class 'D' at line 6: its base `collections.UserList` is the standard-library / builtin class `collections.UserList`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes o
+5340_gen37_r381_mixin_second_stdlib.py	[ir-semantic]: class 'D' at line 9: its base `UserList` is the standard-library / builtin class `collections.UserList`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file 
+5341_gen37_r381_frozen_field_stdlib_sub.py	[ir-semantic]: class 'U' at line 7: its base `UserDict` is the standard-library / builtin class `collections.UserDict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file 
+5342_gen37_r381_abc_set_impl.py	[ir-semantic]: class 'D' at line 7: its base `Set` is the standard-library / builtin class `collections.abc.Set`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and th
+5343_gen37_r381_abc_mapping.py	[ir-semantic]: class 'D' at line 7: its base `Mapping` is the standard-library / builtin class `collections.abc.Mapping`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this fil
+5344_gen37_r382_deque_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5345_gen37_r382_typing_deque_param.py	[ir-semantic]: 'g' line 10: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+5346_gen37_r382_set_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5347_gen37_r382_simplens_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5348_gen37_r382_userlist_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5349_gen37_r382_ordereddict_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5350_gen37_r382_defaultdict_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5351_gen37_r382_array_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5352_gen37_r382_counter_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5353_gen37_r382_mutableset_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5354_gen37_r382_list_builtin_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5355_gen37_r382_dict_builtin_param.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5356_gen37_r382_typing_list_param.py	[ir-semantic]: 'g' line 9: `xs` (an instance of ['a list / dict / set']) is HASHED by `{xs}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot
+5357_gen37_r382_typing_dict_param.py	[ir-semantic]: 'g' line 9: `xs` (an instance of ['a list / dict / set']) is HASHED by `{xs}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot
+5358_gen37_r382_list_local_display.py	[ir-semantic]: 'g' line 10: `ys` (an instance of ['a list / dict / set']) is HASHED by `{ys}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it canno
+5359_gen37_r382_list_of_list_elem.py	[ir-semantic]: 'g' line 9: `xs[0]` (an instance of ['a list / dict / set']) is HASHED by `{xs[0]}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it 
+5360_gen37_r382_list_loop_elem.py	[ir-semantic]: 'g' line 10: `y` (an instance of ['a list / dict / set']) is HASHED by `{y}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+5361_gen37_r383_star_in_set.py	[ir-semantic]: 'g' line 14: `*ds` (an instance of ['D']) is HASHED by `{*ds}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, ma
+5362_gen37_r383_type_alias.py	[ir-semantic]: 'g' line 16: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5363_gen37_r383_dict_get.py	[ir-semantic]: 'g' line 15: `v` (an instance of ['D']) is HASHED by `{v}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5364_gen37_r383_dict_values_loop.py	[ir-semantic]: 'g' line 15: `v` (an instance of ['D']) is HASHED by `{v}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5365_gen37_r383_list_comp_subscript.py	[ir-semantic]: 'g' line 15: `xs[0]` (an instance of ['D']) is HASHED by `{xs[0]}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived
+5366_gen37_r383_method_return.py	[ir-semantic]: 'g' line 21: `r.get()` (an instance of ['D']) is HASHED by `{r.get()}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be der
+5367_gen37_r383_any_param.py	[ir-semantic]: 'g' line 14: `d` (an instance of ['D', 'a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it ca
+5368_gen37_r383_slice_elem.py	[ir-semantic]: 'g' line 16: `t[0]` (an instance of ['D']) is HASHED by `{t[0]}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, 
+5369_gen37_r383_items_loop.py	[ir-semantic]: 'g' line 15: `v` (an instance of ['D']) is HASHED by `{v}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5370_gen37_r383_alias_list_param.py	[ir-semantic]: 'g' line 17: `ds[0]` (an instance of ['D']) is HASHED by `{ds[0]}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived
+5371_gen37_r383_alias_in_loop.py	[ir-semantic]: 'g' line 17: `d` (an instance of ['D', 'a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it ca
+5372_gen37_r383_field_dict_get.py	[ir-semantic]: 'g' line 18: `r.m.get('a')` (an instance of ['D']) is HASHED by `{r.m.get('a')}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it can
+5373_gen37_r383_any_field.py	[ir-semantic]: 'g' line 18: `r.d` (an instance of ['D', 'a list / dict / set']) is HASHED by `{r.d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when i
+5374_gen37_r383_method_return_self_field.py	[ir-semantic]: 'g' line 22: `e` (an instance of ['D']) is HASHED by `{e}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5375_gen37_r383_object_param.py	[ir-semantic]: 'g' line 14: `d` (an instance of ['D', 'a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it ca
+5376_gen37_r383_typevar.py	[ir-semantic]: 'g' line 17: `d` (an instance of ['D', 'a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it ca
+5377_gen37_r382_deque_add.py	[ir-semantic]: 'g' line 10: `d` (an instance of ['a list / dict / set']) is HASHED by `s.add(d)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it ca
+5378_gen37_r382_deque_dictkey.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d: 1}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it canno
+5379_gen37_r381_mappingproxy_set.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5380_gen37_r381_mappingproxy_from.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d: 1}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it canno
+5381_gen37_r381_memoryview.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5382_gen37_r381_slice.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5383_gen37_r381_weakref.py	[ir-semantic]: 'g' line 12: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+5384_gen37_r383_subclass_field.py	[ir-semantic]: 'g' line 23: `e.d` (an instance of ['D']) is HASHED by `{e.d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, ma
+5385_gen37_r381_star_import_base.py	[ir-semantic]: class 'D' at line 5: its base `UserList` is a name a standard-library star import (`from .. import *`) may bind, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of th
+5390_gen37_r381_ctl_bases.py	-
+5391_gen37_r382_ctl_hashable_values.py	-
+5392_gen37_r383_ctl_sources.py	-
+5393_gen37_r382_ctl_hashable_stdlib.py	-
+5394_gen37_s1_hashable_unmodelled_bases_refused.py	[ir-semantic]: class 'Q' at line 13: its base `Sequence` is the standard-library / builtin class `collections.abc.Sequence`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this 
+5420_gen37_s1_userlist_base_hashed.py	[ir-semantic]: class 'D' at line 6: its base `UserList` is the standard-library / builtin class `collections.UserList`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file 
+5421_gen37_s1_userdict_base_hashed.py	[ir-semantic]: class 'D' at line 6: its base `UserDict` is the standard-library / builtin class `collections.UserDict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file 
+5422_gen37_s1_deque_base_hashed.py	[ir-semantic]: class 'D' at line 6: its base `deque` is the standard-library / builtin class `collections.deque`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and th
+5423_gen37_s1_ordereddict_base_hashed.py	[ir-semantic]: class 'D' at line 6: its base `OrderedDict` is the standard-library / builtin class `collections.OrderedDict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this
+5424_gen37_s1_counter_base_hashed.py	[ir-semantic]: class 'D' at line 6: its base `Counter` is the standard-library / builtin class `collections.Counter`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file an
+5425_gen37_s1_defaultdict_base_hashed.py	[ir-semantic]: class 'D' at line 6: its base `defaultdict` is the standard-library / builtin class `collections.defaultdict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this
+5426_gen37_s1_simplenamespace_base_hashed.py	[ir-semantic]: class 'D' at line 6: its base `SimpleNamespace` is the standard-library / builtin class `types.SimpleNamespace`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of th
+5427_gen37_s1_array_base_hashed.py	[ir-semantic]: class 'D' at line 6: its base `array.array` is the standard-library / builtin class `array.array`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and th
+5428_gen37_s1_argparse_ns_base_hashed.py	[ir-semantic]: class 'D' at line 6: its base `Namespace` is the standard-library / builtin class `argparse.Namespace`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file a
+5429_gen37_s1_collections_mod_base_hashed.py	[ir-semantic]: class 'D' at line 6: its base `collections.UserList` is the standard-library / builtin class `collections.UserList`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes o
+5430_gen37_s1_mixin_second_stdlib_base_hashed.py	[ir-semantic]: class 'D' at line 9: its base `UserList` is the standard-library / builtin class `collections.UserList`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file 
+5431_gen37_s1_frozen_field_stdlib_sub_base_hashed.py	[ir-semantic]: class 'U' at line 7: its base `UserDict` is the standard-library / builtin class `collections.UserDict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file 
+5432_gen37_s1_abc_set_impl_base_hashed.py	[ir-semantic]: class 'D' at line 7: its base `Set` is the standard-library / builtin class `collections.abc.Set`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and th
+5433_gen37_s1_abc_mapping_base_hashed.py	[ir-semantic]: class 'D' at line 7: its base `Mapping` is the standard-library / builtin class `collections.abc.Mapping`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this fil
+5434_gen37_s1_two_level_ordereddict_dict_key.py	[ir-semantic]: class 'B' at line 6: its base `OrderedDict` is the standard-library / builtin class `collections.OrderedDict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this
+5435_gen37_s1_two_level_ordereddict_set.py	[ir-semantic]: class 'B' at line 6: its base `OrderedDict` is the standard-library / builtin class `collections.OrderedDict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this
+5443_gen37_tc_protocol_instantiation.py	[ir-semantic]: line 18: `Q` is a `typing.Protocol` class, a TYPE with no runtime model, used here as a value (called, passed to `isinstance` / `issubclass`, or bound). CPython refuses to instantiate a Protocol, a TypedDi
+5444_gen37_tc_typeddict_attr.py	[ir-semantic]: line 13: `TD` is a `typing.TypedDict` class, a TYPE with no runtime model, used here as a value (called, passed to `isinstance` / `issubclass`, or bound). CPython refuses to instantiate a Protocol, a Typed
+5445_gen37_tc_protocol_direct.py	[ir-semantic]: line 13: `P` is a `typing.Protocol` class, a TYPE with no runtime model, used here as a value (called, passed to `isinstance` / `issubclass`, or bound). CPython refuses to instantiate a Protocol, a TypedDi
+5446_gen37_tc_isinstance_typeddict.py	[ir-semantic]: line 13: `TD` is a `typing.TypedDict` class, a TYPE with no runtime model, used here as a value (called, passed to `isinstance` / `issubclass`, or bound). CPython refuses to instantiate a Protocol, a Typed
+5447_gen37_tc_isinstance_protocol.py	[ir-semantic]: line 14: `P` is a `typing.Protocol` class, a TYPE with no runtime model, used here as a value (called, passed to `isinstance` / `issubclass`, or bound). CPython refuses to instantiate a Protocol, a TypedDi
+5448_gen37_s1_star_import_base.py	[ir-semantic]: class 'D' at line 6: its base `UserList` is a name a standard-library star import (`from .. import *`) may bind, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of th
+5449_gen37_s1_imported_module_class_base.py	[ir-semantic]: class 'D' at line 6 of the imported module `/W/test-suite/corpus/pycsl-reference/multi_file_lib/s1_userlist_base.py`: its base `UserList` is the standard-library / builtin cl
+5450_gen37_s1_imported_module_class_alias.py	[ir-semantic]: class 'D' at line 6 of the imported module `/W/test-suite/corpus/pycsl-reference/multi_file_lib/s1_userlist_base.py`: its base `UserList` is the standard-library / builtin cl
+5451_gen37_s1_star_dep_module_base.py	[ir-semantic]: class 'D' at line 5 of the imported module `/W/test-suite/corpus/pycsl-reference/multi_file_lib/s1_star_dep.py`: its base `UserList` is a name a standard-library star import 
+5452_gen37_s1_transitive_reexport_base.py	[ir-semantic]: class 'D' at line 5 of the imported module `/W/test-suite/corpus/pycsl-reference/multi_file_lib/s1_via_a.py`: its base `UserList` is the standard-library / builtin class `col
+5460_gen37_s1_ctl_builtin_exception_base.py	-
+5463_gen37_s1_ctl_enum_alias_and_int_mixin.py	-
+5500_gen37_r383a_any_param_set_display.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5501_gen37_r383a_dict_any_value_subscript.py	[ir-semantic]: 'g' line 9: `m['a']` (an instance of ['a list / dict / set']) is HASHED by `{m['a']}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when i
+5502_gen37_r383a_object_param_dict_key.py	[ir-semantic]: 'g' line 7: `d` (an instance of ['a list / dict / set']) is HASHED by `{d: 1}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it canno
+5503_gen37_r383a_any_param_set_add.py	[ir-semantic]: 'g' line 10: `d` (an instance of ['a list / dict / set']) is HASHED by `s.add(d)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it ca
+5504_gen37_r383a_xmod_eq_class_set.py	[ir-semantic]: 'g' line 9: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+5505_gen37_r383a_xmod_eq_class_alias_set.py	[ir-semantic]: 'g' line 10: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+5506_gen37_r383a_typevar_param_set_display.py	[ir-semantic]: 'g' line 11: `d` (an instance of ['a list / dict / set']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+5510_gen37_r383a_ctl_hashable_values.py	-
+5511_gen37_r383a_ctl_frozen_file_class.py	-
+5550_gen37_r392_a04_H_shadow_nested_cls.py	[ir-semantic]: class 'D' at line 13: its base `UserList` is the standard-library / builtin class `collections.UserList`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file
+5551_gen37_r392_c93_shadow_exception_getattr_args.py	[ir-semantic]: class 'D' at line 13: its base `UserDict` is the standard-library / builtin class `collections.UserDict`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file
+5552_gen37_r392_c94_shadow_class_in_method.py	[ir-semantic]: class 'D' at line 14: its base `UserList` is the standard-library / builtin class `collections.UserList`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file
+5553_gen37_r392_c98_shadow_star_import.py	[ir-semantic]: class 'D' at line 13: its base `OrderedDict` is a name a standard-library star import (`from .. import *`) may bind, which PyCSL has no model of. The verifier reads a class's MRO only through the classes o
+5554_gen37_r392_p2_nested_typeddict.py	[ir-semantic]: 'f' line 19: `t` (an instance of ['T']) is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5555_gen37_r394_c01_D_set_dict_values.py	[ir-semantic]: 'f' line 15: `d.values()` (an instance of ['D']) is HASHED by `set(d.values())` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cann
+5556_gen37_r394_c02_D_set_items.py	[ir-semantic]: 'f' line 15: `d.items()` (an instance of ['D']) is HASHED by `set(d.items())` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot
+5557_gen37_r394_b05_set_of_dict_values.py	[ir-semantic]: 'f' line 9: `d.values()` (an instance of ['a list / dict / set']) is HASHED by `set(d.values())` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has —
+5558_gen37_r394_b24_set_of_items_list_values.py	[ir-semantic]: 'f' line 9: `d.items()` (an instance of ['a list / dict / set']) is HASHED by `set(d.items())` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — o
+5559_gen37_r394_h32_items_set_list_vals.py	[ir-semantic]: 'f' line 15: `m.items()` (an instance of ['a list / dict / set']) is HASHED by `set(m.items())` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — 
+5560_gen37_r394_h33_frozenset_values.py	[ir-semantic]: 'f' line 15: `m.values()` (an instance of ['D']) is HASHED by `frozenset(m.values())` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when i
+5561_gen37_r394_h36_set_keys_of_listkey.py	[ir-semantic]: 'f' line 15: `m.values()` (an instance of ['a list / dict / set']) is HASHED by `set(m.values())` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has 
+5562_gen37_r394_c03_D_classattr.py	[ir-semantic]: 'f' line 18: `C.K` (an instance of ['D']) is HASHED by `{C.K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, ma
+5563_gen37_r394_b51_set_of_list_classattr.py	[ir-semantic]: 'f' line 10: `C.XS` (an instance of ['a list / dict / set']) is HASHED by `{C.XS}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it c
+5564_gen37_r394_h27_class_attr_via_self.py	[ir-semantic]: 'm' line 19: `self.K` (an instance of ['D']) is HASHED by `{self.K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be deriv
+5565_gen37_r394_h40_frozenset_classattr.py	[ir-semantic]: 'f' line 19: `C.XS` (an instance of ['D']) is HASHED by `frozenset(C.XS)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be 
+5566_gen37_r394_h38_class_attr_list_in.py	[ir-semantic]: 'f' line 10: `C.XS` (an instance of ['a list / dict / set']) is HASHED by `C.XS in s` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when i
+5567_gen37_r394_c04_D_module_global.py	[ir-semantic]: 'f' line 18: `K` (an instance of ['D']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5568_gen37_r394_b52_set_of_module_list.py	[ir-semantic]: 'f' line 9: `XS` (an instance of ['a list / dict / set']) is HASHED by `{XS}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot
+5569_gen37_r394_h24_global_list_elem.py	[ir-semantic]: 'f' line 18: `G[0]` (an instance of ['D']) is HASHED by `{G[0]}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, 
+5570_gen37_r394_h25_global_dict_value.py	[ir-semantic]: 'f' line 18: `G['a']` (an instance of ['D']) is HASHED by `{G['a']}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be deriv
+5571_gen37_r394_h39_set_of_global_list.py	[ir-semantic]: 'f' line 18: `G` (an instance of ['D']) is HASHED by `set(G)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may
+5572_gen37_r394_h41_global_dict_list_value.py	[ir-semantic]: 'f' line 18: `G['a']` (an instance of ['a list / dict / set']) is HASHED by `{G['a']}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when 
+5573_gen37_r394_h43_tuple_with_global.py	[ir-semantic]: 'f' line 18: `(G, 1)` (an instance of ['D']) is HASHED by `{(G, 1)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be deriv
+5574_gen37_r394_c27_D_copy_copy.py	[ir-semantic]: 'f' line 18: `copy.copy(x)` (an instance of ['D']) is HASHED by `{copy.copy(x)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it can
+5575_gen37_r394_c28_D_replace.py	[ir-semantic]: 'f' line 18: `dataclasses.replace(x)` (an instance of ['D']) is HASHED by `{dataclasses.replace(x)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class h
+5576_gen37_r394_h30_copy_method.py	[ir-semantic]: 'f' line 19: `b` (an instance of ['D']) is HASHED by `{b}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5577_gen37_r395_c112_field_base_sub_dataclass.py	[ir-semantic]: 'f' line 19: `b` (an instance of ['B']) is HASHED by `{b}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5578_gen37_r395_c113_field_base_sub_eqonly.py	[ir-semantic]: 'f' line 19: `b` (an instance of ['B']) is HASHED by `{b}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5579_gen37_r395_c114_field_base_sub_hashnone.py	[ir-semantic]: 'f' line 18: `b` (an instance of ['B']) is HASHED by `{b}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5580_gen37_r395_c116_field_base_sub_hashraise_cond.py	[ir-semantic]: 'f' line 21: `b` (an instance of ['B']) is HASHED by `{b}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5590_gen37_r392_ctl_scope_resolved_bases.py	-
+5591_gen37_r394_ctl_hashable_sources.py	-
+5592_gen37_r395_ctl_hashable_subclasses.py	-
+5620_gen37_r393_exception_group_subclass_ctor.py	[ir-semantic]: class 'D' at line 4: its base `ExceptionGroup` is the standard-library / builtin class `builtins.ExceptionGroup`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of t
+5621_gen37_r393_unicode_decode_subclass_ctor.py	[ir-semantic]: class 'D' at line 4: its base `UnicodeDecodeError` is the standard-library / builtin class `builtins.UnicodeDecodeError`, which PyCSL has no model of. The verifier reads a class's MRO only through the clas
+5622_gen37_r393_exception_subclass_kwargs.py	[ir-semantic]: 'f' line 10: the construction `D(x=1)` got an unexpected keyword argument 'x' — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succeeding 
+5623_gen37_r393_syntax_error_subclass_ctor.py	[ir-semantic]: 'f' line 10: the construction `D('m', 1)` passes arguments a `SyntaxError` does not take: CPython accepts `()`, `(msg)` or `(msg, details)` with `details` a 4- or 6-item sequence and raises TypeError other
+5639_gen37_r398_typeddict_functional_attr.py	[ir-semantic]: line 11: `TD` is a `typing.TypedDict` class, a TYPE with no runtime model, used here as a value (called, passed to `isinstance` / `issubclass`, or bound). CPython refuses to instantiate a Protocol, a Typed
+5640_gen37_r398_typeddict_notrequired_key.py	[ir-semantic]: function 'f': the key `"b"` is OPTIONAL in the TypedDict `TD` (`NotRequired`, `total=False`, or a key set the verifier cannot read), so a value may lack it and CPython raises KeyError (or answers the defau
+5641_gen37_r398_typeddict_total_false.py	[ir-semantic]: function 'f': the key `"a"` is OPTIONAL in the TypedDict `TD` (`NotRequired`, `total=False`, or a key set the verifier cannot read), so a value may lack it and CPython raises KeyError (or answers the defau
+5642_gen37_r398_typeddict_field_attr.py	[ir-semantic]: function 'f': `.a` reads an ATTRIBUTE of a value that may be the TypedDict `TD`, so CPython raises AttributeError (`d.a` on `d: TD` under `no_exception` PROVED). Use `d["a"]`. A TypedDict value is a plain 
+5643_gen37_r398_functional_notrequired.py	[ir-semantic]: function 'f': the key `"b"` is OPTIONAL in the TypedDict `TD` (`NotRequired`, `total=False`, or a key set the verifier cannot read), so a value may lack it and CPython raises KeyError (or answers the defau
+5650_gen37_r393_super_init_kwarg.py	[ir-semantic]: '__init__' line 6: the construction `super().__init__(msg=x)` got an unexpected keyword argument 'msg' — CPython raises TypeError here, while the record model binds the arguments it can and verifies the co
+5651_gen37_r393_exception_new_override.py	[ir-semantic]: 'f' line 9: the construction `D()` builds the exception class `D`, whose constructor signature the verifier cannot read (a `__new__`, a class keyword, a decorated or non-`def` `__init__`, or a class define
+5652_gen37_r393_grandchild_kwarg.py	[ir-semantic]: 'f' line 10: the construction `D(code=1)` got an unexpected keyword argument 'code' — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succe
+5653_gen37_r393_raise_kwarg.py	[ir-semantic]: 'f' line 9: the construction `D(k=1)` got an unexpected keyword argument 'k' — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succeeding (
+5680_gen37_r393_ctl_exception_positional_and_user_init.py	-
+5682_gen37_r398_ctl_typeddict_required_key.py	-
+5686_gen37_r393_ctl_syntax_error_details_tuple.py	-
+5780_gen37_r402_own_hash_raises.py	[ir-semantic]: 'f' line 16: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5781_gen37_r402_own_hash_requires.py	[ir-semantic]: 'f' line 18: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5782_gen37_r402_inherited_hash_raises.py	[ir-semantic]: 'f' line 20: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5783_gen37_r402_tuple_elem_hash_raises.py	[ir-semantic]: 'f' line 16: `(a, 1)` (an instance of ['D']) is HASHED by `{(a, 1)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be deriv
+5784_gen37_r402_frozen_field_hash_raises.py	[ir-semantic]: 'f' line 24: `r` (an instance of ['R']) is HASHED by `{r}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot be derived, may ha
+5785_gen37_r402_eq_collision_raises.py	[ir-semantic]: 'f' line 20: `a` (an instance of ['D']) is COMPARED by `{a, b}`: a set / dict calls `__eq__` between a value and an element of equal hash, and the class (or a file subclass of it) has an `__eq__` that is n
+5786_gen37_r402_tuple_eq_collision_raises.py	[ir-semantic]: 'f' line 20: `(a, 1)` (an instance of ['D']) is COMPARED by `{(a, 1), (b, 1)}`: a set / dict calls `__eq__` between a value and an element of equal hash, and the class (or a file subclass of it) has an `__
+5787_gen37_r402_dataclass_eq_field_raises.py	[ir-semantic]: 'f' line 28: `a` (an instance of ['R']) is COMPARED by `{a, b}`: a set / dict calls `__eq__` between a value and an element of equal hash, and the class (or a file subclass of it) has an `__eq__` that is n
+5788_gen37_r402_subclass_eq_raises.py	[ir-semantic]: 'f' line 22: `a` (an instance of ['B']) is COMPARED by `{a, b}`: a set / dict calls `__eq__` between a value and an element of equal hash, and the class (or a file subclass of it) has an `__eq__` that is n
+5789_gen37_r402_starred_eq_collision_raises.py	[ir-semantic]: 'f' line 20: `*(a, b)` (an instance of ['D']) is COMPARED by `{*(a, b)}`: a set / dict calls `__eq__` between a value and an element of equal hash, and the class (or a file subclass of it) has an `__eq__` 
+5800_gen37_r402_ctl_verified_hash_eq.py	-
+5801_gen37_r402_ctl_eq_unverified_no_compare.py	-
+5822_term_transform_dropped_ensures_false.py	function 'iff_to_bin': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `str` parameter `head` of `App` (body); the `str` parameter `op` of `Bin` (body). Python does 
+5879_r3_c226_element_term_masks_pop.py	[ir-semantic] /W/test-suite/corpus/pycsl-reference/5879_r3_c226_element_term_masks_pop.py: class 'D' carries a `#@ class invariant`, but its constructor obligation (route #226: the invarian
+5925_r420_pyval_list_walker_drops_no_exception.py	-
+5970_gen37_r403_a04_eq_hetero_set.py	[ir-semantic]: 'f' line 19: `a` (an instance of ['A']) is COMPARED by `{a, 1}`: a set / dict calls `__eq__` between a value and an element of equal hash, and the class (or a file subclass of it) has an `__eq__` that is n
+5971_gen37_r403_f02_eq_hetero_two_classes.py	[ir-semantic]: 'f' line 28: `a` (an instance of ['A']) is COMPARED by `{a, b}`: a set / dict calls `__eq__` between a value and an element of equal hash, and the class (or a file subclass of it) has an `__eq__` that is n
+5972_gen37_r403_f03_eq_hetero_false.py	[ir-semantic]: 'f' line 19: `a` (an instance of ['A']) is COMPARED by `{a, False}`: a set / dict calls `__eq__` between a value and an element of equal hash, and the class (or a file subclass of it) has an `__eq__` that 
+5973_gen37_r403_f05_eq_hetero_str_tuple.py	[ir-semantic]: 'f' line 19: `(a, 1)` (an instance of ['A']) is COMPARED by `{(a, 1), (0, 1)}`: a set / dict calls `__eq__` between a value and an element of equal hash, and the class (or a file subclass of it) has an `__
+5974_gen37_r404_a12_metaclass_eq_hash.py	[ir-semantic]: class 'M' at line 4: its base `type` is the standard-library / builtin class `builtins.type`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and the mod
+5975_gen37_r404_f07b_metaclass_hash_raise.py	[ir-semantic]: class 'M' at line 4: its base `type` is the standard-library / builtin class `builtins.type`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and the mod
+5976_gen37_r404_f10_metaclass_classattr.py	[ir-semantic]: class 'M' at line 4: its base `type` is the standard-library / builtin class `builtins.type`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and the mod
+5977_gen37_r404_f12_metaclass_instance_hash.py	[ir-semantic]: class 'M' at line 4: its base `type` is the standard-library / builtin class `builtins.type`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and the mod
+5978_gen37_r404_h15_metaclass_attr_fallback.py	[ir-semantic]: class 'M' at line 4: its base `type` is the standard-library / builtin class `builtins.type`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and the mod
+5979_gen37_r404_j33_metaclass_init_raise_attr.py	[ir-semantic]: class 'M' at line 4: its base `type` is the standard-library / builtin class `builtins.type`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and the mod
+5980_gen37_r404_j35b_metaclass_bool_while.py	[ir-semantic]: class 'M' at line 4: its base `type` is the standard-library / builtin class `builtins.type`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and the mod
+5981_gen37_r404_j36_metaclass_eq_tuple_hash.py	[ir-semantic]: class 'M' at line 4: its base `type` is the standard-library / builtin class `builtins.type`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and the mod
+5982_gen37_r405_a18_type_subclass_main.py	[ir-semantic]: line 16: `type('D', (B,), {'__hash__': None})` creates a class at run time from the bases `(B,)`. The verifier reads the file's classes from its `class` statements (a value typed with a class may be an ins
+5984_gen37_r405_f15_make_dataclass_hash.py	[ir-semantic]: line 17: `dataclasses.make_dataclass('D', [], bases=(B,))` creates a class at run time from the bases `(B,)`. The verifier reads the file's classes from its `class` statements (a value typed with a class m
+5985_gen37_r405_f16_type_subclass_eq_hetero.py	[ir-semantic]: line 16: `type('D', (B,), {'__hash__': lambda s: 0, '__eq__': lambda s, o: 1 // 0})` creates a class at run time from the bases `(B,)`. The verifier reads the file's classes from its `class` statements (a 
+5992_gen37_r406_h14_classattr_ns_shadow.py	[ir-semantic]: 'f' line 17: `c.K` (an instance of ['a list / dict / set']) is HASHED by `{c.K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it can
+5995_gen37_r406_k04_getattr_ns_classattr_hash.py	[ir-semantic]: 'f' line 15: `r.x` (an instance of ['a list / dict / set']) is HASHED by `{r.x}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it can
+5996_gen37_r407_b04_global_arith_list.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+5997_gen37_r407_f29_global_add_lists.py	[ir-semantic]: 'f' line 11: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+5998_gen37_r407_f30_global_or_list.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+5999_gen37_r407_f31_global_dict_union.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6000_gen37_r407_f32_global_set_minus.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6001_gen37_r407_f35_global_slice_list.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6002_gen37_r407_f36_global_ifexp_list.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6003_gen37_r407_q07_global_listdisplay_mul.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6004_gen37_r407_q17_classattr_list_mul.py	[ir-semantic]: 'f' line 11: `C.K` (an instance of ['a list / dict / set']) is HASHED by `{C.K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it can
+6005_gen37_r407_q18_global_tuple_add_list.py	[ir-semantic]: 'f' line 11: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6006_gen37_r408_b02_global_sub_store_main.py	[ir-semantic]: 'f' line 9: `XS[0]` (an instance of ['a list / dict / set']) is HASHED by `{XS[0]}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it 
+6007_gen37_r409_b21_stdlib_mutable_obj.py	[ir-semantic]: 'f' line 9: `os.environ` (an instance of ['a list / dict / set']) is HASHED by `{os.environ}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or
+6008_gen37_r409_f37_from_os_environ.py	[ir-semantic]: 'f' line 9: `environ` (an instance of ['a list / dict / set']) is HASHED by `{environ}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when
+6009_gen37_r409_f38_sys_argv.py	[ir-semantic]: 'f' line 9: `sys.argv` (an instance of ['a list / dict / set']) is HASHED by `{sys.argv}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, wh
+6010_gen37_r409_f40_logging_root_handlers.py	[ir-semantic]: 'f' line 9: `logging.root.handlers` (an instance of ['a list / dict / set']) is HASHED by `{logging.root.handlers}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)
+6011_gen37_r409_f43_global_stdlib_attr.py	[ir-semantic]: 'f' line 10: `E` (an instance of ['a list / dict / set']) is HASHED by `{E}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6012_gen37_r409_q13_environ_copy.py	[ir-semantic]: 'f' line 9: `os.environ.copy()` (an instance of ['a list / dict / set']) is HASHED by `{os.environ.copy()}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its 
+6013_gen37_r410_m01_copy_dunder_copy.py	[ir-semantic]: 'f' line 17: `copy.copy(d)` (an instance of ['a list / dict / set']) is HASHED by `{copy.copy(d)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has
+6014_gen37_r410_m06_replace_dunder.py	[ir-semantic]: 'f' line 17: `copy.replace(d)` (an instance of ['a list / dict / set']) is HASHED by `{copy.replace(d)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its cla
+6015_gen37_r404_metaclass_function.py	[ir-semantic]: class 'K' at line 11: its metaclass `mk` is not modelled. A class is a VALUE of its metaclass (hashed in a set, tested for truth, read for attributes), and the verifier models only `type`, `abc.ABCMeta`, `
+6016_gen37_r407_global_list_copy.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6018_gen37_r404_two_level_metaclass.py	[ir-semantic]: class 'M2' at line 8: it derives from `type` through a class of this file and defines something, which PyCSL has no model of: a metaclass's methods and attributes act on the classes that use it (systematic
+6020_gen37_r403_ctl_eq_any_other.py	-
+6021_gen37_r404_ctl_metaclass.py	-
+6022_gen37_r405_ctl_dynamic_subclass.py	-
+6024_gen37_r407_ctl_global_container_expr.py	-
+6025_gen37_r408_ctl_global_main_store.py	-
+6026_gen37_r409_ctl_stdlib_obj.py	-
+6027_gen37_r410_ctl_copy_dunder.py	-
+6056_gen37_r412_float_div_zero.py	-
+6057_gen37_r412_float_div_literal_zero.py	-
+6058_gen37_r412_float_inverse_zero.py	-
+6059_gen37_r412_int_truediv_zero.py	-
+6060_gen37_r412_ctl_guarded_div.py	-
+6061_gen37_r413_int_truediv_overflow.py	-
+6062_gen37_r413_ctl_bounded_truediv.py	-
+6063_gen37_r414_len_range_huge.py	-
+6064_gen37_r414_str_repeat_huge.py	-
+6065_gen37_r414_list_repeat_huge.py	-
+6066_gen37_r414_lshift_huge.py	-
+6067_gen37_r414_str_repeat_too_long.py	-
+6068_gen37_r414_ctl_bounded_sizes.py	-
+6069_gen37_r415_percent_d_of_str.py	[whyml]: `%` string formatting under `no_exception` is admitted only when it is positively checked: the formatted value is an opaque string and the operation can raise TypeError (an operand of the wrong type, too many or
+6070_gen37_r415_percent_mapping_missing_key.py	[whyml]: `%` string formatting under `no_exception` is admitted only when it is positively checked: the formatted value is an opaque string and the operation can raise TypeError (an operand of the wrong type, too many or
+6072_gen37_r415_ctl_checked_percent.py	-
+6073_gen37_r416_keys_view_mutate.py	/W/test-suite/corpus/pycsl-reference/6073_gen37_r416_keys_view_mutate.py (function 'f', for-loop near line 9): UB-7.1 — the loop body mutates the iterated collection 'd'. This is undefined 
+6074_gen37_r416_values_view_mutate.py	/W/test-suite/corpus/pycsl-reference/6074_gen37_r416_values_view_mutate.py (function 'f', for-loop near line 9): UB-7.1 — the loop body mutates the iterated collection 'd'. This is undefine
+6075_gen37_r416_items_view_mutate.py	/W/test-suite/corpus/pycsl-reference/6075_gen37_r416_items_view_mutate.py (function 'f', for-loop near line 9): UB-7.1 — the loop body mutates the iterated collection 'd'. This is undefined
+6076_gen37_r416_ctl_view_read_only.py	-
+6100_r417_list_repeat_len.py	[whyml]: sequence repetition is modelled only for a ONE-element list display on the left, `[x] * n` (an n-element list of x). A list display of another length, or a tuple display on either side of `*`, has no model here:
+6101_r417_list_repeat_elem.py	[whyml]: sequence repetition is modelled only for a ONE-element list display on the left, `[x] * n` (an n-element list of x). A list display of another length, or a tuple display on either side of `*`, has no model here:
+6102_r417_empty_list_repeat.py	[whyml]: sequence repetition is modelled only for a ONE-element list display on the left, `[x] * n` (an n-element list of x). A list display of another length, or a tuple display on either side of `*`, has no model here:
+6103_r417_tuple_repeat_truth.py	[whyml]: sequence repetition is modelled only for a ONE-element list display on the left, `[x] * n` (an n-element list of x). A list display of another length, or a tuple display on either side of `*`, has no model here:
+6104_r417_tuple_repeat_as_int.py	[whyml]: sequence repetition is modelled only for a ONE-element list display on the left, `[x] * n` (an n-element list of x). A list display of another length, or a tuple display on either side of `*`, has no model here:
+6105_r417_rmul_tuple_truth.py	[whyml]: sequence repetition is modelled only for a ONE-element list display on the left, `[x] * n` (an n-element list of x). A list display of another length, or a tuple display on either side of `*`, has no model here:
+6106_r417_contract_newline_eq.py	-
+6107_r417_contract_newline_single.py	-
+6108_r417_list_range_huge.py	-
+6109_r417_for_sorted_range_huge.py	-
+6110_r417_float_huge_int.py	-
+6111_r417_setattr_const_hash.py	[ir-semantic]: 'f' line 12: `r.x` (an instance of ['a list / dict / set']) is HASHED by `{r.x}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it can
+6112_r417_shlex_split_hash.py	[ir-semantic]: 'f' line 9: `shlex.split('a b')` (an instance of ['a list / dict / set']) is HASHED by `{shlex.split('a b')}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). It
+6113_r417_float_call_result.py	[whyml]: `float(x)` under `no_exception \all` is admitted only when `x` is positively read as an int (a literal, an `int`-typed name, or `len` / `int` / `abs` / `ord` / `hash` / `sum`; it then owes |x| <= DBL_MAX, since 
+6115_r417_set_sorted_range_huge.py	[whyml]: an OverflowError obligation of `list(range(..))` / `sorted(range(..))` / `float(<int>)` under `no_exception \all` was ERASED by the surrounding lowering (the argument was coerced to an opaque value, measured on 
+6116_r417_erased_twin_sorted_range.py	[whyml]: an OverflowError obligation of `list(range(..))` / `sorted(range(..))` / `float(<int>)` under `no_exception \all` was ERASED by the surrounding lowering (the argument was coerced to an opaque value, measured on 
+6117_r417_erased_twin_float.py	[whyml]: an OverflowError obligation of `list(range(..))` / `sorted(range(..))` / `float(<int>)` under `no_exception \all` was ERASED by the surrounding lowering (the argument was coerced to an opaque value, measured on 
+6118_r417_ctl_kept_twins.py	-
+6120_r417_ctl_one_elem_list_repeat.py	-
+6121_r417_ctl_contract_escapes.py	-
+6122_r417_ctl_bounded_list_range.py	-
+6123_r417_ctl_bounded_float.py	-
+6124_r417_ctl_setattr_other_field.py	-
+6125_r417_ctl_stdlib_str_hashed.py	-
+6200_r411_latin1_literal_index_exc.py	-
+6201_r411_latin1_contract_index.py	-
+6206_r411_tab_index_exc.py	-
+6208_r411_ctl_latin1_literal.py	-
+6209_r411_ctl_escaped_literals.py	-
+6250_r421_b00_slice_list.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6251_r421_b01_memview_bytearray.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6252_r421_b02_mappingproxy.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6253_r421_b04_deque.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6254_r421_b07_defaultdict.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6255_r421_b09_decimal_snan.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6256_r421_b11_bytearray_call.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6257_r421_b12_getenv_default.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6258_r421_b13_next_iter.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6259_r421_b17_unpack_star.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6260_r421_b18_unpack_list_target.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6261_r421_b20_globals_sub.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6262_r421_b21_dict_fromkeys.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6263_r421_b22_str_split_unbound.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6264_r421_b23_str_method.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6265_r421_b33_enum_value.py	[ir-semantic]: 'f' line 16: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6266_r421_b41_json_loads.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6267_r421_b44_shlex_split_alias.py	[ir-semantic]: 'f' line 10: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6268_r421_b52_copy_copy_list.py	[ir-semantic]: 'f' line 11: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6269_r421_b54_class_attr_list_via_inst.py	[ir-semantic]: 'f' line 13: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6270_r421_b55_staticmethod_call.py	[ir-semantic]: 'f' line 15: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6271_r421_b56_func_result.py	[ir-semantic]: 'f' line 13: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6272_r421_b60_walrus_global.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6273_r421_b68_chain_assign.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6274_r421_b69_tuple_assign.py	[ir-semantic]: 'f' line 9: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6275_r421_b70_del_rebind.py	[ir-semantic]: 'f' line 11: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6276_r421_b71_if_module.py	[ir-semantic]: 'f' line 13: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6277_r421_b72_try_module.py	[ir-semantic]: 'f' line 12: `K` (an instance of ['a list / dict / set']) is HASHED by `{K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6278_r421_h03_cb_chain.py	[ir-semantic]: 'f' line 10: `C.K` (an instance of ['a list / dict / set']) is HASHED by `{C.K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it can
+6279_r421_h07_cb_via_self.py	[ir-semantic]: 'g' line 9: `self.K` (an instance of ['a list / dict / set']) is HASHED by `{self.K}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when i
+6280_r421_h16_glob_tuple_component.py	[ir-semantic]: 'f' line 13: `(1, K)` (an instance of ['a list / dict / set']) is HASHED by `{(1, K)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when 
+6281_r421_h19_glob_dict_get.py	[ir-semantic]: 'f' line 14: `K` (an instance of ['a list / dict / set']) is HASHED by `d.get(K, 0)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it
+6282_r422_c27_str_split_unbound.py	[ir-semantic]: 'f' line 7: `k` (an instance of ['a list / dict / set']) is HASHED by `{k}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6283_r422_c31_enum_value.py	[ir-semantic]: 'f' line 14: `k` (an instance of ['a list / dict / set']) is HASHED by `{k}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6284_r422_c35_nested_def.py	[ir-semantic]: 'f' line 9: `k` (an instance of ['a list / dict / set']) is HASHED by `{k}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot b
+6285_r423_a20_type_alias_call.py	[ir-semantic]: line 16: `T = type` uses `builtins.type`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `issubclass` argument, a comparison operand, a `__name__
+6286_r423_a23_dyn_abcmeta_call.py	[ir-semantic]: line 17: `abc.ABCMeta('D', (B,), {'__hash__': None})` uses `abc.ABCMeta`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `issubclass` argument, a
+6287_r423_a25_dyn_type_call_dunder.py	[ir-semantic]: line 16: `type.__call__(type, 'D', (B,), {'__hash__': None})` uses `builtins.type`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `issubclass` a
+6288_r423_a27_dyn_meta_subclass_call.py	[ir-semantic]: line 20: `M('D', (B,), {'__hash__': None})` uses the file metaclass `M`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `issubclass` argument, a 
+6290_r423_j00_dyn_abcmeta_new.py	[ir-semantic]: line 17: `abc.ABCMeta.__new__(abc.ABCMeta, 'D', (B,), {'__hash__': None})` uses `abc.ABCMeta`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `is
+6291_r423_j01_dyn_m_new.py	[ir-semantic]: line 20: `M.__new__(M, 'D', (B,), {'__hash__': None})` uses the file metaclass `M`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `issubclass` a
+6292_r423_j02_dyn_m_alias.py	[ir-semantic]: line 20: `MM = M` uses the file metaclass `M`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `issubclass` argument, a comparison operand, a `__n
+6293_r423_j04_dyn_enummeta_call.py	[ir-semantic]: line 17: `enum.EnumMeta('D', (B,), {'__hash__': None})` uses `enum.EnumMeta`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `issubclass` argumen
+6294_r423_j05_dyn_abcmeta_from_import.py	[ir-semantic]: line 17: `ABCMeta('D', (B,), {'__hash__': None})` uses `abc.ABCMeta`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `issubclass` argument, a com
+6295_r423_j08_dyn_type_new_alias.py	[ir-semantic]: line 16: `type.__new__` uses `builtins.type`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `issubclass` argument, a comparison operand, a `__na
+6296_r423_j09_dyn_classmethod_mk.py	[ir-semantic]: line 16: `type.__call__(type, 'D', (B,), {'__hash__': None})` uses `builtins.type`, a CLASS-CREATING value (`type`, a metaclass), other than as a class base / `metaclass=`, an `isinstance` / `issubclass` a
+6297_r424_a10_meta_new_returns_list.py	[ir-semantic]: line 15: `K[1]` subscripts (or aliases) the class 'K', whose `__class_getitem__` runs on `K[..]`: its result, exceptions and contract are not modelled (route #424: `{K[1]}` with a `__class_getitem__` retur
+6298_r424_j23_cgi_glob.py	[ir-semantic]: line 9: `K[1]` subscripts (or aliases) the class 'K', whose `__class_getitem__` runs on `K[..]`: its result, exceptions and contract are not modelled (route #424: `{K[1]}` with a `__class_getitem__` return
+6303_r426_e09_fstring_spec_f_int.py	-
+6304_r426_e12_fstring_spec_c_big.py	-
+6305_r426_f00_c_neg.py	-
+6306_r426_f01_c_range.py	-
+6307_r426_f12_int_pct_big.py	-
+6308_r426_m01_fspec_E.py	-
+6309_r426_m05_fspec_dot2f.py	-
+6310_r427_g07_genexp_dict.py	/W/test-suite/corpus/pycsl-reference/6310_r427_g07_genexp_dict.py (function 'f', for-loop near line 6): UB-7.1 — the loop body mutates the iterated collection 'd'. This is undefined behavio
+6311_r427_m10_genexp_keys.py	/W/test-suite/corpus/pycsl-reference/6311_r427_m10_genexp_keys.py (function 'f', for-loop near line 6): UB-7.1 — the loop body mutates the iterated collection 'd'. This is undefined behavio
+6312_r427_m13_genexp_set.py	/W/test-suite/corpus/pycsl-reference/6312_r427_m13_genexp_set.py (function 'f', for-loop near line 6): UB-7.1 — the loop body mutates the iterated collection 's'. This is undefined behaviou
+6313_r427_m14_genexp_cond.py	/W/test-suite/corpus/pycsl-reference/6313_r427_m14_genexp_cond.py (function 'f', for-loop near line 6): UB-7.1 — the loop body mutates the iterated collection 'd'. This is undefined behavio
+6314_r427_w11_genexp_set_discard.py	/W/test-suite/corpus/pycsl-reference/6314_r427_w11_genexp_set_discard.py (function 'f', for-loop near line 6): UB-7.1 — the loop body mutates the iterated collection 's'. This is undefined 
+6315_r427_w12_genexp_nested_gen.py	/W/test-suite/corpus/pycsl-reference/6315_r427_w12_genexp_nested_gen.py (function 'f', for-loop near line 6): UB-7.1 — the loop body mutates the iterated collection 'd'. This is undefined b
+6321_r428_t01_userlist_field_hash.py	[ir-semantic]: 'f' line 15: `r.data` (an instance of ['a list / dict / set']) is HASHED by `{r.data}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when 
+6322_r428_t04_logger_field_hash.py	[ir-semantic]: 'f' line 15: `r.handlers` (an instance of ['a list / dict / set']) is HASHED by `{r.handlers}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — o
+6330_r421_ctl_global_derived_hashed.py	-
+6331_r422_ctl_local_rows_hashed.py	-
+6332_r423_ctl_type_reads.py	-
+6333_r424_ctl_class_getitem_unused.py	-
+6335_r426_ctl_fspec_bounded.py	-
+6336_r427_ctl_snapshot_iteration.py	-
+6460_r430_claimed_caller_unclaimed_hash_callee.py	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership test or `hash(...)` of e.g. `m.get(k)` on a `Dict[str, Any]`, which may be a list) 
+6461_r430_claimed_caller_transitive.py	`mid(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership test or `hash(...)` of e.g. `m.get(k)` on a `Dict[str, Any]`, which may be a list
+6462_r430_claimed_caller_membership_callee.py	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership test or `hash(...)` of e.g. `m.get(k)` on a `Dict[str, Any]`, which may be a list) 
+6463_r430_ctl_claimed_caller_derivable_hash_callee.py	-
+6470_rgate_set_display_get_under_claim.py	[ir-semantic]: 'f' line 10: `m.get('a')` is HASHED by `{m.get('a')}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or rece
+6471_rgate_set_add_get_under_claim.py	[ir-semantic]: 'g' line 10: `f2.get('name')` is HASHED by `seen.add(f2.get('name'))` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknow
+6472_rgate_local_from_get_under_claim.py	[ir-semantic]: 'h' line 11: `v` is HASHED by `{v}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, an un
+6473_rgate_loop_set_add_under_claim.py	[ir-semantic]: 'names' line 12: `f.get('name')` is HASHED by `seen.add(f.get('name'))` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unkn
+6474_rgate_values_in_set_under_claim.py	[ir-semantic]: 'f' line 11: `v` is HASHED by `v in seen` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`,
+6475_rgate_dict_key_get_under_claim.py	[ir-semantic]: 'f' line 10: `m.get('a')` is HASHED by `{m.get('a'): 1}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or r
+6481_rgate_ctl_claimed_derivable_hash.py	-
+6500_r432_optional_str_strip.py	[ir-semantic]: 'f' line 9: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise AttributeError, while this function claims 
+6501_r432_optional_user_method.py	[ir-semantic]: 'f' line 15: the attribute `c.m` is read on `c`, which may be an instance of ['C', 'None'] here -- `None` or a class without `m` -- so CPython may raise AttributeError, while this function claims `#@ no_ex
+6502_r432_optional_dict_get.py	[ir-semantic]: 'f' line 9: the attribute `d.get` is read on `d`, which may be an instance of ['Dict', 'None'] here -- `None` or a class without `get` -- so CPython may raise AttributeError, while this function claims `#@
+6503_r432_optional_int_bit_length.py	[ir-semantic]: 'f' line 9: the attribute `n.bit_length` is read on `n`, which may be an instance of ['None', 'int'] here -- `None` or a class without `bit_length` -- so CPython may raise AttributeError, while this functi
+6504_r432_optional_upper_unused.py	[ir-semantic]: 'f' line 9: the attribute `x.upper` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `upper` -- so CPython may raise AttributeError, while this function claims 
+6505_r432_union_int_str_upper.py	[ir-semantic]: 'f' line 9: the attribute `x.upper` is read on `x`, which may be an instance of ['int', 'str'] here -- `None` or a class without `upper` -- so CPython may raise AttributeError, while this function claims `
+6506_r432_pep604_str_none_lower.py	[ir-semantic]: 'f' line 9: the attribute `x.lower` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `lower` -- so CPython may raise AttributeError, while this function claims 
+6507_r432_optional_second_param_upper.py	[ir-semantic]: 'f' line 8: the attribute `x.upper` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `upper` -- so CPython may raise AttributeError, while this function claims 
+6508_r432_local_from_dict_get.py	[ir-semantic]: 'f' line 9: the attribute `v.strip` is read on `v`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise AttributeError, while this function claims 
+6509_r432_param_default_none.py	[ir-semantic]: 'f' line 6: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise AttributeError, while this function claims 
+6510_r432_optional_field_chain.py	[ir-semantic]: 'f' line 14: the attribute `n.next.v` is read on `n.next`, which may be an instance of ['Node', 'None'] here -- `None` or a class without `v` -- so CPython may raise AttributeError, while this function cla
+6511_r432_rebind_after_guard.py	[ir-semantic]: 'f' line 11: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise AttributeError, while this function claims
+6512_r432_loop_rebind_after_use.py	[ir-semantic]: 'f' line 11: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise AttributeError, while this function claims
+6513_r432_call_between_guard_and_use.py	[ir-semantic]: 'f' line 19: the attribute `n.nxt.v` is read on `n.nxt`, which may be an instance of ['Node', 'None', 'NoneType'] here -- `None` or a class without `v` -- so CPython may raise AttributeError, while this fu
+6514_r432_or_guard_does_not_narrow.py	[ir-semantic]: 'f' line 9: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise AttributeError, while this function claims 
+6515_r432_ctl_if_not_none.py	-
+6516_r432_ctl_early_return.py	-
+6517_r432_ctl_isinstance.py	-
+6518_r432_ctl_optional_user_class_guard.py	-
+6519_r432_ctl_assert_not_none.py	-
+6520_r432_ctl_ifexp_guard.py	-
+6521_r432_ctl_local_get_guard.py	-
+6522_r432_ctl_assign_derived_str.py	-
+6523_r432_ctl_loop_continue_guard.py	-
+6524_r432_ctl_unclaimed.py	-
+6525_r433_join_tuple_with_optional.py	[ir-semantic]: 'f' line 8: `''.join(t)` joins elements that may be ['None'], not all ['str']: `''.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeError and the model
+6526_r433_join_dict_values_optional.py	[ir-semantic]: 'f' line 8: `' '.join(d.values())` joins elements that may be ['None'], not all ['str']: `' '.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeError an
+6527_r433_join_union_str_int.py	[ir-semantic]: 'f' line 8: `''.join(xs)` joins elements that may be ['int'], not all ['str']: `''.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeError and the model
+6528_r433_bytes_join_optional.py	[ir-semantic]: 'f' line 8: `b''.join(xs)` joins elements that may be ['None'], not all ['bytearray', 'bytes']: `b''.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeE
+6529_r433_join_any.py	[ir-semantic]: 'f' line 8: `''.join(xs)` joins elements that may be ['#UND'], not all ['str']: `''.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeError and the mode
+6530_r433_join_list_int.py	[ir-semantic]: 'f' line 8: `''.join(xs)` joins elements that may be ['int'], not all ['str']: `''.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeError and the model
+6531_r433_join_optional_display_in_loop.py	[ir-semantic]: 'f' line 10: `','.join([x])` joins elements that may be ['None'], not all ['str']: `','.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeError and the 
+6532_r433_str_join_bytes.py	[ir-semantic]: 'f' line 8: `''.join(xs)` joins elements that may be ['bytes'], not all ['str']: `''.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeError and the mod
+6533_r433_join_list_optional_str.py	[ir-semantic]: 'f' line 8: `','.join(xs)` joins elements that may be ['None'], not all ['str']: `','.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeError and the mo
+6534_r433_ctl_bytes_join_bytes.py	-
+6535_r433_ctl_unclaimed.py	-
+6536_r437_sorted_tuple_str_optional.py	[ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `None`: `sorted` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_exception` covering
+6537_r437_sorted_optional_int.py	[ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `None`: `sorted` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_exception` covering
+6538_r437_sorted_tuple_int_dict.py	[ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `Dict`: `sorted` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_exception` covering
+6539_r437_sorted_tuple_user_class.py	[ir-semantic]: 'f' line 12: `sorted(xs)` compares values that may be `C`: `sorted` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_exception` covering T
+6540_r437_sorted_tuple_int_optional.py	[ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `None`: `sorted` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_exception` covering
+6541_r437_sorted_tuple_str_dict.py	[ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `Dict`: `sorted` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_exception` covering
+6542_r437_sorted_optional_str.py	[ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `None`: `sorted` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_exception` covering
+6543_r437_sorted_tuple_list_of_dict.py	[ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `Dict`: `sorted` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_exception` covering
+6544_r437_sorted_reverse_tuple_dict.py	[ir-semantic]: 'f' line 8: `sorted(xs, reverse=True)` compares values that may be `Dict`: `sorted` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_excep
+6545_r437_sorted_list_of_optional_lists.py	[ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `None`: `sorted` raises TypeError unless the compared values are totally ordered among themselves, while this function claims `#@ no_exception` covering
+6546_r437_ctl_sorted_int_minmax.py	-
+6547_r437_ctl_unclaimed_typeerror.py	-
+6548_r432_isinstance_object_does_not_narrow.py	[ir-semantic]: 'f' line 9: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise AttributeError, while this function claims 
+6549_r432_generator_expression_runs_later.py	[ir-semantic]: 'f' line 9: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise AttributeError, while this function claims 
+6550_r434_bb02_ord_long.py	-
+6551_r434_or0_ord_empty.py	-
+6552_r434_or1_ord_lit2.py	[whyml]: `ord(x)` raises TypeError unless `x` is a str (or bytes) of length 1, and this function claims `no_exception \all`. Only a str argument carries that length as an obligation (`len(x) == 1`; a str literal is decid
+6553_r434_or2_ord_slice.py	-
+6554_r434_or4_ord_upper_sz.py	-
+6555_r434_or6_ord_strip.py	-
+6556_r434_or8_ord_join.py	-
+6557_r435_c0_str_unbound_bytes.py	[whyml]: `str.upper(x, ..)` calls the UNBOUND method `upper` of `str`, which raises TypeError when `x` is not a `str` ("descriptor 'upper' for 'str' objects doesn't apply to a .."), and this function claims `no_exception
+6558_r435_c1_bytes_unbound_str.py	[whyml]: `bytes.upper(x, ..)` calls the UNBOUND method `upper` of `bytes`, which raises TypeError when `x` is not a `bytes` ("descriptor 'upper' for 'bytes' objects doesn't apply to a .."), and this function claims `no_e
+6559_r435_c09_str_lower_bytes.py	[whyml]: `str.lower(x, ..)` calls the UNBOUND method `lower` of `str`, which raises TypeError when `x` is not a `str` ("descriptor 'lower' for 'str' objects doesn't apply to a .."), and this function claims `no_exception
+6560_r435_c10_str_strip_bytes.py	[whyml]: `str.strip(x, ..)` calls the UNBOUND method `strip` of `str`, which raises TypeError when `x` is not a `str` ("descriptor 'strip' for 'str' objects doesn't apply to a .."), and this function claims `no_exception
+6561_r435_c13_str_upper_bytearray.py	[whyml]: `str.upper(x, ..)` calls the UNBOUND method `upper` of `str`, which raises TypeError when `x` is not a `str` ("descriptor 'upper' for 'str' objects doesn't apply to a .."), and this function claims `no_exception
+6562_r435_c14_bytes_upper_bytearray.py	[whyml]: `bytes.upper(x, ..)` calls the UNBOUND method `upper` of `bytes`, which raises TypeError when `x` is not a `bytes` ("descriptor 'upper' for 'bytes' objects doesn't apply to a .."), and this function claims `no_e
+6563_r435_c15_bytes_lower_str.py	[whyml]: `bytes.lower(x, ..)` calls the UNBOUND method `lower` of `bytes`, which raises TypeError when `x` is not a `bytes` ("descriptor 'lower' for 'bytes' objects doesn't apply to a .."), and this function claims `no_e
+6564_r435_c18_str_upper_list.py	[whyml]: `str.upper(x, ..)` calls the UNBOUND method `upper` of `str`, which raises TypeError when `x` is not a `str` ("descriptor 'upper' for 'str' objects doesn't apply to a .."), and this function claims `no_exception
+6565_r436_m04_split_maxsplit.py	-
+6566_r436_t0_split_param.py	-
+6567_r436_t4_split_neg_ok.py	-
+6568_r436_t7_split_ens.py	-
+6569_r436_t9_split_loop.py	[whyml]: a call checked under `no_exception \all` -- `ord(x)` (TypeError unless len(x) == 1, route #434), an unbound `T.m(x, ..)` (TypeError unless x is a T, route #435), or a C ssize_t / int method parameter (`split` ma
+6570_r434_x01_ord_comp.py	[whyml]: a call checked under `no_exception \all` -- `ord(x)` (TypeError unless len(x) == 1, route #434), an unbound `T.m(x, ..)` (TypeError unless x is a T, route #435), or a C ssize_t / int method parameter (`split` ma
+6571_r434_x02_ord_bytes_sub.py	[whyml]: `ord(x)` raises TypeError unless `x` is a str (or bytes) of length 1, and this function claims `no_exception \all`. Only a str argument carries that length as an obligation (`len(x) == 1`; a str literal is decid
+6572_r434_x05_ord_callee.py	`h(...)` calls code that holds `ord(x)` (TypeError unless len(x) == 1), an unbound `T.m(x, ..)` (TypeError unless x is a T) or a C ssize_t / int method parameter (`s.split(" ", n)`: OverflowError) in a function that does
+6573_r434_z04_ord_path_alias.py	[whyml]: line 11: `ord(q)` applies `ord` (or an unbound `str` method) to a `pathlib.Path` value, which raises TypeError whatever the path, and 'f' claims `no_exception \all`. The model represents a Path as a string, so o
+6574_r435_x03_int_unbound_float.py	[whyml]: `int.bit_length(x, ..)` calls the UNBOUND method `bit_length` of `int`, which raises TypeError when `x` is not a `int` ("descriptor 'bit_length' for 'int' objects doesn't apply to a .."), and this function claim
+6575_r436_x06_split_callee.py	`h(...)` calls code that holds `ord(x)` (TypeError unless len(x) == 1), an unbound `T.m(x, ..)` (TypeError unless x is a T) or a C ssize_t / int method parameter (`s.split(" ", n)`: OverflowError) in a function that does
+6576_r436_p09_rsplit_collide.py	-
+6577_r436_x07_split_impure.py	[whyml]: the `maxsplit` argument of `.split(..)` is converted by CPython to a C ssize_t and raises OverflowError outside [-2**63, 2**63), and this function claims `no_exception \all`. Only an argument of a pure int form 
+6578_r436_x08_split_literal_big.py	[whyml]: `.split(..)` with the literal 100000000000000000000 raises OverflowError (CPython converts it to a C ssize_t), and this function claims `no_exception \all` (route #436).
+6579_r434_z03_ord_path_len1.py	[whyml]: line 10: `ord(p)` applies `ord` (or an unbound `str` method) to a `pathlib.Path` value, which raises TypeError whatever the path, and 'f' claims `no_exception \all`. The model represents a Path as a string, so o
+6580_r434_k01_ord_ctl.py	-
+6581_r435_k02_unbound_ctl.py	-
+6582_r436_k03_ssize_ctl.py	-
+6583_r434_k04_callee_claimed_ctl.py	-
+6584_r436_k05_split_local_ctl.py	-
+6585_r436_k06_split_bound_g_ctl.py	-
+6586_r434_z05_ord_path_sub.py	[whyml]: line 10: `ord(p[0])` applies `ord` (or an unbound `str` method) to a `pathlib.Path` value, which raises TypeError whatever the path, and 'f' claims `no_exception \all`. The model represents a Path as a string, s
+6587_r434_k07_path_convert_ctl.py	-
+6588_r435_z06_str_upper_path.py	[whyml]: line 9: `str.upper(p)` applies `ord` (or an unbound `str` method) to a `pathlib.Path` value, which raises TypeError whatever the path, and 'f' claims `no_exception \all`. The model represents a Path as a string,
+6600_r438_hash_bare_tuple_param.py	[ir-semantic]: 'f' line 6: `t` is HASHED by `hash(t)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, an
+6601_r438_set_bare_tuple_param.py	[ir-semantic]: 'f' line 6: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, an un-
+6602_r438_set_typing_Tuple_param.py	[ir-semantic]: 'f' line 8: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, an un-
+6603_r438_ret_bare_tuple_set.py	[ir-semantic]: 'f' line 13: `k` is HASHED by `{k}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, an un
+6604_r438_ifexp_bare_tuple.py	[ir-semantic]: 'f' line 6: `t` is HASHED by `{t if c else ()}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, 
+6605_r438_tuple_in_tuple.py	[ir-semantic]: 'f' line 6: `t` is HASHED by `{(1, t)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, a
+6606_r438_walrus_bare_tuple.py	[ir-semantic]: 'f' line 6: `t` is HASHED by `{(u := t)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`,
+6607_r438_typing_Tuple_ret.py	[ir-semantic]: 'f' line 12: `g3(t)` is HASHED by `{g3(t)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any
+6608_r438_method_bare_tuple.py	[ir-semantic]: 'm' line 7: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, an un-
+6609_r438_ret_bare_tuple_hash.py	[ir-semantic]: 'f' line 13: `k` is HASHED by `hash(k)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, a
+6610_r438_field_bare_tuple.py	[ir-semantic]: 'f' line 11: `r.t` is HASHED by `{r.t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, a
+6611_r438_nested_bare_tuple_component.py	[ir-semantic]: 'f' line 8: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, an un-
+6612_r438_set_of_bare_tuple_elements.py	[ir-semantic]: 'f' line 8: `xs` is HASHED by `set(xs)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, a
+6613_r438_claimed_caller_bare_tuple_callee.py	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership test or `hash(...)` of e.g. `m.get(k)` on a `Dict[str, Any]`, which may be a list) 
+6615_r439_protocol_value_hashed.py	[ir-semantic]: 'f' line 13: `c` (an instance of ['a list / dict / set']) is HASHED by `{c}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6616_r439_callable_value_hashed.py	[ir-semantic]: 'f' line 15: `c` (an instance of ['Cc', 'a list / dict / set']) is HASHED by `{c}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it c
+6617_r439_hashable_abc_value_hashed.py	[ir-semantic]: 'f' line 8: `c` (an instance of ['a list / dict / set']) is HASHED by `hash(c)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cann
+6618_r439_typing_dot_protocol_value.py	[ir-semantic]: 'f' line 13: `c` (an instance of ['a list / dict / set']) is HASHED by `{c}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it cannot 
+6619_r439_supports_int_value_hashed.py	[ir-semantic]: 'f' line 15: `c` (an instance of ['I', 'a list / dict / set']) is HASHED by `{c}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`). Its class has — or, when it ca
+6620_r439_usermod_callee_module_import.py	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership test or `hash(...)` of e.g. `m.get(k)` on a `Dict[str, Any]`, which may be a list) 
+6621_r439_usermod_callee_from_import.py	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership test or `hash(...)` of e.g. `m.get(k)` on a `Dict[str, Any]`, which may be a list) 
+6622_r439_usermod_callee_transitive.py	`mid(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership test or `hash(...)` of e.g. `m.get(k)` on a `Dict[str, Any]`, which may be a list
+6624_r439_setattr_computed_name_field.py	[ir-semantic]: 'f' line 12: `r.x` is HASHED by `{r.x}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`), and its class cannot be derived (an unknown callee or receiver, `Any`, a
+6640_r438_control_typed_tuples.py	-
+6641_r439_control_protocol_not_hashed.py	-
+6642_r439_control_usermod_claimed_callee.py	-
+6643_r439_control_setattr_unclaimed.py	-
+Module2_Parser.py	-
+Module3_Weaver.py	-
+Module6_WhyMLTranspiler.py	-
+core_ir_semantic.py	-
+desugar.py	-
+exception_model.py	-
+expressions.py	-
+functions.py	-
+ir_schema.py	-
+preamble.py	-
+pycsl.py	-
+statements.py	-
+stmt_control_flow.py	-

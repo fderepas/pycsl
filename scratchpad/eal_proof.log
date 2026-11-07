@@ -1,0 +1,1027 @@
+/home/fabrice.derepas@canonical.com/git/pycsl/src/pycsl/core_ir_semantic.py:1629: UserWarning: Function 'autotrustmixin___has_set_op_on_map': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/auto_trust.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_moji4zsx.mlw", line 78, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 16714 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 79, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 16770 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 76, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.12s, 335996 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 83, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4362 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 83, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5069 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 82, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.02s, 16453 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 86, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4366 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 86, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5430 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 85, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.02s, 17688 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 93, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5512 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 89, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 24584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 120, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 7926 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 120, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30059 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 116, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.53s, 701921 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 161, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8084 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 172, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8058 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 182, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 183, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 179, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.02s, 30308 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 187, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 28310 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 187, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.15s, 372464 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 187, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.14s, 332285 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 206, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8058 steps).
+
+File "/home/fabrice.derepas@canonical.com/.opam/coq-4.14/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 252, characters 79-132:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gstmt'vc.
+Prover result is: Valid (0.01s, 13316 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 253, characters 24-77:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gstmt'vc.
+Prover result is: Valid (0.01s, 13588 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 253, characters 24-77:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gstmt'vc.
+Prover result is: Valid (0.02s, 13452 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 260, characters 24-76:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gtgt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 260, characters 24-76:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gtgt'vc.
+Prover result is: Valid (0.01s, 13452 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 267, characters 24-76:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gval'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 275, characters 24-79:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__Lbody_g'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 271, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lbody_g'vc.
+Prover result is: Valid (0.02s, 47292 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 278, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lbody'vc.
+Prover result is: Valid (0.03s, 48599 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 278, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lbody'vc.
+Prover result is: Valid (0.18s, 505524 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 278, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lbody'vc.
+Prover result is: Valid (0.15s, 303515 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 286, characters 24-81:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__Lorelse_g'vc.
+Prover result is: Valid (0.02s, 13584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 282, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lorelse_g'vc.
+Prover result is: Valid (0.03s, 47292 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 289, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lorelse'vc.
+Prover result is: Valid (0.03s, 48599 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 289, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lorelse'vc.
+Prover result is: Valid (0.20s, 505524 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 289, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lorelse'vc.
+Prover result is: Valid (0.12s, 303515 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 296, characters 74-133:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__Lhandlers_g'vc.
+Prover result is: Valid (0.01s, 13300 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 297, characters 24-83:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__Lhandlers_g'vc.
+Prover result is: Valid (0.01s, 13572 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 293, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lhandlers_g'vc.
+Prover result is: Valid (0.03s, 51403 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 300, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lhandlers'vc.
+Prover result is: Valid (0.03s, 48599 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 300, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lhandlers'vc.
+Prover result is: Valid (0.18s, 505524 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 300, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lhandlers'vc.
+Prover result is: Valid (0.12s, 303515 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 303, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4658 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 58003 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 5087 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 58261 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 5098 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 58517 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 5107 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 58425 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 5107 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 303, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 5107 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 52992 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4688 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53250 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53506 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4708 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53410 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4708 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 303, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4708 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 52964 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4679 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53222 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4690 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53478 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53382 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 303, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 52964 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4679 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53222 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4690 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53478 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53382 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 303, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 52992 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4688 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53250 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53506 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4708 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53410 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4708 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 303, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4708 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 52964 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 319, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4679 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53222 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 320, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4690 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53478 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 321, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 53382 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 303, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4699 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.03s, 54192 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 323, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4731 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 303, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4731 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 328, characters 47-149:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.03s, 52738 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 328, characters 47-149:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4670 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 328, characters 166-220:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.03s, 52646 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 328, characters 166-220:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4670 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4670 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 328, characters 166-220:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.03s, 49010 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 328, characters 166-220:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4722 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4722 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 332, characters 36-87:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 330, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals'vc.
+Prover result is: Valid (0.01s, 4719 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 330, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 340, characters 24-74:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gtype'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 345, characters 24-72:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gop'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 350, characters 24-74:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gleft'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 355, characters 24-75:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gright'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 359, characters 69-118:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gvar'vc.
+Prover result is: Valid (0.02s, 13300 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 360, characters 24-73:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gvar'vc.
+Prover result is: Valid (0.01s, 13572 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 365, characters 24-75:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gvalue'vc.
+Prover result is: Valid (0.02s, 13584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 369, characters 67-114:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gn'vc.
+Prover result is: Valid (0.01s, 13300 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 370, characters 24-71:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gn'vc.
+Prover result is: Valid (0.01s, 13572 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4662 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.02s, 16250 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 5028 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 5028 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.02s, 14739 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4598 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4598 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 6552 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4594 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4594 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.02s, 16333 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 5029 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 5029 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.02s, 14822 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4599 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4599 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 14917 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4624 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4624 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.02s, 14800 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4594 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4594 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 15201 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4720 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4720 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13311 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4739 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4739 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.02s, 13113 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4670 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4670 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13139 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4679 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4679 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13311 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4739 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4739 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13113 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4670 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4670 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13295 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 436, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 397, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 441, characters 35-83:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 439, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths'vc.
+Prover result is: Valid (0.01s, 4723 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 439, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 450, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gtype'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 450, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gtype'vc.
+Prover result is: Valid (0.02s, 13452 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 457, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gname'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 457, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gname'vc.
+Prover result is: Valid (0.02s, 13452 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 463, characters 79-125:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gstmt'vc.
+Prover result is: Valid (0.01s, 13316 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 464, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gstmt'vc.
+Prover result is: Valid (0.01s, 13588 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 464, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gstmt'vc.
+Prover result is: Valid (0.01s, 13452 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 471, characters 24-68:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gop'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 471, characters 24-68:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gop'vc.
+Prover result is: Valid (0.02s, 13452 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 478, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gleft'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 485, characters 24-71:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gright'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 491, characters 72-118:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__giter'vc.
+Prover result is: Valid (0.01s, 13300 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 492, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__giter'vc.
+Prover result is: Valid (0.01s, 13572 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 498, characters 72-118:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gtest'vc.
+Prover result is: Valid (0.01s, 13300 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 499, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gtest'vc.
+Prover result is: Valid (0.01s, 13572 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 502, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___has_set_op_on_map__ym'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 515, characters 91-147:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4736 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 516, characters 95-151:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4672 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 518, characters 90-146:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4764 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 522, characters 13-72:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.03s, 58106 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 522, characters 13-72:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4850 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 523, characters 18-78:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.02s, 49862 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 523, characters 18-78:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 510, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 531, characters 33-85:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.02s, 53505 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 531, characters 33-85:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.01s, 4733 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 531, characters 100-160:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.02s, 53567 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 531, characters 100-160:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.01s, 4733 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 532, characters 11-73:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.03s, 57537 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 532, characters 11-73:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.01s, 4815 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 527, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 536, characters 18-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__lfold'vc.
+Prover result is: Valid (0.03s, 52434 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 536, characters 18-70:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map__lfold'vc.
+Prover result is: Valid (0.01s, 4653 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 536, characters 74-133:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__lfold'vc.
+Prover result is: Valid (0.03s, 52503 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 536, characters 74-133:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map__lfold'vc.
+Prover result is: Valid (0.01s, 4662 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 534, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___has_set_op_on_map__lfold'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 544, characters 85-122:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_vc__fold'vc.
+Prover result is: Valid (0.03s, 52475 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 544, characters 85-122:
+Sub-goal precondition of goal autotrustmixin___is_linear_vc__fold'vc.
+Prover result is: Valid (0.01s, 4653 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 543, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___is_linear_vc__fold'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 547, characters 4-53:
+Sub-goal precondition of goal autotrustmixin___is_linear_vc'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 547, characters 57-107:
+Sub-goal precondition of goal autotrustmixin___is_linear_vc'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 546, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___is_linear_vc'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 550, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_array_return'vc.
+Prover result is: Valid (0.01s, 4760 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 550, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_array_return'vc.
+Prover result is: Valid (0.01s, 4810 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 562, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_map_return'vc.
+Prover result is: Valid (0.01s, 4723 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 562, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_map_return'vc.
+Prover result is: Valid (0.01s, 5230 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 574, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_set_op'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 574, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_set_op'vc.
+Prover result is: Valid (0.01s, 4719 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 595, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__gtype'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 595, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__gtype'vc.
+Prover result is: Valid (0.01s, 13452 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 600, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__gname'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 600, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__gname'vc.
+Prover result is: Valid (0.02s, 13452 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 607, characters 77-129:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.03s, 55696 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 607, characters 77-129:
+Sub-goal precondition of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.01s, 4775 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 607, characters 239-291:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.02s, 55237 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 607, characters 239-291:
+Sub-goal precondition of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.01s, 4858 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 607, characters 401-453:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.03s, 57985 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 607, characters 401-453:
+Sub-goal precondition of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.01s, 5026 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 613, characters 15-74:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.04s, 64203 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 613, characters 15-74:
+Sub-goal precondition of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.01s, 5222 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 602, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 621, characters 33-85:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.03s, 53505 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 621, characters 33-85:
+Sub-goal precondition of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.01s, 4733 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 621, characters 100-160:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.03s, 53567 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 621, characters 100-160:
+Sub-goal precondition of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.01s, 4733 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 622, characters 11-73:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.03s, 57537 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 622, characters 11-73:
+Sub-goal precondition of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.01s, 4815 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 617, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 626, characters 18-70:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__lfold'vc.
+Prover result is: Valid (0.03s, 52434 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 626, characters 18-70:
+Sub-goal precondition of goal autotrustmixin___test_contains_map__lfold'vc.
+Prover result is: Valid (0.01s, 4653 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 626, characters 74-133:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__lfold'vc.
+Prover result is: Valid (0.03s, 52503 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 626, characters 74-133:
+Sub-goal precondition of goal autotrustmixin___test_contains_map__lfold'vc.
+Prover result is: Valid (0.01s, 4662 steps).
+
+File "/tmp/.pycsl_moji4zsx.mlw", line 624, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___test_contains_map__lfold'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 239, characters 42-46: unused variable self
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 239, characters 65-76: unused variable field_names
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 239, characters 93-97: unused variable vals
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 239, characters 105-116: unused variable field_types
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 239, characters 124-137: unused variable array_lengths
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 241, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 243, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 243, characters 66-70: unused variable vals
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 243, characters 78-82: unused variable invs
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 243, characters 96-107: unused variable field_names
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 245, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 329, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 330, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 438, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 439, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 501, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 502, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 534, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 527, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 510, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 537, characters 39-43: unused variable self
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 537, characters 62-66: unused variable expr
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 539, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 543, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 546, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 548, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 548, characters 78-82: unused variable func
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 550, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 560, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 562, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 572, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 574, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 585, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 585, characters 78-88: unused variable body_stmts
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 585, characters 102-113: unused variable return_type
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 585, characters 124-136: unused variable func_trusted
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 587, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 624, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 617, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_moji4zsx.mlw", line 602, characters 32-36: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+DONE EXIT:0

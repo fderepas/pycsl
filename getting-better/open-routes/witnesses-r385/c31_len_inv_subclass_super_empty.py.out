@@ -1,0 +1,55 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt30/c31_len_inv_subclass_super_empty.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 16, characters 20-47:
+Sub-goal array creation size of goal cur'vc.
+Prover result is: Valid (0.00s, 330 steps).
+
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 15, characters 16-46:
+Sub-goal type invariant of goal cur'vc.
+Prover result is: Valid (0.00s, 1002 steps).
+
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 18, characters 113-145:
+Sub-goal goal of goal _check_class_inv_cur.
+Prover result is: Valid (0.01s, 1810 steps).
+
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 22, characters 20-47:
+Sub-goal array creation size of goal sub'vc.
+Prover result is: Valid (0.01s, 420 steps).
+
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 21, characters 16-46:
+Sub-goal type invariant of goal sub'vc.
+Prover result is: Valid (0.00s, 1029 steps).
+
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 28, characters 19-63:
+Sub-goal assertion of goal cur__cur'vc.
+Prover result is: Valid (0.00s, 6922 steps).
+
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 28, characters 67-83:
+Sub-goal index in array bounds of goal cur__cur'vc.
+Prover result is: Valid (0.01s, 6960 steps).
+
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 25, characters 15-48:
+Sub-goal postcondition of goal cur__cur'vc.
+Prover result is: Valid (0.00s, 628 steps).
+
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 38, characters 19-63:
+Sub-goal assertion of goal sub__cur'vc.
+Prover result is: Valid (0.00s, 6922 steps).
+
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 38, characters 67-83:
+Sub-goal index in array bounds of goal sub__cur'vc.
+Prover result is: Valid (0.01s, 6960 steps).
+
+File "/tmp/.pycsl_2n7b3z9f.mlw", line 35, characters 15-48:
+Sub-goal postcondition of goal sub__cur'vc.
+Prover result is: Valid (0.00s, 628 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_2n7b3z9f.mlw", line 25, characters 15-48: unused variable result
+Warning, file "/tmp/.pycsl_2n7b3z9f.mlw", line 35, characters 15-48: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

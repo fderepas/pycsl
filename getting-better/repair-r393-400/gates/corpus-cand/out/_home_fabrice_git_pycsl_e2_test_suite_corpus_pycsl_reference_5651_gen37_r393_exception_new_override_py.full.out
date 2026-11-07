@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5651_gen37_r393_exception_new_override.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'f' line 9: the construction `D()` builds the exception class `D`, whose constructor signature the verifier cannot read (a `__new__`, a class keyword, a decorated or non-`def` `__init__`, or a class defined twice in its MRO). The model lowers the construction as an arbitrary instance and never checks the arguments, while CPython raises TypeError for a mismatch (route #393: `class D(Exception)`; `D(x=1)` under `no_exception` PROVED). Give the class a plain `def __init__` or derive it directly from the builtin exception.

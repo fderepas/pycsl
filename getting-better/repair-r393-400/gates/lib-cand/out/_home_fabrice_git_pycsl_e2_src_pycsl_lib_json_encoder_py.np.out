@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/json/encoder.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+a function, method or class NAME is rebound after its definition (method `default` shadowed by `self.default` at line 147). Every call is resolved against the `def`, so the rebinding would be silently ignored (measured: `inc = dec` then `inc(3)` proved the `inc` contract while Python ran `dec`). Rebinding a function name is not modelled; give the new binding its own name.

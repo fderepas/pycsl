@@ -1,0 +1,18 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "Section Variables:\nrd\n: disk -> Z -> Z\ndisk\n: Type\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.24592149397358298,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.slot_inode_byte_decode",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.slot_inode_byte_decode",
+      true,
+      []
+    ]
+  ]
+}

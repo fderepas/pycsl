@@ -13,12 +13,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _META_SCRIPT = _REPO_ROOT / 'bin' / 'proof2why3-lean-extract.lean'
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def lean_meta_available(proofs_dir: Path) -> bool:
-    return False
+    return (proofs_dir / "lakefile.lean").is_file() and _META_SCRIPT.is_file()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

@@ -46,5 +46,9 @@ def echo_bytes(payload: list) -> list:
 
 
 if __name__ == "__main__":
-    assert echo_bytes(b"PyCSL\n") == list(b"PyCSL\n")
+    # (#49) gen #31 — `echo_bytes` returns a `bytearray`, and `bytearray == list` is
+    # False in Python however equal the elements are. The CONTRACT
+    # (`\array_eq(\result, payload)`) is elementwise and holds; this assertion was
+    # comparing types, and it had never been run.
+    assert list(echo_bytes(b"PyCSL\n")) == list(b"PyCSL\n")
     print("PASS")

@@ -1,0 +1,23 @@
+[*] trusted-reasons histogram over 414 live marker(s):
+      correctness       1
+      cost-scale      156
+      spent-rc0         0
+      unclassified    257
+        correctness:ast-rewrite-not-reproducible    1
+        cost-scale:array-local-reassign             1
+        cost-scale:context-manager-model            7
+        cost-scale:dict-param-get-receiver          1
+        cost-scale:erasure-ledger                   1
+        cost-scale:exception-payload-model          4
+        cost-scale:external-effect-model            1
+        cost-scale:faithful-string-hash             1
+        cost-scale:family-b-list-boundary           2
+        cost-scale:generator-sequence-model         2
+        cost-scale:heterogeneous-list-model         3
+        cost-scale:in-place-mutator                27
+        cost-scale:int-erasure-seam                88
+        cost-scale:name-rebinding-model             5
+        cost-scale:nested-closure-lift             12
+        cost-scale:stmt-handler-dispatch            1
+[*] trusted-reasons: 414 live marker(s) in 53 mirror file(s) · 414 row(s) · missing 0 · orphan 0 · duplicate 0
+[+] trusted-reasons: OK — 414 marker(s) <-> 414 row(s), both directions; unclassified 257 (ratchet 257)

@@ -1,0 +1,13 @@
+[START 12:46:54] src/self-annotate/src/pycsl.py
+[DONE  13:03:07] src/self-annotate/src/pycsl.py valid=730 total=730 success=1
+[START 13:03:07] src/self-annotate/src/Module6_WhyMLTranspiler.py
+[DONE  13:14:47] src/self-annotate/src/Module6_WhyMLTranspiler.py valid=706 total=706 success=1
+[START 13:14:47] src/self-annotate/src/module6_whyml/statements.py
+[DONE  13:37:02] src/self-annotate/src/module6_whyml/statements.py valid=892 total=892 success=1
+[START 13:37:02] src/self-annotate/src/frontend/Module5_IREmitter.py
+[DONE  14:27:08] src/self-annotate/src/frontend/Module5_IREmitter.py valid=1114 total=1114 success=1
+[START 14:27:08] src/self-annotate/src/module6_whyml/functions.py
+[DONE  14:59:06] src/self-annotate/src/module6_whyml/functions.py valid=1177 total=1177 success=1
+[START 14:59:06] src/self-annotate/src/module6_whyml/stmt_control_flow.py
+[DONE  15:41:07] src/self-annotate/src/module6_whyml/stmt_control_flow.py valid=1829 total=1829 success=1
+[ALLDONE 15:41:07]

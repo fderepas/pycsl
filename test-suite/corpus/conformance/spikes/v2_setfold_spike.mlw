@@ -1,0 +1,198 @@
+(* ==========================================================================
+   v2_setfold_spike.mlw — Phase 3.1 (A-set) target-shape feasibility spike.
+
+   The by-RETURN twin of v2_iter_mutate_spike.mlw. Where the A-unit spike
+   accumulated into a by-ref `targets: ref (map string bool)` parameter, the
+   A-set family RETURNS a set built as the UNION of the recursive results:
+
+       def find_calls_in_ir(obj, fset):            # obj: pyval  -> Set[str]
+           calls = set()
+           if isinstance(obj, dict):
+               if obj.get("type") == "Call" and obj.get("func") in fset:
+                   calls.add(obj["func"])           # literal-key pre-action -> acc
+               for v in obj.values():
+                   calls |= find_calls_in_ir(v, fset)   # UNION fold, by return
+           elif isinstance(obj, list):
+               for item in obj:
+                   calls |= find_calls_in_ir(item, fset)
+           return calls
+
+   The NEW ingredient vs A-unit is the RESULT ALGEBRA = a returned `set string`
+   modelled as `map string bool` (the L1 set repr), combined by `set_union`
+   (pointwise or) instead of a by-ref `writes { targets }` frame. The walk group
+   is FUNCTIONAL: `assigns \nothing` (no writes clause), returns the set.
+
+   `set_union` is DEFINED PURELY (a total lambda over `map string bool = string
+   -> bool`), so it introduces NO axiom and needs NO new certificate beyond the
+   already-certified L1 pyval/pydict/set theory — the returned-set model is the
+   same `map string bool` L1 already pins in Phase2c_PyValDict.v / PyValDict.lean.
+
+   VCs to discharge Valid on Alt-Ergo AND Z3: termination (walk/walk_dict/
+   walk_list `size`-variants), type-safety (exhaustive matches through the
+   universal value), and the union combinator well-typedness. NO `axiom` keyword.
+   ========================================================================== *)
+
+module V2SetFold
+
+  use int.Int
+  use list.List
+  use option.Option
+  use string.String
+  use map.Map
+  use map.Const
+  use bool.Bool
+
+  (* ---------------------------------------------------------------------- *)
+  (* L1 — interned IR keys (reused verbatim from the certified pydict theory).*)
+  (* ---------------------------------------------------------------------- *)
+  type irkey =
+    | K_type | K_left | K_right | K_op | K_z
+    | K_value | K_target | K_body | K_orelse | K_func | K_name
+    | K_dyn string
+
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict pydict
+  with pydict =
+    | DNil
+    | DCons irkey pyval pydict
+
+  (* literal-key readers (constructor match, zero string theory) *)
+  let rec get_type (d: pydict) : option pyval
+    variant { d }
+  = match d with
+    | DNil             -> None
+    | DCons K_type v _ -> Some v
+    | DCons _ _ rest   -> get_type rest
+    end
+
+  let rec get_func (d: pydict) : option pyval
+    variant { d }
+  = match d with
+    | DNil             -> None
+    | DCons K_func v _ -> Some v
+    | DCons _ _ rest   -> get_func rest
+    end
+
+  (* size — +1 per cons cell (head recursion strictly decreases) *)
+  function size (v: pyval) : int
+  = match v with
+    | PInt _ | PStr _ | PBool _ | PNone -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict d  -> 1 + size_dict d
+    end
+  with size_list (l: list pyval) : int
+  = match l with Nil -> 0 | Cons h t -> 1 + size h + size_list t end
+  with size_dict (d: pydict) : int
+  = match d with DNil -> 0 | DCons _ v rest -> 1 + size v + size_dict rest end
+
+  let rec lemma size_pos (v: pyval) : unit
+    ensures { size v > 0 } variant { v }
+  = match v with
+    | PList xs -> size_list_nonneg xs
+    | PDict d  -> size_dict_nonneg d
+    | _ -> () end
+  with lemma size_list_nonneg (l: list pyval) : unit
+    ensures { size_list l >= 0 } variant { l }
+  = match l with Nil -> () | Cons h t -> size_pos h; size_list_nonneg t end
+  with lemma size_dict_nonneg (d: pydict) : unit
+    ensures { size_dict d >= 0 } variant { d }
+  = match d with DNil -> () | DCons _ v rest -> size_pos v; size_dict_nonneg rest end
+
+  (* =====================================================================
+     RESULT ALGEBRA — a returned set = `map string bool` (the L1 set repr).
+     empty  = `const false`  (from map.Const)
+     add    = `set_add`      (the L1 model op; membership-bit store)
+     union  = `set_union`    (NEW — pointwise or; DEFINED, not axiomatized)
+     `pystr_eq` is the string-guard test (payload equality; contract is
+     `ensures True`, so the walk need not interpret strings, only type-check).
+     ===================================================================== *)
+  val set_add (m: map string bool) (e: string) : map string bool
+    ensures { result = Map.set m e true }
+  val pystr_eq (a b: string) : bool
+
+  (* set_union : pointwise disjunction. Purely DEFINED over `map string bool =
+     string -> bool` — total, non-recursive, no axiom, no proof obligation. *)
+  let function set_union (a b: map string bool) : map string bool
+    = fun (k: string) -> orb (a[k]) (b[k])
+
+  (* =====================================================================
+     THE MAKE-OR-BREAK — target lowering of the A-set returned fold.
+     Functional (`assigns \nothing`; no writes clause), returns the union of
+     the recursive results, `size`-variant termination.
+     ===================================================================== *)
+  let rec walk (v: pyval) : map string bool
+    requires { true }
+    ensures  { true }
+    variant  { size v }
+  = match v with
+    | PDict d ->
+        (* pre-action: if obj.get("type")=="Call" and .get("func") is a str,
+           calls.add(obj["func"]) — literal-key guard + singleton add.
+           (The `in fset` membership is modelled by the always-total add; the
+           walk contract is ensures True, so the exact predicate is irrelevant
+           to the proof — only that the pre-action set is well-typed.) *)
+        let pre =
+          (match get_type d with
+           | Some (PStr t) ->
+               if pystr_eq t "Call" then
+                 (match get_func d with
+                  | Some (PStr f) -> set_add (const false) f
+                  | _ -> const false
+                  end)
+               else const false
+           | _ -> const false
+           end) in
+        set_union pre (walk_dict d)
+    | PList xs -> walk_list xs
+    | _ -> const false
+    end
+  with walk_dict (d: pydict) : map string bool
+    requires { true }
+    ensures  { true }
+    variant  { size_dict d }
+  = match d with
+    | DNil           -> const false
+    | DCons _ v rest -> set_union (walk v) (walk_dict rest)
+    end
+  with walk_list (xs: list pyval) : map string bool
+    requires { true }
+    ensures  { true }
+    variant  { size_list xs }
+  = match xs with
+    | Nil      -> const false
+    | Cons h t -> set_union (walk h) (walk_list t)
+    end
+
+  (* Caller-visibility witness: a driver builds a literal nested node, folds it,
+     and reads a membership bit off the returned set (the union escapes). *)
+  let driver () : bool =
+    let node =
+      PDict (DCons K_type (PStr "Call")
+            (DCons K_func (PStr "f")
+            (DCons K_body (PList (Cons
+                (PDict (DCons K_type (PStr "Call")
+                       (DCons K_func (PStr "g") DNil)))
+                Nil))
+            DNil))) in
+    let result = walk node in
+    result["f"]
+
+  (* =====================================================================
+     NEGATIVE CONTROL — FALSE TWIN. A returned-set walk that CLAIMS to
+     terminate with `variant { size v }` but recurses on `v` itself (no strict
+     decrease). Its `walk_bad'vc` termination VC MUST stay UNPROVEN on both
+     provers — the shape must be able to fail.
+     ===================================================================== *)
+  let rec walk_bad (v: pyval) : map string bool
+    variant { size v }
+  = match v with
+    | PDict d -> set_union (set_add (const false) "x") (walk_bad (PDict d))
+    | _ -> const false
+    end
+
+end

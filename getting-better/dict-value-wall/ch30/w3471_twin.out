@@ -1,0 +1,57 @@
+[*] Parsing and Semantic Analysis for 'w3471_twin.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "w3471_twin.mlw", line 23, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2672 steps).
+
+File "w3471_twin.mlw", line 44, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 2848 steps).
+
+File "w3471_twin.mlw", line 51, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2200 steps).
+
+File "w3471_twin.mlw", line 58, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2236 steps).
+
+File "w3471_twin.mlw", line 78, characters 69-86:
+Sub-goal variant decrease of goal hpairs_to_map'vc.
+Prover result is: Valid (0.00s, 2204 steps).
+
+File "w3471_twin.mlw", line 87, characters 33-110:
+Sub-goal postcondition of goal is_valid'vc.
+Prover result is: Valid (0.00s, 3996 steps).
+
+File "w3471_twin.mlw", line 101, characters 20-32:
+Sub-goal loop invariant init of goal none_valid'vc.
+Prover result is: Valid (0.00s, 1167 steps).
+
+File "w3471_twin.mlw", line 93, characters 15-27:
+Sub-goal postcondition of goal none_valid'vc.
+Prover result is: Timeout (30.00s, 30933402 steps).
+
+File "w3471_twin.mlw", line 102, characters 18-121:
+Sub-goal loop variant decrease of goal none_valid'vc.
+Prover result is: Valid (0.01s, 14879 steps).
+
+File "w3471_twin.mlw", line 101, characters 20-32:
+Sub-goal loop invariant preservation of goal none_valid'vc.
+Prover result is: Valid (0.01s, 14655 steps).
+
+File "w3471_twin.mlw", line 93, characters 15-27:
+Sub-goal postcondition of goal none_valid'vc.
+Prover result is: Valid (0.00s, 1263 steps).
+
+Warnings/Errors from Why3:
+Warning, file "w3471_twin.mlw", line 96, characters 8-9: unused variable r
+Warning, file "w3471_twin.mlw", line 96, characters 8-9: unused variable r
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 30933402 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

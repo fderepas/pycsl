@@ -1,0 +1,6 @@
+/home/fabrice/git/pycsl-w51/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_SertopSession_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-w51/src/self-annotate/src/proof2why3/sertop.py'...
+[*] Memory model: hoare
+[*] Import 'shutil.which': external module, no local source found — skipping
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

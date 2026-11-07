@@ -1,0 +1,62 @@
+/home/fabrice.derepas@canonical.com/git/pycsl/src/pycsl/core_ir_semantic.py:1632: UserWarning: Function 'pycsltojsonemitter___collect_class_constants': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/Module5_IREmitter.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1094, characters 40-44: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1094, characters 66-72: unused variable indent
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1096, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1102, characters 44-48: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1102, characters 71-74: unused variable rhs
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1104, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1106, characters 46-50: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1106, characters 73-77: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1108, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1110, characters 56-60: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1110, characters 83-87: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1112, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1114, characters 55-59: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1114, characters 82-86: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1116, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1118, characters 46-50: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1120, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1140, characters 51-55: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1142, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1383, characters 32-36: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1393, characters 8-13: unused variable child
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1387, characters 52-56: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1387, characters 104-115: unused variable field_names
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1389, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1432, characters 49-53: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1432, characters 76-80: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1434, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1443, characters 8-13: unused variable cstmt
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1442, characters 8-12: unused variable stmt
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1441, characters 8-11: unused variable sub
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1502, characters 32-36: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1527, characters 32-36: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1521, characters 32-36: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1514, characters 32-36: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1531, characters 32-36: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1575, characters 137-141: unused variable m_or
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1545, characters 8-9: unused variable b
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1540, characters 8-10: unused variable nm
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1539, characters 8-10: unused variable tp
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1538, characters 8-15: unused variable out_len
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1535, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1601, characters 8-10: unused variable kw
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1599, characters 8-12: unused variable stmt
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1593, characters 53-57: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1595, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1649, characters 47-51: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1649, characters 74-82: unused variable ann_expr
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1651, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1653, characters 59-63: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1655, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1660, characters 44-48: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1660, characters 71-76: unused variable value
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1662, characters 15-19: unused variable result
+File "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1669, characters 69-85:
+This expression has type int, but is expected to have type PyCSL_Program.
+emit_ir

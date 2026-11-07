@@ -1,0 +1,33 @@
+# pycsl-flags: --memory-model hoare
+# ROUTE #51 shape (a') PROBE: the callee returns None IMPLICITLY, by falling off the end.
+# There is no `return None` statement for a Module-4 refusal to key on.
+from dataclasses import dataclass
+
+
+def mutable_state(cls):
+    return cls
+
+
+@mutable_state
+@dataclass
+class C:
+    tag: int = 0
+
+    #@ requires True
+    #@ ensures True
+    def pick(self, c: int) -> str:
+        if c > 0:
+            return "a"
+
+    #@ requires c < 0
+    #@ ensures \result == 7
+    def m(self, c: int) -> int:
+        s = self.pick(c)
+        if s is None:
+            return 0
+        return 7
+
+
+if __name__ == "__main__":
+    o = C()
+    assert o.m(-1) == 0

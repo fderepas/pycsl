@@ -1,0 +1,542 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/expr_ghost_spec_ops.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 152, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23358 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 152, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23380 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 153, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23374 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 153, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23396 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 154, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23346 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 154, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23368 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 155, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23350 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 155, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23372 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 156, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23306 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 157, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23340 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 158, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23386 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 158, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23408 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 158, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23430 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 159, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23376 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 160, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23380 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 161, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23398 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 162, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23416 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 162, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23438 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 163, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23416 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 163, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23438 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 164, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 164, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 165, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23424 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 165, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23446 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 166, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23424 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 166, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23446 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 167, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23428 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 167, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23450 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 168, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23436 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 168, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23458 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 169, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23440 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 169, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23462 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 170, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 171, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23450 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 171, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23472 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 172, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23462 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 172, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23484 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 172, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23506 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 173, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23458 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 173, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23480 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 174, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23462 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 174, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23484 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 175, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23466 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 175, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 176, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 176, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23498 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 177, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23480 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 177, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23502 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 178, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23484 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 178, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23506 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 179, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 179, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23510 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 180, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23492 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 180, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23514 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 181, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23496 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 181, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23518 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 182, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23508 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 182, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23530 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 182, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23552 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 183, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23504 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 183, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23526 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 184, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23508 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 184, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23530 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 185, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23518 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 185, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23540 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 186, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23512 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 187, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23516 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 188, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23520 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 189, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23534 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 189, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23556 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 190, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23538 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 190, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23560 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 191, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23542 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 191, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23564 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 192, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23536 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 193, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23540 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 194, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23564 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 194, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23586 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 195, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23558 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 196, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23580 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 196, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23602 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 196, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23624 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 197, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23586 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 197, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23608 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 198, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23586 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 198, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23608 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 199, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23590 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 199, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23612 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 200, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23594 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 200, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23616 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 201, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23602 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 202, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23610 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 203, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23640 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 204, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23644 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 205, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23642 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 149, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.03s, 116956 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 210, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.02s, 27353 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 211, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.01s, 28170 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 214, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.02s, 28993 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 215, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.02s, 29810 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 218, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.01s, 30706 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 219, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.02s, 31508 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 220, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.02s, 32336 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 269, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.02s, 32998 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 270, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.02s, 33815 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 271, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.02s, 34563 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 272, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.02s, 35486 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 273, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.02s, 36473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 274, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.02s, 37290 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 280, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.01s, 11442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 278, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.02s, 39801 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 284, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.01s, 11478 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 336, characters 75-98:
+Sub-goal array creation size of goal ghostspecopsmixin___handle_ctor_test_expr'vc.
+Prover result is: Valid (0.01s, 4598 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 326, characters 15-19:
+Sub-goal postcondition of goal ghostspecopsmixin___handle_ctor_test_expr'vc.
+Prover result is: Valid (0.01s, 5427 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 341, characters 15-19:
+Sub-goal postcondition of goal ghostspecopsmixin___handle_fst_expr'vc.
+Prover result is: Valid (0.01s, 4569 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 352, characters 15-19:
+Sub-goal postcondition of goal ghostspecopsmixin___handle_ghost_copy_expr'vc.
+Prover result is: Valid (0.01s, 4751 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 359, characters 15-19:
+Sub-goal postcondition of goal ghostspecopsmixin___handle_ghost_copy_range_expr'vc.
+Prover result is: Valid (0.01s, 5403 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 370, characters 15-19:
+Sub-goal postcondition of goal ghostspecopsmixin___handle_ghost_make_expr'vc.
+Prover result is: Valid (0.01s, 4872 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 381, characters 15-19:
+Sub-goal postcondition of goal ghostspecopsmixin___handle_mktuple_expr'vc.
+Prover result is: Valid (0.01s, 5034 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 395, characters 15-19:
+Sub-goal postcondition of goal ghostspecopsmixin___handle_snd_expr'vc.
+Prover result is: Valid (0.01s, 4569 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 406, characters 15-19:
+Sub-goal postcondition of goal ghostspecopsmixin___handle_str_length_expr'vc.
+Prover result is: Valid (0.01s, 4714 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 415, characters 15-19:
+Sub-goal postcondition of goal ghostspecopsmixin___handle_str_sub_expr'vc.
+Prover result is: Valid (0.01s, 5566 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 428, characters 15-19:
+Sub-goal postcondition of goal ghostspecopsmixin___handle_strconcat_expr'vc.
+Prover result is: Valid (0.01s, 4802 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 294, characters 23-25: unused variable x0
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 294, characters 33-35: unused variable x1
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 303, characters 20-23: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 303, characters 34-36: unused variable xs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 313, characters 29-33: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 313, characters 55-57: unused variable ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 313, characters 69-71: unused variable lr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 314, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 316, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 316, characters 78-80: unused variable ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 316, characters 92-94: unused variable lr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 317, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 319, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 319, characters 78-82: unused variable expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 319, characters 90-92: unused variable lr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 321, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 324, characters 49-53: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 326, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 339, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 341, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 350, characters 50-54: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 350, characters 92-94: unused variable lr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 352, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 357, characters 56-60: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 359, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 368, characters 50-54: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 370, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 379, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 379, characters 89-91: unused variable lr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 381, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 388, characters 44-48: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 388, characters 70-74: unused variable expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 388, characters 82-84: unused variable lr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 390, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 393, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 395, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 404, characters 50-54: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 406, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 413, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 415, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 426, characters 49-53: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_aluojpi9.mlw", line 428, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

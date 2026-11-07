@@ -1,0 +1,3016 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/Module2_Parser.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLParseError (record + 0 method stub(s) + 2 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 180, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24088 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 180, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24110 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 181, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24104 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 181, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24126 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 182, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24076 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 182, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24098 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 183, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24080 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 183, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24102 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 184, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24036 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 185, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24070 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 186, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24116 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 186, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24138 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 186, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24160 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 187, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24106 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 188, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24110 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 189, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24128 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 190, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24146 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 190, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24168 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 191, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24146 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 191, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24168 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 192, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24150 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 192, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 193, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24154 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 193, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24176 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 194, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24154 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 194, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24176 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 195, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24158 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 195, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24180 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 196, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24166 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 196, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24188 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 197, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24170 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 197, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24192 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 198, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 199, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24180 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 199, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24202 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 200, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24192 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 200, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24214 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 200, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24236 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 201, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24188 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 201, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24210 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 202, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24192 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 202, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24214 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 203, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 203, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24218 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 204, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24206 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 204, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24228 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 205, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24210 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 205, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24232 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 206, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24214 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 206, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24236 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 207, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24218 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 207, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24240 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 208, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24222 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 208, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24244 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 209, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 209, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24248 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 210, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24238 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 210, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24260 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 210, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24282 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 211, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24234 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 211, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24256 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 212, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24238 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 212, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24260 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 213, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24248 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 213, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24270 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 214, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24242 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 215, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24246 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 216, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24250 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 217, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24264 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 217, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24286 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 218, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24268 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 218, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24290 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 219, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24272 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 219, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24294 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 220, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24266 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 221, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24270 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 222, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24294 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 222, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24316 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 223, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24288 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 224, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24310 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 224, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24332 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 224, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24354 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 225, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24316 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 225, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24338 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 226, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24316 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 226, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24338 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 227, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24320 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 227, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24342 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 228, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24324 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 228, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24346 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 229, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24332 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 230, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24340 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 231, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24370 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 232, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24374 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 233, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24376 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 234, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24382 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 235, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24390 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 236, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24400 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 236, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24422 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 237, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24404 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 237, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24426 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 238, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24398 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 239, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24402 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 240, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24410 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 241, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24410 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 242, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24414 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 243, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24430 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 244, characters 48-54:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24436 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 244, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24458 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 245, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24430 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 246, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24434 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 177, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.02s, 164101 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 251, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.01s, 31176 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 252, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.01s, 31993 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 255, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.01s, 32816 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 256, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.01s, 33633 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 259, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.01s, 34529 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 260, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.01s, 35331 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 261, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.01s, 36159 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 310, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.01s, 36821 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 311, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.01s, 37638 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 312, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.01s, 38386 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 313, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.01s, 39309 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 314, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.01s, 40296 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 315, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.01s, 41113 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 321, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.01s, 12578 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 319, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.01s, 43760 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 325, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.00s, 12614 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 615, characters 16-79:
+Sub-goal array creation size of goal _contractparser'vc.
+Prover result is: Valid (0.01s, 4978 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 611, characters 16-24:
+Sub-goal type invariant of goal _contractparser'vc.
+Prover result is: Valid (0.00s, 5334 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 612, characters 16-41:
+Sub-goal type invariant of goal _contractparser'vc.
+Prover result is: Valid (0.01s, 7337 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 613, characters 16-42:
+Sub-goal type invariant of goal _contractparser'vc.
+Prover result is: Valid (0.00s, 7354 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 614, characters 16-90:
+Sub-goal type invariant of goal _contractparser'vc.
+Prover result is: Valid (0.01s, 47784 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 665, characters 15-19:
+Sub-goal postcondition of goal _contractparser___mk_in'vc.
+Prover result is: Valid (0.00s, 5210 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 665, characters 15-19:
+Sub-goal postcondition of goal _contractparser___mk_in'vc.
+Prover result is: Valid (0.01s, 5206 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 684, characters 9-26:
+Sub-goal index in array bounds of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 47404 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 683, characters 4-6:
+Sub-goal type invariant of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 48404 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 683, characters 4-6:
+Sub-goal type invariant of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 5443 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 683, characters 4-6:
+Sub-goal type invariant of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 47970 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 683, characters 4-6:
+Sub-goal type invariant of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 48818 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 679, characters 67-96:
+Sub-goal postcondition of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 23406 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 680, characters 15-39:
+Sub-goal postcondition of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 23465 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 679, characters 67-96:
+Sub-goal postcondition of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 5441 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 680, characters 15-39:
+Sub-goal postcondition of goal _contractparser__advance'vc.
+Prover result is: Valid (0.00s, 5445 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 695, characters 4-21:
+Sub-goal index in array bounds of goal _contractparser__cur'vc.
+Prover result is: Valid (0.01s, 47404 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 692, characters 15-45:
+Sub-goal postcondition of goal _contractparser__cur'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 703, characters 9-36:
+Sub-goal precondition of goal _contractparser__at_op'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 699, characters 33-92:
+Sub-goal postcondition of goal _contractparser__at_op'vc.
+Prover result is: Valid (0.01s, 23158 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 713, characters 8-79:
+Sub-goal precondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.01s, 6172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 714, characters 48-79:
+Sub-goal precondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.01s, 6373 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 708, characters 47-70:
+Sub-goal postcondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.02s, 74072 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 709, characters 15-39:
+Sub-goal postcondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.00s, 6476 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 708, characters 47-70:
+Sub-goal postcondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.01s, 3705 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 709, characters 15-39:
+Sub-goal postcondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.01s, 6376 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 726, characters 9-36:
+Sub-goal precondition of goal _contractparser__at_name'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 722, characters 33-94:
+Sub-goal postcondition of goal _contractparser__at_name'vc.
+Prover result is: Valid (0.01s, 23158 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 734, characters 18-73:
+Sub-goal precondition of goal _contractparser__expect_name'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 734, characters 103-176:
+Sub-goal precondition of goal _contractparser__expect_name'vc.
+Prover result is: Valid (0.00s, 6373 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 735, characters 131-137:
+Sub-goal unreachable point of goal _contractparser__expect_name'vc.
+Prover result is: Valid (0.00s, 3866 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 737, characters 17-48:
+Sub-goal precondition of goal _contractparser__expect_name'vc.
+Prover result is: Valid (0.01s, 6479 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 731, characters 15-39:
+Sub-goal postcondition of goal _contractparser__expect_name'vc.
+Prover result is: Valid (0.01s, 6569 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 745, characters 30-68:
+Sub-goal precondition of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 747, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.00s, 6206 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 748, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 62812 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 749, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 63641 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 746, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.00s, 6442 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 746, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.00s, 6447 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 746, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 63145 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 746, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 6469 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 746, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 6457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 751, characters 31-69:
+Sub-goal precondition of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.00s, 6525 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 750, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 88911 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 747, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 70398 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 748, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 72906 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 749, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 33850 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 741, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 69836 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 769, characters 12-55:
+Sub-goal precondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 770, characters 8-76:
+Sub-goal precondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.00s, 6202 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 771, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.00s, 6401 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 772, characters 15-50:
+Sub-goal variant decrease of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.02s, 78960 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 772, characters 15-50:
+Sub-goal precondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.01s, 6487 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 762, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.01s, 73628 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 762, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.00s, 6403 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 787, characters 13-85:
+Sub-goal precondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.01s, 6172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 787, characters 96-179:
+Sub-goal precondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.01s, 6355 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 788, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.00s, 6653 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 789, characters 43-79:
+Sub-goal variant decrease of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.02s, 93623 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 789, characters 43-79:
+Sub-goal precondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.01s, 6748 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 781, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.02s, 84329 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 791, characters 28-63:
+Sub-goal precondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.00s, 6651 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 781, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.01s, 6681 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 802, characters 12-48:
+Sub-goal precondition of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 804, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 5230 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 805, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 806, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 803, characters 11-125:
+Sub-goal type invariant of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 6739 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 803, characters 11-125:
+Sub-goal type invariant of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 6744 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 803, characters 11-125:
+Sub-goal type invariant of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.02s, 66295 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 803, characters 11-125:
+Sub-goal type invariant of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 6766 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 803, characters 11-125:
+Sub-goal precondition of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 6754 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 808, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.00s, 6790 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 809, characters 33-69:
+Sub-goal precondition of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.00s, 6868 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 807, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.03s, 115841 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 804, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.02s, 78322 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 805, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.02s, 82944 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 806, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 43305 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 797, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 25417 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 820, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 822, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.00s, 5230 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 823, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 824, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 821, characters 11-94:
+Sub-goal type invariant of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.00s, 6537 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 821, characters 11-94:
+Sub-goal type invariant of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 6542 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 821, characters 11-94:
+Sub-goal type invariant of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 64176 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 821, characters 11-94:
+Sub-goal type invariant of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.00s, 6564 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 821, characters 11-94:
+Sub-goal precondition of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 6552 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 826, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 6588 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 827, characters 33-70:
+Sub-goal precondition of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 6666 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 825, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.02s, 91676 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 822, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.02s, 75891 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 823, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.02s, 78620 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 824, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 41889 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 815, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 24457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 838, characters 45-58:
+Sub-goal index in array bounds of goal _contractparser__peek'vc.
+Prover result is: Valid (0.01s, 47645 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 838, characters 64-105:
+Sub-goal index in array bounds of goal _contractparser__peek'vc.
+Prover result is: Valid (0.01s, 47487 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 833, characters 15-19:
+Sub-goal postcondition of goal _contractparser__peek'vc.
+Prover result is: Valid (0.00s, 5212 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 847, characters 12-47:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 848, characters 8-79:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 6202 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 849, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 6401 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 850, characters 43-78:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 6487 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 842, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.02s, 73859 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 852, characters 20-92:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 6486 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 852, characters 126-156:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 6516 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 852, characters 231-261:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 6570 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 853, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 6622 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 854, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 6708 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 855, characters 48-83:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 6777 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 842, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.02s, 81350 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 842, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 6624 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 869, characters 12-53:
+Sub-goal precondition of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 871, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.00s, 5230 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 872, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 873, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 870, characters 11-126:
+Sub-goal type invariant of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 6739 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 870, characters 11-126:
+Sub-goal type invariant of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 6744 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 870, characters 11-126:
+Sub-goal type invariant of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.02s, 66471 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 870, characters 11-126:
+Sub-goal type invariant of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.00s, 6766 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 870, characters 11-126:
+Sub-goal precondition of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.00s, 6754 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 875, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 6790 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 876, characters 33-74:
+Sub-goal precondition of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 6868 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 874, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.03s, 116101 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 871, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 78498 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 872, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.02s, 83138 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 873, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 43347 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 864, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 25417 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 887, characters 12-53:
+Sub-goal precondition of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 889, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 5230 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 890, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 891, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 888, characters 11-96:
+Sub-goal type invariant of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 6537 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 888, characters 11-96:
+Sub-goal type invariant of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.00s, 6542 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 888, characters 11-96:
+Sub-goal type invariant of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 64268 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 888, characters 11-96:
+Sub-goal type invariant of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.00s, 6564 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 888, characters 11-96:
+Sub-goal precondition of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 6552 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 893, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 6588 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 894, characters 33-74:
+Sub-goal precondition of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.00s, 6666 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 892, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.02s, 91798 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 889, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.02s, 75983 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 890, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.02s, 78724 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 891, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 41913 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 882, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 24457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 909, characters 9-36:
+Sub-goal precondition of goal _contractparser__at_bs'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 905, characters 15-19:
+Sub-goal postcondition of goal _contractparser__at_bs'vc.
+Prover result is: Valid (0.01s, 5374 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 918, characters 18-93:
+Sub-goal precondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.00s, 6172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 918, characters 104-179:
+Sub-goal precondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.00s, 6259 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 918, characters 211-285:
+Sub-goal precondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.00s, 6419 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 919, characters 28-69:
+Sub-goal precondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.00s, 6505 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 914, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.01s, 6539 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 921, characters 28-67:
+Sub-goal precondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.01s, 6503 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 914, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.01s, 6537 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 938, characters 12-51:
+Sub-goal precondition of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 940, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 5230 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 941, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 942, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 939, characters 11-83:
+Sub-goal type invariant of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.00s, 6442 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 939, characters 11-83:
+Sub-goal type invariant of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 6447 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 939, characters 11-83:
+Sub-goal type invariant of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.02s, 63364 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 939, characters 11-83:
+Sub-goal type invariant of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 6469 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 939, characters 11-83:
+Sub-goal precondition of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.00s, 6457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 944, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.00s, 6493 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 945, characters 15-53:
+Sub-goal precondition of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 6562 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 943, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.02s, 81470 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 940, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 75048 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 941, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.02s, 77133 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 942, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 41250 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 933, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 24017 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 956, characters 18-93:
+Sub-goal precondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.01s, 6172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 956, characters 104-179:
+Sub-goal precondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.01s, 6259 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 956, characters 211-285:
+Sub-goal precondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.00s, 6419 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 957, characters 28-69:
+Sub-goal precondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.00s, 6505 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 952, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.00s, 6539 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 959, characters 28-70:
+Sub-goal precondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.00s, 6503 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 952, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.00s, 6537 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 970, characters 12-54:
+Sub-goal precondition of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 972, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.00s, 5230 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 973, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 974, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.02s, 51473 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 971, characters 11-82:
+Sub-goal type invariant of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.00s, 6442 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 971, characters 11-82:
+Sub-goal type invariant of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.00s, 6447 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 971, characters 11-82:
+Sub-goal type invariant of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.02s, 63287 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 971, characters 11-82:
+Sub-goal type invariant of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.00s, 6469 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 971, characters 11-82:
+Sub-goal precondition of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 6457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 976, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.00s, 6493 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 977, characters 15-52:
+Sub-goal precondition of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.00s, 6562 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 975, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.02s, 81576 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 972, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 74971 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 973, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.02s, 77042 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 974, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 41238 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 965, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 24017 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 988, characters 18-93:
+Sub-goal precondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.00s, 6172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 988, characters 104-179:
+Sub-goal precondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.01s, 6259 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 988, characters 211-285:
+Sub-goal precondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.00s, 6419 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 989, characters 28-69:
+Sub-goal precondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.01s, 6505 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 984, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.00s, 6539 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 991, characters 28-69:
+Sub-goal precondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.00s, 6503 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 984, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.00s, 6537 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1003, characters 12-53:
+Sub-goal precondition of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1005, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.00s, 5230 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1006, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.02s, 50457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1007, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1004, characters 11-99:
+Sub-goal type invariant of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 6537 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1004, characters 11-99:
+Sub-goal type invariant of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 6542 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1004, characters 11-99:
+Sub-goal type invariant of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 64397 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1004, characters 11-99:
+Sub-goal type invariant of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.00s, 6564 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1004, characters 11-99:
+Sub-goal precondition of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 6552 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1009, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 6588 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1010, characters 15-54:
+Sub-goal precondition of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.00s, 6666 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1008, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.02s, 91971 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1005, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.02s, 76112 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1006, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.02s, 78873 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1007, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 41937 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 997, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 24457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1021, characters 18-93:
+Sub-goal precondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1021, characters 104-179:
+Sub-goal precondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.01s, 6259 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1021, characters 211-285:
+Sub-goal precondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6419 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1022, characters 28-69:
+Sub-goal precondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6505 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1017, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6539 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1024, characters 28-70:
+Sub-goal precondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6503 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1017, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6537 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1033, characters 13-84:
+Sub-goal precondition of goal _contractparser__expect_op'vc.
+Prover result is: Valid (0.01s, 6172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1034, characters 67-73:
+Sub-goal unreachable point of goal _contractparser__expect_op'vc.
+Prover result is: Valid (0.01s, 3658 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1036, characters 4-35:
+Sub-goal precondition of goal _contractparser__expect_op'vc.
+Prover result is: Valid (0.00s, 6373 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1030, characters 15-39:
+Sub-goal postcondition of goal _contractparser__expect_op'vc.
+Prover result is: Valid (0.01s, 6463 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1046, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1047, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1048, characters 10-45:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1049, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.01s, 5282 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1050, characters 10-45:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.01s, 5310 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1051, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.01s, 5338 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1040, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.01s, 5366 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1079, characters 12-55:
+Sub-goal precondition of goal _contractparser___parse_class_invariant'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1080, characters 12-59:
+Sub-goal precondition of goal _contractparser___parse_class_invariant'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1081, characters 22-57:
+Sub-goal precondition of goal _contractparser___parse_class_invariant'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1076, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_class_invariant'vc.
+Prover result is: Valid (0.01s, 48840 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1089, characters 12-62:
+Sub-goal precondition of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1090, characters 30-68:
+Sub-goal precondition of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1092, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.02s, 60430 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1093, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.02s, 63369 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1094, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 64112 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1091, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.00s, 6470 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1091, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 6475 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1091, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.02s, 63455 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1091, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 6497 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1091, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 6485 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1096, characters 31-69:
+Sub-goal precondition of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.00s, 6553 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1095, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.03s, 91613 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1092, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 70745 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1093, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.02s, 73365 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1094, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 34022 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1085, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.02s, 66888 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1106, characters 12-61:
+Sub-goal precondition of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1107, characters 30-68:
+Sub-goal precondition of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1109, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 60430 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1110, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 63369 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1111, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 64112 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1108, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.00s, 6470 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1108, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.00s, 6475 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1108, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 63455 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1108, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 6497 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1108, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.00s, 6485 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1113, characters 31-69:
+Sub-goal precondition of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.00s, 6553 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1112, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 91613 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1109, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 70745 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1110, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 73365 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1111, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 34022 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1102, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 66888 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1136, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1137, characters 8-76:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 6202 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1138, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6401 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1139, characters 31-72:
+Sub-goal variant decrease of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 78960 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1139, characters 31-72:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6487 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1141, characters 20-43:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 84718 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1142, characters 20-74:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 79072 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1143, characters 20-104:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 78257 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1140, characters 19-56:
+Sub-goal type invariant of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 6666 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1140, characters 19-56:
+Sub-goal type invariant of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 6671 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1140, characters 19-56:
+Sub-goal type invariant of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 77385 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1140, characters 19-56:
+Sub-goal type invariant of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6693 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1140, characters 19-56:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6681 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1145, characters 31-72:
+Sub-goal variant decrease of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 80329 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1145, characters 31-72:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 6749 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1144, characters 18-53:
+Sub-goal loop variant decrease of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 90278 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1141, characters 20-43:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 85815 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1142, characters 20-74:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 90531 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1143, characters 20-104:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 48741 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1147, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6760 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1129, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 79046 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1129, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6403 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1161, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_mixin_param'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1162, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_mixin_param'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1163, characters 66-107:
+Sub-goal precondition of goal _contractparser___parse_mixin_param'vc.
+Prover result is: Valid (0.00s, 5292 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1156, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mixin_param'vc.
+Prover result is: Valid (0.01s, 49231 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1156, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mixin_param'vc.
+Prover result is: Valid (0.01s, 50772 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1175, characters 31-73:
+Sub-goal precondition of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1177, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.00s, 6206 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1178, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 62812 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1179, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.02s, 63641 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1176, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.00s, 6442 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1176, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.00s, 6447 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1176, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 63145 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1176, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.00s, 6469 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1176, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.00s, 6457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1181, characters 33-75:
+Sub-goal precondition of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 6525 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1180, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.02s, 88911 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1177, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 70398 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1178, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.02s, 72906 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1179, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 33850 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1171, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.02s, 71617 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1193, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1195, characters 13-81:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.01s, 6211 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1196, characters 16-59:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.01s, 6212 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1198, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.01s, 6240 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1199, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6268 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1200, characters 11-52:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6296 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1187, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6461 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1187, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 3697 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1198, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6410 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1199, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.01s, 6436 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1200, characters 11-52:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6464 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1187, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6629 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1187, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 3783 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1215, characters 12-43:
+Sub-goal precondition of goal _contractparser___parse_depends_method'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1216, characters 14-52:
+Sub-goal precondition of goal _contractparser___parse_depends_method'vc.
+Prover result is: Valid (0.01s, 5371 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1217, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_depends_method'vc.
+Prover result is: Valid (0.00s, 5397 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1218, characters 11-58:
+Sub-goal precondition of goal _contractparser___parse_depends_method'vc.
+Prover result is: Valid (0.00s, 5425 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1210, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_depends_method'vc.
+Prover result is: Valid (0.00s, 5446 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1227, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1229, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.00s, 5230 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1230, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1231, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1228, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 5466 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1228, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.00s, 5471 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1228, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 51126 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1228, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.00s, 5493 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1228, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.00s, 5481 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1233, characters 54-92:
+Sub-goal precondition of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 5549 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1232, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 54199 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1229, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 52502 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1230, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 53902 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1231, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 24447 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1223, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.02s, 54088 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1243, characters 30-72:
+Sub-goal precondition of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1245, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.00s, 6206 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1246, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.02s, 62812 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1247, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.02s, 63641 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1244, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.00s, 6442 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1244, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 6447 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1244, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 63145 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1244, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.00s, 6469 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1244, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 6457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1249, characters 31-73:
+Sub-goal precondition of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 6525 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1248, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.02s, 88911 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1245, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 70398 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1246, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.02s, 72906 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1247, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 33850 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1239, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.02s, 69836 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1265, characters 12-59:
+Sub-goal precondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1266, characters 18-56:
+Sub-goal precondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1267, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1268, characters 11-46:
+Sub-goal precondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.01s, 5282 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1269, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.00s, 5310 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1260, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.00s, 5338 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1282, characters 12-53:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1283, characters 11-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1284, characters 12-52:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1285, characters 12-55:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 5282 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1286, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 5310 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1287, characters 10-45:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5338 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1288, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5366 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1289, characters 35-70:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 5432 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1297, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5465 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1298, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5493 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1301, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 51642 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1302, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 54883 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1303, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 55245 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 6746 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6751 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 71991 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 6773 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 16-93:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 6761 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 104-180:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6849 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1305, characters 10-87:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7058 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1306, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7078 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1307, characters 49-84:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7147 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1304, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.03s, 139931 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1301, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 107855 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1302, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 113866 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1303, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 64064 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1309, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7076 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1310, characters 48-83:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7145 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1304, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.03s, 142578 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1301, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 107996 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1302, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.03s, 114003 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1303, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 64194 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1314, characters 73-79:
+Sub-goal unreachable point of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 4270 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1316, characters 119-188:
+Sub-goal array creation size of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 85242 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1274, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7945 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1297, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 5457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1298, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 5485 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1301, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 53337 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1302, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 56564 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1303, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 57037 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6738 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6743 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 74172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6765 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 16-93:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6753 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1300, characters 104-180:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 6841 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1305, characters 10-87:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7050 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1306, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7070 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1307, characters 49-84:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7139 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1304, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.03s, 138141 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1301, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 107458 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1302, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 113399 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1303, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 63910 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1309, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7068 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1310, characters 48-83:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7137 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1304, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.03s, 140623 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1301, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 107599 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1302, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 113536 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1303, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 64040 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1314, characters 73-79:
+Sub-goal unreachable point of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 4264 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1316, characters 119-188:
+Sub-goal array creation size of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 84874 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1274, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7937 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1323, characters 13-84:
+Sub-goal precondition of goal _contractparser__expect_bs'vc.
+Prover result is: Valid (0.01s, 6172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1324, characters 67-73:
+Sub-goal unreachable point of goal _contractparser__expect_bs'vc.
+Prover result is: Valid (0.00s, 3657 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1326, characters 17-48:
+Sub-goal precondition of goal _contractparser__expect_bs'vc.
+Prover result is: Valid (0.01s, 6181 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1320, characters 15-19:
+Sub-goal postcondition of goal _contractparser__expect_bs'vc.
+Prover result is: Valid (0.00s, 6356 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1336, characters 12-57:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1337, characters 8-76:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.01s, 6193 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1338, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.00s, 6394 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1339, characters 11-46:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.00s, 6480 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1340, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.00s, 6506 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1341, characters 18-56:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.00s, 6534 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1342, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.01s, 6562 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1330, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.01s, 6590 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1345, characters 47-82:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.00s, 6392 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1330, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.01s, 6418 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1359, characters 12-55:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1360, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1361, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1362, characters 15-53:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 5320 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1363, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 5348 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1364, characters 53-88:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 5376 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1351, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 5404 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1366, characters 20-89:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6307 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1366, characters 100-169:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 6395 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1366, characters 201-270:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6760 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1367, characters 27-58:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6858 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1368, characters 55-90:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6953 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1351, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6979 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1370, characters 12-80:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6943 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1371, characters 18-49:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 6963 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1372, characters 19-54:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 7049 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1373, characters 18-55:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 7075 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1374, characters 18-55:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 7103 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1375, characters 66-101:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 7131 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1351, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 7159 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1377, characters 18-55:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6961 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1378, characters 57-92:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6987 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1351, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 7015 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1395, characters 8-83:
+Sub-goal precondition of goal _contractparser___parse_opt_except'vc.
+Prover result is: Valid (0.00s, 6172 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1396, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_opt_except'vc.
+Prover result is: Valid (0.00s, 6373 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1397, characters 38-78:
+Sub-goal precondition of goal _contractparser___parse_opt_except'vc.
+Prover result is: Valid (0.00s, 6459 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1391, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_opt_except'vc.
+Prover result is: Valid (0.02s, 78174 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1391, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_opt_except'vc.
+Prover result is: Valid (0.01s, 6629 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1412, characters 12-56:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1413, characters 10-45:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1414, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1415, characters 10-45:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 5282 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1416, characters 8-83:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6286 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1425, characters 12-43:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6490 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1426, characters 12-54:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6576 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1427, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6602 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1428, characters 13-51:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6630 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1429, characters 12-57:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6658 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1430, characters 12-56:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6686 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1431, characters 35-76:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6714 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1432, characters 161-236:
+Sub-goal array creation size of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.02s, 81911 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1405, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 7131 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1419, characters 10-84:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6570 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1425, characters 12-43:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6601 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1426, characters 12-54:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6687 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1427, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6713 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1428, characters 13-51:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6741 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1429, characters 12-57:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6769 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1430, characters 12-56:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6797 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1431, characters 35-76:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6825 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1432, characters 161-236:
+Sub-goal array creation size of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.02s, 85398 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1405, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 7242 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1422, characters 86-92:
+Sub-goal unreachable point of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 3840 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1455, characters 12-59:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1456, characters 8-84:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 6202 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1457, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 6401 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1458, characters 68-103:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6487 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1451, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.02s, 74130 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1460, characters 10-87:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6486 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1461, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6512 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1462, characters 72-107:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6598 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1451, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.02s, 77313 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1464, characters 12-88:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6595 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1465, characters 18-49:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 6615 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1466, characters 61-99:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6701 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1451, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.02s, 78053 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1468, characters 90-96:
+Sub-goal unreachable point of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 3841 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1480, characters 93-114:
+Sub-goal variant decrease of goal _csl_to_str'vc.
+Prover result is: Valid (0.01s, 34900 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1480, characters 93-114:
+Sub-goal precondition of goal _csl_to_str'vc.
+Prover result is: Valid (0.00s, 5186 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1480, characters 52-72:
+Sub-goal variant decrease of goal _csl_to_str'vc.
+Prover result is: Valid (0.01s, 34925 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1480, characters 52-72:
+Sub-goal precondition of goal _csl_to_str'vc.
+Prover result is: Valid (0.00s, 5211 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1475, characters 32-36:
+Sub-goal postcondition of goal _csl_to_str'vc.
+Prover result is: Valid (0.00s, 5177 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1493, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1494, characters 8-76:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 6202 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1495, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.01s, 6401 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1496, characters 15-50:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.01s, 6487 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1497, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 6513 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1498, characters 80-100:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.01s, 6541 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1485, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 6654 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1486, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.02s, 74112 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1487, characters 15-50:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.02s, 75912 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1485, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 6399 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1486, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 6404 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1487, characters 15-50:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.02s, 68544 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1510, characters 12-60:
+Sub-goal precondition of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1511, characters 30-75:
+Sub-goal precondition of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1513, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 61947 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1514, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 62741 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1515, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 64118 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1512, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 6484 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1512, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.00s, 6489 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1512, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.02s, 63673 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1512, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.00s, 6511 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1512, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 6499 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1517, characters 31-76:
+Sub-goal precondition of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.00s, 6567 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1516, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.02s, 92188 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1513, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.02s, 71424 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1514, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.02s, 71197 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1515, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 34107 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1506, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 67207 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1527, characters 12-54:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1528, characters 8-86:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.01s, 6202 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1529, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.00s, 6401 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1530, characters 45-80:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.00s, 6487 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1523, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.02s, 74227 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1532, characters 10-86:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.01s, 6486 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1533, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.00s, 6512 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1534, characters 45-80:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.00s, 6598 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1523, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.02s, 77196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1536, characters 83-89:
+Sub-goal unreachable point of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.01s, 3786 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1547, characters 12-65:
+Sub-goal precondition of goal _contractparser___parse_mutex_invariant'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1548, characters 13-58:
+Sub-goal precondition of goal _contractparser___parse_mutex_invariant'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1549, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_mutex_invariant'vc.
+Prover result is: Valid (0.01s, 5374 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1550, characters 29-64:
+Sub-goal precondition of goal _contractparser___parse_mutex_invariant'vc.
+Prover result is: Valid (0.00s, 5400 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1543, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mutex_invariant'vc.
+Prover result is: Valid (0.00s, 5428 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1563, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1565, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 5230 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1566, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1567, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1564, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.00s, 5466 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1564, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 5471 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1564, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 51126 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1564, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.00s, 5493 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1564, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 5481 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1569, characters 54-92:
+Sub-goal precondition of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.00s, 5549 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1568, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 54199 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1565, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 52502 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1566, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 53902 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1567, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 24447 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1559, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 54088 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1580, characters 12-55:
+Sub-goal precondition of goal _contractparser___parse_proof'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1581, characters 14-52:
+Sub-goal precondition of goal _contractparser___parse_proof'vc.
+Prover result is: Valid (0.01s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1582, characters 16-55:
+Sub-goal precondition of goal _contractparser___parse_proof'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1575, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_proof'vc.
+Prover result is: Valid (0.01s, 5282 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1591, characters 12-56:
+Sub-goal precondition of goal _contractparser___parse_raises'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1592, characters 11-49:
+Sub-goal precondition of goal _contractparser___parse_raises'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1593, characters 12-54:
+Sub-goal precondition of goal _contractparser___parse_raises'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1594, characters 23-58:
+Sub-goal precondition of goal _contractparser___parse_raises'vc.
+Prover result is: Valid (0.00s, 5282 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1587, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_raises'vc.
+Prover result is: Valid (0.01s, 49176 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1604, characters 12-56:
+Sub-goal precondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1605, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1606, characters 8-89:
+Sub-goal precondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.01s, 6230 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1607, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.00s, 6429 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1608, characters 15-60:
+Sub-goal precondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.01s, 6515 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1598, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.01s, 6561 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1598, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.00s, 6427 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1622, characters 12-62:
+Sub-goal precondition of goal _contractparser___parse_shared_state'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1623, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_shared_state'vc.
+Prover result is: Valid (0.01s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1624, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_shared_state'vc.
+Prover result is: Valid (0.01s, 5254 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1625, characters 10-51:
+Sub-goal precondition of goal _contractparser___parse_shared_state'vc.
+Prover result is: Valid (0.00s, 5282 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1617, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_shared_state'vc.
+Prover result is: Valid (0.01s, 5310 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1635, characters 12-63:
+Sub-goal precondition of goal _contractparser___parse_touches_field'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1636, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_touches_field'vc.
+Prover result is: Valid (0.01s, 5226 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1637, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_touches_field'vc.
+Prover result is: Valid (0.01s, 5254 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1638, characters 10-51:
+Sub-goal precondition of goal _contractparser___parse_touches_field'vc.
+Prover result is: Valid (0.01s, 5282 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1630, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_touches_field'vc.
+Prover result is: Valid (0.01s, 5310 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1661, characters 32-59:
+Sub-goal precondition of goal _contractparser__at_eof'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1658, characters 15-19:
+Sub-goal postcondition of goal _contractparser__at_eof'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1685, characters 18-41:
+Sub-goal loop invariant init of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.00s, 5190 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1687, characters 29-64:
+Sub-goal index in array bounds of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.01s, 7476 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1688, characters 45-108:
+Sub-goal precondition of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.01s, 5426 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1686, characters 16-63:
+Sub-goal loop variant decrease of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.01s, 62891 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1685, characters 18-41:
+Sub-goal loop invariant preservation of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.01s, 62729 steps).
+
+File "/tmp/.pycsl_ur3fq0cm.mlw", line 1678, characters 15-19:
+Sub-goal postcondition of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.01s, 5836 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 635, characters 19-21: unused variable x0
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 648, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 648, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 653, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 653, characters 53-56: unused variable msg
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 663, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 665, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 679, characters 15-97: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 731, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 744, characters 8-17: unused variable names_len
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 741, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 757, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 762, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 781, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 797, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 815, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 833, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 842, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 864, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 882, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 900, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 905, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 914, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 927, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 933, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 952, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 965, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 984, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 997, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1017, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1030, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1040, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1076, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1088, characters 8-17: unused variable names_len
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1085, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1105, characters 8-17: unused variable names_len
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1102, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1134, characters 8-16: unused variable args_len
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1129, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1156, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1174, characters 8-18: unused variable params_len
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1171, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1187, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1210, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1223, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1242, characters 8-17: unused variable paths_len
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1239, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1260, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1277, characters 8-19: unused variable clauses_len
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1274, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1320, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1330, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1351, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1391, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1405, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1434, characters 69-73: unused variable name
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1451, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1475, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1485, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1509, characters 8-17: unused variable names_len
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1506, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1523, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1543, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1559, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1575, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1587, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1598, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1617, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1630, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1651, characters 53-55: unused variable fn
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1658, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1668, characters 21-27: unused variable source
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1672, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1672, characters 61-73: unused variable contract_str
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1672, characters 84-95: unused variable line_number
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1674, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1681, characters 8-20: unused variable contract_str
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1680, characters 8-24: unused variable parsed_nodes_len
+Warning, file "/tmp/.pycsl_ur3fq0cm.mlw", line 1678, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

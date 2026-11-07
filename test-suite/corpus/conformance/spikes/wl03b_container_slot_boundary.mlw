@@ -1,0 +1,56 @@
+(* WL-03b CONTAINER-slot BOUNDARY evidence (companion to
+   wl03b_float_record_slot_spike.mlw, which lands the tractable FLOAT slot).
+
+   The float field slot is implemented (τ(float record field)=real). A record slot
+   of CONTAINER type (`Point` with a `List[int]` field, used as a `List[Point]`
+   element so the record sits at an `array` element position) is a DOCUMENTED
+   BOUNDARY. This fixture records the exact Why3 facts that make it so.
+
+   ── FACT 1 (the rejection): a MUTABLE container field inside an `array` element is
+   Why3 TYPE-REJECTED. The faithful mutable-Python-list field model is `array int`
+   (what the corpus's standalone container fields already use, and what supports
+   `p.f[i] = v` / `p.f.append(..)`). Placing such a record at an `array` element
+   position:
+
+       type point_mut = { pn: int; mutable pf: array int }
+       let k (a: array point_mut) (i: int) : int = (a[i]).pn
+
+   is rejected by Why3 with:
+
+       This application instantiates pure type variable 'a with a mutable type point_mut
+
+   — the SAME `array (array τ)` / mutable-element rejection the nested-list project
+   documented (`array` instantiates a PURE type variable; a record with ANY mutable
+   component is a mutable type).
+
+   ── FACT 2 (the feasible-but-out-of-scope read): a PURE `seq int` field DOES
+   type-check and its read PROVES on BOTH Alt-Ergo AND Z3 (this module). So a
+   READ-ONLY container-field representation is SMT-sound. Adopting it, however,
+   requires a usage-dependent MUTABLE-vs-PURE per-record representation split (the
+   record-field analog of the nested-list `array (seq τ)` vs `matrix int` split):
+   the field must fall back to pure `seq` ONLY where the record is an `array`
+   element AND the field is never mutated, and a field mutation must be REJECTED
+   (fail-closed) — otherwise it is unsound; and it must not regress the existing
+   mutable `array int` standalone container-field records (additivity). That split
+   is a distinct, larger project — hence the boundary. *)
+
+module WL03bContainerSlotPureSeqFeasible
+  use int.Int
+  use seq.Seq
+  use array.Array
+
+  (* PURE seq field — the read-only container-field representation *)
+  type point_seq = { pn: int; pf: Seq.seq int }
+
+  (* the read at an `array` element position type-checks and proves *)
+  let k (a: array point_seq) (i: int) (j: int) : int
+    requires { 0 <= i < Array.length a }
+    requires { 0 <= j < Seq.length (a[i]).pf }
+    ensures  { result = Seq.get (a[i]).pf j }
+  = Seq.get (a[i]).pf j
+
+  let test_pure_seq_read () =
+    let s = Seq.cons 7 (Seq.empty: Seq.seq int) in
+    let a = Array.make 2 { pn = 0; pf = s } in
+    assert { Seq.get (a[0]).pf 0 = 7 }
+end

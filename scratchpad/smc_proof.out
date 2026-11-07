@@ -1,0 +1,49 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/statements.py'...
+[*] Memory model: hoare
+[*] Imported class from 'ir_schema': AssignStmt (record + 0 method stub(s) + 18 helper(s))
+[*] Imported class from 'ir_schema': AugAssignStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ArraySetStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ArraySliceSetStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': GhostAssignStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': GhostArraySetStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': TupleUnpackStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': FieldAssignStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': FieldAugAssignStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ExprStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': CriticalSectionStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ReturnStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': IfStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': WhileStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ForStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': TryStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': MatchStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': LabelStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': RaiseStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ProofAssertStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': AssertStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': PassStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': BreakStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ContinueStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': OpaqueStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['op_translate', 'whyml_ident', 'safe_mutex_name', 'safe_exc_name', 'stable_hash'] (trusted stubs)
+[*] Imported from 'ir_schema': ['stmt_from_dict'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_3ila61gj.mlw", line 124, characters 17-19: unused variable x0
+Warning, file "/tmp/.pycsl_3ila61gj.mlw", line 160, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl_3ila61gj.mlw", line 160, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl_3ila61gj.mlw", line 212, characters 23-27: unused variable self
+Warning, file "/tmp/.pycsl_3ila61gj.mlw", line 235, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_3ila61gj.mlw", line 235, characters 79-83: unused variable decl
+Warning, file "/tmp/.pycsl_3ila61gj.mlw", line 238, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_3ila61gj.mlw", line 238, characters 80-86: unused variable py_val
+Warning, file "/tmp/.pycsl_3ila61gj.mlw", line 239, characters 15-19: unused variable result
+File "/tmp/.pycsl_3ila61gj.mlw", line 259, characters 27-46:
+This expression has type int, but is expected to have type array.Array.array
+int @rho
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

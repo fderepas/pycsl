@@ -1,0 +1,162 @@
+diff --git a/src/self-annotate/src/frontend/Module3_Weaver.py b/src/self-annotate/src/frontend/Module3_Weaver.py
+index 8b9d45e6..690b3548 100644
+--- a/src/self-annotate/src/frontend/Module3_Weaver.py
++++ b/src/self-annotate/src/frontend/Module3_Weaver.py
+@@ -9,6 +9,8 @@ from errors import PyCSLSemanticError
+ from frontend.Module1_Ingestor import PyCSLContract
+ ""  # pycsl
+ class PyCSLWeaver(ast.NodeVisitor):
++    _csl_bound_names: Set[str]
++    _csl_star_import: bool
+     '\n    Traverses the standard Python AST and injects parsed contract nodes \n    directly into the AST objects.\n    '
+     #@ requires True
+     #@ ensures True
+@@ -257,7 +259,7 @@ class PyCSLWeaver(ast.NodeVisitor):
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+-    #@ assigns self._source
++    #@ assigns self._csl_bound_names, self._csl_star_import, self._source
+     def visit_Module(self, node: ast.Module) -> Any:
+         return None
+ 
+diff --git a/src/self-annotate/src/frontend/Module5_IREmitter.py b/src/self-annotate/src/frontend/Module5_IREmitter.py
+index 06340152..dbd68384 100644
+--- a/src/self-annotate/src/frontend/Module5_IREmitter.py
++++ b/src/self-annotate/src/frontend/Module5_IREmitter.py
+@@ -41,7 +41,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+-    #@ assigns self._final_registry, self._fresh_var_counter, self._m5_record_class_names, self._mutex_invariants_csl, self._shared_var_names, self._source, self._union_synth_cache, self.program_ir
++    #@ assigns self._final_registry, self._fresh_var_counter, self._globals_lookup_funcs, self._m5_record_class_names, self._mutex_invariants_csl, self._shared_var_names, self._source, self._union_synth_cache, self.program_ir
+     def visit_Module(self, node: ast.Module) -> None:
+         pass
+ 
+@@ -1471,6 +1471,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+ 
+     _PY_STMT_HANDLERS: int = {ast.Assign: '_py_stmt_assign', ast.AugAssign: '_py_stmt_augassign', ast.Return: '_py_stmt_return', ast.While: '_py_stmt_while', ast.For: '_py_stmt_for', ast.If: '_py_stmt_if', ast.Continue: '_py_stmt_continue', ast.Assert: '_py_stmt_assert', ast.Raise: '_py_stmt_raise', ast.AnnAssign: '_py_stmt_annassign', ast.Expr: '_py_stmt_expr', ast.Try: '_py_stmt_try', ast.With: '_py_stmt_with', ast.Pass: '_py_stmt_pass', ast.Break: '_py_stmt_break', ast.Delete: '_py_stmt_delete'}
+     _PY_OP_MAP: int = {ast.Add: '+', ast.Sub: '-', ast.Mult: '*', ast.Div: '/', ast.FloorDiv: 'div', ast.Mod: '%', ast.Eq: '==', ast.NotEq: '!=', ast.Lt: '<', ast.LtE: '<=', ast.Gt: '>', ast.GtE: '>=', ast.USub: '-', ast.UAdd: '+', ast.Not: 'not', ast.Invert: '~', ast.In: 'in', ast.NotIn: 'not in', ast.Is: 'is', ast.IsNot: 'is not', ast.BitAnd: '&', ast.BitOr: '|', ast.BitXor: '^', ast.LShift: '<<', ast.RShift: '>>', ast.Pow: '**'}
++    _m5_dc_unknown: List[str]
++    _globals_lookup_funcs: Set[str]
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+@@ -2670,7 +2672,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+-    #@ assigns self._fresh_var_counter, self._union_synth_cache, self.program_ir
++    #@ assigns self._fresh_var_counter, self._m5_dc_unknown, self._union_synth_cache, self.program_ir
+     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[int], int]:
+         return ([], {})
+ 
+diff --git a/src/self-annotate/src/module6_whyml/expressions.py b/src/self-annotate/src/module6_whyml/expressions.py
+index 99b299c6..bf420801 100644
+--- a/src/self-annotate/src/module6_whyml/expressions.py
++++ b/src/self-annotate/src/module6_whyml/expressions.py
+@@ -487,7 +487,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+-    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
++    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._r55_subsumed_name, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+     def _handle_binop(self, node: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
+         return ""
+ 
+@@ -548,7 +548,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+-    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
++    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._r188_stub_names, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache, self.ir
+     def _handle_dotted_call(self, func_name: str, args: List[str], arg_irs: int=None) -> str:
+         return ""
+ 
+diff --git a/src/self-annotate/src/module6_whyml/functions.py b/src/self-annotate/src/module6_whyml/functions.py
+index 8de2517a..e4849a32 100644
+--- a/src/self-annotate/src/module6_whyml/functions.py
++++ b/src/self-annotate/src/module6_whyml/functions.py
+@@ -5,6 +5,12 @@ from module6_whyml.ir_scanner import IRScanner
+ from module6_whyml.scc import emits_as_logic_symbol
+ ""  # pycsl
+ class FunctionEmissionMixin:
++    _erased_truthy_locals: Dict[str, str]
++    _fold_unsafe_elems: Set[str]
++    _fold_unsafe_sizes: Set[str]
++    _loop_targets_read_outside: Set[str]
++    _r51_bound_names: Set[str]
++    _rebound_collections: Set[str]
+     'Function-emission: signature assembly, parameter typing, contract emission, return-type computation, per-function state reset, and the cross-method type maps populated by `transpile()` before any function body is emitted. Mixed into Module6_WhyMLTranspiler.'
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+@@ -69,7 +75,7 @@ class FunctionEmissionMixin:
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+-    #@ assigns self._array2d_params, self._array_locals, self._bounded_int, self._compound_key_params, self._compound_map_getter, self._current_array1d_params, self._current_no_exception, self._current_no_exception_all, self._current_params, self._current_pyast_classdef_params, self._current_pyast_module_params, self._current_self_type, self._current_symbol_table, self._current_tparam_node_params, self._dict_key_types, self._dict_locals, self._dict_value_types, self._emit_ir_seq_locals, self._formal_params, self._getattr_self_dict_aliases, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._inline_array_temps, self._known_collection_elements, self._known_collection_sizes, self._lambda_locals, self._list_nested_elem, self._mutated_collection_params, self._opaque_selfmap_aliases, self._opaque_selfmap_inner_aliases, self._option_record_param_classes, self._option_str_return_vars, self._option_tuple_vars, self._param_list_flat_elem, self._pyast_stmt_locals, self._pyval_coll_locals, self._pyval_locals, self._pyval_seq_locals, self._record_array_locals, self._record_array_params, self._record_locals, self._record_param_classes, self._record_seq_locals, self._scope_all, self._scope_dyn_exec, self._scope_must, self._scope_params, self._seq_locals, self._seq_value_types, self._stmt_seq_mut_params, self._str_literal_seq_locals, self._str_set_locals, self._todict_aliases, self._tparam_list_aliases, self._tparam_locals, self._tuple_array_locals, self._uses_pyast_stmt_cache, self._uses_refine_tuple_return_type_cache, self._uses_tparam_cache, self._vararg_elem_type, self._vararg_str_param
++    #@ assigns self._array2d_params, self._array_locals, self._bounded_int, self._compound_key_params, self._compound_map_getter, self._current_array1d_params, self._current_no_exception, self._current_no_exception_all, self._current_params, self._current_pyast_classdef_params, self._current_pyast_module_params, self._current_self_type, self._current_symbol_table, self._current_tparam_node_params, self._dict_key_types, self._dict_locals, self._dict_value_types, self._emit_ir_seq_locals, self._erased_truthy_locals, self._fold_unsafe_elems, self._fold_unsafe_sizes, self._formal_params, self._getattr_self_dict_aliases, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._inline_array_temps, self._known_collection_elements, self._known_collection_sizes, self._lambda_locals, self._list_nested_elem, self._loop_targets_read_outside, self._mutated_collection_params, self._opaque_selfmap_aliases, self._opaque_selfmap_inner_aliases, self._option_record_param_classes, self._option_str_return_vars, self._option_tuple_vars, self._param_list_flat_elem, self._pyast_stmt_locals, self._pyval_coll_locals, self._pyval_locals, self._pyval_seq_locals, self._r51_bound_names, self._rebound_collections, self._record_array_locals, self._record_array_params, self._record_locals, self._record_param_classes, self._record_seq_locals, self._scope_all, self._scope_dyn_exec, self._scope_must, self._scope_params, self._seq_locals, self._seq_value_types, self._stmt_seq_mut_params, self._str_literal_seq_locals, self._str_set_locals, self._todict_aliases, self._tparam_list_aliases, self._tparam_locals, self._tuple_array_locals, self._uses_pyast_stmt_cache, self._uses_refine_tuple_return_type_cache, self._uses_tparam_cache, self._vararg_elem_type, self._vararg_str_param
+     def _reset_function_state(self, func: int, body_stmts: List[int]) -> int:
+         return ([], {})
+ 
+diff --git a/src/self-annotate/src/module6_whyml/preamble.py b/src/self-annotate/src/module6_whyml/preamble.py
+index aa4b6df2..8a11c461 100644
+--- a/src/self-annotate/src/module6_whyml/preamble.py
++++ b/src/self-annotate/src/module6_whyml/preamble.py
+@@ -9,6 +9,7 @@ class PreambleEmissionMixin:
+     _CLASS_INV_AXIOMS: frozenset = frozenset({'UnixFs.Dir.empty_disk_slots_dead', 'UnixFs.Dir.ibv_intro', 'UnixFs.Dir.ibv_elim', 'UnixFs.Content.block_content_eq_intro', 'UnixFs.Content.block_content_eq_elim', 'UnixFs.Dir.establish_uniq', 'UnixFs.Dir.establish_slots_lt32', 'Pycsl.Reference.FieldPred.field_nonneg_intro', 'Pycsl.Reference.FieldPred.field_nonneg_elim'})
+     _DEFINITIONAL_AXIOMS: frozenset = frozenset({'UnixFs.Dir.ibv_intro', 'UnixFs.Dir.ibv_elim', 'UnixFs.Content.block_content_eq_intro', 'UnixFs.Content.block_content_eq_elim', 'Pycsl.Reference.FieldPred.field_nonneg_intro', 'Pycsl.Reference.FieldPred.field_nonneg_elim'})
+     _AXIOM_FUNCTIONS: Dict[str, List[str]] = {'Pycsl.Reference.Gcd.': ['function gcd (a : int) (b : int) : int'], 'Pycsl.Reference.FieldPred.': ['predicate field_nonneg (x: int)'], 'Pycsl.Strmod.Capwords.': ['val function capwords_def (s: string) : string'], 'UnixFs.Field.': ['val function field_to_str (d: array int) (off: int) (width: int) : string'], 'Pycsl.Reference.Perm.': ['predicate permut (a: array int) (b: array int)'], 'Pycsl.Reference.Perm.rev_permutation': ['val function array_rev (a: array int) : array int'], 'Pycsl.Reference.Json.': ['val function json_mirror (x: json) : json'], 'UnixFs.Bitmap.': ['val function bit_and (x : int) (y : int) : int'], 'UnixFs.Struct.i1a1.': ['val function struct_pack_i1a1 (fmt: int) (x0: int) (x1: array int) : array int\n    ensures { Array.length result = 32 }', 'val function struct_unpack_i1a1 (fmt: int) (data: array int) : (int, array int)'], 'UnixFs.Struct.i2.': ['val function struct_pack_i2 (fmt: int) (x0: int) (x1: int) : array int', 'val function struct_unpack_i2 (fmt: int) (data: array int) : (int, int)'], 'UnixFs.Struct.i18.': ['val function struct_pack_i18 (fmt: int) (x0: int) (x1: int) (x2: int) (x3: int) (x4: int) (x5: int) (x6: int) (x7: int) (x8: int) (x9: int) (x10: int) (x11: int) (x12: int) (x13: int) (x14: int) (x15: int) (x16: int) (x17: int) : array int\n    ensures { Array.length result = 64 }', 'val function struct_unpack_i18 (fmt: int) (data: array int) : (int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int)'], 'UnixFs.Content.': ['function inode_size (disk: array int) (ino: int) : int =\n    disk[512 + ino*64 + 0] * 16777216 + disk[512 + ino*64 + 1] * 65536\n    + disk[512 + ino*64 + 2] * 256 + disk[512 + ino*64 + 3]', 'predicate block_content_eq (d: array int) (blk: int) (data: array int)'], 'UnixFs.Dir.': ['val function slot_inode (disk: array int) (blk: int) (k: int) : int', 'val function slot_name  (disk: array int) (blk: int) (k: int) : string', 'val function dir_lookup (disk: array int) (blk: int) (name: string) : int', 'predicate uniq (d: array int)', 'predicate inode_bytes_valid (d: array int)', 'predicate slots_lt32 (d: array int)', 'predicate dir_blit_marker (d0 d1: array int) (s b0 b1: int) (name: string)', 'predicate dir_scan_result (d: array int) (blk: int) (name: string) (r: int)', 'predicate dir_scan_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)'], 'UnixFs.Dir.dir_find_slot': ['predicate dir_find_slot_result (d: array int) (blk: int) (name: string) (r: int)', 'predicate dir_find_slot_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)'], 'UnixFs.Dir.dir_find_free': ['predicate dir_find_free_result (d: array int) (blk: int) (r: int)', 'predicate dir_find_free_prefix (d: array int) (blk: int) (i: int) (r: int)'], 'UnixFs.Dir.dir_blit_marker_at': ['predicate dir_blit_marker_at (d0 d1: array int) (blk s b0 b1: int) (name: string)']}
++    _emitted_record_field_types: Dict[str, str]
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+@@ -394,7 +395,7 @@ class PreambleEmissionMixin:
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+-    #@ assigns self._abstract_ops, self._ambiguous_fields, self._class_constants, self._class_str_set_constants, self._comp_content_counter, self._constructors, self._current_params, self._current_self_type, self._current_symbol_table, self._dict_locals, self._emit_record_ctx, self._emitted_record_field_labels, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._list_element_record_types, self._needs_array_init, self._obj_state_written, self._pyval_seq_append_targets, self._pyval_seq_fields, self._quant_record_binders, self._quant_scalar_binders, self._record_array_fields, self._record_types, self._reserved_exprir_symbols_cache, self._str_array_record_fields, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_act_guard_cache, self._uses_build_overload_param_guard_cache, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_clause_ir_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_csl_proj_cache, self._uses_dictlit_cache, self._uses_is_overload_stub_cache, self._uses_method_recv_cache, self._uses_null_byte_num_reader_cache, self._uses_py_functiondef_node_cache, self._uses_pyast_module_cache, self._uses_pyast_parser_cache, self._uses_pyast_stmt_cache, self._uses_refine_tuple_return_type_cache, self._uses_stmt_if_test_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache, self._uses_synthesize_overload_guard_cache, self._uses_tparam_cache, self._variant_types
++    #@ assigns self._abstract_ops, self._ambiguous_fields, self._class_constants, self._class_str_set_constants, self._comp_content_counter, self._constructors, self._current_params, self._current_self_type, self._current_symbol_table, self._dict_locals, self._emit_record_ctx, self._emitted_record_field_labels, self._emitted_record_field_types, self._formal_params, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._list_element_record_types, self._needs_array_init, self._obj_state_written, self._pyval_seq_append_targets, self._pyval_seq_fields, self._quant_record_binders, self._quant_scalar_binders, self._record_array_fields, self._record_types, self._reserved_exprir_symbols_cache, self._str_array_record_fields, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_act_guard_cache, self._uses_build_overload_param_guard_cache, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_clause_ir_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_csl_proj_cache, self._uses_dictlit_cache, self._uses_is_overload_stub_cache, self._uses_method_recv_cache, self._uses_null_byte_num_reader_cache, self._uses_py_functiondef_node_cache, self._uses_pyast_module_cache, self._uses_pyast_parser_cache, self._uses_pyast_stmt_cache, self._uses_refine_tuple_return_type_cache, self._uses_stmt_if_test_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache, self._uses_synthesize_overload_guard_cache, self._uses_tparam_cache, self._variant_types
+     def _emit_type_decls(self, type_decls: List[int]) -> Tuple[List[str], int]:
+         return ([], {})
+ 
+diff --git a/src/self-annotate/src/module6_whyml/statements.py b/src/self-annotate/src/module6_whyml/statements.py
+index fafcf3a4..fedf7213 100644
+--- a/src/self-annotate/src/module6_whyml/statements.py
++++ b/src/self-annotate/src/module6_whyml/statements.py
+@@ -124,6 +124,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+     _tuple_array_locals: Dict[str, int] = None
+     _current_append_targets: Set[str] = None
+     _has_early_ret: int = 0
++    _literal_rebind_lens: Dict[str, int]
++    _literal_rebind_targets: Set[str]
+     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
+     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
+     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
+@@ -1822,7 +1824,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+-    #@ assigns self._abstract_ops, self._array_elem_types, self._array_locals, self._class_name_ternary_locals, self._comp_content_counter, self._const_pair_dict_str_locals, self._current_append_targets, self._current_params, self._current_record_var_classes, self._current_self_type, self._decode_to_string, self._dict_key_types, self._dict_locals, self._dict_value_types, self._emit_ir_local_vars, self._emit_ir_seq_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._get_return_raw_option, self._getattr_self_dict_aliases, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._has_early_ret, self._havoc_counter, self._hvalmap_local_vars, self._in_loop_spec, self._in_spec, self._inline_array_temps, self._irlist_local_vars, self._iropt_ir_local_vars, self._iropt_seq_locals, self._iropt_str_local_vars, self._keyword_locals, self._kind_local_recv, self._known_collection_elements, self._known_collection_sizes, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._opaque_selfmap_aliases, self._opaque_selfmap_inner_aliases, self._option_str_return_vars, self._option_tuple_unpack_targets, self._option_tuple_vars, self._optional_union_locals, self._optmap_getter_locals, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyconst_val_local_vars, self._pyval_get_as_string, self._pyval_get_raw_coll, self._pyval_local_vars, self._pyval_locals, self._quant_record_binders, self._quant_scalar_binders, self._record_array_locals, self._record_field_elem_locals, self._record_locals, self._record_seq_locals, self._refine_str_comp_locals, self._seq_ir_tuple_targets, self._seq_locals, self._seq_value_types, self._slice_set_tmp_counter, self._str_literal_seq_locals, self._str_slice_loop_len, self._string_local_vars, self._tdrl_hval_locals, self._tdrl_present_locals, self._term_local_vars, self._todict_aliases, self._todict_arg_wants_pymap, self._tparam_locals, self._tuple_array_locals, self._tuple_var_slot_types, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_dictlit_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
++    #@ assigns self._abstract_ops, self._array_elem_types, self._array_locals, self._class_name_ternary_locals, self._comp_content_counter, self._const_pair_dict_str_locals, self._current_append_targets, self._current_params, self._current_record_var_classes, self._current_self_type, self._decode_to_string, self._dict_key_types, self._dict_locals, self._dict_value_types, self._emit_ir_local_vars, self._emit_ir_seq_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._get_return_raw_option, self._getattr_self_dict_aliases, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._has_early_ret, self._havoc_counter, self._hvalmap_local_vars, self._in_loop_spec, self._in_spec, self._inline_array_temps, self._irlist_local_vars, self._iropt_ir_local_vars, self._iropt_seq_locals, self._iropt_str_local_vars, self._keyword_locals, self._kind_local_recv, self._known_collection_elements, self._known_collection_sizes, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._literal_rebind_lens, self._literal_rebind_targets, self._needs_array_init, self._obj_state_written, self._opaque_selfmap_aliases, self._opaque_selfmap_inner_aliases, self._option_str_return_vars, self._option_tuple_unpack_targets, self._option_tuple_vars, self._optional_union_locals, self._optmap_getter_locals, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyconst_val_local_vars, self._pyval_get_as_string, self._pyval_get_raw_coll, self._pyval_local_vars, self._pyval_locals, self._quant_record_binders, self._quant_scalar_binders, self._record_array_locals, self._record_field_elem_locals, self._record_locals, self._record_seq_locals, self._refine_str_comp_locals, self._seq_ir_tuple_targets, self._seq_locals, self._seq_value_types, self._slice_set_tmp_counter, self._str_literal_seq_locals, self._str_slice_loop_len, self._string_local_vars, self._tdrl_hval_locals, self._tdrl_present_locals, self._term_local_vars, self._todict_aliases, self._todict_arg_wants_pymap, self._tparam_locals, self._tuple_array_locals, self._tuple_var_slot_types, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_dictlit_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
+                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
+                          is_method: bool, return_type: str) -> str:
+diff --git a/src/self-annotate/src/module6_whyml/types.py b/src/self-annotate/src/module6_whyml/types.py
+index 9c059c9c..4f064fee 100644
+--- a/src/self-annotate/src/module6_whyml/types.py
++++ b/src/self-annotate/src/module6_whyml/types.py
+@@ -55,11 +55,12 @@ class TypeInferenceMixin:
+     _ghost_dict_vars: Set[str] = None
+     _ghost_string_vars: Set[str] = None
+     _ghost_tuple_vars: Dict[str, int] = None
++    _rebound_collections: Set[str]
+ 
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+-    #@ assigns self._known_collection_elements, self._known_collection_sizes, self._record_array_locals
++    #@ assigns self._known_collection_elements, self._known_collection_sizes, self._rebound_collections, self._record_array_locals
+     def _track_collection_metadata(self, target: str, val_ir: int) -> None:
+         pass
+ 

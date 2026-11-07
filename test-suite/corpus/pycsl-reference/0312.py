@@ -16,6 +16,6 @@ def test_ghost_list_nth(n: int) -> int:
     return i
 
 if __name__ == "__main__":
-    assert test_ghost_list_mem(0) == 0
-    assert test_ghost_list_mem(4) == 4
+    assert test_ghost_list_nth(0) == 0
+    assert test_ghost_list_nth(4) == 4
     print("PASS")

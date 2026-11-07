@@ -1,0 +1,65 @@
+(* callinternals-composition-probe.mlw
+   Probes whether attaching a keyword_list to the REAL emit_ir ADT shape raises a
+   positivity issue. Reconstructs a minimal but STRUCTURALLY-FAITHFUL emit_ir
+   (the mutually-recursive `with irlist = ILNil | ILCons emit_ir irlist` shape
+   from preamble.py) + adds the keyword-node machinery. *)
+
+(* ---- Probe A: keyword_list as an INDEPENDENT (pre-defined) type ----------- *)
+(* kwval is a leaf-string variant (Name.id / Attribute.attr) — it does NOT carry
+   emit_ir, so keyword_list is strictly positive and standalone. Attaching it to
+   a new IrCallKw ctor uses it in a strictly-positive field position. *)
+module ProbeA_SeparateType
+
+  use int.Int
+
+  type kwval = KwName string | KwAttr string
+  type keyword = { kw_arg: string; kw_value: kwval }
+  type keyword_list = KWNil | KWCons keyword keyword_list
+
+  (* minimal faithful emit_ir with the real `with irlist` mutual recursion,
+     PLUS a new IrCallKw carrying the standalone keyword_list. *)
+  type emit_ir =
+    | IrVar string
+    | IrCall string emit_ir int                 (* existing bare-string callee *)
+    | IrCallN string irlist                      (* existing variadic-args node *)
+    | IrCallKw string keyword_list emit_ir int   (* NEW: keyword_list attached *)
+  with irlist = ILNil | ILCons emit_ir irlist
+
+  (* size measure over the extended ADT (the size_*_dec precedent) *)
+  function size (e: emit_ir) : int =
+    match e with
+    | IrVar _ -> 1
+    | IrCall _ a _ -> 1 + size a
+    | IrCallN _ l -> 1 + isize l
+    | IrCallKw _ _ a _ -> 1 + size a   (* keyword_list not reflected: `_ -> 1`-style *)
+    end
+  with isize (l: irlist) : int =
+    match l with ILNil -> 0 | ILCons h t -> 1 + size h + isize t end
+
+  goal G_size_nonneg : forall e: emit_ir. size e >= 1
+
+end
+
+(* ---- Probe B: keyword VALUE as a FULL emit_ir node (mutual recursion) ------ *)
+(* Hypothetical stress case: if a keyword value were a full emit_ir node, would
+   keyword/keyword_list need to be mutually recursive WITH emit_ir, and does that
+   introduce a positivity failure? (The model does NOT need this — kwval leaf
+   suffices — but the probe measures the wall.) *)
+module ProbeB_MutualRecursion
+
+  use int.Int
+
+  type emit_ir =
+    | IrVar string
+    | IrCallKw string kw_list
+  with keyword = { kw_arg: string; kw_value: emit_ir }   (* value = full node *)
+  with kw_list = KWNil | KWCons keyword kw_list
+
+  function size (e: emit_ir) : int =
+    match e with IrVar _ -> 1 | IrCallKw _ l -> 1 + ksize l end
+  with ksize (l: kw_list) : int =
+    match l with KWNil -> 0 | KWCons k t -> 1 + size k.kw_value + ksize t end
+
+  goal G_size_nonneg_B : forall e: emit_ir. size e >= 1
+
+end

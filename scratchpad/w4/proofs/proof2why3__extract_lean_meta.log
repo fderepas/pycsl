@@ -1,0 +1,14 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/extract_lean_meta.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_7u7shwfm.mlw", line 11, characters 36-46: unused variable proof_file
+Warning, file "/tmp/.pycsl_7u7shwfm.mlw", line 11, characters 57-66: unused variable qualnames
+Warning, file "/tmp/.pycsl_7u7shwfm.mlw", line 13, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_7u7shwfm.mlw", line 15, characters 27-37: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_7u7shwfm.mlw", line 17, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

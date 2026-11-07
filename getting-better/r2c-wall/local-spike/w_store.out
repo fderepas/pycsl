@@ -1,0 +1,41 @@
+[*] Parsing and Semantic Analysis for 'w_store.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_w9wkdrnt.mlw", line 29, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.01s, 2672 steps).
+
+File "/tmp/.pycsl_w9wkdrnt.mlw", line 50, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.01s, 2848 steps).
+
+File "/tmp/.pycsl_w9wkdrnt.mlw", line 57, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2200 steps).
+
+File "/tmp/.pycsl_w9wkdrnt.mlw", line 64, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.01s, 2236 steps).
+
+File "/tmp/.pycsl_w9wkdrnt.mlw", line 80, characters 80-97:
+Sub-goal variant decrease of goal pairs_set'vc.
+Prover result is: Valid (0.00s, 2672 steps).
+
+File "/tmp/.pycsl_w9wkdrnt.mlw", line 84, characters 63-83:
+Sub-goal variant decrease of goal hval_list_snoc'vc.
+Prover result is: Valid (0.01s, 2200 steps).
+
+File "/tmp/.pycsl_w9wkdrnt.mlw", line 87, characters 15-27:
+Sub-goal postcondition of goal w_store'vc.
+Prover result is: Valid (0.01s, 1548 steps).
+
+File "/tmp/.pycsl_w9wkdrnt.mlw", line 87, characters 15-27:
+Sub-goal postcondition of goal w_store'vc.
+Prover result is: Valid (20.18s, 13979042 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_w9wkdrnt.mlw", line 86, characters 15-16: unused variable n
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,29 @@
+gate(#43): NEW PLANE — bin/check-mirror-coverage.py, the one thing the headline number structurally cannot see
+
+`bin/count-trusted-directives.py` counts `#@ \trusted` markers IN THE MIRROR. That answers
+"how much of what the mirror models is assumed rather than proved". It cannot answer "how
+much of the live emitter the mirror models AT ALL" — because a live function with no mirror
+counterpart carries no marker. It is not trusted; it is ABSENT.
+
+`bin/self-annotate-mirror-check.sh` walks the other direction (MIRROR-only defs). Nobody had
+measured live-only defs.
+
+FIRST MEASUREMENT: of 1820 live functions in the 53 files that HAVE a mirror, **550 (30.2%)
+have no mirror counterpart** — concentrated in the big emitters (`expressions.py` 142,
+`functions.py` 97, `statements.py` 92, `preamble.py` 71, `Module5_IREmitter.py` 35) — and a
+further 41 live files have no mirror at all.
+
+WHAT THIS IS AND IS NOT. It is NOT an unsoundness: an unmirrored function sits outside the
+self-verification perimeter exactly like an unmirrored file. It IS a limit on what "456"
+means, and a ratchet is the honest way to hold it — so that converting a `\trusted` stub
+counts as progress and quietly adding an unmirrored live helper beside it does not.
+
+Route #15's own Module 6 emitter `_emit_init_contract_checks` is precisely that case. It is
+sound today — reachable only from `transpile` and `_emit_prefunctions_infra`, both `\trusted`
+in the mirror, so the verified perimeter is unchanged in shape — and it is now COUNTED
+rather than invisible. That is the point of writing the plane in the same window as the
+change that motivated it.
+
+Ratchets 550 / 41, negative-tested at 549.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

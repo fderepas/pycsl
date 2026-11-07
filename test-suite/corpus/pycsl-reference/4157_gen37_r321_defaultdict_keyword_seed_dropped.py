@@ -1,0 +1,14 @@
+r"""Test 4157 -- gen #37 route #321 (expected FAIL): `defaultdict(int, a=5)['a'] == 0` PROVED (CPython 5): the keyword seed was dropped. Keyword REFUSED.
+"""
+# pycsl-expected: FAIL
+from collections import defaultdict
+#@ ensures \result == 1
+#@ assigns \nothing
+def f() -> int:
+    d = defaultdict(int, a=5)
+    if d["a"] == 0:
+        return 1
+    return 0
+
+if __name__ == "__main__":
+    assert f() == 1, f()

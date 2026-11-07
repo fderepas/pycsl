@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5639_gen37_r398_typeddict_functional_attr.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: line 11: `TD` is a `typing.TypedDict` class, a TYPE with no runtime model, used here as a value (called, passed to `isinstance` / `issubclass`, or bound). CPython refuses to instantiate a Protocol, a TypedDict call returns a plain `dict`, and `isinstance` against either raises TypeError (unless `@runtime_checkable`), while the model treated `TD` as an ordinary record (systematic rule TC, route #391: `P()` under `no_exception` PROVED, CPython TypeError). Use `TD` only in annotations; build a concrete class (or a `dict`) for values.

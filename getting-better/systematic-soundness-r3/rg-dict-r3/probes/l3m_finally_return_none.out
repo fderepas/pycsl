@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3m_finally_return_none.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3m_finally_return_none.mlw", line 21, characters 4-15:
+this expression produces an unlisted write effect
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

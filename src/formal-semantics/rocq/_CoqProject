@@ -7,6 +7,10 @@ Phase1c_ValidateIr.v
 Phase1d_StmtToIr.v
 Phase1b_IrToStmtExtract.v
 Phase2_State.v
+Phase2b_RecordVal.v
+Phase2c_PyValDict.v
+Phase2c_PyConstVal.v
+Phase2d_StmtIR.v
 Phase7_MemModel.v
 Phase3_SOS.v
 Phase3b_DesugarDef.v
@@ -56,3 +60,11 @@ Phase6n_ClassInvariants.v
 Phase7b_MemModelSoundness.v
 Phase7c_ConcurrentModel.v
 Tests.v
+Phase2e_PyAstStmt.v
+Phase2f_PyVal.v
+Phase2g_CallKw.v
+Phase2h_TParam.v
+Phase2i_TermIR.v
+Phase2j_MethodRecv.v
+Phase2k_CslClause.v
+Phase2l_PyAstExpr.v

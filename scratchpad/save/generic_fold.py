@@ -1,0 +1,15742 @@
+"""bigger-build.md Phase 1 — the A-unit generic-fold recognizer + templater.
+
+A *generic fold* (family A-unit, plan §1) is the type-derived catamorphism over
+the compiler's ``Dict[str, Any]`` IR value: a self-recursive walk that descends a
+``dict``/``list`` universal value and accumulates into a by-reference ``Set``/``dict``
+parameter (``writes { acc }`` frame), the ``v2_iter_mutate_spike.mlw`` shape.
+
+This module recognizes the closed, fail-closed pattern on the *IR* (the tuple
+target ``k, v`` is erased to ``_for_target`` at ``Module5_IREmitter.py:1477``, but
+the loop body still references the phantom key/value ``Var`` names and the
+self-recursion, so the structure is fully recoverable) and emits, from the
+matched node, the ``let rec walk … with walk_dict … with walk_list …`` group
+mangled per method. The recursion comes from the ``pyval``/``pydict`` inductive
+datatype (the ``needs_pydict`` L1 theory in ``preamble._emit_pydict_theory``), not
+from the loop — so the ``size``-variant termination measure is a real structural
+sub-term, closing the phase-2c defect (opaque ``iter_get`` had no sub-term).
+
+The templater NEVER enters the TCB: a template bug yields an *unprovable*
+instance (the ``--fun`` whole-body re-proof is loud), never a false proof, so the
+3-axiom ledger is unchanged and no ``\trusted`` is weakened.
+
+**Precision over recall.** A miss keeps the method ``\trusted`` (exactly as
+today); a false fire would break byte-additivity, so every deviation from the
+exact shape rejects. Verified inert (fires on 0/756 corpus programs → byte-diff
+0); the poisoned control ``wall_v3_phase0/poison_ta.py`` is the single external
+match that flips the gate red once.
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Tuple
+
+# The named irkey constructors the L1 preamble theory declares
+# (`_emit_pydict_theory`). A literal schema key outside this set lowers to the
+# `K_dyn "<key>"` computed-key fallback.
+_NAMED_KEYS = {
+    "type": "K_type", "left": "K_left", "right": "K_right", "op": "K_op",
+    "z": "K_z", "value": "K_value", "target": "K_target", "body": "K_body",
+    "orelse": "K_orelse", "func": "K_func", "name": "K_name",
+}
+
+
+def _irkey_ctor(key: str) -> str:
+    """Map a literal schema key string to its irkey constructor term."""
+    if key in _NAMED_KEYS:
+        return _NAMED_KEYS[key]
+    return f'(K_dyn "{key}")'
+
+
+def _is_var(node: Any, name: Optional[str] = None) -> bool:
+    if not isinstance(node, dict) or node.get("type") != "Var":
+        return False
+    return name is None or node.get("name") == name
+
+
+def _is_string(node: Any) -> Optional[str]:
+    if isinstance(node, dict) and node.get("type") == "String":
+        return node.get("value")
+    return None
+
+
+def _match_isinstance(test: Any, subj: str, cls: str) -> bool:
+    """`isinstance(<subj>, <cls>)` where cls is the bare name `dict`/`list`."""
+    if not isinstance(test, dict) or test.get("type") != "Call":
+        return False
+    if test.get("func") != "isinstance":
+        return False
+    args = test.get("args", [])
+    return (len(args) == 2 and _is_var(args[0], subj)
+            and _is_var(args[1], cls))
+
+
+def _match_pre_action(stmt: Any, subj: str, acc: str) -> Optional[Dict[str, str]]:
+    """Optional pre-action:
+        if obj.get("<gkey>") == "<gval>": targets.add(obj["<akey>"])
+    Returns {guard_key, guard_val, add_key} or None if this stmt isn't it."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    test = stmt.get("test", {})
+    if not isinstance(test, dict) or test.get("type") != "BinOp" or test.get("op") != "==":
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    # left = obj.get("<gkey>")
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{subj}.get"):
+        return None
+    gargs = left.get("args", [])
+    if len(gargs) != 1:
+        return None
+    gkey = _is_string(gargs[0])
+    gval = _is_string(right)
+    if gkey is None or gval is None:
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return None
+    add = body[0]
+    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+        return None
+    call = add.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add"):
+        return None
+    aargs = call.get("args", [])
+    if len(aargs) != 1:
+        return None
+    sub = aargs[0]
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), subj)):
+        return None
+    akey = _is_string(sub.get("index"))
+    if akey is None:
+        return None
+    return {"kind": "eq", "guard_key": gkey, "guard_val": gval, "add_key": akey}
+
+
+def _match_pre_action_intuple(stmt: Any, subj: str,
+                             acc: str) -> Optional[Dict[str, Any]]:
+    """In-tuple + isinstance(str) pre-action (bigger-build A-unit grammar delta):
+
+        if <subj>.get("<gkey>") in (<str-tuple>) and isinstance(<subj>.get("<akey>"), str):
+            <acc>.add(<subj>["<akey>"])
+
+    An `in`-tuple key-value guard over interned keys (constructor membership: is
+    the `<gkey>` value one of the literal strings?) conjoined with an
+    `isinstance(str)` narrowing of the *added* key `<akey>`, gating a
+    `set_add` of `<subj>["<akey>"]`. Under the fixed `ensures True` contract the
+    tuple/isinstance narrowings are pure boolean gates on WHICH string is added
+    (they constrain neither type-safety nor termination), and the `isinstance
+    str` maps EXACTLY to the `Some (PStr t)` reader arm — the faithful lowering
+    reads `<akey>` and adds its string payload only when `<gkey>` matches a tuple
+    element AND `<akey>` is a string. Returns
+    {kind: "intuple_isinstance", guard_key, guard_vals, add_key} or None
+    (fail-closed). The isinstance narrowing MUST target the same key as the add
+    (a mismatch rejects), and every tuple element must be a string literal."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    test = stmt.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    # left: <subj>.get("<gkey>") in (<str-tuple>)
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "in"):
+        return None
+    lget = left.get("left", {})
+    if not (isinstance(lget, dict) and lget.get("type") == "Call"
+            and lget.get("func") == f"{subj}.get"
+            and len(lget.get("args", [])) == 1):
+        return None
+    gkey = _is_string(lget["args"][0])
+    if gkey is None:
+        return None
+    if not _is_string_tuple(left.get("right", {})):
+        return None
+    gvals = [_is_string(e) for e in left["right"]["elts"]]
+    # right: isinstance(<subj>.get("<akey>"), str)
+    if not (isinstance(right, dict) and right.get("type") == "Call"
+            and right.get("func") == "isinstance"
+            and len(right.get("args", [])) == 2):
+        return None
+    iarg, icls = right["args"][0], right["args"][1]
+    if not (isinstance(iarg, dict) and iarg.get("type") == "Call"
+            and iarg.get("func") == f"{subj}.get"
+            and len(iarg.get("args", [])) == 1):
+        return None
+    akey_isi = _is_string(iarg["args"][0])
+    if akey_isi is None or not _is_var(icls, "str"):
+        return None
+    # body: <acc>.add(<subj>["<akey>"])
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return None
+    add = body[0]
+    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+        return None
+    call = add.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add"
+            and len(call.get("args", [])) == 1):
+        return None
+    sub = call["args"][0]
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), subj)):
+        return None
+    akey = _is_string(sub.get("index"))
+    if akey is None or akey != akey_isi:
+        return None
+    return {"kind": "intuple_isinstance", "guard_key": gkey,
+            "guard_vals": gvals, "add_key": akey}
+
+
+def _flatten_and(node: Any) -> List[Any]:
+    """Left-associatively flatten an `and`-tree into its conjunct list."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "and"):
+        return _flatten_and(node.get("left")) + _flatten_and(node.get("right"))
+    return [node]
+
+
+def _match_pre_action_nested_field(stmt: Any, subj: str,
+                                   acc: str) -> Optional[Dict[str, Any]]:
+    """Nested-field-read pre-action (bigger-build A-unit grammar delta):
+
+        if <subj>.get("<gkey>") == "<gval>":
+            <lv> = <subj>.get("<ckey>")
+            if isinstance(<lv>, dict) and <lv>.get("<k1>") == "<v1>" and ... :
+                <acc>.add(<lv>.get("<akey>"))
+
+    An outer literal-key equality guard, a LOCAL bound to a *child* dict
+    (`<subj>.get("<ckey>")`), then a nested guard that narrows the child to a
+    dict (`isinstance(<lv>, dict)`) and constrains one-or-more of its literal
+    keys, gating `set_add` of the child's `<akey>` value. Under the fixed
+    `ensures True` contract the equality narrowings are pure boolean gates on
+    WHICH string is added, and `isinstance(<lv>, dict)` maps EXACTLY to the
+    `Some (PDict arr)` reader arm — the faithful lowering projects the child
+    pydict and reads its literal keys. Returns
+    {kind: "nested_field", guard_key, guard_val, child_key, field_guards, add_key}
+    or None (fail-closed). The child-narrowing MUST be an `isinstance(<lv>, dict)`
+    on the bound local, every field guard MUST be `<lv>.get(k)==v` on that same
+    local, and the add MUST read a literal key of that local."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    outer = _match_eq_guard(stmt.get("test", {}), subj)
+    if outer is None:
+        return None
+    gkey, gval = outer
+    body = stmt.get("body", [])
+    if len(body) != 2:
+        return None
+    # body[0]: <lv> = <subj>.get("<ckey>")
+    asg = body[0]
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return None
+    lv = asg.get("target")
+    if not isinstance(lv, str):
+        return None
+    cval = asg.get("value", {})
+    if not (isinstance(cval, dict) and cval.get("type") == "Call"
+            and cval.get("func") == f"{subj}.get"
+            and len(cval.get("args", [])) == 1):
+        return None
+    ckey = _is_string(cval["args"][0])
+    if ckey is None:
+        return None
+    # body[1]: if isinstance(<lv>,dict) and <lv>.get(k)==v and ... : <acc>.add(<lv>.get("<akey>"))
+    inner = body[1]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"):
+        return None
+    if inner.get("orelse"):
+        return None
+    conjuncts = _flatten_and(inner.get("test", {}))
+    saw_isinstance = False
+    field_guards: List[tuple] = []
+    for c in conjuncts:
+        if (isinstance(c, dict) and c.get("type") == "Call"
+                and c.get("func") == "isinstance"
+                and len(c.get("args", [])) == 2
+                and _is_var(c["args"][0], lv) and _is_var(c["args"][1], "dict")):
+            if saw_isinstance:
+                return None
+            saw_isinstance = True
+            continue
+        eq = _match_eq_guard(c, lv)
+        if eq is None:
+            return None
+        field_guards.append(eq)
+    if not saw_isinstance or not field_guards:
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1:
+        return None
+    add = ibody[0]
+    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+        return None
+    call = add.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add"
+            and len(call.get("args", [])) == 1):
+        return None
+    av = call["args"][0]
+    if not (isinstance(av, dict) and av.get("type") == "Call"
+            and av.get("func") == f"{lv}.get"
+            and len(av.get("args", [])) == 1):
+        return None
+    akey = _is_string(av["args"][0])
+    if akey is None:
+        return None
+    return {"kind": "nested_field", "guard_key": gkey, "guard_val": gval,
+            "child_key": ckey, "field_guards": field_guards, "add_key": akey}
+
+
+def _match_pre_action_local_str(stmt: Any, subj: str,
+                                acc: str) -> Optional[Dict[str, str]]:
+    """Local-string-bind pre-action (A-unit grammar delta):
+
+        if <subj>.get("<gkey>") == "<gval>":
+            <lv> = <subj>.get("<ckey>")
+            if isinstance(<lv>, str):
+                <acc>.add(<lv>)
+                <acc>.add(<transform of <lv>>)   # e.g. <lv>.rsplit(".", 1)[-1]
+
+    An outer literal-key equality guard, a LOCAL bound to a *string* child
+    (`<subj>.get("<ckey>")`), then an `isinstance(<lv>, str)` narrowing that
+    gates one-or-more `<acc>.add(...)` of that local. Each add's argument is
+    `<lv>` itself OR an arbitrary value TRANSFORM of it (`.rsplit(...)[-1]`),
+    provenance-traced back to `<lv>`. Under the fixed `ensures True` contract
+    the transform is a value fact the certified contract does not need (the
+    `.rsplit(...)` doctrine of the G-set-accumulate CHAIN add-arm: the exact
+    string is VC-irrelevant), so it is DROPPED and every add lowers to
+    `set_add` of `<ckey>`'s string value — faithful to the string's
+    PROVENANCE (the literal key it was read from). `isinstance(<lv>, str)`
+    maps EXACTLY to the `Some (PStr t)` reader arm.
+
+    Returns {kind:"eq", guard_key, guard_val, add_key} — the SAME single-value
+    descriptor `_match_pre_action` emits, so the emitter path is reused
+    verbatim — or None (fail-closed). The bound child MUST be a literal-key
+    `.get()` of `<subj>`, and every add MUST reference `<lv>` (an add of an
+    unrelated value rejects)."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    outer = _match_eq_guard(stmt.get("test", {}), subj)
+    if outer is None:
+        return None
+    gkey, gval = outer
+    body = stmt.get("body", [])
+    if len(body) != 2:
+        return None
+    # body[0]: <lv> = <subj>.get("<ckey>")
+    fb = _match_field_bind(body[0])
+    if fb is None:
+        return None
+    lv, parent, ckey = fb
+    if parent != subj:
+        return None
+    # body[1]: if isinstance(<lv>, str): <acc>.add(<expr(lv)>) [; <acc>.add(...)]*
+    inner = body[1]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"):
+        return None
+    if inner.get("orelse"):
+        return None
+    if not _match_isinstance(inner.get("test", {}), lv, "str"):
+        return None
+    adds = inner.get("body", [])
+    if not adds:
+        return None
+    for add in adds:
+        if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+            return None
+        call = add.get("value", {})
+        if not (isinstance(call, dict) and call.get("type") == "Call"
+                and call.get("func") == f"{acc}.add"
+                and len(call.get("args", [])) == 1):
+            return None
+        refs: set = set()
+        _collect_refs(call["args"][0], refs)
+        if lv not in refs:
+            return None
+    return {"kind": "eq", "guard_key": gkey, "guard_val": gval, "add_key": ckey}
+
+
+def _match_dict_loop(stmt: Any, subj: str, acc: str, fname: str) -> Optional[Dict[str, Any]]:
+    """`for k, v in obj.items(): [if k=="<skip>": continue]; f(v, targets)`
+    or the `.values()` variant. Returns {skip_key: str|None} or None."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "For":
+        return None
+    it = stmt.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") in (f"{subj}.items", f"{subj}.values")
+            and not it.get("args")):
+        return None
+    body = list(stmt.get("body", []))
+    skip_key: Optional[str] = None
+    if body and isinstance(body[0], dict) and body[0].get("stmt") == "If":
+        guard = body[0]
+        if guard.get("orelse"):
+            return None
+        gt = guard.get("test", {})
+        if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "=="):
+            return None
+        sk = _is_string(gt.get("right"))
+        if sk is None or not _is_var(gt.get("left")):
+            return None
+        gbody = guard.get("body", [])
+        if not (len(gbody) == 1 and isinstance(gbody[0], dict)
+                and gbody[0].get("stmt") == "Continue"):
+            return None
+        skip_key = sk
+        body = body[1:]
+    # remaining body must be exactly the self-recursion `f(<value>, acc)`
+    if len(body) != 1:
+        return None
+    rec = body[0]
+    if not _match_self_recursion(rec, acc, fname):
+        return None
+    return {"skip_key": skip_key}
+
+
+def _canon_call(cf: str) -> str:
+    """Canonicalize a call-target string to the Module-5 emitted function name:
+    a class-qualified static/self call `IRScanner.find_…` mangles to
+    `irscanner__find_…` (lower(class) + `__` + method); a module-level call is
+    already canonical."""
+    if "." in cf:
+        cls, meth = cf.rsplit(".", 1)
+        return f"{cls.lower()}__{meth}"
+    return cf
+
+
+def _call_is_self(cf: Any, fname: str) -> bool:
+    """True iff the call-target string names *this* function `fname` — the
+    module-level bare name, the class-qualified static call (`Cls.meth` mangles
+    to `cls__meth`), OR the instance self-recursion `self.<meth>` (the emitted
+    name is `<class>__<meth>`, so `fname` ends with `__<meth>`). The `self.`
+    form is fail-closed: a sibling call `self.other` has `meth == "other"` and
+    `fname` (this method) does not end with `__other`, so it rejects."""
+    if not isinstance(cf, str):
+        return False
+    if _canon_call(cf) == fname:
+        return True
+    if cf.startswith("self."):
+        meth = cf[len("self."):]
+        return bool(meth) and fname.endswith("__" + meth)
+    return False
+
+
+def _match_self_recursion(stmt: Any, acc: str, fname: str) -> bool:
+    """`<self>(<value_var>, <acc>)` as an ExprStmt, where `<self>` resolves to
+    this same function (module-level bare name, class-qualified static call, or
+    instance-method `self.<meth>` self-recursion)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return False
+    call = stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return False
+    if not _call_is_self(call.get("func"), fname):
+        return False
+    args = call.get("args", [])
+    return (len(args) == 2 and _is_var(args[0]) and _is_var(args[1], acc))
+
+
+def _match_list_loop(stmt: Any, subj: str, acc: str, fname: str) -> bool:
+    """`for item in obj: f(item, targets)`."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "For":
+        return False
+    if not _is_var(stmt.get("iter"), subj):
+        return False
+    body = stmt.get("body", [])
+    return len(body) == 1 and _match_self_recursion(body[0], acc, fname)
+
+
+def recognize_generic_fold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the A-unit generic-walk-and-mutate catamorphism.
+
+    Returns a descriptor
+        {subject, accumulator, pre_action|None, skip_key|None}
+    when ``func``'s IR body is *exactly* the pattern; otherwise ``None`` (the
+    method stays whatever it was — no fire). Never raises on a malformed node."""
+    try:
+        return _recognize(func)
+    except Exception:
+        return None
+
+
+def _recognize(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    subj, acc = params[0], params[1]
+    # The accumulator must be a set/dict parameter (by-ref collection).
+    if func.get("param_annotations", {}).get(acc) not in ("set", "dict"):
+        return None
+    # The by-ref mutation must be DECLARED: the accumulator must appear in the
+    # `#@ assigns` frame. A wrong / `\nothing` assigns on a mutating walk does NOT
+    # fire (fail-closed) — closing the frame-fidelity gap where the templater's
+    # `writes { acc }` would otherwise silently override (ignore) the contract's
+    # declared frame. Keeps the emitted `writes { acc }` consistent with the
+    # method's own `#@ assigns`.
+    _assigns = func.get("contracts", {}).get("assigns", []) or []
+    if not any(_is_var(a, acc) for a in _assigns):
+        return None
+    # A `-> None` unit fold (result algebra = UNIT).
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    fname = func["name"]
+
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+
+    # dict-arm body: optional pre-action then the dict loop.
+    dbody = list(outer.get("body", []))
+    pre = None
+    if dbody:
+        maybe_pre = _match_pre_action(dbody[0], subj, acc)
+        if maybe_pre is None:
+            maybe_pre = _match_pre_action_intuple(dbody[0], subj, acc)
+        if maybe_pre is None:
+            maybe_pre = _match_pre_action_nested_field(dbody[0], subj, acc)
+        if maybe_pre is None:
+            maybe_pre = _match_pre_action_local_str(dbody[0], subj, acc)
+        if maybe_pre is not None:
+            pre = maybe_pre
+            dbody = dbody[1:]
+    if len(dbody) != 1:
+        return None
+    dloop = _match_dict_loop(dbody[0], subj, acc, fname)
+    if dloop_is_none(dloop):
+        return None
+
+    # else-arm: exactly `if isinstance(obj, list): for item in obj: f(item, acc)`
+    orelse = outer.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    inner = orelse[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"):
+        return None
+    if inner.get("orelse"):
+        return None
+    if not _match_isinstance(inner.get("test", {}), subj, "list"):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1 or not _match_list_loop(ibody[0], subj, acc, fname):
+        return None
+
+    return {
+        "subject": subj,
+        "accumulator": acc,
+        "pre_action": pre,
+        "skip_key": dloop["skip_key"],
+    }
+
+
+def dloop_is_none(dloop: Any) -> bool:
+    return dloop is None
+
+
+def emit_generic_fold_group(func: Dict[str, Any], gf: Dict[str, Any],
+                            whyml_ident) -> List[str]:
+    """Emit the type-derived catamorphism group for a recognized A-unit fold.
+
+    The text is the compile-time defunctionalization of the walk (no HOF reaches
+    a VC): specialized literal-key readers (constructor match, zero string
+    theory), an inlined pre-action, and the ``let rec walk … with walk_dict …
+    with walk_list …`` group over the ``pyval``/``pydict`` datatype, mangled per
+    method. Reuses the L1 preamble theory (``size``/``size_dict``/``size_list`` +
+    the proven lemma pack) for the ``variant`` decrease. Congruent (modulo
+    holes/names) to the proven ``v2_iter_mutate_spike.mlw``."""
+    n = whyml_ident(func["name"])
+    subj = gf["subject"]
+    acc = gf["accumulator"]
+    acc_ty = "ref (map string bool)"
+    out: List[str] = []
+
+    pre = gf["pre_action"]
+    # ---- literal-key readers (only those the pre-action needs) ----
+    reader_names: Dict[str, str] = {}
+    _emitted_readers: set = set()
+
+    def _emit_reader(key: str) -> str:
+        """Emit (once) a literal-key spine reader for `key`; return its name.
+        A single generic `pydict -> option pyval` reader works on ANY pydict
+        (the walked node OR a projected child), so it is shared by key."""
+        rname = f"{n}__get_{_reader_suffix(key)}"
+        reader_names[key] = rname
+        if rname in _emitted_readers:
+            return rname
+        _emitted_readers.add(rname)
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if key in _NAMED_KEYS:
+            # interned constructor — direct pattern match, zero string theory.
+            out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        else:
+            # computed key `K_dyn s` — a string literal cannot appear in a
+            # pattern, so match the `K_dyn s` cell and test the payload.
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        out.append("    end")
+        return rname
+
+    if pre is not None:
+        if pre.get("kind") == "nested_field":
+            needed = ([pre["guard_key"], pre["child_key"]]
+                      + [k for k, _ in pre["field_guards"]] + [pre["add_key"]])
+        else:
+            needed = [pre["guard_key"], pre["add_key"]]
+        for key in needed:
+            _emit_reader(key)
+
+    # ---- inlined pre-action ----
+    if pre is not None and pre.get("kind") == "nested_field":
+        gname = reader_names[pre["guard_key"]]
+        cname = reader_names[pre["child_key"]]
+        aname = reader_names[pre["add_key"]]
+        out.append(f"  let {n}__pre (d: pydict) ({acc}: {acc_ty}) : unit")
+        out.append(f"    writes {{ {acc} }}")
+        out.append(f"  = match {gname} d with")
+        out.append("    | Some (PStr s) ->")
+        out.append(f'        if pystr_eq s "{pre["guard_val"]}" then')
+        # project the child pydict (`isinstance(<lv>, dict)` -> `Some (PDict arr)`)
+        out.append(f"          (match {cname} d with")
+        out.append("           | Some (PDict arr) ->")
+        # nest one literal-key equality gate per field guard, innermost = the add.
+        indent = "               "
+        closers: List[str] = []
+        for (fk, fv) in pre["field_guards"]:
+            fname_r = reader_names[fk]
+            out.append(f"{indent}(match {fname_r} arr with")
+            out.append(f"{indent} | Some (PStr c) -> if pystr_eq c \"{fv}\" then")
+            closers.append(f"{indent}   else () | _ -> () end)")
+            indent += "   "
+        out.append(f"{indent}(match {aname} arr with")
+        out.append(f"{indent} | Some (PStr f) -> {acc} := set_add !{acc} f")
+        out.append(f"{indent} | _ -> () end)")
+        for cl in reversed(closers):
+            out.append(cl)
+        out.append("           | _ -> () end)")
+        out.append("        else ()")
+        out.append("    | _ -> () end")
+    elif pre is not None:
+        gname = reader_names[pre["guard_key"]]
+        aname = reader_names[pre["add_key"]]
+        if pre.get("kind") == "intuple_isinstance":
+            # disjunction over the tuple's string elements — parenthesized so the
+            # `||` chain binds inside the `if` test.
+            cond = "(" + " || ".join(f'pystr_eq s "{v}"' for v in pre["guard_vals"]) + ")"
+        else:
+            # single-value equality — emitted UNPARENTHESIZED to stay byte-identical
+            # to the pre-extension A-unit output (strict additivity).
+            cond = f'pystr_eq s "{pre["guard_val"]}"'
+        out.append(f"  let {n}__pre (d: pydict) ({acc}: {acc_ty}) : unit")
+        out.append(f"    writes {{ {acc} }}")
+        out.append(f"  = match {gname} d with")
+        out.append("    | Some (PStr s) ->")
+        out.append(f"        if {cond} then")
+        out.append(f"          (match {aname} d with")
+        out.append(f"           | Some (PStr t) -> {acc} := set_add !{acc} t")
+        out.append("           | _ -> () end)")
+        out.append("        else ()")
+        out.append("    | _ -> () end")
+
+    # ---- skip-key predicate (if the dict loop has a literal-key skip guard) ----
+    skip = gf["skip_key"]
+    if skip is not None:
+        out.append(f"  let {n}__skip (k: irkey) : bool")
+        if skip in _NAMED_KEYS:
+            out.append(f"  = match k with {_NAMED_KEYS[skip]} -> true | _ -> false end")
+        else:
+            out.append(f'  = match k with K_dyn s -> pystr_eq s "{skip}" | _ -> false end')
+
+    # ---- the walk / walk_dict / walk_list catamorphism group ----
+    pre_call = f"{n}__pre d {acc}; " if pre is not None else ""
+    out.append(f"  let rec {n} ({subj}: pyval) ({acc}: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    writes {{ {acc} }} variant {{ pv_size {subj} }}")
+    out.append(f"  = match {subj} with")
+    out.append(f"    | PDict d -> {pre_call}{n}__dict d {acc}")
+    out.append(f"    | PList xs -> {n}__list xs {acc}")
+    out.append("    | _ -> () end")
+    out.append(f"  with {n}__dict (d: pydict) ({acc}: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    writes {{ {acc} }} variant {{ size_dict d }}")
+    out.append("  = match d with")
+    out.append("    | DNil -> ()")
+    if skip is not None:
+        out.append("    | DCons k v rest ->")
+        out.append(f"        (if {n}__skip k then () else {n} v {acc});")
+        out.append(f"        {n}__dict rest {acc}")
+    else:
+        out.append(f"    | DCons _ v rest -> {n} v {acc}; {n}__dict rest {acc}")
+    out.append("    end")
+    out.append(f"  with {n}__list (xs: list pyval) ({acc}: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    writes {{ {acc} }} variant {{ size_list xs }}")
+    out.append(f"  = match xs with Nil -> () | Cons h t -> {n} h {acc}; {n}__list t {acc} end")
+    return out
+
+
+def _reader_suffix(key: str) -> str:
+    """A WhyML-safe reader name suffix for a literal key."""
+    if key in _NAMED_KEYS:
+        return _NAMED_KEYS[key]
+    return "dyn_" + "".join(c if c.isalnum() else "_" for c in key)
+
+
+# =========================================================================
+# phase3.md §3.1 — A-SET returned-set fold (result_algebra = SET, by return).
+#
+# The by-RETURN twin of the A-unit by-ref catamorphism. Instead of mutating a
+# `targets: ref (map string bool)` accumulator parameter under a `writes` frame,
+# the A-set fold builds a fresh local `set()`, unions the recursive results into
+# it (`acc |= self(v)`), and RETURNS it. The WhyML lowering is FUNCTIONAL
+# (`assigns \nothing`; no `writes` clause): `walk`/`walk_dict`/`walk_list` each
+# return `map string bool` (the certified L1 set repr), combined by `set_union`
+# (pointwise or, purely DEFINED in the preamble — no axiom). Proven whole-body in
+# `v2_setfold_spike.mlw` on Alt-Ergo AND Z3.
+#
+# Fail-closed exactly as A-unit: a miss keeps the method `\trusted`; a template
+# bug yields an unprovable instance (the full-file re-proof is loud), never a
+# false proof. Threaded read-only `set` parameters (e.g. `func_names_set`) are
+# passed unchanged through every recursive call and modelled `map string bool`.
+# =========================================================================
+
+
+def _match_eq_guard(node: Any, subj: str) -> Optional[tuple]:
+    """`<subj>.get("<gkey>") == "<gval>"` → (gkey, gval) or None."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "=="):
+        return None
+    left, right = node.get("left", {}), node.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{subj}.get"):
+        return None
+    gargs = left.get("args", [])
+    if len(gargs) != 1:
+        return None
+    gkey = _is_string(gargs[0])
+    gval = _is_string(right)
+    if gkey is None or gval is None:
+        return None
+    return (gkey, gval)
+
+
+def _match_in_guard(node: Any, subj: str, extra: List[str]) -> Optional[tuple]:
+    """`<subj>.get("<mkey>") in <extra_set_param>` → (mkey, param) or None.
+    The right operand must be one of the threaded `set`-typed parameters."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "in"):
+        return None
+    left, right = node.get("left", {}), node.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{subj}.get"):
+        return None
+    margs = left.get("args", [])
+    if len(margs) != 1:
+        return None
+    mkey = _is_string(margs[0])
+    if mkey is None:
+        return None
+    if not (_is_var(right) and right.get("name") in extra):
+        return None
+    return (mkey, right.get("name"))
+
+
+def _match_set_guard(test: Any, subj: str, extra: List[str]) -> Optional[Dict[str, Any]]:
+    """The pre-action guard: either the simple `.get(k)==v`, or the compound
+    `.get(k)==v and .get(mk) in <set param>`. Returns a descriptor or None."""
+    simple = _match_eq_guard(test, subj)
+    if simple is not None:
+        return {"kind": "eq", "guard_key": simple[0], "guard_val": simple[1],
+                "mem_key": None, "mem_param": None}
+    if (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        left = _match_eq_guard(test.get("left", {}), subj)
+        mem = _match_in_guard(test.get("right", {}), subj, extra)
+        if left is not None and mem is not None:
+            return {"kind": "eq", "guard_key": left[0], "guard_val": left[1],
+                    "mem_key": mem[0], "mem_param": mem[1]}
+    return None
+
+
+def _is_string_tuple(node: Any) -> bool:
+    """A literal tuple all of whose elements are string literals."""
+    if not (isinstance(node, dict) and node.get("type") == "Tuple"):
+        return False
+    elts = node.get("elts", [])
+    return bool(elts) and all(_is_string(e) is not None for e in elts)
+
+
+def _match_set_pre_action_tuple(stmt: Any, subj: str,
+                                acc: str) -> Optional[Dict[str, Any]]:
+    """Second pre-action shape (the `collection_binder_kinds` form):
+
+        if <subj>.get("<gkey>") in (<str-tuple>):
+            <lv> = <subj>.get("<akey>")
+            if <lv> in (<str-tuple>):
+                <acc>.add(<lv>)
+
+    An outer `in`-tuple type guard, a local bound from a literal-key `.get`, a
+    nested `in`-tuple narrowing guard, and `acc.add(<local>)`. Under the fixed
+    `ensures True` contract the tuple narrowings are pure boolean gates on the
+    added STRING (they constrain WHICH strings, not the type/termination), so the
+    faithful lowering reads `<akey>` and adds its string payload. Returns
+    {kind: "local_read", add_key} or None (fail-closed)."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    test = stmt.get("test", {})
+    # outer guard: <subj>.get("<gkey>") in (<str-tuple>)
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "in"):
+        return None
+    left = test.get("left", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{subj}.get"
+            and len(left.get("args", [])) == 1
+            and _is_string(left["args"][0]) is not None):
+        return None
+    if not _is_string_tuple(test.get("right", {})):
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 2:
+        return None
+    # body[0]: <lv> = <subj>.get("<akey>")
+    asg = body[0]
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return None
+    lv = asg.get("target")
+    if not isinstance(lv, str):
+        return None
+    aval = asg.get("value", {})
+    if not (isinstance(aval, dict) and aval.get("type") == "Call"
+            and aval.get("func") == f"{subj}.get"
+            and len(aval.get("args", [])) == 1):
+        return None
+    akey = _is_string(aval["args"][0])
+    if akey is None:
+        return None
+    # body[1]: if <lv> in (<str-tuple>): <acc>.add(<lv>)
+    inner = body[1]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"):
+        return None
+    if inner.get("orelse"):
+        return None
+    itest = inner.get("test", {})
+    if not (isinstance(itest, dict) and itest.get("type") == "BinOp"
+            and itest.get("op") == "in" and _is_var(itest.get("left"), lv)
+            and _is_string_tuple(itest.get("right", {}))):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1:
+        return None
+    add = ibody[0]
+    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+        return None
+    call = add.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add"
+            and len(call.get("args", [])) == 1
+            and _is_var(call["args"][0], lv)):
+        return None
+    return {"kind": "local_read", "add_key": akey}
+
+
+def _match_set_pre_action(stmt: Any, subj: str, acc: str,
+                          extra: List[str]) -> Optional[Dict[str, Any]]:
+    """Optional pre-action: `if <guard>: <acc>.add(<subj>["<akey>"])`.
+    Returns {guard_key, guard_val, mem_key|None, mem_param|None, add_key}."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    guard = _match_set_guard(stmt.get("test", {}), subj, extra)
+    if guard is None:
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return None
+    add = body[0]
+    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+        return None
+    call = add.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add"):
+        return None
+    aargs = call.get("args", [])
+    if len(aargs) != 1:
+        return None
+    sub = aargs[0]
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), subj)):
+        return None
+    akey = _is_string(sub.get("index"))
+    if akey is None:
+        return None
+    guard["add_key"] = akey
+    return guard
+
+
+def _match_set_union_rec(stmt: Any, acc: str, fname: str, extra: List[str]) -> bool:
+    """`<acc> |= <self>(<loopvar>, <extra...>)` — the union accumulation.
+    An AugAssign with op `|`, target the returned-set local, value a self-call
+    whose first arg is the loop var and whose remaining args are the threaded
+    parameters in order."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "AugAssign"):
+        return False
+    if stmt.get("target") != acc or stmt.get("op") != "|":
+        return False
+    call = stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return False
+    cf = call.get("func")
+    if not isinstance(cf, str) or _canon_call(cf) != fname:
+        return False
+    args = call.get("args", [])
+    if len(args) != 1 + len(extra):
+        return False
+    if not _is_var(args[0]):
+        return False
+    return all(_is_var(args[1 + i], e) for i, e in enumerate(extra))
+
+
+def _match_set_dict_loop(stmt: Any, subj: str, acc: str, fname: str,
+                         extra: List[str]) -> Optional[Dict[str, Any]]:
+    """`for k,v in obj.items()/.values(): [if k=="<skip>": continue]; acc |= self(v,…)`."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "For":
+        return None
+    it = stmt.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") in (f"{subj}.items", f"{subj}.values")
+            and not it.get("args")):
+        return None
+    body = list(stmt.get("body", []))
+    skip_key: Optional[str] = None
+    if body and isinstance(body[0], dict) and body[0].get("stmt") == "If":
+        guard = body[0]
+        if guard.get("orelse"):
+            return None
+        gt = guard.get("test", {})
+        if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "=="):
+            return None
+        sk = _is_string(gt.get("right"))
+        if sk is None or not _is_var(gt.get("left")):
+            return None
+        gbody = guard.get("body", [])
+        if not (len(gbody) == 1 and isinstance(gbody[0], dict)
+                and gbody[0].get("stmt") == "Continue"):
+            return None
+        skip_key = sk
+        body = body[1:]
+    if len(body) != 1 or not _match_set_union_rec(body[0], acc, fname, extra):
+        return None
+    return {"skip_key": skip_key}
+
+
+def _match_set_list_loop(stmt: Any, subj: str, acc: str, fname: str,
+                         extra: List[str]) -> bool:
+    """`for item in obj: acc |= self(item, …)`."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "For":
+        return False
+    if not _is_var(stmt.get("iter"), subj):
+        return False
+    body = stmt.get("body", [])
+    return len(body) == 1 and _match_set_union_rec(body[0], acc, fname, extra)
+
+
+def recognize_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the A-set returned-set generic fold (phase3.md §3.1).
+
+    Returns {subject, acc_local, extra_params, pre_action|None, skip_key|None}
+    when the IR body is *exactly* the returned-set catamorphism; else None."""
+    try:
+        return _recognize_setfold(func)
+    except Exception:
+        return None
+
+
+def _recognize_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if not params:
+        return None
+    subj = params[0]
+    extra = params[1:]
+    pa = func.get("param_annotations", {})
+    # Every threaded parameter must be a read-only `set` (Set[str] → map string
+    # bool). A non-set extra param (str/int/dict) rejects — fail-closed.
+    for e in extra:
+        if pa.get(e) != "set":
+            return None
+    # The result algebra is a returned set.
+    if func.get("return_annotation") != "set":
+        return None
+    fname = func["name"]
+
+    body = func.get("body", [])
+    if len(body) != 3:
+        return None
+    init, outer, ret = body
+
+    # init: `<acc> = set()`
+    if not (isinstance(init, dict) and init.get("stmt") == "Assign"):
+        return None
+    acc = init.get("target")
+    if not isinstance(acc, str):
+        return None
+    iv = init.get("value")
+    if not (isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    # The returned-set local must be distinct from the walked subject (a fold,
+    # not an in-place rewrite of the subject).
+    if acc == subj:
+        return None
+
+    # ret: `return <acc>`
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), acc)):
+        return None
+
+    # outer: `if isinstance(<subj>, dict): …`
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+
+    dbody = list(outer.get("body", []))
+    pre = None
+    if dbody:
+        maybe = _match_set_pre_action(dbody[0], subj, acc, extra)
+        if maybe is None:
+            maybe = _match_set_pre_action_tuple(dbody[0], subj, acc)
+        if maybe is not None:
+            pre = maybe
+            dbody = dbody[1:]
+    if len(dbody) != 1:
+        return None
+    dloop = _match_set_dict_loop(dbody[0], subj, acc, fname, extra)
+    if dloop is None:
+        return None
+
+    orelse = outer.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    inner = orelse[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"):
+        return None
+    if inner.get("orelse"):
+        return None
+    if not _match_isinstance(inner.get("test", {}), subj, "list"):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1 or not _match_set_list_loop(ibody[0], subj, acc, fname, extra):
+        return None
+
+    return {
+        "subject": subj,
+        "acc_local": acc,
+        "extra_params": extra,
+        "pre_action": pre,
+        "skip_key": dloop["skip_key"],
+    }
+
+
+def _setfold_leaf_empty_lines() -> List[str]:
+    """richer-contracts-bridge P2.2 (C2): the RELATIONAL `setfold_leaf_empty`
+    predicate — a set fold's output on a NON-container (leaf) input is the EMPTY
+    set (the set-fold analog of decoder totality / `None => skipped`). Pure
+    definition, NO axiom; the fact discharges from the top function's leaf arm
+    (`_ -> const false`) alone."""
+    return [
+        "  (* richer-contracts-bridge P2.2 (C2): a set fold maps a leaf (non-dict,",
+        "     non-list) input to the EMPTY set — its output domain is drawn only",
+        "     from container structure. Pure definition, NO axiom. *)",
+        "  predicate setfold_leaf_empty (v: pyval) (r: map string bool)",
+        "  = match v with",
+        "    | PDict _ -> true",
+        "    | PList _ -> true",
+        "    | _ -> r = (const false : map string bool)",
+        "    end",
+    ]
+
+
+def emit_setfold_group(func: Dict[str, Any], sf: Dict[str, Any],
+                       whyml_ident, top_ensures: Optional[List[str]] = None) -> List[str]:
+    """Emit the returned-set catamorphism group for a recognized A-set fold.
+
+    Functional (`assigns \\nothing`; no `writes` frame): every function returns
+    `map string bool`, combined by the preamble's purely-defined `set_union`.
+    Threaded read-only `set` parameters are typed `map string bool` and passed
+    through. Congruent (modulo names) to the proven `v2_setfold_spike.mlw`.
+
+    richer-contracts-bridge P2.2: the TOP-level function carries the METHOD's own
+    `#@ ensures` (`top_ensures`, default `["true"]` => byte-identical historical
+    `ensures { true }`). A relational `setfold_leaf_empty(subj, \\result)` fact is
+    emitted alongside its predicate; helpers keep `ensures { true }`."""
+    n = whyml_ident(func["name"])
+    subj = sf["subject"]
+    extra = sf["extra_params"]
+    pre = sf["pre_action"]
+    skip = sf["skip_key"]
+
+    extra_sig = "".join(f" ({whyml_ident(e)}: map string bool)" for e in extra)
+    extra_args = "".join(f" {whyml_ident(e)}" for e in extra)
+    out: List[str] = []
+    _te = list(top_ensures or ["true"])
+    if any("setfold_leaf_empty" in c for c in _te):
+        out.extend(_setfold_leaf_empty_lines())
+
+    # ---- literal-key readers (guard / membership / add keys the pre needs) ----
+    if pre is not None:
+        if pre["kind"] == "local_read":
+            keys = [pre["add_key"]]
+        else:
+            keys = [pre["guard_key"], pre.get("mem_key"), pre["add_key"]]
+        seen: Dict[str, str] = {}
+        for key in keys:
+            if key is None or key in seen:
+                continue
+            rname = f"{n}__get_{_reader_suffix(key)}"
+            seen[key] = rname
+            out.append(f"  let rec {rname} (d: pydict) : option pyval")
+            out.append("    variant { d }")
+            out.append("  = match d with")
+            out.append("    | DNil -> None")
+            if key in _NAMED_KEYS:
+                # interned constructor — direct pattern match, zero string theory.
+                out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+                out.append(f"    | DCons _ _ rest -> {rname} rest")
+            else:
+                # computed key `K_dyn s` — a string literal cannot appear in a
+                # pattern, so match the `K_dyn s` cell and test the payload.
+                out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+                out.append(f"    | DCons _ _ rest -> {rname} rest")
+            out.append("    end")
+
+        aname = f"{n}__get_{_reader_suffix(pre['add_key'])}"
+        out.append(f"  let {n}__pre (d: pydict){extra_sig} : map string bool")
+        if pre["kind"] == "local_read":
+            # The `.get(<akey>)` read, added when a string is present (the tuple
+            # narrowings are boolean-only under the `ensures True` contract).
+            out.append(f"  = match {aname} d with")
+            out.append("    | Some (PStr t) -> set_add (const false) t")
+            out.append("    | _ -> const false end")
+        else:
+            gname = f"{n}__get_{_reader_suffix(pre['guard_key'])}"
+            out.append(f"  = match {gname} d with")
+            out.append("    | Some (PStr s) ->")
+            out.append(f'        if pystr_eq s "{pre["guard_val"]}" then')
+            if pre.get("mem_key") is not None:
+                mname = f"{n}__get_{_reader_suffix(pre['mem_key'])}"
+                mparam = whyml_ident(pre["mem_param"])
+                out.append(f"          (match {mname} d with")
+                out.append("           | Some (PStr m) ->")
+                out.append(f"               if Map.get {mparam} m then")
+                out.append(f"                 (match {aname} d with")
+                out.append("                  | Some (PStr t) -> set_add (const false) t")
+                out.append("                  | _ -> const false end)")
+                out.append("               else const false")
+                out.append("           | _ -> const false end)")
+            else:
+                out.append(f"          (match {aname} d with")
+                out.append("           | Some (PStr t) -> set_add (const false) t")
+                out.append("           | _ -> const false end)")
+            out.append("        else const false")
+            out.append("    | _ -> const false end")
+
+    # ---- skip-key predicate (literal-key skip in the dict loop) ----
+    if skip is not None:
+        out.append(f"  let {n}__skip (k: irkey) : bool")
+        if skip in _NAMED_KEYS:
+            out.append(f"  = match k with {_NAMED_KEYS[skip]} -> true | _ -> false end")
+        else:
+            out.append(f'  = match k with K_dyn s -> pystr_eq s "{skip}" | _ -> false end')
+
+    # ---- the walk / walk_dict / walk_list returned-set group ----
+    pre_term = (f"set_union ({n}__pre d{extra_args}) ({n}__dict d{extra_args})"
+                if pre is not None else f"{n}__dict d{extra_args}")
+    _ens_line = "".join(f" ensures {{ {e} }}" for e in _te)
+    out.append(f"  let rec {n} ({subj}: pyval){extra_sig} : map string bool")
+    out.append(f"    requires {{ true }}{_ens_line}")
+    out.append(f"    variant {{ pv_size {subj} }}")
+    out.append(f"  = match {subj} with")
+    out.append(f"    | PDict d -> {pre_term}")
+    out.append(f"    | PList xs -> {n}__list xs{extra_args}")
+    out.append("    | _ -> const false end")
+    out.append(f"  with {n}__dict (d: pydict){extra_sig} : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> const false")
+    if skip is not None:
+        out.append("    | DCons k v rest ->")
+        out.append(f"        set_union (if {n}__skip k then const false else {n} v{extra_args})")
+        out.append(f"                  ({n}__dict rest{extra_args})")
+    else:
+        out.append(f"    | DCons _ v rest -> set_union ({n} v{extra_args}) ({n}__dict rest{extra_args})")
+    out.append("    end")
+    out.append(f"  with {n}__list (xs: list pyval){extra_sig} : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({n} h{extra_args}) ({n}__list t{extra_args}) end")
+    return out
+
+
+# =========================================================================
+# ir-traversal-residual T1 — the FUNCTORIAL-MAP (reconstruction) algebra
+# (result_algebra = the value type itself), plus insight C (guard classif.).
+#
+# The reconstruction twin of the read-only folds: instead of accumulating into
+# a fixed algebra, the walk BUILDS a fresh `pyval`/`pydict`/`list pyval`,
+# rewriting selected `DCons` cells and rebuilding the rest structurally. The
+# stated obstacles dissolve under the project scope cut:
+#
+#   * TERMINATION — the `variant` decreases on the INPUT (`size node`), exactly
+#     as in the read-only folds; building `DCons` cells on the way up is
+#     constructor application (total by definition).
+#   * FRAME — the WhyML emission is purely functional (returns a fresh value),
+#     so `assigns \nothing` is trivial (no `writes`).
+#   * VALUE-DEPENDENT BRANCHING (insight C) — a rewrite guard `v == tvar`
+#     compares the walked value to a runtime STRING parameter. It is a SEMANTIC
+#     guard: compiled to the concretely-defined `pystr_eq` boolean whose result
+#     NO VC constrains (both arms are type-safe independently). The KEY test
+#     (`k == "name"`) is a STRUCTURAL DISCRIMINANT (interned-`irkey` constructor
+#     match, zero string theory). The replacement value `PStr concrete` is
+#     well-typed by construction. No projection's type-safety is dominated by a
+#     semantic guard (the replacement is a `str` param and the recursion returns
+#     a `pyval` in BOTH arms), so the guard-dominance check (plan §1/§7) passes
+#     and the method is cleanly convertible.
+#
+# NO wf-preservation certificate is needed: `pyval` carries no well-formedness
+# TYPE invariant (`wf_ir` is a separate PREDICATE the group never references
+# under `ensures True`), and every rebuilt key is copied verbatim from the input
+# (`DCons k … `), so type-safety needs no key-shape lemma. Ledger stays at 3.
+#
+# SCOPE-CUT NOTE (honest, type-safety-only): the emitted model faithfully
+# encodes reconstruction + the key discriminant + the opaque `v==tvar` guard +
+# the `PStr concrete` replacement. Two SOURCE guards that only NARROW *which*
+# cells are rewritten are value-refinements the `ensures True` contract makes
+# irrelevant and are deliberately not re-modelled: (a) the extra
+# `node.get("type")=="Var"` conjunct on the name-rewrite; (b) the post-loop
+# `new["type"]==tvar` rewrite is folded into the same per-cell rule for the
+# `type` key (identical type behaviour). Both make the model rewrite in a
+# SUPERSET of the source's cases — sound under type-safety-only (Q6 scope cut).
+#
+# Fail-closed exactly as the folds: a miss keeps the method `\trusted`; a
+# template bug yields an unprovable instance (the full-file re-proof is loud),
+# never a false proof. Verified inert on the reference corpus (byte-diff 0); a
+# poisoned control is the single external match that flips the gate red once.
+# =========================================================================
+
+
+def _is_dictlit_empty(node: Any) -> bool:
+    """`{}` — an empty dict literal (the fresh accumulator `new = {}`)."""
+    return (isinstance(node, dict) and node.get("type") == "DictLit"
+            and not node.get("keys") and not node.get("values"))
+
+
+def _match_substmap_guard(test: Any, tvar_p: str) -> Optional[tuple]:
+    """A rewrite guard: a conjunction that MUST contain a key-literal test
+    `<keyvar> == "<lit>"` and a value test `<valvar> == <tvar_p>` (either
+    operand order). Extra conjuncts (e.g. `node.get("type")=="Var"`) are
+    permitted and IGNORED — they only narrow *which* cells rewrite (a value
+    fact the `ensures True` contract does not need). Returns
+    (lit_key, keyvar, valvar) or None (fail-closed if either mandatory conjunct
+    is absent)."""
+    lit_key: Optional[str] = None
+    keyvar: Optional[str] = None
+    valvar: Optional[str] = None
+    for c in _flatten_and(test):
+        if not (isinstance(c, dict) and c.get("type") == "BinOp"
+                and c.get("op") == "=="):
+            continue
+        l, r = c.get("left", {}), c.get("right", {})
+        # <keyvar> == "<lit>"
+        if _is_var(l) and _is_string(r) is not None and lit_key is None:
+            keyvar = l.get("name")
+            lit_key = _is_string(r)
+            continue
+        # <valvar> == <tvar_p>  (either order)
+        if _is_var(l) and _is_var(r):
+            if r.get("name") == tvar_p and valvar is None:
+                valvar = l.get("name")
+            elif l.get("name") == tvar_p and valvar is None:
+                valvar = r.get("name")
+    if lit_key is None or keyvar is None or valvar is None:
+        return None
+    return (lit_key, keyvar, valvar)
+
+
+def _match_arrayset(stmt: Any, arrvar: str, idxvar: str) -> Optional[Any]:
+    """`<arrvar>[<idxvar>] = <value>` (ArraySet). Returns the RHS value node
+    or None. `idxvar` is the loop key Var; the index MUST be `Var(idxvar)`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "ArraySet"):
+        return None
+    if not _is_var(stmt.get("array"), arrvar):
+        return None
+    if not _is_var(stmt.get("index"), idxvar):
+        return None
+    return stmt.get("value")
+
+
+def _is_self_rec_call(node: Any, valvar: str, tvar_p: str,
+                      concrete_p: str, fname: str) -> bool:
+    """`<self>(<valvar>, <tvar_p>, <concrete_p>)` — the reconstruction
+    self-recursion on the cell value."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return False
+    if not _call_is_self(node.get("func"), fname):
+        return False
+    args = node.get("args", [])
+    return (len(args) == 3 and _is_var(args[0], valvar)
+            and _is_var(args[1], tvar_p) and _is_var(args[2], concrete_p))
+
+
+def _chain_rec(node: Any, newvar: str, tvar_p: str, concrete_p: str,
+               fname: str) -> Optional[tuple]:
+    """Parse the per-item `if/elif …: new[k]=concrete else: new[k]=self(v,…)`
+    rewrite chain. Returns (rewrite_keys, keyvar, valvar) or None. Each `if`
+    arm rewrites the SAME key var to `concrete`; the terminal `else` rebuilds
+    via the self-recursion."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If"):
+        return None
+    g = _match_substmap_guard(node.get("test", {}), tvar_p)
+    if g is None:
+        return None
+    lit_key, keyvar, valvar = g
+    nbody = node.get("body", [])
+    if len(nbody) != 1:
+        return None
+    rhs = _match_arrayset(nbody[0], newvar, keyvar)
+    if not _is_var(rhs, concrete_p):
+        return None
+    orelse = node.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    nxt = orelse[0]
+    if isinstance(nxt, dict) and nxt.get("stmt") == "If":
+        sub = _chain_rec(nxt, newvar, tvar_p, concrete_p, fname)
+        if sub is None:
+            return None
+        subkeys, kv2, vv2 = sub
+        if kv2 != keyvar:
+            return None
+        return ([lit_key] + subkeys, keyvar, valvar)
+    # terminal else: new[keyvar] = self(valvar, tvar, concrete)
+    rhs2 = _match_arrayset(nxt, newvar, keyvar)
+    if not _is_self_rec_call(rhs2, valvar, tvar_p, concrete_p, fname):
+        return None
+    return ([lit_key], keyvar, valvar)
+
+
+def _match_substmap_loop(loop: Any, subj: str, newvar: str, tvar_p: str,
+                         concrete_p: str, fname: str) -> Optional[List[str]]:
+    """`for k, v in <subj>.items(): <rewrite-chain>` — the reconstruction loop
+    (the tuple target is erased to `_for_target`; the body still references the
+    phantom key/value Vars). Returns the rewrite keys or None."""
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
+        return None
+    it = loop.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{subj}.items" and not it.get("args")):
+        return None
+    lbody = loop.get("body", [])
+    if len(lbody) != 1:
+        return None
+    res = _chain_rec(lbody[0], newvar, tvar_p, concrete_p, fname)
+    if res is None:
+        return None
+    keys, _kv, _vv = res
+    return keys
+
+
+def _match_substmap_post_type(stmt: Any, newvar: str, tvar_p: str,
+                              concrete_p: str) -> bool:
+    """The post-loop `if "type" in new and new["type"]==tvar: new["type"]=concrete`
+    field rewrite. Detected structurally (fail-closed); its effect is folded
+    into the per-cell rule for the `type` key (identical type behaviour)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"):
+        return False
+    if stmt.get("orelse"):
+        return False
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return False
+    aset = body[0]
+    if not (isinstance(aset, dict) and aset.get("stmt") == "ArraySet"
+            and _is_var(aset.get("array"), newvar)
+            and _is_string(aset.get("index")) == "type"
+            and _is_var(aset.get("value"), concrete_p)):
+        return False
+    # test must reference the `type` key and compare to tvar (value-only fact;
+    # matched loosely — the ArraySet above is the load-bearing anchor).
+    return True
+
+
+def _match_substmap_list_arm(lbody: Any, subj: str, tvar_p: str,
+                             concrete_p: str, fname: str) -> bool:
+    """`return [ self(item, tvar, concrete) for item in <subj> ]` — the list
+    reconstruction arm (a functorial map over the list)."""
+    if not (isinstance(lbody, list) and len(lbody) == 1):
+        return False
+    ret = lbody[0]
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"):
+        return False
+    lc = ret.get("value", {})
+    if not (isinstance(lc, dict) and lc.get("type") == "ListComp"):
+        return False
+    gens = lc.get("generators", [])
+    if len(gens) != 1:
+        return False
+    g = gens[0]
+    if not (isinstance(g, dict) and _is_var(g.get("iter"), subj)
+            and not g.get("ifs")):
+        return False
+    item = g.get("target")
+    if not isinstance(item, str):
+        return False
+    return _is_self_rec_call(lc.get("elt"), item, tvar_p, concrete_p, fname)
+
+
+def recognize_substmap(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the T1 functorial-map reconstruction traversal
+    (`node: Any -> Any`, rebuild the IR replacing a TypeVar Var by a concrete
+    type). Returns {subject, tvar_param, concrete_param, rewrite_keys} when the
+    IR body is *exactly* the reconstruction shape; else None. Never raises."""
+    try:
+        return _recognize_substmap(func)
+    except Exception:
+        return None
+
+
+def _recognize_substmap(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 3:
+        return None
+    subj, tvar_p, concrete_p = params
+    pa = func.get("param_annotations", {})
+    if pa.get(tvar_p) != "str" or pa.get(concrete_p) != "str":
+        return None
+    # result algebra = the value type itself (a rebuilt `Any`).
+    if func.get("return_annotation") != "Any":
+        return None
+    # pure reconstruction — the frame MUST be `\nothing` (fail-closed; a
+    # `writes`-carrying contract on a functional rebuild does not fire).
+    assigns = func.get("contracts", {}).get("assigns", []) or []
+    if not (len(assigns) == 1 and isinstance(assigns[0], dict)
+            and assigns[0].get("type") == "Nothing"):
+        return None
+    fname = func["name"]
+
+    body = func.get("body", [])
+    if len(body) != 3:
+        return None
+    dict_if, list_if, final_ret = body
+
+    # final: `return <subj>` (the leaf/passthrough arm).
+    if not (isinstance(final_ret, dict) and final_ret.get("stmt") == "Return"
+            and _is_var(final_ret.get("value"), subj)):
+        return None
+
+    # dict arm: `if isinstance(<subj>, dict): new={}; for …: …; [post]; return new`.
+    if not (isinstance(dict_if, dict) and dict_if.get("stmt") == "If"):
+        return None
+    if dict_if.get("orelse"):
+        return None
+    if not _match_isinstance(dict_if.get("test", {}), subj, "dict"):
+        return None
+    dbody = dict_if.get("body", [])
+    if len(dbody) < 3:
+        return None
+    asg = dbody[0]
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return None
+    newvar = asg.get("target")
+    if not isinstance(newvar, str) or not _is_dictlit_empty(asg.get("value")):
+        return None
+    keys = _match_substmap_loop(dbody[1], subj, newvar, tvar_p, concrete_p, fname)
+    if keys is None:
+        return None
+    ret = dbody[-1]
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), newvar)):
+        return None
+    # middle statements (between loop and return): only the optional post-loop
+    # `type` rewrite is permitted; anything else fails closed.
+    for st in dbody[2:-1]:
+        if not _match_substmap_post_type(st, newvar, tvar_p, concrete_p):
+            return None
+        if "type" not in keys:
+            keys.append("type")
+
+    # list arm: `if isinstance(<subj>, list): return [self(item,…) for item in subj]`.
+    if not (isinstance(list_if, dict) and list_if.get("stmt") == "If"):
+        return None
+    if list_if.get("orelse"):
+        return None
+    if not _match_isinstance(list_if.get("test", {}), subj, "list"):
+        return None
+    if not _match_substmap_list_arm(list_if.get("body", []), subj, tvar_p,
+                                    concrete_p, fname):
+        return None
+
+    return {
+        "subject": subj,
+        "tvar_param": tvar_p,
+        "concrete_param": concrete_p,
+        "rewrite_keys": keys,
+    }
+
+
+def _frag_predicate_lines() -> List[str]:
+    """richer-contracts-bridge P2.3 (C2): `in_emitted_fragment` — the grammar-
+    membership predicate scoped to the emitted IR fragment the evaluator axioms
+    range over (`src/self-annotate/evaluator-axiom-audit.md`). Structural half:
+    the fragment carries no bare `PNone` sentinel (the string-TAG half — which
+    audited `stmt` tags appear — is the `pystr_eq`-opaque boundary the audit
+    leaves to prose). A bridge-audit obligation (pure definition, NO axiom); the
+    type-substitution preserves it, so it lands as a preservation contract."""
+    return [
+        "",
+        "  (* richer-contracts-bridge P2.3 (C2): emitted-fragment grammar membership",
+        "     (structural scope: no bare PNone sentinel). Bridge-audit predicate tying",
+        "     the method to evaluator-axiom-audit.md's boundary BY CONTRACT. NO axiom. *)",
+        "  predicate in_emitted_fragment (v: pyval)",
+        "  = match v with",
+        "    | PNone -> false",
+        "    | PInt _ | PStr _ | PBool _ -> true",
+        "    | PList xs -> frag_list xs",
+        "    | PDict d  -> frag_dict d",
+        "    end",
+        "  with frag_dict (d: pydict)",
+        "  = match d with",
+        "    | DNil -> true",
+        "    | DCons _ v rest -> in_emitted_fragment v /\\ frag_dict rest",
+        "    end",
+        "  with frag_list (xs: list pyval)",
+        "  = match xs with",
+        "    | Nil -> true",
+        "    | Cons h t -> in_emitted_fragment h /\\ frag_list t",
+        "    end",
+    ]
+
+
+def _wf_deep_predicate_lines() -> List[str]:
+    """richer-contracts-bridge P2.1 (C2): the DEEP well-formedness predicate
+    family + the two lemmas tying it to the certified shallow wf_ir.
+
+    The certified `wf_ir` (Phase2c_PyValDict.v, preamble) is SHALLOW (top-level
+    dict keys only); measured NOT to be an inductive invariant of the recursive
+    substitution (threading it as `requires` leaves the recursive-call
+    precondition undischargeable — the __dict/__list VCs time out). The genuinely
+    preservable invariant recurses into list elements AND dict values. It is a
+    pure DEFINITION (no `axiom`; ledger untouched), and the two `let rec lemma`s
+    prove `wf_ir_deep v -> wf_ir v`, so `ensures wf_ir_deep result` entails the
+    audited shallow wf_ir. Bridge-audit predicate, generator-owned."""
+    return [
+        "",
+        "  (* richer-contracts-bridge P2.1 (C2): DEEP well-formedness — the INDUCTIVE",
+        "     invariant of the recursive substitution (recurses into list elements AND",
+        "     dict values). Strengthens the certified shallow wf_ir; pure definition,",
+        "     NO axiom. The two lemmas prove it implies the certified wf_ir. *)",
+        "  predicate wf_ir_deep (v: pyval)",
+        "  = match v with",
+        "    | PDict d  -> wf_dict_deep d",
+        "    | PList xs -> wf_list_deep xs",
+        "    | _ -> true",
+        "    end",
+        "  with wf_dict_deep (d: pydict)",
+        "  = match d with",
+        "    | DNil -> true",
+        "    | DCons k v rest -> wf_val k v /\\ wf_ir_deep v /\\ wf_dict_deep rest",
+        "    end",
+        "  with wf_list_deep (xs: list pyval)",
+        "  = match xs with",
+        "    | Nil -> true",
+        "    | Cons h t -> wf_ir_deep h /\\ wf_list_deep t",
+        "    end",
+        "  (* Bridge tie: the deep predicate strengthens the certified shallow wf_ir",
+        "     (Phase2c_PyValDict.v), so `ensures wf_ir_deep result` entails the audited",
+        "     wf_ir. Proved by structural induction — NO axiom. *)",
+        "  let rec lemma wf_dict_deep_shallow (d: pydict) : unit",
+        "    requires { wf_dict_deep d } ensures { wf_dict d } variant { d }",
+        "  = match d with DNil -> () | DCons _ _ rest -> wf_dict_deep_shallow rest end",
+        "  let lemma wf_ir_deep_shallow (v: pyval) : unit",
+        "    requires { wf_ir_deep v } ensures { wf_ir v }",
+        "  = match v with PDict d -> wf_dict_deep_shallow d | _ -> () end",
+        "  (* Lemma-pack fact for the string-key case: a value that stays a PStr",
+        "     whenever it was a PStr keeps wf_val for its key. `let lemma` (CALLED by",
+        "     the fold body => split-robust exact instantiation); the explicit case",
+        "     split on k discharges its own VC. *)",
+        "  let lemma wf_val_str_stable (k: irkey) (v v2: pyval) : unit",
+        "    requires { wf_val k v }",
+        "    requires { match v with PStr _ -> "
+        "(match v2 with PStr _ -> true | _ -> false end) | _ -> true end }",
+        "    ensures  { wf_val k v2 }",
+        "  = match k with",
+        "    | K_op | K_type | K_target | K_func | K_name -> ()",
+        "    | _ -> () end",
+    ]
+
+
+def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
+                        whyml_ident, top_ensures: Optional[List[str]] = None,
+                        top_requires: Optional[List[str]] = None) -> List[str]:
+    """Emit the T1 functorial-map reconstruction group for a recognized substmap.
+
+    Functional (`assigns \\nothing`; no `writes`): every function returns the
+    value type (`pyval`/`pydict`/`list pyval`), rebuilding constructor cells.
+    The per-instance rewrite-rule hole is defunctionalized into a `__triggers`
+    predicate over the interned rewrite keys (structural discriminants, zero
+    string theory for named keys); the semantic guard is the opaque `pystr_eq`;
+    the replacement is the well-typed `PStr <concrete>`. Reuses the L1 preamble
+    `size`/lemma pack for the `variant`. Congruent (modulo names) to the proven
+    `scratchpad` T1 spike."""
+    n = whyml_ident(func["name"])
+    subj = sm["subject"]
+    tvar = sm["tvar_param"]
+    concrete = sm["concrete_param"]
+    keys = sm["rewrite_keys"]
+    named = [k for k in keys if k in _NAMED_KEYS]
+    dyn = [k for k in keys if k not in _NAMED_KEYS]
+    out: List[str] = []
+
+    # ---- defunctionalized rewrite-key predicate (structural discriminants) ----
+    out.append(f"  let {n}__triggers (k: irkey) : bool")
+    out.append("  = match k with")
+    for k in named:
+        out.append(f"    | {_NAMED_KEYS[k]} -> true")
+    if dyn:
+        cond = " || ".join(f'pystr_eq s "{d}"' for d in dyn)
+        out.append(f"    | K_dyn s -> {cond}")
+    out.append("    | _ -> false end")
+
+    # ---- the subst_walk / subst_dict / subst_list reconstruction group ----
+    # richer-contracts-bridge C1: the top-level function carries the METHOD's own
+    # `#@ ensures` (default `["true"]` => byte-identical to the historical
+    # hardcoded `ensures { true }`; a certified predicate on `\result` becomes a
+    # checked postcondition). Helper functions keep `ensures { true }`.
+    _te = list(top_ensures or ["true"])
+    _tr = list(top_requires or ["true"])
+    # richer-contracts-bridge P2.1 (C2): wf-preservation mode fires iff the
+    # METHOD's contract threads the deep well-formedness predicate. When it does,
+    # (i) emit the deep predicate family + connecting lemmas (gated => corpus and
+    # non-wf mirrors byte-identical), (ii) thread the method's requires onto the
+    # top-level function, (iii) emit the per-helper preservation contracts
+    # (__dict: wf_dict_deep, __list: wf_list_deep) so Why3 discharges the
+    # induction helper-by-helper, (iv) add the string-stability ensures the
+    # lemma pack needs for the string-key case.
+    # richer-contracts-bridge C2 preservation families: each is a deep predicate
+    # the type-substitution PRESERVES.  A family fires iff the METHOD's contract
+    # threads its top predicate (in `_te`/`_tr`).  Each contributes a `<dict>`/
+    # `<list>` requires+ensures conjunct on the helpers so Why3 discharges the
+    # induction helper-by-helper.  wf_ir_deep (P2.1) additionally needs the
+    # string-stability ensures + the called str-lemma hint (its wf_val string-key
+    # case); in_emitted_fragment (P2.3) needs neither (its leaf/PStr arms hold).
+    _families = [
+        ("wf_ir_deep",          "wf_dict_deep", "wf_list_deep", _wf_deep_predicate_lines),
+        ("in_emitted_fragment", "frag_dict",    "frag_list",    _frag_predicate_lines),
+    ]
+    _active = [f for f in _families if any(f[0] in c for c in (_te + _tr))]
+    _wf_preserve = any(f[0] == "wf_ir_deep" for f in _active)
+    if _active:
+        for _top, _d, _l, _emit in _active:
+            out.extend(_emit())
+        if _wf_preserve:
+            _te = _te + [
+                f"match {subj} with PStr _ -> "
+                f"(match result with PStr _ -> true | _ -> false end) | _ -> true end"
+            ]
+        _dreq = " /\\ ".join(f"{f[1]} d" for f in _active)
+        _dens = " /\\ ".join(f"{f[1]} result" for f in _active)
+        _lreq = " /\\ ".join(f"{f[2]} xs" for f in _active)
+        _lens = " /\\ ".join(f"{f[2]} result" for f in _active)
+        _dict_contract = f"    requires {{ {_dreq} }} ensures {{ {_dens} }}"
+        _list_contract = f"    requires {{ {_lreq} }} ensures {{ {_lens} }}"
+    else:
+        _dict_contract = "    requires { true } ensures { true }"
+        _list_contract = "    requires { true } ensures { true }"
+    _ens_line = "".join(f" ensures {{ {e} }}" for e in _te)
+    _req_line = "".join(f" requires {{ {r} }}" for r in _tr)
+    out.append(f"  let rec {n} ({subj}: pyval) ({tvar}: string) ({concrete}: string) : pyval")
+    out.append(f"   {_req_line}{_ens_line}")
+    out.append(f"    variant {{ pv_size {subj} }}")
+    out.append(f"  = match {subj} with")
+    out.append(f"    | PList xs -> PList ({n}__list xs {tvar} {concrete})")
+    out.append(f"    | PDict d  -> PDict ({n}__dict d {tvar} {concrete})")
+    out.append(f"    | _ -> {subj} end")
+    out.append(f"  with {n}__dict (d: pydict) ({tvar}: string) ({concrete}: string) : pydict")
+    out.append(_dict_contract)
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> DNil")
+    out.append("    | DCons k v rest ->")
+    out.append("        let v2 =")
+    out.append("          match v with")
+    out.append(f"          | PStr s -> if {n}__triggers k && pystr_eq s {tvar} then PStr {concrete}")
+    out.append(f"                      else {n} v {tvar} {concrete}")
+    out.append(f"          | _ -> {n} v {tvar} {concrete} end")
+    out.append("        in")
+    if _wf_preserve:
+        # Split-robust proof hints for `ensures wf_dict_deep result`: the
+        # recursion preserves PStr-ness (str-stability of the top-level ensures);
+        # the CALLED lemma turns that + wf_val k v (precondition head) into
+        # wf_val k v2; wf_ir_deep v2 comes from the recursion's own postcondition.
+        out.append("        assert { match v with PStr _ -> "
+                   "(match v2 with PStr _ -> true | _ -> false end) | _ -> true end };")
+        out.append("        wf_val_str_stable k v v2;")
+        out.append("        assert { wf_ir_deep v2 };")
+    out.append(f"        DCons k v2 ({n}__dict rest {tvar} {concrete})")
+    out.append("    end")
+    out.append(f"  with {n}__list (xs: list pyval) ({tvar}: string) ({concrete}: string) : list pyval")
+    out.append(_list_contract)
+    out.append("    variant { size_list xs }")
+    out.append("  = match xs with Nil -> Nil")
+    out.append(f"    | Cons h t -> Cons ({n} h {tvar} {concrete}) ({n}__list t {tvar} {concrete}) end")
+    return out
+
+
+# =========================================================================
+# ir-traversal-residual A-bool + T2 + D — the COMPOSED / SHORT-CIRCUIT shapes
+# (plan §3 T2 option/first-match, §4 D traversal outlining, plus the A-bool
+# existence-fold algebra — the smallest algebra: fold into `bool` with `||`).
+#
+# `find_return_type` (shapes 3+4) decomposes into three separately-certified
+# `let rec` groups over the L1 `pyval`/`pydict` model:
+#
+#   * A-BOOL existence folds — the two nested closures `_has_return` /
+#     `_has_return_with_value` (lambda-lifted by the front-end to sibling
+#     methods `<cls>___has_return*`). A `pyval -> bool` walk that descends the
+#     statement subtree (`body`/`orelse` fields + `Match` `cases` bodies) and
+#     OR-combines a `stmt["stmt"]=="Return"` discriminant. Under `ensures True`
+#     the returned bool is UNCONSTRAINED (insight C), so the value narrowings
+#     (`and stmt.get("value")` for the with-value twin; descend only specific
+#     keys) are value facts the contract does not need — the emitted walk is a
+#     total, terminating, well-typed existence fold. Certified like A-set.
+#
+#   * D — traversal outlining: `find_return_type`'s composing body becomes a
+#     non-recursive-in-spirit first-order function that CALLS the two outlined
+#     bool folds and its own first-match search; each outlined traversal is its
+#     own `let rec`, re-proved per instance.
+#
+#   * T2 — the first-match search loop is the fold into `string` with a
+#     left-biased combining step (the early `return x`); recursion descends the
+#     `body`/`orelse`/`cases` fields via total `pyval -> list pyval` projections.
+#     The synthetic string tail `"(" + ", ".join(["int"]*n) + ")"` is
+#     type-safe: `n = len(elts)` is `>= 0` (an emitted `llen` fold), so
+#     `Array.make n "int"` discharges its creation-size VC.
+#
+# TERMINATION — the crux is the non-syntactic recursion `find_return_type(
+# stmt[key])` (descends a dict FIELD, not a direct sub-term). The field
+# projections carry `ensures { size_list result < size v }` (proved from the
+# spine readers' `size_list result < 1 + size_dict d`), which discharges the
+# `variant { size_list stmts }` decrease. The `find_return_type -> __search`
+# same-size edge is ordered by a lexicographic second component (1 vs 0). Both
+# the projection-bound and the lexicographic variant are Alt-Ergo-proved.
+#
+# NO new value shape, NO exceptions, NO new axiom — the ledger stays at 3.
+# Fail-closed exactly as the folds: a miss keeps the method `\trusted`; a
+# template bug is a loud unprovable instance, never a false proof. Verified
+# inert on the reference corpus (byte-diff 0); a poison control flips red once.
+# =========================================================================
+
+
+def _match_subscript_str(node: Any, subj: str) -> Optional[str]:
+    """`<subj>["<lit>"]` (Subscript with string index) -> "<lit>" or None."""
+    if not (isinstance(node, dict) and node.get("type") == "Subscript"
+            and _is_var(node.get("value"), subj)):
+        return None
+    return _is_string(node.get("index"))
+
+
+def _match_get_call(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<lit>"[, default])` -> "<lit>" or None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{subj}.get"):
+        return None
+    args = node.get("args", [])
+    if not args:
+        return None
+    return _is_string(args[0])
+
+
+def _match_stmt_tag_test(test: Any, subj: str) -> Optional[str]:
+    """`<subj>["stmt"] == "<TAG>"` or `<subj>.get("stmt") == "<TAG>"` -> TAG."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "=="):
+        return None
+    tag = _is_string(test.get("right"))
+    if tag is None:
+        return None
+    left = test.get("left", {})
+    if _match_subscript_str(left, subj) == "stmt":
+        return tag
+    if _match_get_call(left, subj) == "stmt":
+        return tag
+    return None
+
+
+def _is_bool_true_return(stmt: Any) -> bool:
+    return (isinstance(stmt, dict) and stmt.get("stmt") == "Return"
+            and isinstance(stmt.get("value"), dict)
+            and stmt["value"].get("type") == "Bool"
+            and stmt["value"].get("value") is True)
+
+
+def _is_selfcall_n(node: Any, name_box: List[str], extra: List[str]) -> bool:
+    """A `(1 + len(extra))`-arg Call whose func is a bare name; the first arg
+    is the recursion target, and the remaining args thread the read-only
+    `extra` params UNCHANGED, in order (the `uses_ghost_type`-shaped
+    `self(stmt[key], types)` self-recursion). Records the callee in name_box
+    (all existence-fold self-calls must share one callee name). `extra=[]`
+    reproduces the original 1-arg-only check exactly."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return False
+    f = node.get("func")
+    if not isinstance(f, str):
+        return False
+    args = node.get("args", [])
+    if len(args) != 1 + len(extra):
+        return False
+    if not all(_is_var(args[1 + i], e) for i, e in enumerate(extra)):
+        return False
+    name_box.append(f)
+    return True
+
+
+def recognize_bool_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the A-bool statement-tree existence fold — the
+    lambda-lifted `_has_return` / `_has_return_with_value` closures (tag
+    "Return", 3-arm loop body incl. the Match/cases descent), AND (stmt-walker
+    foundation, list-adt-foundation-build.md) the plain single-tag scanners
+    `uses_for`/`uses_arrayset`-shaped methods: `for stmt in xs: if <tag-test>:
+    return True; for key in ("body","orelse"): if key in stmt and
+    self(stmt[key]): return True // return False` — a 2-arm loop body (no
+    Match/cases arm) over ANY literal tag ("For", "ArraySet", ... — not just
+    "Return"). Both are the SAME structural shape (tag-test arm + field-
+    descend arm + an OPTIONAL cases-descend arm); the tag and the presence of
+    the cases arm are the only degrees of freedom.
+
+    Two further generalizations of the SAME shape (both threaded through the
+    identical `let rec`/`__v`/`__d` OR-descend emission, no new code path):
+      * arm 0 accepts a COMPOUND `<tag-test> and <stmt>.get(<key>) in <extra>`
+        guard (`uses_ghost_type`-shaped) when the method threads a second,
+        read-only `set`-typed parameter -- under `ensures True` the membership
+        conjunct is a value fact the fold does not need (insight C).
+      * arm 1 accepts an INLINED single-If descend (`has_continue`-shaped:
+        `if <tag "If">: if (self(body) or self(orelse)): return True`) as an
+        alternate SOURCE shape for the same OR-descend, instead of the
+        generic `for key in ("body","orelse")` loop.
+
+    Returns {subject, self_name, with_value, tag, extra_params} or None.
+    Never raises."""
+    try:
+        return _recognize_bool_existence(func)
+    except Exception:
+        return None
+
+
+def _recognize_bool_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) not in (1, 2):
+        return None
+    subj = params[0]
+    extra = params[1:]
+    pa = func.get("param_annotations", {})
+    if pa.get(subj) != "list":
+        return None
+    # An optional 2nd param is a read-only membership SET, threaded UNCHANGED
+    # through every recursive call (the `uses_ghost_type`-shaped compound
+    # guard). Fail-closed: any non-`set` 2nd param rejects.
+    for e in extra:
+        if pa.get(e) != "set":
+            return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 2:
+        return None
+    loop, tail = body
+    # tail: `return False`
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    # loop: `for stmt in <subj>: <2-or-3 arms>`
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and _is_var(loop.get("iter"), subj)):
+        return None
+    stmtv = loop.get("target")
+    if not isinstance(stmtv, str):
+        return None
+    lbody = loop.get("body", [])
+    # the Match/cases-descend arm (a2) is OPTIONAL — `uses_for`/`uses_arrayset`
+    # only ever descend "body"/"orelse", with no Match arm at all.
+    if len(lbody) not in (2, 3):
+        return None
+    a0, a1 = lbody[0], lbody[1]
+    a2 = lbody[2] if len(lbody) == 3 else None
+    names: List[str] = []
+    with_value = False
+    # arm 0: if <stmt-tag-test>: return True  (ANY literal tag, not just "Return")
+    if not (isinstance(a0, dict) and a0.get("stmt") == "If" and not a0.get("orelse")):
+        return None
+    t0 = a0.get("test", {})
+    tag0 = _match_stmt_tag_test(t0, stmtv)
+    if tag0 is None and (isinstance(t0, dict) and t0.get("type") == "BinOp"
+                         and t0.get("op") == "and"):
+        # with-value twin: `<stmt>["stmt"]=="Return" and <stmt>.get("value")`
+        # -- inherently Return-specific (the `.get("value")` guard only makes
+        # sense for the Return tag), so this alternate arm-0 shape stays
+        # hardcoded to "Return" (it is a DIFFERENT AST shape, not a tag choice).
+        maybe_tag = _match_stmt_tag_test(t0.get("left", {}), stmtv)
+        if maybe_tag == "Return" and _match_get_call(t0.get("right", {}), stmtv) == "value":
+            tag0, with_value = "Return", True
+        else:
+            # compound membership-guarded tag test (`uses_ghost_type` shape):
+            # `<tag-test> and <stmt>.get("<key>") in <extra-param>` (either
+            # conjunct order). Needs the optional 2nd `set` param -- fails
+            # closed (via `_match_in_guard`) when `extra` is empty.
+            tag0 = _match_compound_tag_mem_guard(t0, stmtv, extra)
+    if tag0 is None:
+        return None
+    if not (len(a0.get("body", [])) == 1 and _is_bool_true_return(a0["body"][0])):
+        return None
+    # arm 1: for key in ("body","orelse"): if key in stmt and self(stmt[key], extra...): return True
+    #     OR the INLINED single-If descend (`has_continue` shape): if <tag "If">:
+    #     if (self(body, extra...) or self(orelse, extra...)): return True
+    if not (_match_field_descend_loop(a1, stmtv, names, extra)
+            or _match_inline_if_descend(a1, stmtv, names, extra)):
+        return None
+    # arm 2 (optional): if stmt.get("stmt")=="Match": for c in stmt.get("cases",[]): if self(c.get("body",[]), extra...): return True
+    if a2 is not None and not _match_cases_descend(a2, stmtv, names, extra):
+        return None
+    if not names or any(x != names[0] for x in names):
+        return None
+    return {"subject": subj, "self_name": names[0], "with_value": with_value,
+            "tag": tag0, "extra_params": extra}
+
+
+def _match_compound_tag_mem_guard(test: Any, stmtv: str,
+                                  extra: List[str]) -> Optional[str]:
+    """`<tag-test> and <stmt>.get("<key>") in <extra-param>` (either conjunct
+    order) -- the compound existence-arm guard threading a read-only
+    membership SET parameter (`uses_ghost_type`-shaped:
+    `stmt.get("stmt")=="GhostAssign" and stmt.get("ghost_type") in types`).
+    Under `ensures True` the membership conjunct is a value fact the fold
+    does not need (insight C) -- only its SHAPE is validated. Returns the
+    literal TAG, or None (fail-closed; also None when `extra` is empty, since
+    `_match_in_guard` then has no valid RHS to match)."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    tag = _match_stmt_tag_test(left, stmtv)
+    mem_side = right
+    if tag is None:
+        tag = _match_stmt_tag_test(right, stmtv)
+        mem_side = left
+    if tag is None:
+        return None
+    if _match_in_guard(mem_side, stmtv, extra) is None:
+        return None
+    return tag
+
+
+def _match_field_descend_loop(node: Any, stmtv: str, names: List[str],
+                              extra: List[str]) -> bool:
+    """`for key in ("body","orelse"): if key in <stmt> and <self>(<stmt>[key][, extra...]): return True`."""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return False
+    it = node.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Tuple"):
+        return False
+    keys = [_is_string(e) for e in it.get("elts", [])]
+    if keys != ["body", "orelse"]:
+        return False
+    keyv = node.get("target")
+    lb = node.get("body", [])
+    if len(lb) != 1:
+        return False
+    iff = lb[0]
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If" and not iff.get("orelse")):
+        return False
+    test = iff.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "and"):
+        return False
+    left, right = test.get("left", {}), test.get("right", {})
+    # left: key in stmt
+    if not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "in"
+            and _is_var(left.get("left"), keyv) and _is_var(left.get("right"), stmtv)):
+        return False
+    # right: self(stmt[key][, extra...])
+    if not _is_selfcall_n(right, names, extra):
+        return False
+    arg = right["args"][0]
+    if not (isinstance(arg, dict) and arg.get("type") == "Subscript"
+            and _is_var(arg.get("value"), stmtv) and _is_var(arg.get("index"), keyv)):
+        return False
+    return len(iff.get("body", [])) == 1 and _is_bool_true_return(iff["body"][0])
+
+
+def _match_inline_if_descend(node: Any, stmtv: str, names: List[str],
+                             extra: List[str]) -> bool:
+    """`if <stmt-tag-test "If">: if (<self>(<stmt>.get("body",[])[, extra...])
+        or <self>(<stmt>.get("orelse",[])[, extra...])): return True` -- the
+    INLINED single-If descend arm (`has_continue`-shaped): a tag-gated nested
+    If whose test is an `or` of the two self-recursions on body/orelse,
+    instead of the generic `for key in ("body","orelse")` loop. Same
+    OR-descend RESULT under `ensures True` -- `emit_bool_existence_group`
+    always OR-descends the whole subtree regardless of which source arm-1
+    shape matched -- so this is purely an alternate SOURCE shape, not a
+    separate emission."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If" and not node.get("orelse")):
+        return False
+    if _match_stmt_tag_test(node.get("test", {}), stmtv) != "If":
+        return False
+    body = node.get("body", [])
+    if len(body) != 1:
+        return False
+    inner = body[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If" and not inner.get("orelse")):
+        return False
+    test = inner.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "or"):
+        return False
+    left, right = test.get("left", {}), test.get("right", {})
+    if not (_is_selfcall_n(left, names, extra)
+            and _match_get_call(left["args"][0], stmtv) == "body"):
+        return False
+    if not (_is_selfcall_n(right, names, extra)
+            and _match_get_call(right["args"][0], stmtv) == "orelse"):
+        return False
+    return len(inner.get("body", [])) == 1 and _is_bool_true_return(inner["body"][0])
+
+
+def _match_cases_descend(node: Any, stmtv: str, names: List[str],
+                         extra: List[str]) -> bool:
+    """`if <stmt>.get("stmt")=="Match": for c in <stmt>.get("cases",[]):
+        if <self>(c.get("body",[])[, extra...]): return True`."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If" and not node.get("orelse")):
+        return False
+    if _match_stmt_tag_test(node.get("test", {}), stmtv) != "Match":
+        return False
+    cb = node.get("body", [])
+    if len(cb) != 1:
+        return False
+    loop = cb[0]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
+        return False
+    if _match_get_call(loop.get("iter", {}), stmtv) != "cases":
+        return False
+    cvar = loop.get("target")
+    lb = loop.get("body", [])
+    if len(lb) != 1:
+        return False
+    iff = lb[0]
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If" and not iff.get("orelse")):
+        return False
+    call = iff.get("test", {})
+    if not _is_selfcall_n(call, names, extra):
+        return False
+    if _match_get_call(call["args"][0], cvar) != "body":
+        return False
+    return len(iff.get("body", [])) == 1 and _is_bool_true_return(iff["body"][0])
+
+
+def _emit_stmt_reader(p: str) -> List[str]:
+    """Emit the plain `stmt`-key reader + discriminant (prefix `p`). No
+    size-bound `ensures` — split_vc-robust (the descent uses direct structural
+    sub-terms for its `variant`, not a projected-field size relation, so the
+    readers never enter a termination VC)."""
+    out: List[str] = []
+    out.append(f"  let rec {p}__get_stmt (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append(f'    | DCons (K_dyn k) (PStr s) rest -> if pystr_eq k "stmt" then Some s else {p}__get_stmt rest')
+    out.append(f"    | DCons _ _ rest -> {p}__get_stmt rest end")
+    out.append(f"  let function {p}__stmt_is (v: pyval) (tag: string) : bool")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {p}__get_stmt d with Some t -> pystr_eq t tag | None -> false end)")
+    out.append("    | _ -> false end")
+    return out
+
+
+def emit_bool_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
+                              whyml_ident) -> List[str]:
+    """Emit the A-bool statement-tree existence fold for a recognized closure.
+
+    A universal `pyval`/`pydict`/`list pyval` catamorphism folding into `bool`
+    by `||` (the smallest algebra). The recursion is on DIRECT structural
+    sub-terms (the `v` of `DCons`, the `h`/`t` of `Cons`), so each `variant`
+    (`size`/`size_dict`/`size_list`) decreases syntactically — split_vc-robust,
+    the proven A-set shape. The `stmt`-tag discriminant at `PDict` nodes mirrors
+    the source's `stmt["stmt"]==<tag>` test (the recognized literal tag —
+    "Return", "For", "ArraySet", ... — threaded from `desc["tag"]`, not
+    hardcoded); under `ensures True` the returned bool is a value fact the
+    contract does not constrain (insight C), so the walk OR-descends the whole
+    subtree (a superset of `body`/`orelse`/`cases`).
+
+    `desc["extra_params"]` (the `uses_ghost_type`-shaped optional read-only
+    membership SET, default empty) is threaded UNCHANGED through every
+    generated signature and recursive call, typed `map string bool` exactly
+    as `recognize_setfold`'s `extra_params` — its VALUE is never inspected
+    (the compound guard is dropped under `ensures True`, same insight-C
+    doctrine), only its ARITY matters. Empty `extra_params` reproduces the
+    original emission byte-for-byte (empty signature/arg suffixes)."""
+    n = whyml_ident(func["name"])
+    tag = desc["tag"]
+    extra = desc.get("extra_params") or []
+    extra_sig = "".join(f" ({whyml_ident(e)}: map string bool)" for e in extra)
+    extra_args = "".join(f" {whyml_ident(e)}" for e in extra)
+    out = _emit_stmt_reader(n)
+    out.append(f"  let rec {n} (stmts: list pyval){extra_sig} : bool")
+    out.append("    requires { true } ensures { true } variant { size_list stmts }")
+    out.append(f"  = match stmts with Nil -> false | Cons h t -> {n}__v h{extra_args} || {n} t{extra_args} end")
+    out.append(f"  with {n}__v (v: pyval){extra_sig} : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f'    | PDict d -> {n}__stmt_is v "{tag}" || {n}__d d{extra_args}')
+    out.append(f"    | PList xs -> {n} xs{extra_args}")
+    out.append("    | _ -> false end")
+    out.append(f"  with {n}__d (d: pydict){extra_sig} : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> false")
+    out.append(f"    | DCons _ v rest -> {n}__v v{extra_args} || {n}__d rest{extra_args} end")
+    return out
+
+
+# =========================================================================
+# A-bool MULTIWAY statement-tree existence fold — `recognize_bool_multiway`.
+#
+# Sibling of `recognize_bool_existence` for a DIFFERENT source shape: instead
+# of a rigid 2-3-arm loop body testing `<stmt>["stmt"]==<TAG>` directly, this
+# is a genuine multiway `stype = stmt.get("stmt")` dispatch (`has_direct_
+# return`/`has_in_loop_return`-shaped): the tag is read into a local ONCE,
+# then a SEQUENCE of `if stype == "<TAG>"` / `if stype in ("<TAG>", ...)`
+# arms follow -- as either separate top-level `if` statements (has_direct_
+# return) or a Python `if/elif/elif` chain (compiled as nested `If`s threaded
+# through `orelse`, has_in_loop_return). Each arm's action is one of:
+#   * a bare `return True` (the tag alone is decisive);
+#   * `if (<call>(<subj>.get("body"/"orelse", []))) or ...): return True`
+#     (an OR-chain of 1+ recursive calls into named child fields);
+#   * the `body`/`orelse` field-descend LOOP (`_match_field_descend_loop`,
+#     reused verbatim from `recognize_bool_existence`);
+#   * the two-statement Try/handlers arm: `if <call>(<subj>.get("body", [])):
+#     return True` followed by `for h in <subj>.get("handlers", []): if
+#     <call>(h.get("body", [])): return True`.
+#
+# A recursive call's CALLEE NAME is never checked for consistency: any bare
+# name is accepted (self-recursion, OR a sibling call like `has_in_loop_
+# return`'s cross-call to `has_direct_return`) -- because emission does not
+# reproduce the source's call graph at all. Under `ensures True` (insight C)
+# the emitted catamorphism OR-descends the WHOLE subtree regardless of which
+# specific arm/callee the source used (a sound superset), so the sibling
+# call is subsumed by the same self-descent: only the call's STRUCTURAL
+# shape (single arg, a genuine child-field accessor) is validated, never its
+# name. No new WhyML theory -- `emit_bool_multiway_group` is a trivial
+# N-tag generalization of `emit_bool_existence_group` (OR across every tag
+# collected from the recognized arms instead of one), reusing the identical
+# `_emit_stmt_reader`/`pv_size`/`size_dict`/`size_list` machinery.
+# =========================================================================
+
+
+def _match_stype_tag_or_tags(test: Any, stypev: str) -> Optional[List[str]]:
+    """`<stypev> == "<TAG>"` -> [TAG]; `<stypev> in (<TAG>, ...)` -> [TAG, ...].
+    None (fail-closed) otherwise."""
+    if not isinstance(test, dict) or test.get("type") != "BinOp":
+        return None
+    if test.get("op") == "==" and _is_var(test.get("left"), stypev):
+        tag = _is_string(test.get("right"))
+        return [tag] if tag is not None else None
+    if test.get("op") == "in" and _is_var(test.get("left"), stypev):
+        right = test.get("right", {})
+        if isinstance(right, dict) and right.get("type") == "Tuple":
+            tags = [_is_string(e) for e in right.get("elts", [])]
+            if tags and all(t is not None for t in tags):
+                return tags
+    return None
+
+
+def _is_selfcall_like(node: Any, subjv: str, names: List[str]) -> bool:
+    """`<any-name>(<subjv>.get("body"/"orelse", ...))` -- a 1-arg call whose
+    func is a bare name (self OR sibling, name unchecked) and whose sole arg
+    descends into a named child field of `subjv`. Records the callee name in
+    `names` (bookkeeping only -- never gates)."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return False
+    f = node.get("func")
+    if not isinstance(f, str):
+        return False
+    args = node.get("args", [])
+    if len(args) != 1:
+        return False
+    if _match_get_call(args[0], subjv) not in ("body", "orelse"):
+        return False
+    names.append(f)
+    return True
+
+
+def _match_selfcall_or_chain(test: Any, subjv: str, names: List[str]) -> bool:
+    """A boolean `or`-chain (any arity via right-recursion) of `_is_selfcall_
+    like` calls on `subjv`."""
+    if (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "or"):
+        return (_match_selfcall_or_chain(test.get("left", {}), subjv, names)
+                and _match_selfcall_or_chain(test.get("right", {}), subjv, names))
+    return _is_selfcall_like(test, subjv, names)
+
+
+def _match_try_handlers_arm(arm_body: List[Any], stmtv: str, names: List[str]) -> bool:
+    """`if <call-chain>(<stmtv>.get("body", [])): return True` followed by
+    `for h in <stmtv>.get("handlers", []): if <call-chain>(h.get("body",
+    [])): return True` -- the Try-arm shape descending into both the Try's
+    own body and every handler's body."""
+    if len(arm_body) != 2:
+        return False
+    s1, s2 = arm_body
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If" and not s1.get("orelse")):
+        return False
+    if not _match_selfcall_or_chain(s1.get("test", {}), stmtv, names):
+        return False
+    if not (len(s1.get("body", [])) == 1 and _is_bool_true_return(s1["body"][0])):
+        return False
+    if not (isinstance(s2, dict) and s2.get("stmt") == "For"):
+        return False
+    if _match_get_call(s2.get("iter", {}), stmtv) != "handlers":
+        return False
+    hvar = s2.get("target")
+    if not isinstance(hvar, str):
+        return False
+    lb = s2.get("body", [])
+    if len(lb) != 1:
+        return False
+    iff = lb[0]
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If" and not iff.get("orelse")):
+        return False
+    if not _match_selfcall_or_chain(iff.get("test", {}), hvar, names):
+        return False
+    return len(iff.get("body", [])) == 1 and _is_bool_true_return(iff["body"][0])
+
+
+def _match_multiway_arm_body(arm_body: List[Any], stmtv: str, names: List[str]) -> bool:
+    """One arm's action: bare `return True`, the field-descend LOOP
+    (`_match_field_descend_loop`, no extra params), an inline OR-chain `if`,
+    or the two-statement Try/handlers arm."""
+    if len(arm_body) == 1 and _is_bool_true_return(arm_body[0]):
+        return True
+    if len(arm_body) == 1 and _match_field_descend_loop(arm_body[0], stmtv, names, []):
+        return True
+    if (len(arm_body) == 1 and isinstance(arm_body[0], dict)
+            and arm_body[0].get("stmt") == "If" and not arm_body[0].get("orelse")
+            and _match_selfcall_or_chain(arm_body[0].get("test", {}), stmtv, names)
+            and len(arm_body[0].get("body", [])) == 1
+            and _is_bool_true_return(arm_body[0]["body"][0])):
+        return True
+    if _match_try_handlers_arm(arm_body, stmtv, names):
+        return True
+    return False
+
+
+def _expand_multiway_if_chain(s: Any) -> Optional[List[Tuple[Any, List[Any]]]]:
+    """One top-level statement -> its `(test, body)` arm(s): a bare `If` with
+    no `orelse` is a single arm; an `If` whose `orelse` is a SINGLETON nested
+    `If` (Python's `elif`-chain IR shape) unrolls into that arm plus every
+    arm of the chain, recursively. Any other non-empty `orelse` (a genuine
+    catch-all) fails closed."""
+    if not (isinstance(s, dict) and s.get("stmt") == "If"):
+        return None
+    arms = [(s.get("test", {}), s.get("body", []))]
+    orelse = s.get("orelse", [])
+    if not orelse:
+        return arms
+    if len(orelse) == 1 and isinstance(orelse[0], dict) and orelse[0].get("stmt") == "If":
+        rest = _expand_multiway_if_chain(orelse[0])
+        if rest is None:
+            return None
+        return arms + rest
+    return None
+
+
+def _flatten_multiway_if_chain(stmts: List[Any]) -> Optional[List[Tuple[Any, List[Any]]]]:
+    """Flatten a list of top-level statements -- each either a standalone
+    `If` (has_direct_return-shaped: separate sibling ifs) or an `elif`-chain
+    (has_in_loop_return-shaped: one `If` threaded through `orelse`) -- into
+    one flat arm list, in source order. Both source shapes collapse to the
+    SAME arm list shape; only how they are threaded in the IR differs."""
+    out: List[Tuple[Any, List[Any]]] = []
+    for s in stmts:
+        chain = _expand_multiway_if_chain(s)
+        if chain is None:
+            return None
+        out.extend(chain)
+    return out
+
+
+def recognize_bool_multiway(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the multiway `stype = stmt.get("stmt")` dispatch
+    A-bool statement-tree existence fold (`has_direct_return`/`has_in_loop_
+    return`-shaped). See the module comment above for the full shape.
+    Returns {subject, tags} or None. Never raises."""
+    try:
+        return _recognize_bool_multiway(func)
+    except Exception:
+        return None
+
+
+def _recognize_bool_multiway(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {})
+    if pa.get(subj) != "list":
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 2:
+        return None
+    loop, tail = body
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and _is_var(loop.get("iter"), subj)):
+        return None
+    stmtv = loop.get("target")
+    if not isinstance(stmtv, str):
+        return None
+    lbody = loop.get("body", [])
+    if len(lbody) < 2:
+        return None
+    a0 = lbody[0]
+    # arm0: stype = stmt.get("stmt")
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and _match_get_call(a0.get("value", {}), stmtv) == "stmt"):
+        return None
+    stypev = a0.get("target")
+    if not isinstance(stypev, str):
+        return None
+    arms = _flatten_multiway_if_chain(lbody[1:])
+    if not arms:
+        return None
+    names: List[str] = []
+    tags: List[str] = []
+    for test, arm_body in arms:
+        arm_tags = _match_stype_tag_or_tags(test, stypev)
+        if not arm_tags:
+            return None
+        if not _match_multiway_arm_body(arm_body, stmtv, names):
+            return None
+        for t in arm_tags:
+            if t not in tags:
+                tags.append(t)
+    if not names:
+        return None
+    return {"subject": subj, "tags": tags}
+
+
+def emit_bool_multiway_group(func: Dict[str, Any], desc: Dict[str, Any],
+                             whyml_ident) -> List[str]:
+    """Emit the multiway A-bool statement-tree existence fold -- the SAME
+    universal `pyval`/`pydict`/`list pyval` OR-catamorphism as `emit_bool_
+    existence_group`, generalized from ONE literal tag to the N tags
+    collected off the recognized arms (`desc["tags"]`), OR'd together at
+    each `PDict` node. No new WhyML theory: reuses `_emit_stmt_reader` and
+    the certified `pv_size`/`size_dict`/`size_list` L1 catamorphism
+    verbatim."""
+    n = whyml_ident(func["name"])
+    tags = desc["tags"]
+    tag_disj = " || ".join(f'{n}__stmt_is v "{t}"' for t in tags)
+    out = _emit_stmt_reader(n)
+    out.append(f"  let rec {n} (stmts: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list stmts }")
+    out.append(f"  = match stmts with Nil -> false | Cons h t -> {n}__v h || {n} t end")
+    out.append(f"  with {n}__v (v: pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> {tag_disj} || {n}__d d")
+    out.append(f"    | PList xs -> {n} xs")
+    out.append("    | _ -> false end")
+    out.append(f"  with {n}__d (d: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> false")
+    out.append(f"    | DCons _ v rest -> {n}__v v || {n}__d rest end")
+    return out
+
+
+# =========================================================================
+# A-bool LAST-ELEMENT tag-dispatch fold — `recognize_bool_lastelem`.
+#
+# A THIRD sibling source shape for the identical `emit_bool_multiway_group`
+# catamorphism (no new WhyML): instead of folding over the WHOLE list
+# (`recognize_bool_existence`) or a multiway dispatch inside a `for stmt in
+# stmts` loop (`recognize_bool_multiway`), `ends_with_return`-shaped methods
+# inspect only the LAST element:
+#     if not <stmts>: return False
+#     <last> = <stmts>[-1]
+#     <st> = <last>.get("stmt") [or <last>.get("type")]
+#     if <st> == "<TAG>": return True
+#     if <st> == "<TAG2>": return (<self>(<last>.get("<k1>",[])) and/or
+#                                   <self>(<last>.get("<k2>",[])))
+#     ...
+#     return False
+# Under `ensures True` (insight C) the RETURN VALUE is unconstrained, so the
+# recognizer does not need to reproduce "look only at the last element" —
+# it only needs to certify the source IS this shape (fail-closed), then
+# defers to the SAME whole-subtree OR-descend used for the other two bool
+# shapes (`emit_bool_multiway_group`, reused verbatim via the identical
+# {subject, tags} descriptor).
+# =========================================================================
+
+
+def _match_last_index_subscript(node: Any, subj: str) -> bool:
+    """`<subj>[-1]` -- a Subscript whose index is the literal `-1`
+    (`UnaryOp "-"` over `Number 1`, the IR shape for a negative literal)."""
+    if not (isinstance(node, dict) and node.get("type") == "Subscript"
+            and _is_var(node.get("value"), subj)):
+        return False
+    idx = node.get("index", {})
+    return (isinstance(idx, dict) and idx.get("type") == "UnaryOp"
+            and idx.get("op") == "-"
+            and isinstance(idx.get("expr"), dict)
+            and idx["expr"].get("type") == "Number"
+            and idx["expr"].get("value") == 1)
+
+
+def _match_last_tag_read(node: Any, lastv: str) -> bool:
+    """`<lastv>.get("<key>")` alone, or `<lastv>.get("<k1>") or <lastv>.get(
+    "<k2>")` -- the tag-discriminant read off the last element (`ends_with_
+    return`-shaped: `last.get("stmt") or last.get("type")`). Either a single
+    read or an `or`-fallback of two reads; fails closed otherwise."""
+    if _match_get_call(node, lastv) is not None:
+        return True
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"):
+        return (_match_get_call(node.get("left", {}), lastv) is not None
+                and _match_get_call(node.get("right", {}), lastv) is not None)
+    return False
+
+
+def _match_bool_combo(node: Any, subjv: str, names: List[str]) -> bool:
+    """Any `and`/`or` nesting of `_is_selfcall_like` leaves on `subjv`
+    (`ends_with_return`-shaped: `self(last.get("body",[])) and self(last.get(
+    "orelse",[]))`). Fails closed on anything else."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") in ("and", "or")):
+        return (_match_bool_combo(node.get("left", {}), subjv, names)
+                and _match_bool_combo(node.get("right", {}), subjv, names))
+    return _is_selfcall_like(node, subjv, names)
+
+
+def _match_lastelem_arm_body(arm_body: List[Any], lastv: str,
+                             names: List[str]) -> bool:
+    """One last-element-dispatch arm's action: bare `return True`, or
+    `return (<and/or-combo of self-calls into <lastv>'s body/orelse>)`."""
+    if len(arm_body) != 1:
+        return False
+    if _is_bool_true_return(arm_body[0]):
+        return True
+    stmt = arm_body[0]
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Return"):
+        return False
+    return _match_bool_combo(stmt.get("value"), lastv, names)
+
+
+def recognize_bool_lastelem(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the LAST-ELEMENT tag-dispatch A-bool statement-
+    tree existence fold (`ends_with_return`-shaped). See the module comment
+    above for the full shape. Returns {subject, tags} (the `emit_bool_
+    multiway_group` descriptor, reused verbatim) or None. Never raises."""
+    try:
+        return _recognize_bool_lastelem(func)
+    except Exception:
+        return None
+
+
+def _recognize_bool_lastelem(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {})
+    if pa.get(subj) != "list":
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) < 4:
+        return None
+    guard, bind, disc = body[0], body[1], body[2]
+    rest = body[3:]
+    # guard: if not <subj>: return False
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not guard.get("orelse")):
+        return None
+    gtest = guard.get("test", {})
+    if not (isinstance(gtest, dict) and gtest.get("type") == "UnaryOp"
+            and gtest.get("op") == "not" and _is_var(gtest.get("expr"), subj)):
+        return None
+    gbody = guard.get("body", [])
+    if not (len(gbody) == 1 and isinstance(gbody[0], dict)
+            and gbody[0].get("stmt") == "Return"
+            and isinstance(gbody[0].get("value"), dict)
+            and gbody[0]["value"].get("type") == "Bool"
+            and gbody[0]["value"].get("value") is False):
+        return None
+    # bind: <lastv> = <subj>[-1]
+    if not (isinstance(bind, dict) and bind.get("stmt") == "Assign"
+            and _match_last_index_subscript(bind.get("value", {}), subj)):
+        return None
+    lastv = bind.get("target")
+    if not isinstance(lastv, str):
+        return None
+    # disc: <stv> = <lastv>.get("<key>") [or <lastv>.get("<key2>")]
+    if not (isinstance(disc, dict) and disc.get("stmt") == "Assign"
+            and _match_last_tag_read(disc.get("value", {}), lastv)):
+        return None
+    stv = disc.get("target")
+    if not isinstance(stv, str):
+        return None
+    # rest: N tag-dispatch arms + a `return False` tail
+    if len(rest) < 2:
+        return None
+    arms_stmts, tail = rest[:-1], rest[-1]
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    arms = _flatten_multiway_if_chain(arms_stmts)
+    if not arms:
+        return None
+    names: List[str] = []
+    tags: List[str] = []
+    for test, arm_body in arms:
+        arm_tags = _match_stype_tag_or_tags(test, stv)
+        if not arm_tags:
+            return None
+        if not _match_lastelem_arm_body(arm_body, lastv, names):
+            return None
+        for t in arm_tags:
+            if t not in tags:
+                tags.append(t)
+    if not names:
+        return None
+    return {"subject": subj, "tags": tags}
+
+
+# =========================================================================
+# A-bool ENUMERATE positional-dispatch fold — `recognize_bool_earlyreturn`.
+#
+# A FOURTH sibling source shape for the same `emit_bool_multiway_group`
+# catamorphism: `has_early_return`-shaped methods loop `for i, stmt in
+# enumerate(stmts)` (an index-tracking twin of `recognize_bool_multiway`'s
+# plain `for stmt in stmts`) and thread the index into a POSITIONAL "is
+# there a statement after this one" guard (`i < len(stmts) - 1`) that gates
+# an otherwise-ordinary recursive-call arm. Under `ensures True` (insight C)
+# the guard's VALUE is a fact the fold does not need — the recognizer only
+# certifies the guard reads REAL accessors (the loop's own index var, `len`
+# of the same list param), never evaluates it — then defers to the same
+# whole-subtree OR-descend as every other bool-dispatch shape.
+# =========================================================================
+
+
+def _match_enumerate_for(node: Any, subj: str) -> Optional[tuple]:
+    """`for <i>, <s> in enumerate(<subj>):` -> (idxvar, stmtvar), or None.
+    Reads the IR's `tuple_targets` field (the front-end's enumerate/tuple-
+    unpack target list) -- never inspects the loop body to find the names."""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return None
+    it = node.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "enumerate" and len(it.get("args", [])) == 1
+            and _is_var(it["args"][0], subj)):
+        return None
+    tt = node.get("tuple_targets")
+    if not (isinstance(tt, list) and len(tt) == 2
+            and all(isinstance(x, str) for x in tt)):
+        return None
+    return tt[0], tt[1]
+
+
+def _match_positional_guard(node: Any, idxvar: str, subj: str) -> bool:
+    """`<idxvar> < len(<subj>) - <literal>` -- the positional "is there a
+    statement after this one" guard (`has_early_return`-shaped). Structural
+    only: under `ensures True` the guard's VALUE is unneeded (insight C), so
+    this validates the guard's SHAPE (the same index var bound by the
+    enclosing `enumerate` loop, `len` of the same list param) without
+    evaluating the comparison."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "<" and _is_var(node.get("left"), idxvar)):
+        return False
+    right = node.get("right", {})
+    if not (isinstance(right, dict) and right.get("type") == "BinOp"
+            and right.get("op") == "-"):
+        return False
+    lenc = right.get("left", {})
+    if not (isinstance(lenc, dict) and lenc.get("type") == "Call"
+            and lenc.get("func") == "len" and len(lenc.get("args", [])) == 1
+            and _is_var(lenc["args"][0], subj)):
+        return False
+    lit = right.get("right", {})
+    return isinstance(lit, dict) and lit.get("type") == "Number"
+
+
+def _match_guarded_call_return(stmts_slice: List[Any], stmtv: str, idxvar: str,
+                               subj: str, names: List[str]) -> int:
+    """3-statement `<retv> = <call>(<stmtv>...); <restv> = <positional-
+    guard>; if <retv> and <restv>: return True` arm-prefix (`has_early_
+    return`-shaped): a genuine self/sibling call bound to a local, ANDed
+    with a positional "trailing statement" fact (dropped under `ensures
+    True` -- insight C), gating a bare `return True`. Returns 3 (consumed)
+    or 0 (no match)."""
+    if len(stmts_slice) < 3:
+        return 0
+    a0, a1, a2 = stmts_slice[0], stmts_slice[1], stmts_slice[2]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return 0
+    retv = a0.get("target")
+    if not (isinstance(retv, str) and _is_selfcall_like(a0.get("value", {}), stmtv, names)):
+        return 0
+    if not (isinstance(a1, dict) and a1.get("stmt") == "Assign"):
+        return 0
+    restv = a1.get("target")
+    if not (isinstance(restv, str)
+            and _match_positional_guard(a1.get("value", {}), idxvar, subj)):
+        return 0
+    if not (isinstance(a2, dict) and a2.get("stmt") == "If" and not a2.get("orelse")):
+        return 0
+    test = a2.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and" and _is_var(test.get("left"), retv)
+            and _is_var(test.get("right"), restv)):
+        return 0
+    if not (len(a2.get("body", [])) == 1 and _is_bool_true_return(a2["body"][0])):
+        return 0
+    return 3
+
+
+def _match_earlyreturn_if_arm(arm_body: List[Any], stmtv: str, idxvar: str,
+                              subj: str, names: List[str]) -> bool:
+    """The `has_early_return`-shaped If-tag arm: the 3-statement guarded-
+    call-return prefix, followed by 1-2 trailing `if <call>(<stmtv>...):
+    return True` self-descend arms."""
+    consumed = _match_guarded_call_return(arm_body, stmtv, idxvar, subj, names)
+    if not consumed:
+        return False
+    trailing = arm_body[consumed:]
+    if not (1 <= len(trailing) <= 2):
+        return False
+    for s in trailing:
+        if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")
+                and _is_selfcall_like(s.get("test", {}), stmtv, names)
+                and len(s.get("body", [])) == 1 and _is_bool_true_return(s["body"][0])):
+            return False
+    return True
+
+
+def _match_earlyreturn_try_arm(arm_body: List[Any], stmtv: str, idxvar: str,
+                               subj: str, names: List[str]) -> bool:
+    """The `has_early_return`-shaped Try-tag arm: `<hvarlist> = <stmtv>.get(
+    "handlers", []); for <h> in <hvarlist>: (if <call>(<h>...): if
+    <positional-guard>: return True); (if <call>(<h>...): return True); if
+    <call>(<stmtv>...): return True` -- a handlers-loop-FIRST reordering of
+    `_match_try_handlers_arm` with a positional-gated inner arm."""
+    if len(arm_body) != 3:
+        return False
+    s0, s1, s2 = arm_body
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"
+            and _match_get_call(s0.get("value", {}), stmtv) == "handlers"):
+        return False
+    hvar_list = s0.get("target")
+    if not isinstance(hvar_list, str):
+        return False
+    if not (isinstance(s1, dict) and s1.get("stmt") == "For"
+            and _is_var(s1.get("iter"), hvar_list)):
+        return False
+    hvar = s1.get("target")
+    if not isinstance(hvar, str):
+        return False
+    lb = s1.get("body", [])
+    if len(lb) != 2:
+        return False
+    i0, i1 = lb
+    if not (isinstance(i0, dict) and i0.get("stmt") == "If" and not i0.get("orelse")
+            and _is_selfcall_like(i0.get("test", {}), hvar, names)):
+        return False
+    ib = i0.get("body", [])
+    if not (len(ib) == 1 and isinstance(ib[0], dict) and ib[0].get("stmt") == "If"
+            and not ib[0].get("orelse")
+            and _match_positional_guard(ib[0].get("test", {}), idxvar, subj)
+            and len(ib[0].get("body", [])) == 1 and _is_bool_true_return(ib[0]["body"][0])):
+        return False
+    if not (isinstance(i1, dict) and i1.get("stmt") == "If" and not i1.get("orelse")
+            and _is_selfcall_like(i1.get("test", {}), hvar, names)
+            and len(i1.get("body", [])) == 1 and _is_bool_true_return(i1["body"][0])):
+        return False
+    return (isinstance(s2, dict) and s2.get("stmt") == "If" and not s2.get("orelse")
+            and _is_selfcall_like(s2.get("test", {}), stmtv, names)
+            and len(s2.get("body", [])) == 1 and _is_bool_true_return(s2["body"][0]))
+
+
+def recognize_bool_earlyreturn(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the ENUMERATE positional-dispatch A-bool
+    statement-tree existence fold (`has_early_return`-shaped). See the
+    module comment above. Returns {subject, tags} (the `emit_bool_multiway_
+    group` descriptor, reused verbatim) or None. Never raises."""
+    try:
+        return _recognize_bool_earlyreturn(func)
+    except Exception:
+        return None
+
+
+def _recognize_bool_earlyreturn(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {})
+    if pa.get(subj) != "list":
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 2:
+        return None
+    loop, tail = body
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    idx_stmt = _match_enumerate_for(loop, subj)
+    if idx_stmt is None:
+        return None
+    idxvar, stmtv = idx_stmt
+    lbody = loop.get("body", [])
+    if len(lbody) < 2:
+        return None
+    a0 = lbody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and _match_get_call(a0.get("value", {}), stmtv) == "stmt"):
+        return None
+    stypev = a0.get("target")
+    if not isinstance(stypev, str):
+        return None
+    arms = _flatten_multiway_if_chain(lbody[1:])
+    if not arms:
+        return None
+    names: List[str] = []
+    tags: List[str] = []
+    for test, arm_body in arms:
+        arm_tags = _match_stype_tag_or_tags(test, stypev)
+        if not arm_tags:
+            return None
+        ok = (_match_multiway_arm_body(arm_body, stmtv, names)
+              or _match_earlyreturn_if_arm(arm_body, stmtv, idxvar, subj, names)
+              or _match_earlyreturn_try_arm(arm_body, stmtv, idxvar, subj, names))
+        if not ok:
+            return None
+        for t in arm_tags:
+            if t not in tags:
+                tags.append(t)
+    if not names:
+        return None
+    return {"subject": subj, "tags": tags}
+
+
+# =========================================================================
+# bigger-build G-set-accumulate-multiway — the Set[str] statement-tree
+# accumulate fold: the BY-RETURN sibling of `recognize_bool_existence`
+# (same `list pyval`/tag-dispatch/body-orelse-descend statement-tree shape)
+# whose result algebra is a returned `Set[str]` (the `recognize_setfold`
+# `map string bool` algebra) instead of `bool`. Reuses BOTH existing
+# machineries verbatim — no new WhyML theory, no new abstract op, no axiom:
+# the `pyval`/`pydict`/`size*` L1 theory (`needs_pydict`) and the purely-
+# defined `set_add`/`set_union` (`map string bool`) already certified by
+# `recognize_setfold`.
+#
+# Recognized shape (`find_lambda_vars`/`find_record_vars`):
+#     <acc> = set()
+#     for <stmt> in <stmts>:
+#         if <stmt>.get("stmt") == "<TAG>":              # optional add-arm
+#             <val> = <stmt>.get("value", {})
+#             if isinstance(<val>, dict) and <guards on val>:
+#                 <acc>.add(<stmt>.get("<addkey>", ""))
+#         for key in ("body", "orelse"):                  # required descend
+#             if key in <stmt> [and isinstance(<stmt>[key], list)]:
+#                 <acc> |= self(<stmt>[key][, extra...])
+#         if <stmt>.get("stmt") == "While": <acc> |= self(<stmt>.get("body", [])[, extra...])   # optional echo
+#         if <stmt>.get("stmt") == "For": <acc> |= self(<stmt>.get("body", [])[, extra...])      # optional echo
+#         if <stmt>.get("stmt") == "Match":                                                       # optional echo
+#             for c in <stmt>.get("cases", []): <acc> |= self(c.get("body", [])[, extra...])
+#     return <acc>
+#
+# Under `ensures True` (insight C, `recognize_bool_existence`'s doctrine) the
+# WhyML lowering does NOT need to replicate the selective body/orelse/cases
+# projection: the emitted catamorphism OR-unions (via `set_add`) the whole
+# `pydict` subtree (the proven `emit_bool_existence_group`/`emit_setfold_group`
+# walk), a superset of the Python recursion — the redundant While/For/Match
+# echo arms are then no-ops under the returned-value-unconstrained contract,
+# so the recognizer only needs to VALIDATE their presence (fail-closed: any
+# other trailing arm rejects), never re-derive their (redundant) contribution.
+# =========================================================================
+
+
+def _match_field_eq_guard(node: Any, valv: str) -> Optional[tuple]:
+    """`<valv>.get("<key>"[, default]) == "<lit>"` -> (key, lit) or None."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp" and node.get("op") == "=="):
+        return None
+    key = _match_get_call(node.get("left", {}), valv)
+    if key is None:
+        return None
+    lit = _is_string(node.get("right"))
+    if lit is None:
+        return None
+    return (key, lit)
+
+
+def _match_field_in_guard(node: Any, valv: str, extra: List[str]) -> Optional[tuple]:
+    """`<valv>.get("<key>"[, default]) in <extra_set_param>` -> (key, param) or
+    None. The right operand must be one of the threaded `set`-typed params."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp" and node.get("op") == "in"):
+        return None
+    key = _match_get_call(node.get("left", {}), valv)
+    if key is None:
+        return None
+    right = node.get("right", {})
+    if not (_is_var(right) and right.get("name") in extra):
+        return None
+    return (key, right.get("name"))
+
+
+def _match_self_pred_guard(node: Any, valv: str) -> Optional[str]:
+    """`self.<pred>(<valv>)` — an instance-method BOOLEAN guard over the
+    isinstance-narrowed value local (`self._rhs_yields_map(val)`). Returns the
+    predicate method tail (e.g. `"_rhs_yields_map"`) or None. The predicate is
+    modelled as an OPAQUE trusted bool over the value pyval — a legitimate
+    opaque-reader boundary (like `symtab_mem`/`csl_mutex_ast`), NOT an axiom —
+    so only the SHAPE (a self-method applied to exactly the narrowed local) is
+    validated, fail-closed. A sibling call with an extra arg, a non-`self`
+    receiver, or a different argument rejects."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return None
+    f = node.get("func")
+    if not isinstance(f, str) or not f.startswith("self."):
+        return None
+    args = node.get("args", [])
+    if len(args) != 1 or not _is_var(args[0], valv):
+        return None
+    meth = f[len("self."):]
+    return meth or None
+
+
+def _pred_whyml_name(n: str, meth: str) -> str:
+    """WhyML-safe opaque-predicate name for a `self.<meth>` guard, per method
+    group `n` (so distinct methods never collide)."""
+    return f"{n}__pred_" + "".join(c if c.isalnum() else "_" for c in meth)
+
+
+def _match_direct_add_expr(stmt: Any, acc: str, stmtv: str) -> Optional[str]:
+    """`<acc>.add(<stmtv>.get("<key>"[, default]))` as an ExprStmt -> key."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return None
+    call = stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add" and len(call.get("args", [])) == 1):
+        return None
+    return _match_get_call(call["args"][0], stmtv)
+
+
+def _match_stmt_arm_add_body(ibody: List[Any], stmtv: str, acc: str) -> Optional[str]:
+    """The add-arm inner body -> the literal add-key, for EITHER:
+      * direct    `[<acc>.add(<stmtv>.get("<key>"))]` (len 1), OR
+      * indirect  `[<tgt> = <stmtv>.get("<key>"[, def]); if <tgt>: <acc>.add(<tgt>)]`
+        (len 2) — a bind + truthiness-guard + add-of-local. Under `ensures True`
+        the `if <tgt>:` truthiness guard is subsumed by the emission's
+        `option`-match (an absent/empty key reads `None` -> `const false`
+        regardless), so only the SHAPE is validated and the bound local's
+        literal-key PROVENANCE (`<stmtv>.get("<key>")`) becomes the emitted add
+        source. Fail-closed."""
+    if len(ibody) == 1:
+        return _match_direct_add_expr(ibody[0], acc, stmtv)
+    if len(ibody) == 2:
+        asg, addif = ibody
+        if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+            return None
+        tgt = asg.get("target")
+        if not isinstance(tgt, str):
+            return None
+        key = _match_get_call(asg.get("value", {}), stmtv)
+        if key is None:
+            return None
+        if not (isinstance(addif, dict) and addif.get("stmt") == "If"
+                and not addif.get("orelse") and _is_var(addif.get("test"), tgt)):
+            return None
+        ab = addif.get("body", [])
+        if len(ab) != 1:
+            return None
+        a0 = ab[0]
+        if not (isinstance(a0, dict) and a0.get("stmt") == "Expr"):
+            return None
+        cv = a0.get("value", {})
+        if not (isinstance(cv, dict) and cv.get("type") == "Call"
+                and cv.get("func") == f"{acc}.add" and len(cv.get("args", [])) == 1
+                and _is_var(cv["args"][0], tgt)):
+            return None
+        return key
+    return None
+
+
+def _match_stmt_add_arm(stmt: Any, stmtv: str, acc: str,
+                        extra: List[str]) -> Optional[Dict[str, Any]]:
+    """Optional add-arm:
+        if <stmt>.get("stmt") == "<TAG>":
+            <val> = <stmt>.get("value", {})
+            if isinstance(<val>, dict) and <guards>:
+                <acc>.add(<stmt>.get("<addkey>"[, default]))
+    `<guards>` is a conjunction of one-or-more `<val>.get(k)==lit` (eq) /
+    `<val>.get(k) in <extra_set_param>` (in) tests, AND/OR an opaque
+    self-predicate `self.<pred>(<val>)` (`pred_guarded`, see
+    `_match_self_pred_guard`), in any mix. The add body is the direct
+    `<acc>.add(<stmt>.get(...))` OR the indirect
+    `<tgt> = <stmt>.get(...); if <tgt>: <acc>.add(<tgt>)` shape
+    (`_match_stmt_arm_add_body`). Returns
+    {outer_tag, val_local, guards: [(kind, key, lit_or_param)], add_key,
+    preds?: [meth]} or None (fail-closed)."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    outer_tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
+    if outer_tag is None:
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 2:
+        return None
+    asg = body[0]
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return None
+    valv = asg.get("target")
+    if not isinstance(valv, str):
+        return None
+    if _match_get_call(asg.get("value", {}), stmtv) != "value":
+        return None
+    inner = body[1]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If" and not inner.get("orelse")):
+        return None
+    conjuncts = _flatten_and(inner.get("test", {}))
+    saw_isinstance = False
+    guards: List[tuple] = []
+    preds: List[str] = []
+    for c in conjuncts:
+        if (isinstance(c, dict) and c.get("type") == "Call" and c.get("func") == "isinstance"
+                and len(c.get("args", [])) == 2 and _is_var(c["args"][0], valv)
+                and _is_var(c["args"][1], "dict")):
+            if saw_isinstance:
+                return None
+            saw_isinstance = True
+            continue
+        eq = _match_field_eq_guard(c, valv)
+        if eq is not None:
+            guards.append(("eq", eq[0], eq[1]))
+            continue
+        mem = _match_field_in_guard(c, valv, extra)
+        if mem is not None:
+            guards.append(("in", mem[0], mem[1]))
+            continue
+        pred = _match_self_pred_guard(c, valv)
+        if pred is not None:
+            preds.append(pred)
+            continue
+        return None
+    if not saw_isinstance or not (guards or preds):
+        return None
+    add_key = _match_stmt_arm_add_body(inner.get("body", []), stmtv, acc)
+    if add_key is None:
+        return None
+    desc = {"kind": "value_guarded", "outer_tag": outer_tag, "val_local": valv,
+            "guards": guards, "add_key": add_key}
+    if preds:
+        desc["preds"] = preds
+    return desc
+
+
+# ---- G-set-accumulate-simple: the CHAIN add-arm (`find_append_targets`) -----
+#
+# A second add-arm shape: instead of ONE nested value+isinstance+guards level
+# (`_match_stmt_add_arm`), the guard is a CHAIN of N literal-key `.get()`
+# projections, each re-bound to a fresh local and re-guarded (a field-equality
+# OR a string-method boolean test, e.g. `.endswith(".append")`), terminating
+# in `<acc>.add(<EXPR>)` where `<EXPR>` may be an arbitrary value TRANSFORM
+# (`.rsplit(...)[0].replace(...)`) of one of the chain's bound locals — under
+# `ensures True` (insight C, the doctrine this whole module applies
+# throughout: substmap's scope-cut note, `_match_pre_action_nested_field`'s
+# guard-narrowing, `_match_set_pre_action_tuple`'s `local_read` kind) the
+# EXACT string added is a value fact the certified contract does not need, so
+# the transform is DROPPED and the chain's OWN literal-key projection (the
+# local's PROVENANCE, traced back through the transform) becomes the emitted
+# add source. Reuses the identical per-key `pydict` readers and `set_add`
+# machinery as every other shape in this family — no new WhyML theory.
+
+_STR_BOOL_METHODS = {"endswith", "startswith"}
+
+
+def _match_method_bool_guard(node: Any, local: str) -> bool:
+    """`<local>.<endswith|startswith>("<lit>")` — a string-method boolean
+    guard. The literal argument and the boolean result are both value facts
+    `ensures True` does not need; only the SHAPE (which local it tests) is
+    validated, fail-closed."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return False
+    f = node.get("func")
+    if not isinstance(f, str) or "." not in f:
+        return False
+    recv, meth = f.rsplit(".", 1)
+    if recv != local or meth not in _STR_BOOL_METHODS:
+        return False
+    args = node.get("args", [])
+    return len(args) == 1 and _is_string(args[0]) is not None
+
+
+def _match_field_bind(stmt: Any) -> Optional[tuple]:
+    """`<name> = <parent>.get("<key>"[, default])` -> (name, parent, key) or
+    None. `<parent>` is a dotted-call receiver (a string PREFIX of the `func`
+    attribute, e.g. `"val.get"` -> receiver `"val"`), not a Var argument."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    name = stmt.get("target")
+    if not isinstance(name, str):
+        return None
+    val = stmt.get("value", {})
+    if not (isinstance(val, dict) and val.get("type") == "Call"):
+        return None
+    f = val.get("func")
+    if not isinstance(f, str) or not f.endswith(".get"):
+        return None
+    parent = f[:-len(".get")]
+    args = val.get("args", [])
+    if not args:
+        return None
+    key = _is_string(args[0])
+    if key is None:
+        return None
+    return (name, parent, key)
+
+
+def _collect_refs(node: Any, out: set) -> None:
+    """Recursively collect every Var name AND every dotted-call RECEIVER name
+    referenced anywhere in `node` (an arbitrary expression IR subtree). A
+    dotted-call receiver (e.g. `func` in `func.rsplit(...)`) is encoded as a
+    string PREFIX of the `func` attribute, not a separate Var node, so it
+    needs its own extraction alongside the plain Var case."""
+    if isinstance(node, dict):
+        if node.get("type") == "Var" and isinstance(node.get("name"), str):
+            out.add(node["name"])
+        f = node.get("func")
+        if isinstance(f, str) and "." in f:
+            out.add(f.rsplit(".", 1)[0])
+        for v in node.values():
+            _collect_refs(v, out)
+    elif isinstance(node, list):
+        for x in node:
+            _collect_refs(x, out)
+
+
+def _refs_single_root(expr: Any, paths: Dict[str, List[str]],
+                      stmtv: str) -> Optional[List[str]]:
+    """Trace `expr` (a value TRANSFORM, e.g. `arr_name.replace(".", "_")`)
+    back to the SINGLE chain-bound local (or `stmtv` itself) it is built
+    from — every Var/receiver referenced in `expr` must resolve to the SAME
+    field-path, else ambiguous (fail-closed). Returns that field path (the
+    ordered list of literal keys from `stmtv`), or None."""
+    names: set = set()
+    _collect_refs(expr, names)
+    resolved: set = set()
+    for nm in names:
+        if nm == stmtv:
+            resolved.add(())
+        elif nm in paths:
+            resolved.add(tuple(paths[nm]))
+        else:
+            return None
+    if len(resolved) != 1:
+        return None
+    return list(next(iter(resolved)))
+
+
+def _match_chain_add_arm(stmt: Any, stmtv: str, acc: str) -> Optional[Dict[str, Any]]:
+    """CHAIN add-arm (`find_append_targets` shape):
+        if <stmt-tag-test>:
+            <l1> = <stmtv-or-local>.get("<k1>"[, default])
+            if <field-eq guard on l1> | <method-bool guard on l1>:
+                <l2> = <l1>.get("<k2>"[, default])
+                if <guard on l2>:
+                    ...
+                    [<transform> = <expr over ONE bound local>]   # optional
+                    <acc>.add(<expr over ONE bound local>)
+    Returns {kind: "chain", outer_tag, field_path: [k1, k2, ...]} — the
+    literal-key projection chain from `stmtv` down to the local whose
+    PROVENANCE the (possibly transformed) add argument traces to — or None
+    (fail-closed)."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    outer_tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
+    if outer_tag is None:
+        return None
+    paths: Dict[str, List[str]] = {}
+    cur = stmt.get("body", [])
+    while len(cur) == 2:
+        bind = _match_field_bind(cur[0])
+        guardif = cur[1]
+        if bind is None or not (isinstance(guardif, dict) and guardif.get("stmt") == "If"
+                                and not guardif.get("orelse")):
+            break
+        name, parent, key = bind
+        if parent == stmtv:
+            base: List[str] = []
+        elif parent in paths:
+            base = paths[parent]
+        else:
+            return None
+        guard = guardif.get("test", {})
+        if not (_match_field_eq_guard(guard, name) is not None
+                or _match_method_bool_guard(guard, name)):
+            return None
+        paths[name] = base + [key]
+        cur = guardif.get("body", [])
+    # terminal body: an OPTIONAL single transform-Assign, then the add call.
+    idx = 0
+    if len(cur) >= 1 and isinstance(cur[0], dict) and cur[0].get("stmt") == "Assign":
+        tname = cur[0].get("target")
+        troot = _refs_single_root(cur[0].get("value"), paths, stmtv)
+        if isinstance(tname, str) and troot is not None:
+            paths[tname] = troot
+            idx = 1
+    if len(cur) != idx + 1:
+        return None
+    addstmt = cur[idx]
+    if not (isinstance(addstmt, dict) and addstmt.get("stmt") == "Expr"):
+        return None
+    call = addstmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add" and len(call.get("args", [])) == 1):
+        return None
+    add_path = _refs_single_root(call["args"][0], paths, stmtv)
+    if not add_path:
+        return None
+    return {"kind": "chain", "outer_tag": outer_tag, "field_path": add_path}
+
+
+# ---- G-set-accumulate-elif-chain (`find_ghost_vars`) ------------------------
+#
+# A third loop-body shape: instead of an optional add-arm followed by an
+# UNCONDITIONAL descend-loop over `("body", "orelse")` (the shape above), the
+# ENTIRE loop body is a single right-leaning If/orelse ELIF CHAIN — one tag
+# per leaf, EXACTLY ONE leaf is the add-arm (`<acc>.add(<field-ref>)`, a
+# direct Subscript/`.get()` projection, no value-nesting), every OTHER leaf is
+# a descend-arm (1+ self-recursive union statements), and unmatched tags fall
+# through a terminal empty `orelse` (a no-op). Both syntactic union forms
+# Python offers are accepted: `<acc> |= <self>(...)` (AugAssign) AND
+# `<acc>.update(<self>(...))` (a method-call ExprStmt) — `set.update(x)` and
+# `set |= x` are semantically identical, so both lower to the same
+# `set_union`. Under `ensures True` the emitted full-subtree OR-union
+# catamorphism (identical to the shape above) is a sound SUPERSET of
+# whichever fields each leaf selectively recurses into, so the descend
+# leaves are only VALIDATED (fail-closed shape check), never individually
+# replayed — no new WhyML theory, the SAME `n__d`/`n__v` walk emits both
+# shapes.
+
+def _match_field_ref(node: Any, subj: str) -> Optional[str]:
+    """`<subj>[<lit>]` (Subscript) or `<subj>.get(<lit>[, default])` (Call) ->
+    the literal key, else None. Both syntactic forms project the same field."""
+    key = _match_subscript_str(node, subj)
+    if key is not None:
+        return key
+    return _match_get_call(node, subj)
+
+
+def _match_elif_union_stmt(stmt: Any, stmtv: str, acc: str, fname: str,
+                           extra: List[str]) -> bool:
+    """`<acc> |= <self>(<field-ref>[, extra...])` OR
+    `<acc>.update(<self>(<field-ref>[, extra...]))` — the two syntactic forms
+    Python offers for set union-accumulation; both are accepted (same
+    `set_union` semantics)."""
+    call = None
+    if (isinstance(stmt, dict) and stmt.get("stmt") == "AugAssign"
+            and stmt.get("target") == acc and stmt.get("op") == "|"):
+        call = stmt.get("value", {})
+    elif isinstance(stmt, dict) and stmt.get("stmt") == "Expr":
+        v = stmt.get("value", {})
+        if (isinstance(v, dict) and v.get("type") == "Call"
+                and v.get("func") == f"{acc}.update" and len(v.get("args", [])) == 1):
+            call = v["args"][0]
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return False
+    cf = call.get("func")
+    if not isinstance(cf, str) or _canon_call(cf) != fname:
+        return False
+    args = call.get("args", [])
+    if len(args) != 1 + len(extra):
+        return False
+    if not all(_is_var(args[1 + i], e) for i, e in enumerate(extra)):
+        return False
+    return _match_field_ref(args[0], stmtv) is not None
+
+
+def _match_elif_add_body(body: Any, stmtv: str, acc: str) -> Optional[str]:
+    """A leaf's body is exactly `<acc>.add(<field-ref-on-stmt>)`."""
+    if not (isinstance(body, list) and len(body) == 1):
+        return None
+    st0 = body[0]
+    if not (isinstance(st0, dict) and st0.get("stmt") == "Expr"):
+        return None
+    call = st0.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add" and len(call.get("args", [])) == 1):
+        return None
+    return _match_field_ref(call["args"][0], stmtv)
+
+
+def _match_elif_descend_body(body: Any, stmtv: str, acc: str, fname: str,
+                             extra: List[str]) -> bool:
+    """A leaf's body is 1+ self-recursive union statements (any mix of the
+    two syntactic forms), and nothing else."""
+    return bool(body) and all(_match_elif_union_stmt(st, stmtv, acc, fname, extra)
+                              for st in body)
+
+
+def _match_elif_chain(node: Any, stmtv: str, acc: str, fname: str,
+                      extra: List[str]) -> Optional[Dict[str, Any]]:
+    """Parse a right-leaning If/orelse elif-chain. Exactly ONE leaf is the
+    add-arm; every other leaf is a descend-arm; every tag is distinct; the
+    chain must terminate in an empty `orelse` (fail-closed — no unrecognized
+    tail action). Returns {kind: "direct", outer_tag, add_key} or None."""
+    add: Optional[tuple] = None
+    seen_tags: set = set()
+    cur = node
+    while True:
+        if not (isinstance(cur, dict) and cur.get("stmt") == "If"):
+            return None
+        tag = _match_stmt_tag_test(cur.get("test", {}), stmtv)
+        if tag is None or tag in seen_tags:
+            return None
+        seen_tags.add(tag)
+        body = cur.get("body", [])
+        add_key = _match_elif_add_body(body, stmtv, acc)
+        if add_key is not None:
+            if add is not None:
+                return None
+            add = (tag, add_key)
+        elif not _match_elif_descend_body(body, stmtv, acc, fname, extra):
+            return None
+        orelse = cur.get("orelse", [])
+        if not orelse:
+            break
+        if len(orelse) != 1:
+            return None
+        cur = orelse[0]
+    if add is None:
+        return None
+    return {"kind": "direct", "outer_tag": add[0], "add_key": add[1]}
+
+
+def _match_stmt_union_call(node: Any, acc: str, fname: str, extra: List[str]) -> Optional[List[Any]]:
+    """`<self>(<arg0>[, extra...])` as a Call value -> its args list, or None
+    (does not check `arg0`'s own shape — the caller does). `<self>` resolves to
+    this same function via `_call_is_self`: the module-level bare name, the
+    class-qualified static call, OR the instance-method `self.<meth>`
+    self-recursion (the emitted name is `<class>__<meth>`). The `self.` arm lets
+    an INSTANCE-method stmt-fold (`_collect_dict_var_assigns`) match, where the
+    prior bare-`_canon_call` equality only covered `@staticmethod` folds."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return None
+    cf = node.get("func")
+    if not isinstance(cf, str) or not _call_is_self(cf, fname):
+        return None
+    args = node.get("args", [])
+    if len(args) != 1 + len(extra):
+        return None
+    if not all(_is_var(args[1 + i], e) for i, e in enumerate(extra)):
+        return None
+    return args
+
+
+def _match_stmt_descend_loop(node: Any, stmtv: str, acc: str, fname: str,
+                             extra: List[str]) -> bool:
+    """Required descend-arm:
+        for key in ("body", "orelse"):
+            if key in <stmt> [and isinstance(<stmt>[key], list)]:
+                <acc> |= self(<stmt>[key][, extra...])"""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return False
+    it = node.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Tuple"):
+        return False
+    if [_is_string(e) for e in it.get("elts", [])] != ["body", "orelse"]:
+        return False
+    keyv = node.get("target")
+    lb = node.get("body", [])
+    if len(lb) != 1:
+        return False
+    iff = lb[0]
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If" and not iff.get("orelse")):
+        return False
+    conjuncts = _flatten_and(iff.get("test", {}))
+    c0 = conjuncts[0]
+    if not (isinstance(c0, dict) and c0.get("type") == "BinOp" and c0.get("op") == "in"
+            and _is_var(c0.get("left"), keyv) and _is_var(c0.get("right"), stmtv)):
+        return False
+    if len(conjuncts) == 2:
+        c1 = conjuncts[1]
+        if not (isinstance(c1, dict) and c1.get("type") == "Call" and c1.get("func") == "isinstance"
+                and len(c1.get("args", [])) == 2 and _is_var(c1["args"][1], "list")):
+            return False
+        sub = c1["args"][0]
+        if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+                and _is_var(sub.get("value"), stmtv) and _is_var(sub.get("index"), keyv)):
+            return False
+    elif len(conjuncts) != 1:
+        return False
+    body = iff.get("body", [])
+    if len(body) != 1:
+        return False
+    aug = body[0]
+    if not (isinstance(aug, dict) and aug.get("stmt") == "AugAssign"
+            and aug.get("target") == acc and aug.get("op") == "|"):
+        return False
+    args = _match_stmt_union_call(aug.get("value", {}), acc, fname, extra)
+    if args is None:
+        return False
+    arg0 = args[0]
+    return (isinstance(arg0, dict) and arg0.get("type") == "Subscript"
+            and _is_var(arg0.get("value"), stmtv) and _is_var(arg0.get("index"), keyv))
+
+
+def _match_union_rec_field(stmt0: Any, acc: str, fname: str, extra: List[str],
+                           srcvar: str, key: str) -> bool:
+    """`<acc> |= self(<srcvar>.get("<key>"[, default])[, extra...])`."""
+    if not (isinstance(stmt0, dict) and stmt0.get("stmt") == "AugAssign"
+            and stmt0.get("target") == acc and stmt0.get("op") == "|"):
+        return False
+    args = _match_stmt_union_call(stmt0.get("value", {}), acc, fname, extra)
+    if args is None:
+        return False
+    return _match_get_call(args[0], srcvar) == key
+
+
+def _match_echo_arm(stmt: Any, stmtv: str, acc: str, fname: str,
+                    extra: List[str]) -> Optional[str]:
+    """Optional REDUNDANT (under `ensures True`) echo-arm — recognized so the
+    matcher fail-closes on anything ELSE trailing the loop, never to re-derive
+    its (already-covered-by-the-full-subtree-walk) contribution:
+        if <stmt>.get("stmt") == "While": <acc> |= self(<stmt>.get("body", [])[, extra...])
+        if <stmt>.get("stmt") == "For": <acc> |= self(<stmt>.get("body", [])[, extra...])
+        if <stmt>.get("stmt") == "Match":
+            for c in <stmt>.get("cases", []): <acc> |= self(c.get("body", [])[, extra...])
+        if <stmt>.get("stmt") == "Try":
+            for h in <stmt>.get("handlers", []): <acc> |= self(h.get("body", [])[, extra...])
+    Returns the matched tag or None. The `Try`/handlers walk is redundant with
+    the general full-subtree `n__d`/`n__v` OR-walk (which already descends into
+    the `handlers` list and each handler's `body`), so it is validated as SHAPE
+    ONLY and contributes nothing to emission — exactly like the `Match`/cases
+    arm."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
+    if tag is None:
+        return None
+    body = stmt.get("body", [])
+    if tag in ("Match", "Try"):
+        elem_key = "cases" if tag == "Match" else "handlers"
+        if len(body) != 1:
+            return None
+        loop = body[0]
+        if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
+            return None
+        if _match_get_call(loop.get("iter", {}), stmtv) != elem_key:
+            return None
+        cvar = loop.get("target")
+        lb = loop.get("body", [])
+        if not isinstance(cvar, str) or len(lb) != 1:
+            return None
+        return tag if _match_union_rec_field(lb[0], acc, fname, extra, cvar, "body") else None
+    if len(body) != 1:
+        return None
+    return tag if _match_union_rec_field(body[0], acc, fname, extra, stmtv, "body") else None
+
+
+# ---- G-set-accumulate-trywalk (`collect_user_exceptions`) -------------------
+#
+# A fourth loop-body shape: after the optional simple add-arm, an OPTIONAL
+# additional arm gated on a distinct tag whose body is `for <h> in
+# <stmtv>.get("<key>", []): <exc-split-add chain>; <acc> |= self(<h>.get("<key2>",
+# [])[, extra...])` — i.e. a nested per-element walk (over e.g. a `Try`'s
+# `handlers` list) that both (a) ADDS a value derived from a nested field
+# (`h.get("exc_type")`, split/stripped into pieces) and (b) self-recurses into
+# a nested field of each element (`h.get("body")`). Under `ensures True`
+# neither needs separate emission: (a) is a value fact the certified contract
+# does not need (same scope-cut doctrine as the chain add-arm's dropped
+# transform — insight C), and (b) is already a SOUND SUPERSET of what the
+# standard full-subtree `n__d`/`n__v` OR-walk covers (it descends into EVERY
+# dict field, including a nested list-of-dicts under an arbitrary key, so the
+# handler-body recursion is redundant with the general walk exactly like an
+# echo-arm's contribution). So this arm is validated as SHAPE ONLY
+# (fail-closed) and contributes NOTHING to `emit_stmt_setfold_group` beyond
+# what the existing `direct`/`chain`/`value_guarded` pre-action (from the
+# arm ahead of it) already emits — no new WhyML theory, no new pre_action
+# kind, no new reader.
+
+def _match_stmt_direct_add_arm(stmt: Any, stmtv: str, acc: str) -> Optional[Dict[str, Any]]:
+    """Simple compound-guarded add-arm (`collect_user_exceptions`'s first
+    arm):
+        if <stmtv>.get("stmt") == "<TAG>" and <stmtv>.get("<key>"):
+            <acc>.add(<field-ref-on-stmt>)
+    (Subscript or `.get()` field-ref, either syntactic form.) The truthy
+    second conjunct is a value fact already subsumed by the `direct`
+    emission's `option`-match (an absent/falsy key reads `None` -> `const
+    false` regardless), so only the SHAPE — including that the truthy-tested
+    key equals the add source — is validated. Returns {kind: "direct",
+    outer_tag, add_key} or None (fail-closed)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return None
+    conjuncts = _flatten_and(stmt.get("test", {}))
+    if len(conjuncts) != 2:
+        return None
+    tag = _match_stmt_tag_test(conjuncts[0], stmtv)
+    if tag is None:
+        return None
+    truthy_key = _match_field_ref(conjuncts[1], stmtv)
+    if truthy_key is None:
+        return None
+    add_key = _match_elif_add_body(stmt.get("body", []), stmtv, acc)
+    if add_key is None or add_key != truthy_key:
+        return None
+    return {"kind": "direct", "outer_tag": tag, "add_key": add_key}
+
+
+def _match_trywalk_exc_block(assign: Any, ifblock: Any, hvar: str, acc: str) -> bool:
+    """`<v> = <hvar>.get("<key>"); if <v>: for <ep> in <v>.split("<sep>"):
+        <ep> = <ep>.strip(); if <ep>: <acc>.add(<ep>)` — a value-DROPPED
+    split/strip/truthy-add chain (the exact pieces are a value fact `ensures
+    True` does not need); only the SHAPE is validated, fail-closed."""
+    if not (isinstance(assign, dict) and assign.get("stmt") == "Assign"):
+        return False
+    v = assign.get("target")
+    if not isinstance(v, str) or v in (hvar, acc):
+        return False
+    if _match_get_call(assign.get("value", {}), hvar) is None:
+        return False
+    if not (isinstance(ifblock, dict) and ifblock.get("stmt") == "If" and not ifblock.get("orelse")):
+        return False
+    if not _is_var(ifblock.get("test"), v):
+        return False
+    ibody = ifblock.get("body", [])
+    if len(ibody) != 1:
+        return False
+    loop = ibody[0]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For" and not loop.get("orelse")):
+        return False
+    it = loop.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call" and it.get("func") == f"{v}.split"
+            and len(it.get("args", [])) == 1 and _is_string(it["args"][0]) is not None):
+        return False
+    epvar = loop.get("target")
+    lb2 = loop.get("body", [])
+    if not isinstance(epvar, str) or epvar in (v, hvar, acc) or len(lb2) != 2:
+        return False
+    stripasg, addif = lb2
+    if not (isinstance(stripasg, dict) and stripasg.get("stmt") == "Assign"
+            and stripasg.get("target") == epvar):
+        return False
+    sv = stripasg.get("value", {})
+    if not (isinstance(sv, dict) and sv.get("type") == "Call" and sv.get("func") == f"{epvar}.strip"
+            and not sv.get("args")):
+        return False
+    if not (isinstance(addif, dict) and addif.get("stmt") == "If" and not addif.get("orelse")):
+        return False
+    if not _is_var(addif.get("test"), epvar):
+        return False
+    ab = addif.get("body", [])
+    if len(ab) != 1:
+        return False
+    a0 = ab[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Expr"):
+        return False
+    call = a0.get("value", {})
+    return (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add" and len(call.get("args", [])) == 1
+            and _is_var(call["args"][0], epvar))
+
+
+def _match_stmt_trywalk_arm(stmt: Any, stmtv: str, acc: str, fname: str,
+                            extra: List[str]) -> Optional[str]:
+    """Optional trywalk-arm:
+        if <stmtv>.get("stmt") == "<TAG>":
+            for <h> in <stmtv>.get("<key1>", []):
+                <exc-split-add chain>            # _match_trywalk_exc_block
+                <acc> |= self(<h>.get("<key2>", [])[, extra...])
+    Every key (`TAG`, `key1`, `key2`) is read off the IR, not hardcoded.
+    Returns the matched tag or None (fail-closed)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
+    if tag is None:
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return None
+    loop = body[0]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For" and not loop.get("orelse")):
+        return None
+    if _match_get_call(loop.get("iter", {}), stmtv) is None:
+        return None
+    hvar = loop.get("target")
+    if not isinstance(hvar, str) or hvar in (acc, stmtv) or hvar in extra:
+        return None
+    lb = loop.get("body", [])
+    if len(lb) != 3:
+        return None
+    assign, ifblock, unionstmt = lb
+    if not _match_trywalk_exc_block(assign, ifblock, hvar, acc):
+        return None
+    if not (isinstance(unionstmt, dict) and unionstmt.get("stmt") == "AugAssign"
+            and unionstmt.get("target") == acc and unionstmt.get("op") == "|"):
+        return None
+    uargs = _match_stmt_union_call(unionstmt.get("value", {}), acc, fname, extra)
+    if uargs is None:
+        return None
+    if _match_get_call(uargs[0], hvar) is None:
+        return None
+    return tag
+
+
+# ---- G-set-accumulate CTOR-MEMBERSHIP add-arm (`_collect_variant_var_assigns`)
+#
+# A third add-arm shape whose guard is a self-dict MEMBERSHIP over an interned
+# field-name payload, expressed as a boolean local `is_ctor` bound to a
+# DISJUNCTION of `(<val>.get("<tagkey>")=="<TAG>" and <val>.get("<memkey>") in
+# <ctorsvar>)` clauses, where `<ctorsvar>` is a local bound in the method PREFIX
+# to `getattr(self, "<field>", {})` (the self dict). The membership lowers to an
+# OPAQUE `val function <field>_mem (k: string) : bool` over the read field-name
+# string — a legitimate boundary reader (the `symtab_mem`/`_pred` opaque
+# pattern), NOT an axiom, and NOT int-erased: the fold still reads the interned
+# `<memkey>` payload string and gates the `set_add name` on the opaque
+# membership predicate. Under `ensures True` the tag-eq is a pure boolean gate on
+# WHICH names are added (the same insight-C scope-cut doctrine as every other
+# shape here); the added name is the interned `stmt.get("<addkey>")` string, read
+# faithfully into `SCons name`. Fail-closed exactly as the other arms.
+
+
+def _flatten_or(node: Any) -> List[Any]:
+    """Left-associatively flatten an `or`-tree into its disjunct list."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"):
+        return _flatten_or(node.get("left")) + _flatten_or(node.get("right"))
+    return [node]
+
+
+def _match_getattr_bind(stmt: Any) -> Optional[tuple]:
+    """`<lv> = getattr(self, "<field>"[, default])` -> (lv, field) or None.
+    The self-dict field bind whose local aliases a `self.<field>` dict."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    lv = stmt.get("target")
+    if not isinstance(lv, str):
+        return None
+    val = stmt.get("value", {})
+    if not (isinstance(val, dict) and val.get("type") == "Call"
+            and val.get("func") == "getattr"):
+        return None
+    args = val.get("args", [])
+    if len(args) < 2 or not _is_var(args[0], "self"):
+        return None
+    field = _is_string(args[1])
+    if field is None:
+        return None
+    return (lv, field)
+
+
+def _match_setinit(stmt: Any) -> Optional[str]:
+    """`<acc> = set()` -> acc or None (the fresh returned-set accumulator)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    acc = stmt.get("target")
+    if not isinstance(acc, str):
+        return None
+    iv = stmt.get("value")
+    if not (isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    return acc
+
+
+def _match_early_exit(stmt: Any, acc: str) -> bool:
+    """`if <test>: return <acc>` (no else) — the no-op guard-return prefix that
+    returns the STILL-EMPTY accumulator early. Recognised + SKIPPED: at prefix
+    position `acc` is provably the empty `set()` (the loop is the only mutator),
+    so dropping it yields a model that folds over the full domain (a superset)
+    — sound under the `ensures True` type-safety-only contract, the same
+    insight-C scope-cut doctrine as every other shape here. Fail-closed: the
+    body MUST be exactly `return <acc>` (any other early-return value rejects)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"):
+        return False
+    if stmt.get("orelse"):
+        return False
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return False
+    r = body[0]
+    return (isinstance(r, dict) and r.get("stmt") == "Return"
+            and _is_var(r.get("value"), acc))
+
+
+def _match_field_selfmem_guard(node: Any, valv: str,
+                               ctors_fields: Dict[str, str]) -> Optional[tuple]:
+    """`<valv>.get("<memkey>") in <ctorsvar>` -> (memkey, field) or None, where
+    `<ctorsvar>` is a getattr-bound self-dict local (in `ctors_fields`)."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "in"):
+        return None
+    key = _match_get_call(node.get("left", {}), valv)
+    if key is None:
+        return None
+    right = node.get("right", {})
+    if not (_is_var(right) and right.get("name") in ctors_fields):
+        return None
+    return (key, ctors_fields[right.get("name")])
+
+
+def _match_ctor_clause(node: Any, valv: str,
+                       ctors_fields: Dict[str, str]) -> Optional[tuple]:
+    """`<valv>.get("<tagkey>")=="<TAG>" and <valv>.get("<memkey>") in <ctorsvar>`
+    -> (tag_key, tag_val, mem_key, field) or None (fail-closed)."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "and"):
+        return None
+    eq = _match_field_eq_guard(node.get("left", {}), valv)
+    if eq is None:
+        return None
+    mem = _match_field_selfmem_guard(node.get("right", {}), valv, ctors_fields)
+    if mem is None:
+        return None
+    return (eq[0], eq[1], mem[0], mem[1])
+
+
+def _match_ctor_disjunction(node: Any, valv: str,
+                            ctors_fields: Dict[str, str]) -> Optional[List[tuple]]:
+    """A non-empty `or`-tree of ctor clauses (`_match_ctor_clause`) or None."""
+    clauses: List[tuple] = []
+    for d in _flatten_or(node):
+        c = _match_ctor_clause(d, valv, ctors_fields)
+        if c is None:
+            return None
+        clauses.append(c)
+    return clauses or None
+
+
+def _match_stmt_ctor_membership_arm(stmt: Any, stmtv: str, acc: str,
+                                    ctors_fields: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    """Optional CTOR-MEMBERSHIP add-arm:
+        if <stmt>.get("stmt") == "<TAG>":
+            <val> = <stmt>.get("value", {})
+            if isinstance(<val>, dict):
+                <ctorvar> = (<clause> or <clause> or ...)   # ctor disjunction
+                if <ctorvar>:
+                    <tgt> = <stmt>.get("<addkey>", "")
+                    if <tgt>: <acc>.add(<tgt>)
+    Returns {kind:"ctor_membership", outer_tag, val_local, clauses, add_key} or
+    None (fail-closed). Requires `ctors_fields` non-empty (a getattr self-dict
+    bind must be in scope) — so a method without the prefix never matches."""
+    if not ctors_fields:
+        return None
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    outer_tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
+    if outer_tag is None:
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 2:
+        return None
+    asg = body[0]
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return None
+    valv = asg.get("target")
+    if not isinstance(valv, str):
+        return None
+    if _match_get_call(asg.get("value", {}), stmtv) != "value":
+        return None
+    inner = body[1]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"
+            and not inner.get("orelse")):
+        return None
+    it = inner.get("test", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "isinstance" and len(it.get("args", [])) == 2
+            and _is_var(it["args"][0], valv) and _is_var(it["args"][1], "dict")):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 2:
+        return None
+    cas = ibody[0]
+    if not (isinstance(cas, dict) and cas.get("stmt") == "Assign"):
+        return None
+    ctorvar = cas.get("target")
+    if not isinstance(ctorvar, str):
+        return None
+    clauses = _match_ctor_disjunction(cas.get("value", {}), valv, ctors_fields)
+    if clauses is None:
+        return None
+    addif = ibody[1]
+    if not (isinstance(addif, dict) and addif.get("stmt") == "If"
+            and not addif.get("orelse") and _is_var(addif.get("test"), ctorvar)):
+        return None
+    add_key = _match_stmt_arm_add_body(addif.get("body", []), stmtv, acc)
+    if add_key is None:
+        return None
+    return {"kind": "ctor_membership", "outer_tag": outer_tag,
+            "val_local": valv, "clauses": clauses, "add_key": add_key}
+
+
+def _selfmem_whyml_name(n: str, field: str) -> str:
+    """WhyML-safe opaque self-dict membership predicate name for `field`."""
+    return f"{n}__mem_" + "".join(c if c.isalnum() else "_" for c in field)
+
+
+def recognize_stmt_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the G-set-accumulate-multiway statement-tree
+    Set[str] fold (see the module note above). Returns
+    {subject, acc_local, extra_params, stmtvar, pre_action|None} or None.
+    Never raises."""
+    try:
+        return _recognize_stmt_setfold(func)
+    except Exception:
+        return None
+
+
+def _recognize_stmt_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if not params:
+        return None
+    subj = params[0]
+    extra = params[1:]
+    pa = func.get("param_annotations", {})
+    if pa.get(subj) != "list":
+        return None
+    for e in extra:
+        if pa.get(e) != "set":
+            return None
+    if func.get("return_annotation") != "set":
+        return None
+    fname = func["name"]
+
+    body = func.get("body", [])
+    if len(body) < 3:
+        return None
+    # The tail is always `<loop>; return <acc>`; the head is a bounded PREFIX of
+    # {the `<acc> = set()` init, optional `getattr(self,"<field>",{})` self-dict
+    # binds, optional no-op early-exit guard-returns} in any order (init before
+    # any early-exit). A method with NO prefix beyond the init reduces EXACTLY to
+    # the historical 3-statement shape (byte-additive for every existing
+    # consumer). See the ctor-membership module note above.
+    loop, ret = body[-2], body[-1]
+    prefix = body[:-2]
+    acc: Optional[str] = None
+    ctors_fields: Dict[str, str] = {}
+    for st in prefix:
+        si = _match_setinit(st)
+        if si is not None:
+            if acc is not None:
+                return None
+            acc = si
+            continue
+        ga = _match_getattr_bind(st)
+        if ga is not None:
+            ctors_fields[ga[0]] = ga[1]
+            continue
+        if acc is not None and _match_early_exit(st, acc):
+            continue
+        return None
+    if acc is None or acc == subj or acc in extra:
+        return None
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), acc)):
+        return None
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and not loop.get("orelse") and _is_var(loop.get("iter"), subj)):
+        return None
+    stmtv = loop.get("target")
+    if not isinstance(stmtv, str) or stmtv in (acc, subj) or stmtv in extra:
+        return None
+    lbody = list(loop.get("body", []))
+    if not lbody:
+        return None
+
+    # Elif-chain loop body (`find_ghost_vars`): the WHOLE loop body is one
+    # If/orelse chain (add-arm + descend-arms fused, no separate unconditional
+    # descend-loop). Tried first since it consumes ALL of `lbody` at once.
+    if len(lbody) == 1 and isinstance(lbody[0], dict) and lbody[0].get("stmt") == "If":
+        chain = _match_elif_chain(lbody[0], stmtv, acc, fname, extra)
+        if chain is not None:
+            return {"subject": subj, "acc_local": acc, "extra_params": extra,
+                    "stmtvar": stmtv, "pre_action": chain}
+
+    pre = None
+    idx = 0
+    maybe_pre = _match_stmt_add_arm(lbody[0], stmtv, acc, extra)
+    if maybe_pre is None:
+        maybe_pre = _match_chain_add_arm(lbody[0], stmtv, acc)
+    if maybe_pre is None:
+        maybe_pre = _match_stmt_direct_add_arm(lbody[0], stmtv, acc)
+    if maybe_pre is None:
+        maybe_pre = _match_stmt_ctor_membership_arm(lbody[0], stmtv, acc, ctors_fields)
+    if maybe_pre is not None:
+        pre = maybe_pre
+        idx = 1
+
+    # Optional trywalk-arm (`collect_user_exceptions`): a nested per-handler
+    # walk between the simple add-arm and the required body/orelse descend
+    # loop. Validated as SHAPE ONLY — see the G-set-accumulate-trywalk note
+    # above — and contributes no separate emission.
+    if idx < len(lbody) and _match_stmt_trywalk_arm(lbody[idx], stmtv, acc, fname, extra) is not None:
+        idx += 1
+
+    if idx >= len(lbody) or not _match_stmt_descend_loop(lbody[idx], stmtv, acc, fname, extra):
+        return None
+    idx += 1
+
+    seen_echo_tags: set = set()
+    while idx < len(lbody):
+        tag = _match_echo_arm(lbody[idx], stmtv, acc, fname, extra)
+        if tag is None or tag in seen_echo_tags:
+            return None
+        seen_echo_tags.add(tag)
+        idx += 1
+
+    return {"subject": subj, "acc_local": acc, "extra_params": extra,
+            "stmtvar": stmtv, "pre_action": pre}
+
+
+def emit_stmt_setfold_group(func: Dict[str, Any], desc: Dict[str, Any],
+                            whyml_ident, top_ensures: Optional[List[str]] = None) -> List[str]:
+    """Emit the G-set-accumulate-multiway Set[str] statement-tree fold for a
+    recognized closure. Reuses the certified `pyval`/`pydict`/`size*` L1 theory
+    and the purely-defined `set_add`/`set_union` `map string bool` algebra
+    (`recognize_setfold`'s machinery) — a full-subtree OR-union catamorphism
+    over `stmts: list pyval` (the `emit_bool_existence_group` walk shape,
+    congruent modulo the `bool`->`map string bool`/`||`->`set_union` algebra
+    swap), with an inlined pre-action reading the recognized add-arm's guards
+    off the matched `PDict`. NO new WhyML theory, no new abstract op, no axiom."""
+    n = whyml_ident(func["name"])
+    extra = desc["extra_params"]
+    pre = desc["pre_action"]
+    extra_sig = "".join(f" ({whyml_ident(e)}: map string bool)" for e in extra)
+    extra_args = "".join(f" {whyml_ident(e)}" for e in extra)
+    out: List[str] = []
+    _te = list(top_ensures or ["true"])
+
+    reader_names: Dict[str, str] = {}
+    # Opaque self-predicate declarations (`val function ... : bool`), prepended
+    # to the group so they precede their use. Empty unless the add-arm carries a
+    # `self.<pred>(val)` guard — keeps the emission byte-additive for every
+    # existing (non-predicate) consumer.
+    _pred_decls: List[str] = []
+
+    def _emit_reader(key: str) -> str:
+        if key in reader_names:
+            return reader_names[key]
+        rname = f"{n}__get_{_reader_suffix(key)}"
+        reader_names[key] = rname
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if key in _NAMED_KEYS:
+            out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        else:
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        out.append("    end")
+        return rname
+
+    if pre is not None and pre.get("kind") == "direct":
+        # find_ghost_vars elif-chain shape: `<acc>.add(<field-ref-on-stmt>)`,
+        # no value-nesting, no guards — the simplest add-arm in the family.
+        _emit_reader("stmt")
+        _emit_reader(pre["add_key"])
+        stmtr = reader_names["stmt"]
+        addr = reader_names[pre["add_key"]]
+        out.append(f"  let {n}__pre (d: pydict){extra_sig} : map string bool")
+        out.append(f"  = match {stmtr} d with")
+        out.append("    | Some (PStr tg0) ->")
+        out.append(f'        if pystr_eq tg0 "{pre["outer_tag"]}" then')
+        out.append(f"          (match {addr} d with")
+        out.append("           | Some (PStr t) -> set_add (const false) t")
+        out.append("           | _ -> const false end)")
+        out.append("        else const false")
+        out.append("    | _ -> const false end")
+    elif pre is not None and pre.get("kind") == "chain":
+        # find_append_targets chain shape: a MULTI-level literal-key
+        # projection (`field_path`) reached through N nested nested-dict
+        # guards; the terminal projection is the add source (the source's own
+        # value-transform of it is dropped — a value fact `ensures True` does
+        # not need, the same scope-cut doctrine as every other shape here).
+        path = pre["field_path"]
+        _emit_reader("stmt")
+        for key in path:
+            _emit_reader(key)
+        stmtr = reader_names["stmt"]
+        out.append(f"  let {n}__pre (d: pydict){extra_sig} : map string bool")
+        out.append(f"  = match {stmtr} d with")
+        out.append("    | Some (PStr tg0) ->")
+        out.append(f'        if pystr_eq tg0 "{pre["outer_tag"]}" then')
+        indent = "          "
+        cur = "d"
+        closers: List[str] = []
+        for i, key in enumerate(path[:-1]):
+            rname = reader_names[key]
+            dv = f"d{i + 1}"
+            out.append(f"{indent}(match {rname} {cur} with")
+            out.append(f"{indent} | Some (PDict {dv}) ->")
+            closers.append(f"{indent} | _ -> const false end)")
+            indent += "     "
+            cur = dv
+        last = reader_names[path[-1]]
+        out.append(f"{indent}(match {last} {cur} with")
+        out.append(f"{indent} | Some (PStr t) -> set_add (const false) t")
+        out.append(f"{indent} | _ -> const false end)")
+        for cl in reversed(closers):
+            out.append(cl)
+        out.append("        else const false")
+        out.append("    | _ -> const false end")
+    elif pre is not None and pre.get("kind") == "ctor_membership":
+        # `_collect_variant_var_assigns` shape: a self-dict MEMBERSHIP guard over
+        # an interned field-name payload. Each disjunct `(<val>.get("<tagkey>")==
+        # "<TAG>" and <val>.get("<memkey>") in <self.field>)` lowers to a
+        # tag-eq `pystr_eq` gate conjoined with the OPAQUE `<field>_mem` membership
+        # predicate applied to the READ field-name string — a boundary reader
+        # (like `symtab_mem`), NOT an axiom, NOT int-erased. `is_ctor` is the
+        # disjunction; when true the interned `stmt.get("<addkey>")` string is
+        # added (`set_add name`).
+        _emit_reader("stmt")
+        _emit_reader("value")
+        for (tk, _tv, mk, _field) in pre["clauses"]:
+            _emit_reader(tk)
+            _emit_reader(mk)
+        _emit_reader(pre["add_key"])
+        stmtr = reader_names["stmt"]
+        valr = reader_names["value"]
+        addr = reader_names[pre["add_key"]]
+        seen_fields: set = set()
+        for (_tk, _tv, _mk, field) in pre["clauses"]:
+            memfn = _selfmem_whyml_name(n, field)
+            if memfn not in seen_fields:
+                seen_fields.add(memfn)
+                _pred_decls.append(f"  val function {memfn} (k: string) : bool")
+        clause_exprs: List[str] = []
+        for i, (tk, tv, mk, field) in enumerate(pre["clauses"]):
+            tagr = reader_names[tk]
+            memr = reader_names[mk]
+            memfn = _selfmem_whyml_name(n, field)
+            clause_exprs.append(
+                f'((match {tagr} vd with Some (PStr ct{i}) -> pystr_eq ct{i} "{tv}" | _ -> false end)'
+                f" && (match {memr} vd with Some (PStr mn{i}) -> {memfn} mn{i} | _ -> false end))")
+        is_ctor = " || ".join(clause_exprs)
+        out.append(f"  let {n}__pre (d: pydict){extra_sig} : map string bool")
+        out.append(f"  = match {stmtr} d with")
+        out.append("    | Some (PStr tg0) ->")
+        out.append(f'        if pystr_eq tg0 "{pre["outer_tag"]}" then')
+        out.append(f"          (match {valr} d with")
+        out.append("           | Some (PDict vd) ->")
+        out.append(f"               if {is_ctor} then")
+        out.append(f"                 (match {addr} d with")
+        out.append("                  | Some (PStr t) -> set_add (const false) t")
+        out.append("                  | _ -> const false end)")
+        out.append("               else const false")
+        out.append("           | _ -> const false end)")
+        out.append("        else const false")
+        out.append("    | _ -> const false end")
+    elif pre is not None:
+        _emit_reader("stmt")
+        _emit_reader("value")
+        for (_kind, gk, _gv) in pre["guards"]:
+            _emit_reader(gk)
+        _emit_reader(pre["add_key"])
+
+        stmtr = reader_names["stmt"]
+        valr = reader_names["value"]
+        addr = reader_names[pre["add_key"]]
+        out.append(f"  let {n}__pre (d: pydict){extra_sig} : map string bool")
+        out.append(f"  = match {stmtr} d with")
+        out.append("    | Some (PStr tg0) ->")
+        out.append(f'        if pystr_eq tg0 "{pre["outer_tag"]}" then')
+        out.append(f"          (match {valr} d with")
+        out.append("           | Some (PDict vd) ->")
+        indent = "               "
+        closers: List[str] = []
+        # Opaque self-predicate guards (`self._rhs_yields_map(val)`): an
+        # uninterpreted bool over the isinstance-narrowed value pyval — a
+        # boundary reader (like `symtab_mem`), NOT an axiom. It genuinely GATES
+        # membership: a value the predicate rejects contributes `const false`.
+        for meth in pre.get("preds", []):
+            predfn = _pred_whyml_name(n, meth)
+            _pred_decls.append(f"  val function {predfn} (v: pyval) : bool")
+            out.append(f"{indent}if {predfn} (PDict vd) then")
+            closers.append(f"{indent}else const false")
+            indent += "  "
+        for i, (kind, gk, gv) in enumerate(pre["guards"]):
+            gname = reader_names[gk]
+            gpat = f"gv{i}"
+            out.append(f"{indent}(match {gname} vd with")
+            if kind == "eq":
+                out.append(f'{indent} | Some (PStr {gpat}) -> if pystr_eq {gpat} "{gv}" then')
+            else:
+                pname = whyml_ident(gv)
+                out.append(f"{indent} | Some (PStr {gpat}) -> if Map.get {pname} {gpat} then")
+            closers.append(f"{indent}   else const false | _ -> const false end)")
+            indent += "   "
+        out.append(f"{indent}(match {addr} d with")
+        out.append(f"{indent} | Some (PStr t) -> set_add (const false) t")
+        out.append(f"{indent} | _ -> const false end)")
+        for cl in reversed(closers):
+            out.append(cl)
+        out.append("           | _ -> const false end)")
+        out.append("        else const false")
+        out.append("    | _ -> const false end")
+
+    pre_term = (f"set_union ({n}__pre d{extra_args}) ({n}__d d{extra_args})"
+                if pre is not None else f"{n}__d d{extra_args}")
+    _ens_line = "".join(f" ensures {{ {e} }}" for e in _te)
+    out.append(f"  let rec {n} (stmts: list pyval){extra_sig} : map string bool")
+    out.append(f"    requires {{ true }}{_ens_line}")
+    out.append("    variant { size_list stmts }")
+    out.append("  = match stmts with")
+    out.append(f"    | Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({n}__v h{extra_args}) ({n} t{extra_args}) end")
+    out.append(f"  with {n}__v (v: pyval){extra_sig} : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> {pre_term}")
+    out.append(f"    | PList xs -> {n} xs{extra_args}")
+    out.append("    | _ -> const false end")
+    out.append(f"  with {n}__d (d: pydict){extra_sig} : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append(f"    | DCons _ v rest -> set_union ({n}__v v{extra_args}) ({n}__d rest{extra_args}) end")
+    return _pred_decls + out
+
+
+def recognize_frt(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the composed `find_return_type` (D + T2). Returns
+    {subject, closures:[c1,c2]} or None. Never raises."""
+    try:
+        return _recognize_frt(func)
+    except Exception:
+        return None
+
+
+def _recognize_frt(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("param_annotations", {}).get(subj) != "list":
+        return None
+    if func.get("return_annotation") != "str":
+        return None
+    body = func.get("body", [])
+    if len(body) != 4:
+        return None
+    g1, g2, loop, tail = body
+    # tail: return "int"
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and _is_string(tail.get("value")) == "int"):
+        return None
+    # g1, g2: `if not <closure>(stmts): return "unit"`
+    c1 = _match_unit_guard(g1, subj)
+    c2 = _match_unit_guard(g2, subj)
+    if c1 is None or c2 is None:
+        return None
+    # loop: for stmt in stmts: <value-tail arm> <descend arm> <cases arm>
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and _is_var(loop.get("iter"), subj)):
+        return None
+    stmtv = loop.get("target")
+    lbody = loop.get("body", [])
+    if len(lbody) != 3:
+        return None
+    if not _match_frt_value_arm(lbody[0], stmtv):
+        return None
+    if not _match_frt_descend_arm(lbody[1], stmtv, func["name"]):
+        return None
+    if not _match_frt_cases_arm(lbody[2], stmtv, func["name"]):
+        return None
+    return {"subject": subj, "closures": [c1, c2]}
+
+
+def _match_unit_guard(node: Any, subj: str) -> Optional[str]:
+    """`if not <closure>(<subj>): return "unit"` -> closure bare name or None."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If" and not node.get("orelse")):
+        return None
+    test = node.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "UnaryOp"
+            and test.get("op") == "not"):
+        return None
+    call = test.get("expr", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)
+            and len(call.get("args", [])) == 1 and _is_var(call["args"][0], subj)):
+        return None
+    b = node.get("body", [])
+    if not (len(b) == 1 and isinstance(b[0], dict) and b[0].get("stmt") == "Return"
+            and _is_string(b[0].get("value")) == "unit"):
+        return None
+    return call["func"]
+
+
+def _match_frt_value_arm(node: Any, stmtv: str) -> bool:
+    """`if <stmt>["stmt"]=="Return" and <stmt>.get("value"): val=<stmt>["value"];
+        if val.get("type")=="Tuple": ... return "("+join+")"; if ..=="String": return "int"`.
+    Structural markers only (value production is unconstrained under ensures True)."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If" and not node.get("orelse")):
+        return False
+    test = node.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "and"):
+        return False
+    if _match_stmt_tag_test(test.get("left", {}), stmtv) != "Return":
+        return False
+    if _match_get_call(test.get("right", {}), stmtv) != "value":
+        return False
+    b = node.get("body", [])
+    # val = stmt["value"]; then >=1 type-dispatch Ifs. Require the val assign + a
+    # Tuple arm producing a join, and a String arm.
+    if len(b) < 2:
+        return False
+    asg = b[0]
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"
+            and _match_subscript_str(asg.get("value"), stmtv) == "value"):
+        return False
+    valv = asg.get("target")
+    saw_tuple = saw_string = False
+    for st in b[1:]:
+        if not (isinstance(st, dict) and st.get("stmt") == "If"):
+            return False
+        vtag = _match_valtype_test(st.get("test", {}), valv)
+        if vtag == "Tuple" and _arm_returns_join(st.get("body", [])):
+            saw_tuple = True
+        elif vtag == "String":
+            saw_string = True
+        else:
+            return False
+    return saw_tuple and saw_string
+
+
+def _match_valtype_test(test: Any, valv: str) -> Optional[str]:
+    """`<valv>.get("type") == "<TAG>"` -> TAG."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "=="):
+        return None
+    if _match_get_call(test.get("left", {}), valv) != "type":
+        return None
+    return _is_string(test.get("right"))
+
+
+def _arm_returns_join(stmts: Any) -> bool:
+    """The Tuple arm ends in a `return "(" + ", ".join([...]*n) + ")"` (a join call
+    somewhere in the returned expr). Loose structural check (value unconstrained)."""
+    def _has_join(node: Any) -> bool:
+        if isinstance(node, dict):
+            if node.get("type") == "Call" and node.get("func") == "join":
+                return True
+            return any(_has_join(v) for v in node.values())
+        if isinstance(node, list):
+            return any(_has_join(x) for x in node)
+        return False
+    if not (isinstance(stmts, list) and stmts):
+        return False
+    ret = stmts[-1]
+    return (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _has_join(ret.get("value")))
+
+
+def _match_frt_descend_arm(node: Any, stmtv: str, fname: str) -> bool:
+    """`for key in ("body","orelse"): if key in stmt: result=self(stmt[key]);
+        if result not in ("int","unit"): return result`."""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return False
+    it = node.get("iter", {})
+    keys = [_is_string(e) for e in it.get("elts", [])] if isinstance(it, dict) else []
+    if keys != ["body", "orelse"]:
+        return False
+    keyv = node.get("target")
+    lb = node.get("body", [])
+    if len(lb) != 1:
+        return False
+    iff = lb[0]
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If" and not iff.get("orelse")):
+        return False
+    test = iff.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "in"
+            and _is_var(test.get("left"), keyv) and _is_var(test.get("right"), stmtv)):
+        return False
+    return _match_result_dispatch(iff.get("body", []), fname,
+                                  lambda a: (isinstance(a, dict) and a.get("type") == "Subscript"
+                                             and _is_var(a.get("value"), stmtv)
+                                             and _is_var(a.get("index"), keyv)))
+
+
+def _match_frt_cases_arm(node: Any, stmtv: str, fname: str) -> bool:
+    """`if stmt.get("stmt")=="Match": for c in stmt.get("cases",[]):
+        result=self(c.get("body",[])); if result not in ("int","unit"): return result`."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If" and not node.get("orelse")):
+        return False
+    if _match_stmt_tag_test(node.get("test", {}), stmtv) != "Match":
+        return False
+    cb = node.get("body", [])
+    if len(cb) != 1:
+        return False
+    loop = cb[0]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
+        return False
+    if _match_get_call(loop.get("iter", {}), stmtv) != "cases":
+        return False
+    cvar = loop.get("target")
+    return _match_result_dispatch(loop.get("body", []), fname,
+                                  lambda a: _match_get_call(a, cvar) == "body")
+
+
+def _match_result_dispatch(stmts: Any, fname: str, arg_ok) -> bool:
+    """`result = <self-recursion>(<arg>); if result not in ("int","unit"): return result`.
+    `arg_ok(argnode)` validates the recursion argument shape."""
+    if not (isinstance(stmts, list) and len(stmts) == 2):
+        return False
+    asg, iff = stmts
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return False
+    resv = asg.get("target")
+    call = asg.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return False
+    # the self-recursion is `IRScanner.find_return_type` -> canonicalizes to fname
+    if _canon_call(str(call.get("func"))) != fname:
+        return False
+    if len(call.get("args", [])) != 1 or not arg_ok(call["args"][0]):
+        return False
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If" and not iff.get("orelse")):
+        return False
+    test = iff.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "not in" and _is_var(test.get("left"), resv)):
+        return False
+    rt = test.get("right", {})
+    if not (isinstance(rt, dict) and rt.get("type") == "Tuple"):
+        return False
+    if [_is_string(e) for e in rt.get("elts", [])] != ["int", "unit"]:
+        return False
+    rb = iff.get("body", [])
+    return (len(rb) == 1 and isinstance(rb[0], dict) and rb[0].get("stmt") == "Return"
+            and _is_var(rb[0].get("value"), resv))
+
+
+def emit_frt_group(func: Dict[str, Any], desc: Dict[str, Any],
+                   whyml_ident) -> List[str]:
+    """Emit the composed `find_return_type` group (D + T2): the shared helpers,
+    the value-tail option producer (with the certified string tail), and the
+    mutually-recursive first-match search glued to the two outlined bool folds."""
+    n = whyml_ident(func["name"])
+    cls = func["name"].split("__", 1)[0]
+    c1 = whyml_ident(f"{cls}__{desc['closures'][0]}")
+    c2 = whyml_ident(f"{cls}__{desc['closures'][1]}")
+    out = _emit_stmt_reader(n)
+    # extra readers for the value-tail production
+    out.append(f"  let rec {n}__get_value (d: pydict) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None | DCons K_value v _ -> Some v")
+    out.append(f"    | DCons _ _ rest -> {n}__get_value rest end")
+    out.append(f"  let rec {n}__get_type (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None | DCons K_type (PStr s) _ -> Some s")
+    out.append(f"    | DCons K_type _ _ -> None | DCons _ _ rest -> {n}__get_type rest end")
+    out.append(f"  let rec {n}__get_elts (d: pydict) : list pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> Nil")
+    out.append(f'    | DCons (K_dyn k) (PList xs) rest -> if pystr_eq k "elts" then xs else {n}__get_elts rest')
+    out.append(f"    | DCons _ _ rest -> {n}__get_elts rest end")
+    out.append(f"  let rec {n}__llen (xs: list pyval) : int")
+    out.append("    ensures { result >= 0 } variant { xs }")
+    out.append(f"  = match xs with Nil -> 0 | Cons _ t -> 1 + {n}__llen t end")
+    out.append(f"  let function {n}__is_int_or_unit (s: string) : bool")
+    out.append('  = pystr_eq s "int" || pystr_eq s "unit"')
+    # value-tail: option string (the Tuple/String production incl. string tail)
+    out.append(f"  let function {n}__value_tail (stmt: pyval) : option string")
+    out.append("  = match stmt with")
+    out.append("    | PDict d ->")
+    out.append(f'        if {n}__stmt_is stmt "Return" then')
+    out.append(f"          (match {n}__get_value d with")
+    out.append("           | Some (PDict vd) ->")
+    out.append(f"               (match {n}__get_type vd with")
+    out.append("                | Some t ->")
+    out.append('                    if pystr_eq t "Tuple" then')
+    out.append(f"                      let nn = {n}__llen ({n}__get_elts vd) in")
+    out.append('                      Some (str_concat_op (str_concat_op "(" (str_join_arr ", " (Array.make nn "int"))) ")")')
+    out.append('                    else if pystr_eq t "String" then Some "int"')
+    out.append("                    else None")
+    out.append("                | None -> None end)")
+    out.append("           | _ -> None end)")
+    out.append("        else None")
+    out.append("    | _ -> None end")
+    # the composed group — universal-walk descent (direct structural sub-terms
+    # for the recursion, so `variant`s decrease syntactically; split_vc-robust).
+    # `find_return_type` (guard wrapper) -> `__search` uses the lexicographic
+    # second component (1 vs 0) for the same-size edge; the child descent
+    # (`__child`/`__child_d`) mirrors `find_return_type(stmt[key])` by re-running
+    # the full guarded `find_return_type` on any nested list.
+    out.append(f"  let rec {n} (stmts: list pyval) : string")
+    out.append("    requires { true } ensures { true } variant { size_list stmts, 1 }")
+    out.append(f"  = if not ({c1} stmts) then \"unit\"")
+    out.append(f"    else if not ({c2} stmts) then \"unit\"")
+    out.append(f"    else {n}__search stmts")
+    out.append(f"  with {n}__search (stmts: list pyval) : string")
+    out.append("    requires { true } ensures { true } variant { size_list stmts, 0 }")
+    out.append("  = match stmts with Nil -> \"int\"")
+    out.append("    | Cons stmt rest ->")
+    out.append(f"        match {n}__value_tail stmt with")
+    out.append("        | Some s -> s")
+    out.append("        | None ->")
+    out.append(f"            let r = {n}__child stmt in")
+    out.append(f"            if not ({n}__is_int_or_unit r) then r else {n}__search rest")
+    out.append("        end")
+    out.append("    end")
+    out.append(f"  with {n}__child (v: pyval) : string")
+    out.append("    requires { true } ensures { true } variant { pv_size v, 0 }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> {n}__child_d d")
+    out.append(f"    | PList xs -> {n} xs")
+    out.append("    | _ -> \"int\" end")
+    out.append(f"  with {n}__child_d (d: pydict) : string")
+    out.append("    requires { true } ensures { true } variant { size_dict d, 0 }")
+    out.append("  = match d with DNil -> \"int\"")
+    out.append("    | DCons _ v rest ->")
+    out.append(f"        let r = {n}__child v in")
+    out.append(f"        if not ({n}__is_int_or_unit r) then r else {n}__child_d rest end")
+    return out
+
+
+# ============================================================================
+# ir-traversal-residual T3 — env-threaded fold + `sdict` + source-level raise
+# (plan §5 / §6.2). The context-threading residual shape `_sa_walk(node, where,
+# symtab)`: a walk that threads a read-only symbol table (`symtab`) and a
+# context string (`where`) down the descent, reads `symtab.get(<computed-key>)`,
+# and `raise`s `PyCSLSemanticError` on a mismatch. The env does NOT affect
+# termination — the `variant` stays `size node` (an inherited attribute).
+# ============================================================================
+
+def _match_selfrec_env(stmt: Any, fname: str, env_names: List[str]) -> bool:
+    """`<self>(<any-var>, <env...>)` as an ExprStmt — the env-threaded self-
+    recursion, arity-generalized. The leading arg is the recursion target (any
+    var); the remaining args thread the read-only env params (`env_names`, e.g.
+    `[where, symtab]` for `_sa_walk`, `[where]` for `_cp_walk`) passed VERBATIM
+    in order. Arity = 1 + len(env_names)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return False
+    call = stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return False
+    if not _call_is_self(call.get("func"), fname):
+        return False
+    args = call.get("args", [])
+    if len(args) != 1 + len(env_names) or not _is_var(args[0]):
+        return False
+    return all(_is_var(args[1 + i], e) for i, e in enumerate(env_names))
+
+
+def _match_sa_selfrec3(stmt: Any, fname: str, p1: str, p2: str) -> bool:
+    """The 3-arg env-threaded self-recursion `<self>(v, p1, p2)` (`_sa_walk`
+    family); a thin `env_names=[p1, p2]` specialization of `_match_selfrec_env`
+    (backward-compatible — behaviour unchanged)."""
+    return _match_selfrec_env(stmt, fname, [p1, p2])
+
+
+def _match_values_loop_env(stmt: Any, subj: str, fname: str,
+                           env_names: List[str]) -> bool:
+    """`for v in <subj>.values(): <self>(v, env...)` (arity-generalized)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"):
+        return False
+    it = stmt.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{subj}.values" and not it.get("args")):
+        return False
+    body = stmt.get("body", [])
+    return len(body) == 1 and _match_selfrec_env(body[0], fname, env_names)
+
+
+def _match_sa_values_loop(stmt: Any, subj: str, fname: str, p1: str, p2: str) -> bool:
+    """`for v in <subj>.values(): <self>(v, p1, p2)` — 3-arg specialization of
+    `_match_values_loop_env` (backward-compatible)."""
+    return _match_values_loop_env(stmt, subj, fname, [p1, p2])
+
+
+def _match_list_loop_env(stmt: Any, subj: str, fname: str,
+                         env_names: List[str]) -> bool:
+    """`for x in <subj>: <self>(x, env...)` (arity-generalized)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"):
+        return False
+    if not _is_var(stmt.get("iter"), subj):
+        return False
+    body = stmt.get("body", [])
+    return len(body) == 1 and _match_selfrec_env(body[0], fname, env_names)
+
+
+def _match_sa_list_loop(stmt: Any, subj: str, fname: str, p1: str, p2: str) -> bool:
+    """`for x in <subj>: <self>(x, p1, p2)` — 3-arg specialization of
+    `_match_list_loop_env` (backward-compatible)."""
+    return _match_list_loop_env(stmt, subj, fname, [p1, p2])
+
+
+def _match_sa_raise(stmt: Any) -> Optional[str]:
+    """A `raise <Exc>(...)` statement — returns the exception type name."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Raise"):
+        return None
+    exc = stmt.get("exc_type")
+    return exc if isinstance(exc, str) else None
+
+
+def _match_sa_pre(inner_if: Any, subj: str, symparam: str) -> Optional[Dict[str, Any]]:
+    """Match the ArraySet pre-action guard (the computed-key symtab read + the
+    two mismatch raises) and extract its data. Shape:
+
+        if <subj>.get("stmt") == "<TAG>":
+            arr = <subj>.get("<ARRAY_KEY>")
+            if isinstance(arr, dict) and arr.get("<TYPE_KEY>") == "<TYPE_VAL>":
+                name = arr.get("<NAME_KEY>")
+                arr_type = <symparam>.get(name)
+                if arr_type is None: raise <Exc>(...)
+                if arr_type not in (<S0>, <S1>, ...): raise <Exc>(...)
+
+    Returns {tag, array_key, type_key, type_val, name_key, ok_types, exc} or None.
+    """
+    if not (isinstance(inner_if, dict) and inner_if.get("stmt") == "If"
+            and not inner_if.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(inner_if.get("test", {}), subj)
+    if tag is None:
+        return None
+    ibody = inner_if.get("body", [])
+    if len(ibody) != 2:
+        return None
+    # [0] arr = <subj>.get("<ARRAY_KEY>")
+    a0 = ibody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    arrvar = a0.get("target")
+    array_key = _match_get_call(a0.get("value", {}), subj)
+    if not isinstance(arrvar, str) or array_key is None:
+        return None
+    # [1] the `isinstance(arr, dict) and arr.get("<TYPE_KEY>") == "<TYPE_VAL>"` If
+    a1 = ibody[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "If" and not a1.get("orelse")):
+        return None
+    t1 = a1.get("test", {})
+    if not (isinstance(t1, dict) and t1.get("type") == "BinOp" and t1.get("op") == "and"):
+        return None
+    if not _match_isinstance(t1.get("left", {}), arrvar, "dict"):
+        return None
+    tr = t1.get("right", {})
+    if not (isinstance(tr, dict) and tr.get("type") == "BinOp" and tr.get("op") == "=="):
+        return None
+    type_val = _is_string(tr.get("right"))
+    type_key = _match_get_call(tr.get("left", {}), arrvar)
+    if type_val is None or type_key is None:
+        return None
+    gbody = a1.get("body", [])
+    if len(gbody) != 4:
+        return None
+    # [0] name = arr.get("<NAME_KEY>")
+    g0 = gbody[0]
+    if not (isinstance(g0, dict) and g0.get("stmt") == "Assign"):
+        return None
+    namevar = g0.get("target")
+    name_key = _match_get_call(g0.get("value", {}), arrvar)
+    if not isinstance(namevar, str) or name_key is None:
+        return None
+    # [1] arr_type = <symparam>.get(name)
+    g1 = gbody[1]
+    if not (isinstance(g1, dict) and g1.get("stmt") == "Assign"):
+        return None
+    atvar = g1.get("target")
+    gv = g1.get("value", {})
+    if not (isinstance(gv, dict) and gv.get("type") == "Call"
+            and gv.get("func") == f"{symparam}.get"):
+        return None
+    gargs = gv.get("args", [])
+    if not (isinstance(atvar, str) and len(gargs) == 1 and _is_var(gargs[0], namevar)):
+        return None
+    # [2] if arr_type is None: raise <Exc>
+    g2 = gbody[2]
+    if not (isinstance(g2, dict) and g2.get("stmt") == "If" and not g2.get("orelse")):
+        return None
+    t2 = g2.get("test", {})
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp" and t2.get("op") == "=="
+            and _is_var(t2.get("left"), atvar)
+            and isinstance(t2.get("right"), dict) and t2["right"].get("type") == "None"):
+        return None
+    g2b = g2.get("body", [])
+    if len(g2b) != 1:
+        return None
+    exc = _match_sa_raise(g2b[0])
+    if exc is None:
+        return None
+    # [3] if arr_type not in (<S0>, ...): raise <Exc>
+    g3 = gbody[3]
+    if not (isinstance(g3, dict) and g3.get("stmt") == "If" and not g3.get("orelse")):
+        return None
+    t3 = g3.get("test", {})
+    if not (isinstance(t3, dict) and t3.get("type") == "BinOp" and t3.get("op") == "not in"
+            and _is_var(t3.get("left"), atvar)):
+        return None
+    tup = t3.get("right", {})
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return None
+    ok_types = [_is_string(e) for e in tup.get("elts", [])]
+    if not ok_types or any(s is None for s in ok_types):
+        return None
+    g3b = g3.get("body", [])
+    if len(g3b) != 1 or _match_sa_raise(g3b[0]) != exc:
+        return None
+    return {"kind": "arrayset", "tag": tag, "array_key": array_key,
+            "type_key": type_key, "type_val": type_val, "name_key": name_key,
+            "ok_types": ok_types, "exc": exc}
+
+
+def _match_gso_pre(inner_if: Any, subj: str, symparam: str) -> Optional[Dict[str, Any]]:
+    """Match the ghost-string GhostAssign pre-action guard (the `_gso_walk`
+    shape), the sibling of `_match_sa_pre`'s ArraySet guard under the SAME
+    env-threaded `_sa_walk`-family walk. Shape:
+
+        if <subj>.get("stmt") == "<TAG>":
+            <opv> = <subj>.get("<OP_KEY>")
+            <tgt> = <subj>.get("<TGT_KEY>")
+            if <opv> != "<NE_VAL>" and <symparam>.get(<tgt>) == "<STR_VAL>":
+                raise <Exc>
+
+    Returns {kind:"ghoststr", tag, op_key, tgt_key, ne_val, str_val, exc} or
+    None (fail-closed). The raise-guard boolean is a value fact no VC constrains
+    (insight C, exactly as the ArraySet `ok_type`/`slookup` guard); only its
+    SHAPE — reading op/target off the node and the target's type off symtab — is
+    validated, keeping the emitted pre-action non-vacuous (it reads subj + symtab)."""
+    if not (isinstance(inner_if, dict) and inner_if.get("stmt") == "If"
+            and not inner_if.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(inner_if.get("test", {}), subj)
+    if tag is None:
+        return None
+    ibody = inner_if.get("body", [])
+    if len(ibody) != 3:
+        return None
+    # [0] <opv> = <subj>.get("<OP_KEY>")
+    a0 = ibody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    opvar = a0.get("target")
+    op_key = _match_get_call(a0.get("value", {}), subj)
+    if not isinstance(opvar, str) or op_key is None:
+        return None
+    # [1] <tgt> = <subj>.get("<TGT_KEY>")
+    a1 = ibody[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "Assign"):
+        return None
+    tgtvar = a1.get("target")
+    tgt_key = _match_get_call(a1.get("value", {}), subj)
+    if not isinstance(tgtvar, str) or tgt_key is None:
+        return None
+    # [2] if <opv> != "<NE_VAL>" and <symparam>.get(<tgt>) == "<STR_VAL>": raise
+    a2 = ibody[2]
+    if not (isinstance(a2, dict) and a2.get("stmt") == "If" and not a2.get("orelse")):
+        return None
+    t2 = a2.get("test", {})
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp"
+            and t2.get("op") == "and"):
+        return None
+    lft, rgt = t2.get("left", {}), t2.get("right", {})
+    # left conjunct: <opv> != "<NE_VAL>"
+    if not (isinstance(lft, dict) and lft.get("type") == "BinOp"
+            and lft.get("op") == "!=" and _is_var(lft.get("left"), opvar)):
+        return None
+    ne_val = _is_string(lft.get("right"))
+    if ne_val is None:
+        return None
+    # right conjunct: <symparam>.get(<tgt>) == "<STR_VAL>"
+    if not (isinstance(rgt, dict) and rgt.get("type") == "BinOp"
+            and rgt.get("op") == "=="):
+        return None
+    rl = rgt.get("left", {})
+    if not (isinstance(rl, dict) and rl.get("type") == "Call"
+            and rl.get("func") == f"{symparam}.get"):
+        return None
+    rargs = rl.get("args", [])
+    if not (len(rargs) == 1 and _is_var(rargs[0], tgtvar)):
+        return None
+    str_val = _is_string(rgt.get("right"))
+    if str_val is None:
+        return None
+    a2b = a2.get("body", [])
+    if len(a2b) != 1:
+        return None
+    exc = _match_sa_raise(a2b[0])
+    if exc is None:
+        return None
+    return {"kind": "ghoststr", "tag": tag, "op_key": op_key,
+            "tgt_key": tgt_key, "ne_val": ne_val, "str_val": str_val,
+            "exc": exc}
+
+
+def _match_sa_immutable_pre(inner_if: Any, subj: str,
+                            symparam: str) -> Optional[Dict[str, Any]]:
+    """Match the bytes-immutability ArraySet guard (the `_sa_immutable_walk`
+    shape) — the sibling of `_match_sa_pre`'s ArraySet guard with a SINGLE
+    `symtab.get(arr.get(name)) == "bytes"` raise (no intermediate name/arr_type
+    locals). Shape:
+
+        if <subj>.get("stmt") == "<TAG>":
+            arr = <subj>.get("<ARRAY_KEY>")
+            if isinstance(arr, dict) and arr.get("<TYPE_KEY>") == "<TYPE_VAL>":
+                if <symparam>.get(arr.get("<NAME_KEY>")) == "<STR_VAL>":
+                    raise <Exc>
+
+    Returns {kind:"immutable", tag, array_key, type_key, type_val, name_key,
+    str_val, exc} or None (fail-closed). The raised comparison is a value fact no
+    VC constrains (insight C, as the ArraySet `ok_type`/`slookup` guard); only its
+    SHAPE — reading the array/type/name off the node and the target's type off
+    symtab — is validated, keeping the emitted pre-action non-vacuous."""
+    if not (isinstance(inner_if, dict) and inner_if.get("stmt") == "If"
+            and not inner_if.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(inner_if.get("test", {}), subj)
+    if tag is None:
+        return None
+    ibody = inner_if.get("body", [])
+    if len(ibody) != 2:
+        return None
+    # [0] arr = <subj>.get("<ARRAY_KEY>")
+    a0 = ibody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    arrvar = a0.get("target")
+    array_key = _match_get_call(a0.get("value", {}), subj)
+    if not isinstance(arrvar, str) or array_key is None:
+        return None
+    # [1] the `isinstance(arr, dict) and arr.get("<TYPE_KEY>") == "<TYPE_VAL>"` If
+    a1 = ibody[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "If" and not a1.get("orelse")):
+        return None
+    t1 = a1.get("test", {})
+    if not (isinstance(t1, dict) and t1.get("type") == "BinOp" and t1.get("op") == "and"):
+        return None
+    if not _match_isinstance(t1.get("left", {}), arrvar, "dict"):
+        return None
+    tr = t1.get("right", {})
+    if not (isinstance(tr, dict) and tr.get("type") == "BinOp" and tr.get("op") == "=="):
+        return None
+    type_val = _is_string(tr.get("right"))
+    type_key = _match_get_call(tr.get("left", {}), arrvar)
+    if type_val is None or type_key is None:
+        return None
+    gbody = a1.get("body", [])
+    if len(gbody) != 1:
+        return None
+    # [0] if <symparam>.get(arr.get("<NAME_KEY>")) == "<STR_VAL>": raise
+    g0 = gbody[0]
+    if not (isinstance(g0, dict) and g0.get("stmt") == "If" and not g0.get("orelse")):
+        return None
+    t0 = g0.get("test", {})
+    if not (isinstance(t0, dict) and t0.get("type") == "BinOp" and t0.get("op") == "=="):
+        return None
+    str_val = _is_string(t0.get("right"))
+    if str_val is None:
+        return None
+    gl = t0.get("left", {})
+    if not (isinstance(gl, dict) and gl.get("type") == "Call"
+            and gl.get("func") == f"{symparam}.get"):
+        return None
+    gargs = gl.get("args", [])
+    if len(gargs) != 1:
+        return None
+    name_key = _match_get_call(gargs[0], arrvar)
+    if name_key is None:
+        return None
+    g0b = g0.get("body", [])
+    if len(g0b) != 1:
+        return None
+    exc = _match_sa_raise(g0b[0])
+    if exc is None:
+        return None
+    return {"kind": "immutable", "tag": tag, "array_key": array_key,
+            "type_key": type_key, "type_val": type_val, "name_key": name_key,
+            "str_val": str_val, "exc": exc}
+
+
+def recognize_sawalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the T3 context-threading walk `_sa_walk(node, where,
+    symtab)` (plan §5). Returns a descriptor or None; never raises."""
+    try:
+        return _recognize_sawalk(func)
+    except Exception:
+        return None
+
+
+def _recognize_sawalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 3:
+        return None
+    subj, p1, p2 = params[0], params[1], params[2]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    fname = func["name"]
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+    # dict-arm: exactly [pre-action If, values loop]
+    dbody = outer.get("body", [])
+    if len(dbody) != 2:
+        return None
+    pre = _match_sa_pre(dbody[0], subj, p2)
+    if pre is None:
+        pre = _match_gso_pre(dbody[0], subj, p2)
+    if pre is None:
+        pre = _match_sa_immutable_pre(dbody[0], subj, p2)
+    if pre is None:
+        return None
+    if not _match_sa_values_loop(dbody[1], subj, fname, p1, p2):
+        return None
+    # else-arm: exactly `if isinstance(node, list): for x in node: self(x, p1, p2)`
+    orelse = outer.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    inner = orelse[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If" and not inner.get("orelse")):
+        return None
+    if not _match_isinstance(inner.get("test", {}), subj, "list"):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1 or not _match_sa_list_loop(ibody[0], subj, fname, p1, p2):
+        return None
+    return {"subject": subj, "env1": p1, "env2": p2, "pre": pre}
+
+
+def _sa_reader_lines(n: str, key: str, as_str: bool) -> List[str]:
+    """Emit a spine reader `pydict -> option (string|pyval)` for `key`, using the
+    interned constructor for a named key (zero string theory) or the `K_dyn s`
+    fallback with a `pystr_eq` payload test for a computed key."""
+    suf = _reader_suffix(key)
+    rty = "option string" if as_str else "option pyval"
+    out = [f"  let rec {n}__get_{suf} (d: pydict) : {rty}",
+           "    variant { d }",
+           "  = match d with",
+           "    | DNil -> None"]
+    if key in _NAMED_KEYS:
+        hit = "(PStr s) _ -> Some s" if as_str else "v _ -> Some v"
+        out.append(f"    | DCons {_NAMED_KEYS[key]} {hit}")
+        out.append(f"    | DCons _ _ rest -> {n}__get_{suf} rest")
+    elif as_str:
+        out.append(f'    | DCons (K_dyn k) (PStr s) rest -> if pystr_eq k "{key}" then Some s else {n}__get_{suf} rest')
+        out.append(f"    | DCons _ _ rest -> {n}__get_{suf} rest")
+    else:
+        out.append(f'    | DCons (K_dyn k) v rest -> if pystr_eq k "{key}" then Some v else {n}__get_{suf} rest')
+        out.append(f"    | DCons _ _ rest -> {n}__get_{suf} rest")
+    out.append("    end")
+    return out
+
+
+def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
+                      whyml_ident) -> List[str]:
+    """Emit the T3 env-threaded walk group for a recognized `_sa_walk`.
+
+    The env (`where: string`, `symtab: sdict`) is threaded read-only down the
+    `pyval`/`pydict`/`list pyval` catamorphism; the `variant` is `size node`
+    (the env does not affect termination). The computed-key symbol-table read is
+    `slookup name symtab : option pyval` — a total, option-valued lookup over the
+    string-keyed `sdict` (defensive totalization); which entry is found is a
+    value question no VC constrains (insight C: `pystr_eq`'s result is
+    unconstrained). A mismatch `raise`s the source exception, declared `raises
+    { <Exc> }` on every function in the group (exceptions are inside
+    `why3_implements_wp_w`, axiom 3 — the ledger does not move)."""
+    n = whyml_ident(func["name"])
+    subj = sa["subject"]
+    p1, p2 = sa["env1"], sa["env2"]
+    pre = sa["pre"]
+    exc = pre["exc"]  # already a valid WhyML exception ident (user_exceptions)
+    out: List[str] = []
+    if pre.get("kind") == "ghoststr":
+        # ---- ghost-string GhostAssign pre-action (the `_gso_walk` sibling) ----
+        # readers: stmt/op/target, all string-valued.
+        out += _sa_reader_lines(n, "stmt", as_str=True)
+        out += _sa_reader_lines(n, pre["op_key"], as_str=True)
+        out += _sa_reader_lines(n, pre["tgt_key"], as_str=True)
+        stmt_suf = _reader_suffix("stmt")
+        op_suf = _reader_suffix(pre["op_key"])
+        tgt_suf = _reader_suffix(pre["tgt_key"])
+        out.append(f"  let {n}__pre ({subj}: pyval) ({p2}: sdict) : unit")
+        out.append(f"    raises {{ {exc} }}")
+        out.append(f"  = match {subj} with")
+        out.append("    | PDict d ->")
+        out.append(f"        (match {n}__get_{stmt_suf} d with")
+        out.append(f'         | Some st -> if pystr_eq st "{pre["tag"]}" then')
+        out.append(f"             (match {n}__get_{tgt_suf} d with")
+        out.append("              | Some tgt ->")
+        out.append(f"                  let opne = (match {n}__get_{op_suf} d with"
+                   f' Some opv -> not (pystr_eq opv "{pre["ne_val"]}")'
+                   " | None -> true end) in")
+        out.append(f"                  let tystr = (match slookup tgt {p2} with"
+                   f' Some (PStr aty) -> pystr_eq aty "{pre["str_val"]}"'
+                   " | _ -> false end) in")
+        out.append(f"                  if opne && tystr then raise {exc} else ()")
+        out.append("              | None -> () end)")
+        out.append("           else ()")
+        out.append("         | None -> () end)")
+        out.append("    | _ -> () end")
+        # ---- the env-threaded walk group (shared with the ArraySet shape) ----
+        out += _sa_walk_group_lines(n, subj, [(p1, "string"), (p2, "sdict")], f" {p2}", exc)
+        return out
+    if pre.get("kind") == "immutable":
+        # ---- bytes-immutability ArraySet pre-action (the `_sa_immutable_walk`
+        # sibling): a SINGLE `symtab.get(arr.get(name)) == "<STR_VAL>"` raise. ----
+        out += _sa_reader_lines(n, "stmt", as_str=True)
+        out += _sa_reader_lines(n, pre["array_key"], as_str=False)
+        out += _sa_reader_lines(n, pre["type_key"], as_str=True)
+        out += _sa_reader_lines(n, pre["name_key"], as_str=True)
+        stmt_suf = _reader_suffix("stmt")
+        arr_suf = _reader_suffix(pre["array_key"])
+        type_suf = _reader_suffix(pre["type_key"])
+        name_suf = _reader_suffix(pre["name_key"])
+        out.append(f"  let {n}__pre ({subj}: pyval) ({p2}: sdict) : unit")
+        out.append(f"    raises {{ {exc} }}")
+        out.append(f"  = match {subj} with")
+        out.append("    | PDict d ->")
+        out.append(f"        (match {n}__get_{stmt_suf} d with")
+        out.append(f'         | Some st -> if pystr_eq st "{pre["tag"]}" then')
+        out.append(f"             (match {n}__get_{arr_suf} d with")
+        out.append("              | Some (PDict ad) ->")
+        out.append(f"                  (match {n}__get_{type_suf} ad with")
+        out.append(f'                   | Some ty -> if pystr_eq ty "{pre["type_val"]}" then')
+        out.append(f"                       (match {n}__get_{name_suf} ad with")
+        out.append("                        | Some nm ->")
+        out.append(f"                            (match slookup nm {p2} with")
+        out.append(f'                             | Some (PStr aty) -> if pystr_eq aty "{pre["str_val"]}" then raise {exc} else ()')
+        out.append("                             | _ -> ()")
+        out.append("                             end)")
+        out.append("                        | None -> () end)")
+        out.append("                     else ()")
+        out.append("                   | None -> () end)")
+        out.append("              | _ -> () end)")
+        out.append("           else ()")
+        out.append("         | None -> () end)")
+        out.append("    | _ -> () end")
+        # ---- the env-threaded walk group (shared with the ArraySet shape) ----
+        out += _sa_walk_group_lines(n, subj, [(p1, "string"), (p2, "sdict")], f" {p2}", exc)
+        return out
+    # ---- spine readers for the pre-action's computed/interned keys ----
+    out += _sa_reader_lines(n, "stmt", as_str=True)
+    out += _sa_reader_lines(n, pre["array_key"], as_str=False)
+    out += _sa_reader_lines(n, pre["type_key"], as_str=True)
+    out += _sa_reader_lines(n, pre["name_key"], as_str=True)
+    # ---- ok-type membership (semantic guard, insight C: result unconstrained) ----
+    cond = " || ".join(f'pystr_eq s "{t}"' for t in pre["ok_types"])
+    out.append(f"  let function {n}__ok_type (s: string) : bool = {cond}")
+    # ---- the pre-action: the computed-key symtab read + the two mismatch raises ----
+    stmt_suf = _reader_suffix("stmt")
+    arr_suf = _reader_suffix(pre["array_key"])
+    type_suf = _reader_suffix(pre["type_key"])
+    name_suf = _reader_suffix(pre["name_key"])
+    out.append(f"  let {n}__pre ({subj}: pyval) ({p2}: sdict) : unit")
+    out.append(f"    raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get_{stmt_suf} d with")
+    out.append(f'         | Some st -> if pystr_eq st "{pre["tag"]}" then')
+    out.append(f"             (match {n}__get_{arr_suf} d with")
+    out.append("              | Some (PDict ad) ->")
+    out.append(f"                  (match {n}__get_{type_suf} ad with")
+    out.append(f'                   | Some ty -> if pystr_eq ty "{pre["type_val"]}" then')
+    out.append(f"                       (match {n}__get_{name_suf} ad with")
+    out.append(f"                        | Some nm ->")
+    out.append(f"                            (match slookup nm {p2} with")
+    out.append(f"                             | None -> raise {exc}")
+    out.append(f"                             | Some (PStr aty) -> if {n}__ok_type aty then () else raise {exc}")
+    out.append(f"                             | Some _ -> raise {exc}")
+    out.append("                             end)")
+    out.append("                        | None -> () end)")
+    out.append("                     else ()")
+    out.append("                   | None -> () end)")
+    out.append("              | _ -> () end)")
+    out.append("           else ()")
+    out.append("         | None -> () end)")
+    out.append("    | _ -> () end")
+    # ---- the env-threaded walk group (shared with the ghoststr shape) ----
+    out += _sa_walk_group_lines(n, subj, [(p1, "string"), (p2, "sdict")], f" {p2}", exc)
+    return out
+
+
+def _sa_walk_group_lines(n: str, subj: str, env: List[Tuple[str, str]],
+                         pre_args: str, exc: str) -> List[str]:
+    """The env-threaded `pyval`/`pydict`/`list pyval` walk / walk_dict /
+    walk_list mutual group shared by every `_sa_walk`-family shape (ArraySet,
+    ghoststr, and the 2-arg `_cp_walk` checkpoint walk). `env` is the ordered
+    list of read-only threaded env params as `(name, whyml_type)` pairs —
+    `[(p1, "string"), (p2, "sdict")]` for the 3-arg `_sa_walk` symtab shapes,
+    `[(where, "string")]` for the 2-arg `_cp_walk` shape. `pre_args` is the
+    argument suffix passed to the shape-specific `{n}__pre` (` {p2}` for the
+    symtab shapes, empty for `_cp_walk` whose pre-action reads only the node).
+    The `variant` is the L1 structural measure (`pv_size`/`size_dict`/
+    `size_list`); the per-node pre-action (`{n}__pre`) is the only shape-
+    specific part. Emitting `[(p1, "string"), (p2, "sdict")]` reproduces the
+    original 3-arg group byte-for-byte."""
+    env_sig = "".join(f" ({nm}: {ty})" for nm, ty in env)
+    env_args = "".join(f" {nm}" for nm, _ in env)
+    out: List[str] = []
+    out.append(f"  let rec {n} ({subj}: pyval){env_sig} : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append(f"    variant {{ pv_size {subj} }}")
+    out.append(f"  = match {subj} with")
+    out.append(f"    | PDict d -> {n}__pre {subj}{pre_args}; {n}__dict d{env_args}")
+    out.append(f"    | PList xs -> {n}__list xs{env_args}")
+    out.append("    | _ -> () end")
+    out.append(f"  with {n}__dict (d: pydict){env_sig} : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> ()")
+    out.append(f"    | DCons _ v rest -> {n} v{env_args}; {n}__dict rest{env_args}")
+    out.append("    end")
+    out.append(f"  with {n}__list (xs: list pyval){env_sig} : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append("    variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> () | Cons h t -> {n} h{env_args}; {n}__list t{env_args} end")
+    return out
+
+
+# =========================================================================
+# 2-arg checkpoint walk `_cp_walk(node, where)` — the `_sa_walk` sibling with
+# a SINGLE read-only env param (`where`) and a CROSS-CALL pre-action. Instead
+# of the symtab-lookup guard of `_match_sa_pre`/`_match_gso_pre`, the per-node
+# action is `if node.get("stmt")=="ProofAssert" and _contains_result(node.get(
+# "test")): raise` — a compound guard whose right conjunct cross-calls an
+# already-emitted sibling `pyval -> bool` fold (`_contains_result`) on a REAL
+# `option pyval` spine read of the node's "test" sub-value. Reuses the arity-
+# generalized `_sa_walk_group_lines` walk group (env = `[(where, "string")]`).
+# =========================================================================
+
+
+def _match_cp_pre(pre_if: Any, subj: str) -> Optional[Dict[str, Any]]:
+    """Match the `_cp_walk` checkpoint pre-action — a single `if` whose test is
+    a compound `<subj>.get("stmt") == "<TAG>" and <cross>(<subj>.get("<KEY>"))`
+    conjunction and whose body is a lone `raise <Exc>`. Shape:
+
+        if <subj>.get("stmt") == "ProofAssert" and _contains_result(<subj>.get("test")):
+            raise PyCSLSemanticError(...)
+
+    Returns {tag, cross, key, exc} or None (fail-closed). `<cross>` is the bare
+    name of an already-emitted sibling `pyval -> bool` fold (`_contains_result`);
+    whether it returns true on the `<KEY>` sub-value is a value fact no VC
+    constrains (insight C), but the pre-action's SHAPE — reading the `stmt` tag
+    and the `<KEY>` sub-value off the node and cross-calling the sibling on a
+    real `pyval` — is validated, keeping the emission non-vacuous."""
+    if not (isinstance(pre_if, dict) and pre_if.get("stmt") == "If"
+            and not pre_if.get("orelse")):
+        return None
+    test = pre_if.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    tag = _match_stmt_tag_test(test.get("left", {}), subj)
+    if tag is None:
+        return None
+    call = test.get("right", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    cross = call.get("func")
+    if not isinstance(cross, str):
+        return None
+    cargs = call.get("args", [])
+    if len(cargs) != 1:
+        return None
+    key = _match_get_call(cargs[0], subj)
+    if key is None:
+        return None
+    body = pre_if.get("body", [])
+    if len(body) != 1:
+        return None
+    exc = _match_sa_raise(body[0])
+    if exc is None:
+        return None
+    return {"tag": tag, "cross": cross, "key": key, "exc": exc}
+
+
+def recognize_cpwalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the 2-arg checkpoint walk `_cp_walk(node, where)` —
+    the env-threaded `_sa_walk` sibling with a SINGLE read-only env param and a
+    cross-call pre-action. Returns a descriptor or None; never raises."""
+    try:
+        return _recognize_cpwalk(func)
+    except Exception:
+        return None
+
+
+def _recognize_cpwalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    subj, env1 = params[0], params[1]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    fname = func["name"]
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+    # dict-arm: exactly [cross-call pre-action If, values loop]
+    dbody = outer.get("body", [])
+    if len(dbody) != 2:
+        return None
+    pre = _match_cp_pre(dbody[0], subj)
+    if pre is None:
+        return None
+    if not _match_values_loop_env(dbody[1], subj, fname, [env1]):
+        return None
+    # else-arm: exactly `if isinstance(node, list): for x in node: self(x, where)`
+    orelse = outer.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    inner = orelse[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If" and not inner.get("orelse")):
+        return None
+    if not _match_isinstance(inner.get("test", {}), subj, "list"):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1 or not _match_list_loop_env(ibody[0], subj, fname, [env1]):
+        return None
+    return {"subject": subj, "env1": env1, "pre": pre}
+
+
+def emit_cpwalk_group(func: Dict[str, Any], cp: Dict[str, Any],
+                      whyml_ident) -> List[str]:
+    """Emit the 2-arg checkpoint walk group for a recognized `_cp_walk`.
+
+    A single read-only env param (`where: string`) is threaded down the
+    `pyval`/`pydict`/`list pyval` catamorphism (variant `pv_size`/`size_dict`/
+    `size_list`; the env does not affect termination). The per-node pre-action
+    reads the node's `stmt` tag and, on a match, cross-calls the already-emitted
+    sibling `pyval -> bool` fold (`_contains_result`) on the node's `<KEY>`
+    sub-value — a REAL `option pyval` spine read, never the int-erased default —
+    raising the source exception when the fold returns true. Whether the fold
+    returns true is a value fact no VC constrains (insight C); the exception is
+    inside `why3_implements_wp_w` (axiom 3), so the ledger does not move."""
+    n = whyml_ident(func["name"])
+    subj = cp["subject"]
+    p1 = cp["env1"]
+    pre = cp["pre"]
+    exc = pre["exc"]  # already a valid WhyML exception ident (user_exceptions)
+    cross = whyml_ident(pre["cross"])
+    key = pre["key"]
+    out: List[str] = []
+    # ---- spine readers: the `stmt` tag (string) + the cross-call KEY (pyval) ----
+    out += _sa_reader_lines(n, "stmt", as_str=True)
+    out += _sa_reader_lines(n, key, as_str=False)
+    stmt_suf = _reader_suffix("stmt")
+    key_suf = _reader_suffix(key)
+    # ---- the pre-action: tag-gated cross-call to the sibling bool fold ----
+    out.append(f"  let {n}__pre ({subj}: pyval) : unit")
+    out.append(f"    raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get_{stmt_suf} d with")
+    out.append(f'         | Some st -> if pystr_eq st "{pre["tag"]}" then')
+    out.append(f"             (match {n}__get_{key_suf} d with")
+    out.append(f"              | Some tv -> if {cross} tv then raise {exc} else ()")
+    out.append("              | None -> () end)")
+    out.append("           else ()")
+    out.append("         | None -> () end)")
+    out.append("    | _ -> () end")
+    # ---- the env-threaded walk group (shared with the `_sa_walk` shapes) ----
+    out += _sa_walk_group_lines(n, subj, [(p1, "string")], "", exc)
+    return out
+
+
+# =========================================================================
+# predicate-base walk `_pb_expr(node, ctx, symtab, known)` — the `_sa_walk`
+# sibling with a MULTI-ARM `node.get("type")` type-dispatch pre-action and a
+# THREE-param read-only env (`ctx: string`, `symtab: sdict`, and a 2nd env
+# `known: sdict` modelled as a string-keyed set via `slookup … <> None`). The
+# source shape differs from `_sa_walk` in five load-bearing ways handled here:
+#   (1) a multi-arm `t == "<Tag>"` / `t in (…)` dispatch on the node's "type"
+#       key (four arms: ArrayLen / Valid / Separated / Forall|Exists), read
+#       through a local `t = node.get("type")` — NOT a single-tag guard;
+#   (2) module-level constant-NAME tuple membership (`typ in
+#       _PB_LENGTHLESS_TYPES` / `arr_type not in _PB_ARRAY_BASE_TYPES`) — the
+#       recognizer PINS the two constant names and the emitter reproduces their
+#       (fixed) string sets as concrete `pystr_eq` disjunctions;
+#   (3) the 2nd env `known`, a set of type-name strings, modelled as `sdict`
+#       presence (`slookup bt known <> None`);
+#   (4) string-op guards `not str(var).startswith("self.")` and `var !=
+#       "\\result"` — lowered to a VC-free `val …__startswith` (the `pystr_eq`
+#       discipline: result no VC constrains, ledger stays 3) + `pystr_eq`;
+#   (5) a LIST-FIRST-return shape: `if isinstance(node, list): … ; return`
+#       is the FIRST statement (with an early `return`), the dict work follows
+#       as sibling statements — NOT the dict-first `If … else` the `_sa_walk`
+#       matchers require.
+# Every arm's raise is `PyCSLSemanticError` (axiom 3, inside
+# `why3_implements_wp_w` — the ledger does not move). Which raise fires is a
+# value fact no VC constrains (insight C); the SHAPE — reading `type`/`var`/
+# `base`/`base1`/`base2`/`binder_type` off the node and the `symtab`/`known`
+# `sdict` via `slookup` — is validated, keeping the emission non-vacuous. The
+# walk group reuses the arity-generalized `_sa_walk_group_lines` (env =
+# `[(ctx,"string"),(symtab,"sdict"),(known,"sdict")]`) — the three converted
+# walkers (`_sa_walk`/`_gso_walk`/`_cp_walk`) are untouched.
+# =========================================================================
+
+_PB_LENGTHLESS_LITS = ("dict", "Dict", "set", "Set", "frozenset", "FrozenSet")
+# _PB_ARRAY_BASE_TYPES = ('list','List','bytes','bytearray','Any', None); the
+# `None` element is the `slookup … -> None` arm (a missing/None symtab entry is
+# NOT flagged), so only the string members enter the `__array_base` disjunction.
+_PB_ARRAY_BASE_LITS = ("list", "List", "bytes", "bytearray", "Any")
+
+
+def _pb_var_eq_str(test: Any, var: str) -> Optional[str]:
+    """`<var> == "<S>"` -> "<S>" (the per-arm tag test)."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "=="):
+        return None
+    if not _is_var(test.get("left"), var):
+        return None
+    return _is_string(test.get("right"))
+
+
+def _pb_var_in_strtuple(test: Any, var: str) -> Optional[List[str]]:
+    """`<var> in ("<S0>", "<S1>", …)` -> [S0, S1, …] (the Forall|Exists arm)."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "in"):
+        return None
+    if not _is_var(test.get("left"), var):
+        return None
+    rt = test.get("right", {})
+    if not (isinstance(rt, dict) and rt.get("type") == "Tuple"):
+        return None
+    outs = [_is_string(e) for e in rt.get("elts", [])]
+    if any(o is None for o in outs):
+        return None
+    return outs
+
+
+def _pb_assign_symtab_get(stmt: Any, symparam: str, argvar: str) -> Optional[str]:
+    """`<tgt> = <symparam>.get(<argvar>)` -> "<tgt>" (the symbol-table read)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    tgt = stmt.get("target")
+    val = stmt.get("value", {})
+    if not (isinstance(val, dict) and val.get("type") == "Call"
+            and val.get("func") == f"{symparam}.get"):
+        return None
+    args = val.get("args", [])
+    if len(args) != 1 or not _is_var(args[0], argvar):
+        return None
+    return tgt if isinstance(tgt, str) else None
+
+
+def _pb_membership_raise(stmt: Any, memvar: str, op: str,
+                         const_name: str) -> Optional[str]:
+    """`if <memvar> <op> <const_name>: raise <Exc>(…)` -> "<Exc>" (fail-closed).
+    `<op>` is "in" or "not in"; `<const_name>` is the pinned module-constant Var
+    name whose (fixed) string set the emitter reproduces."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == op):
+        return None
+    if not _is_var(test.get("left"), memvar):
+        return None
+    if not _is_var(test.get("right"), const_name):
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return None
+    return _match_sa_raise(body[0])
+
+
+def _match_pb_arms(s3: Any, subj: str, tvar: str, symtab: str,
+                   known: str) -> Optional[Dict[str, Any]]:
+    """Validate the nested ArrayLen / Valid / Separated / (Forall|Exists) type
+    dispatch and collect the (shared) raised exception. Returns {"exc": …} or
+    None (fail-closed). The read keys and constant sets are the fixed source
+    shape — pinned here; reproduced verbatim by `emit_pbexpr_group`."""
+    excs: List[str] = []
+    # ---- arm 1: ArrayLen ----
+    if not (isinstance(s3, dict) and s3.get("stmt") == "If"):
+        return None
+    if _pb_var_eq_str(s3.get("test", {}), tvar) != "ArrayLen":
+        return None
+    ab = s3.get("body", [])
+    if len(ab) != 2:
+        return None
+    # var = node.get("var", "")
+    if not (isinstance(ab[0], dict) and ab[0].get("stmt") == "Assign"):
+        return None
+    varname = ab[0].get("target")
+    if _match_get_call(ab[0].get("value", {}), subj) != "var" or not isinstance(varname, str):
+        return None
+    # if not str(var).startswith("self.") and var != "\result":
+    g = ab[1]
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not g.get("orelse")):
+        return None
+    gt = g.get("test", {})
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "and"):
+        return None
+    left = gt.get("left", {})
+    if not (isinstance(left, dict) and left.get("type") == "UnaryOp" and left.get("op") == "not"):
+        return None
+    sw = left.get("expr", {})
+    if not (isinstance(sw, dict) and sw.get("type") == "Call" and sw.get("func") == "startswith"):
+        return None
+    if _is_string((sw.get("args") or [None])[0]) != "self.":
+        return None
+    recv = sw.get("receiver", {})
+    if not (isinstance(recv, dict) and recv.get("type") == "Call" and recv.get("func") == "str"
+            and _is_var((recv.get("args") or [None])[0], varname)):
+        return None
+    right = gt.get("right", {})
+    if not (isinstance(right, dict) and right.get("type") == "BinOp" and right.get("op") == "!="
+            and _is_var(right.get("left"), varname) and _is_string(right.get("right")) == "\\result"):
+        return None
+    gb = g.get("body", [])
+    if len(gb) != 2:
+        return None
+    typvar = _pb_assign_symtab_get(gb[0], symtab, varname)
+    if typvar is None:
+        return None
+    e = _pb_membership_raise(gb[1], typvar, "in", "_PB_LENGTHLESS_TYPES")
+    if e is None:
+        return None
+    excs.append(e)
+    # ---- arm 2: Valid (in s3.orelse) ----
+    oe = s3.get("orelse", [])
+    if len(oe) != 1:
+        return None
+    s_valid = oe[0]
+    if not (isinstance(s_valid, dict) and s_valid.get("stmt") == "If"):
+        return None
+    if _pb_var_eq_str(s_valid.get("test", {}), tvar) != "Valid":
+        return None
+    vb = s_valid.get("body", [])
+    if len(vb) != 3:
+        return None
+    if not (isinstance(vb[0], dict) and vb[0].get("stmt") == "Assign"):
+        return None
+    basevar = vb[0].get("target")
+    if _match_get_call(vb[0].get("value", {}), subj) != "base" or not isinstance(basevar, str):
+        return None
+    atvar = _pb_assign_symtab_get(vb[1], symtab, basevar)
+    if atvar is None:
+        return None
+    e = _pb_membership_raise(vb[2], atvar, "not in", "_PB_ARRAY_BASE_TYPES")
+    if e is None:
+        return None
+    excs.append(e)
+    # ---- arm 3: Separated (in s_valid.orelse) ----
+    oe2 = s_valid.get("orelse", [])
+    if len(oe2) != 1:
+        return None
+    s_sep = oe2[0]
+    if not (isinstance(s_sep, dict) and s_sep.get("stmt") == "If"):
+        return None
+    if _pb_var_eq_str(s_sep.get("test", {}), tvar) != "Separated":
+        return None
+    sb = s_sep.get("body", [])
+    if len(sb) != 1:
+        return None
+    forl = sb[0]
+    if not (isinstance(forl, dict) and forl.get("stmt") == "For"):
+        return None
+    it = forl.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Tuple"):
+        return None
+    keys = [_match_get_call(e, subj) for e in it.get("elts", [])]
+    if keys != ["base1", "base2"]:
+        return None
+    lvar = forl.get("target")
+    fb = forl.get("body", [])
+    if len(fb) != 2 or not isinstance(lvar, str):
+        return None
+    at2 = _pb_assign_symtab_get(fb[0], symtab, lvar)
+    if at2 is None:
+        return None
+    e = _pb_membership_raise(fb[1], at2, "not in", "_PB_ARRAY_BASE_TYPES")
+    if e is None:
+        return None
+    excs.append(e)
+    # ---- arm 4: Forall|Exists (in s_sep.orelse) ----
+    oe3 = s_sep.get("orelse", [])
+    if len(oe3) != 1:
+        return None
+    s_q = oe3[0]
+    if not (isinstance(s_q, dict) and s_q.get("stmt") == "If" and not s_q.get("orelse")):
+        return None
+    if _pb_var_in_strtuple(s_q.get("test", {}), tvar) != ["Forall", "Exists"]:
+        return None
+    qb = s_q.get("body", [])
+    if len(qb) != 2:
+        return None
+    if not (isinstance(qb[0], dict) and qb[0].get("stmt") == "Assign"):
+        return None
+    btvar = qb[0].get("target")
+    if _match_get_call(qb[0].get("value", {}), subj) != "binder_type" or not isinstance(btvar, str):
+        return None
+    qi = qb[1]
+    if not (isinstance(qi, dict) and qi.get("stmt") == "If" and not qi.get("orelse")):
+        return None
+    qt = qi.get("test", {})
+    # bt is not None and bt not in known
+    if not (isinstance(qt, dict) and qt.get("type") == "BinOp" and qt.get("op") == "and"):
+        return None
+    ql, qr = qt.get("left", {}), qt.get("right", {})
+    if not (isinstance(ql, dict) and ql.get("type") == "BinOp" and ql.get("op") == "!="
+            and _is_var(ql.get("left"), btvar)
+            and isinstance(ql.get("right"), dict) and ql.get("right", {}).get("type") == "None"):
+        return None
+    if not (isinstance(qr, dict) and qr.get("type") == "BinOp" and qr.get("op") == "not in"
+            and _is_var(qr.get("left"), btvar) and _is_var(qr.get("right"), known)):
+        return None
+    qib = qi.get("body", [])
+    if len(qib) != 1:
+        return None
+    e = _match_sa_raise(qib[0])
+    if e is None:
+        return None
+    excs.append(e)
+    if len(set(excs)) != 1:
+        return None
+    return {"exc": excs[0]}
+
+
+def recognize_pbexpr(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the predicate-base walk `_pb_expr(node, ctx, symtab,
+    known)` — the multi-arm type-dispatch `_sa_walk` sibling. Returns a
+    descriptor or None; never raises."""
+    try:
+        return _recognize_pbexpr(func)
+    except Exception:
+        return None
+
+
+def _recognize_pbexpr(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 4:
+        return None
+    subj, ctx, symtab, known = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    fname = func["name"]
+    body = func.get("body", [])
+    if len(body) != 5:
+        return None
+    env = [ctx, symtab, known]
+    # [0] if isinstance(node, list): for x in node: self(x, ctx, symtab, known); return
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If" and not s0.get("orelse")):
+        return None
+    if not _match_isinstance(s0.get("test", {}), subj, "list"):
+        return None
+    b0 = s0.get("body", [])
+    if len(b0) != 2 or not _match_list_loop_env(b0[0], subj, fname, env):
+        return None
+    if not (isinstance(b0[1], dict) and b0[1].get("stmt") == "Return"):
+        return None
+    # [1] if not isinstance(node, dict): return
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If" and not s1.get("orelse")):
+        return None
+    t1 = s1.get("test", {})
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp" and t1.get("op") == "not"):
+        return None
+    if not _match_isinstance(t1.get("expr", {}), subj, "dict"):
+        return None
+    b1 = s1.get("body", [])
+    if len(b1) != 1 or not (isinstance(b1[0], dict) and b1[0].get("stmt") == "Return"):
+        return None
+    # [2] t = node.get("type")
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Assign"):
+        return None
+    tvar = s2.get("target")
+    if not isinstance(tvar, str) or _match_get_call(s2.get("value", {}), subj) != "type":
+        return None
+    # [3] the four-arm type dispatch
+    arms = _match_pb_arms(body[3], subj, tvar, symtab, known)
+    if arms is None:
+        return None
+    # [4] for v in node.values(): self(v, ctx, symtab, known)
+    if not _match_values_loop_env(body[4], subj, fname, env):
+        return None
+    return {"subject": subj, "ctx": ctx, "symtab": symtab, "known": known,
+            "exc": arms["exc"]}
+
+
+def emit_pbexpr_group(func: Dict[str, Any], pb: Dict[str, Any],
+                      whyml_ident) -> List[str]:
+    """Emit the predicate-base walk group for a recognized `_pb_expr`.
+
+    Three read-only env params (`ctx: string`, `symtab: sdict`, `known: sdict`)
+    are threaded down the `pyval`/`pydict`/`list pyval` catamorphism (variant
+    `pv_size`/`size_dict`/`size_list`; env does not affect termination). The
+    per-node pre-action is a multi-arm dispatch on the node's `type` key: it
+    reads `var`/`base`/`base1`/`base2`/`binder_type` off the `PDict` spine and
+    the `symtab`/`known` `sdict` via `slookup`, `raise`-ing `PyCSLSemanticError`
+    on a membership mismatch. The string-prefix guard is a VC-free
+    `val …__startswith` (the `pystr_eq` discipline — result no VC constrains, so
+    NO axiom, ledger 3). Which arm/raise fires is a value fact no VC constrains
+    (insight C); the exception is inside `why3_implements_wp_w` (axiom 3)."""
+    n = whyml_ident(func["name"])
+    subj = pb["subject"]
+    ctx, symtab, known = pb["ctx"], pb["symtab"], pb["known"]
+    exc = pb["exc"]
+    out: List[str] = []
+    # ---- VC-free string-prefix guard (result no VC constrains; ledger 3) ----
+    out.append(f"  val {n}__startswith (s p: string) : bool")
+    # ---- spine readers (all string-valued) for the dispatch's read keys ----
+    for key in ("type", "var", "base", "base1", "base2", "binder_type"):
+        out += _sa_reader_lines(n, key, as_str=True)
+    # ---- constant-tuple membership as concrete pystr_eq disjunctions ----
+    out.append(f"  let function {n}__lengthless (s: string) : bool = "
+               + " || ".join(f'pystr_eq s "{t}"' for t in _PB_LENGTHLESS_LITS))
+    out.append(f"  let function {n}__array_base (s: string) : bool = "
+               + " || ".join(f'pystr_eq s "{t}"' for t in _PB_ARRAY_BASE_LITS))
+    out.append(f"  let function {n}__present (k: string) (s: sdict) : bool = "
+               "match slookup k s with Some _ -> true | None -> false end")
+    ty_suf = _reader_suffix("type")
+    var_suf = _reader_suffix("var")
+    base_suf = _reader_suffix("base")
+    b1_suf = _reader_suffix("base1")
+    b2_suf = _reader_suffix("base2")
+    bt_suf = _reader_suffix("binder_type")
+
+    def _base_check(suf: str) -> str:
+        # a single `arr_type not in _PB_ARRAY_BASE_TYPES` raise-guard: a missing
+        # (None) symtab entry is NOT flagged (None is a tuple member).
+        return (f"(match {n}__get_{suf} d with"
+                f" | Some b -> (match slookup b {symtab} with"
+                f" | None -> ()"
+                f" | Some (PStr aty) -> if {n}__array_base aty then () else raise {exc}"
+                f" | Some _ -> raise {exc} end)"
+                f" | None -> () end)")
+
+    # ---- the multi-arm type-dispatch pre-action ----
+    out.append(f"  let {n}__pre ({subj}: pyval) ({symtab}: sdict) ({known}: sdict) : unit")
+    out.append(f"    raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get_{ty_suf} d with")
+    out.append("         | Some ty ->")
+    # arm 1: ArrayLen
+    out.append(f'             if pystr_eq ty "ArrayLen" then')
+    out.append(f"               (match {n}__get_{var_suf} d with")
+    out.append("                | Some var ->")
+    out.append(f'                    if (not ({n}__startswith var "self.")) && (not (pystr_eq var "\\\\result")) then')
+    out.append(f"                      (match slookup var {symtab} with")
+    out.append(f"                       | Some (PStr typ) -> if {n}__lengthless typ then raise {exc} else ()")
+    out.append("                       | _ -> () end)")
+    out.append("                    else ()")
+    out.append("                | None -> () end)")
+    # arm 2: Valid
+    out.append(f'             else if pystr_eq ty "Valid" then')
+    out.append(f"               {_base_check(base_suf)}")
+    # arm 3: Separated
+    out.append(f'             else if pystr_eq ty "Separated" then')
+    out.append(f"               ({_base_check(b1_suf)}; {_base_check(b2_suf)})")
+    # arm 4: Forall | Exists
+    out.append(f'             else if (pystr_eq ty "Forall") || (pystr_eq ty "Exists") then')
+    out.append(f"               (match {n}__get_{bt_suf} d with")
+    out.append(f"                | Some bt -> if {n}__present bt {known} then () else raise {exc}")
+    out.append("                | None -> () end)")
+    out.append("             else ()")
+    out.append("         | None -> () end)")
+    out.append("    | _ -> () end")
+    # ---- the env-threaded walk group (reuses the shared arity-generalized group) ----
+    out += _sa_walk_group_lines(
+        n, subj, [(ctx, "string"), (symtab, "sdict"), (known, "sdict")],
+        f" {symtab} {known}", exc)
+    return out
+
+
+# =========================================================================
+# alist-adict-census §3 (the ONE marginal A-dict opportunity) — the
+# returned-`sdict` DICT-FOLD result algebra (result_algebra = a string-keyed
+# dict, by RETURN). The by-KEY-grouping twin of the A-set returned-set fold.
+#
+# The two live methods (`find_record_var_classes`, `_collect_tuple_array_locals`)
+# are clean structural folds that build a dict keyed by a RUNTIME string
+# (`out[<x>.get("target")] = <value>`) and merge the recursive descents with
+# `out.update(self(<child>, …))`. L1 `pydict` does NOT model them (its keys are
+# interned `irkey` constructors); they need the already-certified `sdict`
+# (Phase C, `Phase2c_PyValDict.v` / `PyValDict.lean`, the 2nd/last certificate)
+# whose keys are runtime strings. The merge combinator is the purely-DEFINED
+# `sappend` (list concat over the certified datatype — no axiom, totality
+# discharged by Why3, exactly as `set_union` was for A-set); the 3-axiom ledger
+# is UNCHANGED and no new certificate is needed.
+#
+# The emitted group is the FUNCTIONAL generic pyval walk (`assigns \nothing`; no
+# `writes`), entered on the `list pyval` of statements: `build`/`build_val`/
+# `build_dict` each return `sdict`, combined by `sappend`, `variant { size … }`
+# over the L1 measure — congruent (modulo names / sdict-for-set) to the proven
+# `v2_setfold_spike`. The per-node pre-action reads the runtime-string KEY
+# (`<x>.get("target")` -> `Some (PStr k)` -> `k`) and inserts one `SCons k <val>`
+# cell under the stmt-tag structural discriminant (a `pystr_eq` boolean gate no
+# VC constrains, insight C).
+#
+# SCOPE-CUT (honest, type-safety-only, under the fixed `ensures True` contract,
+# same discipline as the T1 note above):
+#   * The walk visits ALL dict/list children (the generic pyval catamorphism),
+#     a SUPERSET of the source's specific `body`/`orelse`/cases/handlers descent.
+#     Collecting entries at more nodes is sound under type-safety-only (the
+#     result stays a well-typed `(string, PStr|PInt)` sdict).
+#   * For a STRING-valued dict the inserted value is read faithfully
+#     (`<x>.get("value").get("func")`, gated on membership in the threaded set);
+#     for an INT-valued dict the source value is a COMPUTED arity (a list
+#     comprehension + set-cardinality the contract does not need), modelled as a
+#     placeholder `PInt 0` — a value-refinement `ensures True` makes irrelevant.
+#
+# FLAT TWIN (`_recognize_flat_strdictfold` / `value.kind == "str1"`, `tag is None`):
+# a NON-recursive collector `out={}; for x in <list>: v = x.get("<vkey>"); if v:
+# out[x["<kkey>"]] = v; return out` — no `.update(self(…))` merge, no stmt-tag
+# guard, the KEY is an inline subscript `x["<kkey>"]` and the VALUE a NO-DEFAULT
+# `.get` (string). Discriminated from the recursive fold by that inline-subscript
+# key. The value is read FAITHFULLY (`get_<vkey>` -> `Some (PStr v)` -> `SCons k
+# (PStr v)`); the `if v:` truthiness is modelled by the `Some (PStr v)` arm (the
+# empty-string refinement is a value fact `ensures True` does not need). The
+# emitted catamorphism still visits ALL children — a SUPERSET of the source's
+# single-level `for x in <list>` scan, sound under type-safety-only exactly as
+# above. Only the str-typed value dict is taken (`dict_value_types[acc]=="string"`),
+# tying the emitted `PStr` to the inferred value type. Gated by `needs_sdict`
+# (`recognize_dictfold` covers both twins), so corpus emission stays byte-identical.
+# (`_build_method_return_annotation_map`; observational fixture 0912.)
+#
+# Fail-closed exactly as the other folds: a miss keeps the method `\trusted`; a
+# template bug yields an unprovable instance (the full-file re-proof is loud),
+# never a false proof. Verified inert on the reference corpus (byte-diff 0); a
+# poisoned control is the single external match that flips the gate red once.
+# =========================================================================
+
+
+def _iter_dict_nodes(node: Any):
+    """Yield every dict node in the IR subtree rooted at `node` (pre-order)."""
+    if isinstance(node, dict):
+        yield node
+        for v in node.values():
+            yield from _iter_dict_nodes(v)
+    elif isinstance(node, list):
+        for x in node:
+            yield from _iter_dict_nodes(x)
+
+
+def _match_acc_update_self(stmt: Any, acc: str, fname: str) -> bool:
+    """`<acc>.update(<self>(<child>, …))` as an ExprStmt — the merge fold."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return False
+    call = stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.update"):
+        return False
+    args = call.get("args", [])
+    if len(args) != 1:
+        return False
+    inner = args[0]
+    return (isinstance(inner, dict) and inner.get("type") == "Call"
+            and _call_is_self(inner.get("func"), fname))
+
+
+def _recognize_flat_strdictfold(
+        func: Dict[str, Any], subj: str, acc: str, x: str, key_key: str,
+        aset: Dict[str, Any], lbody: List[Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the FLAT string-value dict collector (census §3 flat
+    twin): `out={}; for x in <listparam>: v = x.get("<vkey>"); if v: out[x["<kkey>"]]
+    = v; return out`. No self-merge, no stmt-tag guard, no threaded set; the value
+    is read by a NO-DEFAULT `.get` (string), the key by an inline subscript."""
+    # no threaded set — the sole formal must be the subject list.
+    if [p for p in func.get("formal_params", []) if p != subj]:
+        return None
+    # value must be a str-typed dict AND read via a `if <vloc>:`-guarded local.
+    if (func.get("dict_value_types") or {}).get(acc) != "string":
+        return None
+    vexpr = aset.get("value", {})
+    if not _is_var(vexpr):
+        return None
+    vloc = vexpr["name"]
+    # `<vloc> = <x>.get("<vkey>")` — NO-DEFAULT get, somewhere in the loop body.
+    vkey = None
+    for s in _iter_dict_nodes(lbody):
+        if s.get("stmt") == "Assign" and s.get("target") == vloc:
+            vkey = _match_get_call(s.get("value", {}), x)
+            break
+    if vkey is None:
+        return None
+    # the insert MUST be guarded by `if <vloc>:` (truthiness of the read value),
+    # no orelse — a different guard/direction fails closed (stays \trusted).
+    guarded = any(
+        s.get("stmt") == "If" and not s.get("orelse")
+        and _is_var(s.get("test"), vloc)
+        and any(a is aset for a in _iter_dict_nodes(s.get("body", [])))
+        for s in _iter_dict_nodes(lbody))
+    if not guarded:
+        return None
+    return {"subject": subj, "extra_params": [], "acc": acc,
+            "guard_key": None, "tag": None, "key_key": key_key,
+            "value": {"kind": "str1", "value_key": vkey}, "flat": True}
+
+
+def recognize_dictfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the returned-`sdict` dict-fold (census §3).
+
+    Returns {subject, extra_params, acc, gkey, tag, key_key, value} when the IR
+    body is *exactly* `out = {}; for x in <listparam>: … out[x.get(K)] = <v> …;
+    return out` with ≥1 `out.update(self(…))` merge; else None. Never raises."""
+    try:
+        return _recognize_dictfold(func)
+    except Exception:
+        return None
+
+
+def _recognize_dictfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("return_annotation") != "dict":
+        return None
+    params = func.get("formal_params", [])
+    if not params:
+        return None
+    body = func.get("body", [])
+    if len(body) != 3:
+        return None
+    init, loop, ret = body
+
+    # init: `<acc> = {}`
+    if not (isinstance(init, dict) and init.get("stmt") == "Assign"):
+        return None
+    acc = init.get("target")
+    if not isinstance(acc, str):
+        return None
+    iv = init.get("value", {})
+    if not (isinstance(iv, dict) and iv.get("type") == "DictLit"
+            and not iv.get("keys") and not iv.get("values")):
+        return None
+
+    # ret: `return <acc>`
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), acc)):
+        return None
+
+    # loop: `for <x> in <subjparam>:` over a `list`-annotated formal param.
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
+        return None
+    subj = loop.get("iter", {})
+    if not (_is_var(subj) and subj.get("name") in params):
+        return None
+    subj = subj["name"]
+    if func.get("param_annotations", {}).get(subj) != "list":
+        return None
+    x = loop.get("target")
+    if not isinstance(x, str):
+        return None
+    # extra params: every non-subject formal must be a threaded read-only `set`.
+    extra = [p for p in params if p != subj]
+    pa = func.get("param_annotations", {})
+    for e in extra:
+        if pa.get(e) != "set":
+            return None
+
+    lbody = loop.get("body", [])
+
+    # exactly one ArraySet on <acc> (the runtime-keyed insert).
+    sets = [s for s in _iter_dict_nodes(lbody)
+            if s.get("stmt") == "ArraySet" and _is_var(s.get("array"), acc)]
+    if len(sets) != 1:
+        return None
+    aset = sets[0]
+
+    # ---- FLAT string-value collector (census §3, flat twin): the shape
+    #      `<acc>[<x>["<kkey>"]] = <vloc>` under a `if <vloc>:` truthiness guard,
+    #      with `<vloc> = <x>.get("<vkey>")` (NO-DEFAULT get, string value). No
+    #      self-merge, no stmt-tag guard, no threaded set. The inline-subscript
+    #      KEY (`<x>["<kkey>"]`, not a pre-assigned `.get` local) discriminates
+    #      it from the recursive dict-fold below.
+    #      (`_build_method_return_annotation_map`.) ----
+    _ik = _match_subscript_str(aset.get("index", {}), x)
+    if _ik is not None:
+        return _recognize_flat_strdictfold(func, subj, acc, x, _ik, aset, lbody)
+
+    # ≥1 self-recursion merge `<acc>.update(self(…))`.
+    if not any(_match_acc_update_self(s, acc, func["name"])
+               for s in _iter_dict_nodes(lbody)):
+        return None
+
+    # KEY: `<acc>[<kv>] = …` where `<kv> = <x>.get("<key_key>"[, def])`.
+    idx = aset.get("index", {})
+    if not _is_var(idx):
+        return None
+    kv = idx["name"]
+    key_key = None
+    for s in _iter_dict_nodes(lbody):
+        if (s.get("stmt") == "Assign" and s.get("target") == kv):
+            key_key = _match_get_call(s.get("value", {}), x)
+            break
+    if key_key is None:
+        return None
+
+    # tag guard: `<x>.get("<gkey>") == "<TAG>"` somewhere in the loop body.
+    gkey = None
+    tag = None
+    for s in _iter_dict_nodes(lbody):
+        if s.get("stmt") == "If":
+            t = _match_stmt_tag_test(s.get("test", {}), x)
+            if t is not None:
+                gkey, tag = "stmt", t
+                break
+    if tag is None:
+        return None
+
+    # VALUE model, keyed on the accumulator's inferred dict value type.
+    vtype = (func.get("dict_value_types") or {}).get(acc)
+    vexpr = aset.get("value", {})
+    value: Dict[str, Any]
+    if vtype == "string":
+        # `<vloc>.get("<vkey>"[, def])` with `<vloc> = <x>.get("<vckey>"[, def])`.
+        if not (isinstance(vexpr, dict) and vexpr.get("type") == "Call"):
+            return None
+        vfunc = vexpr.get("func", "")
+        if not (isinstance(vfunc, str) and vfunc.endswith(".get")):
+            return None
+        vloc = vfunc[:-len(".get")]
+        vkey = _is_string((vexpr.get("args") or [None])[0])
+        if vkey is None:
+            return None
+        vckey = None
+        for s in _iter_dict_nodes(lbody):
+            if s.get("stmt") == "Assign" and s.get("target") == vloc:
+                vckey = _match_get_call(s.get("value", {}), x)
+                break
+        if vckey is None:
+            return None
+        # a faithful membership gate needs exactly one threaded set parameter.
+        if len(extra) != 1:
+            return None
+        value = {"kind": "str2", "child_key": vckey, "field_key": vkey,
+                 "set_param": extra[0]}
+    else:
+        # computed / int value → placeholder `PInt 0` (value-refinement).
+        value = {"kind": "int"}
+
+    return {"subject": subj, "extra_params": extra, "acc": acc,
+            "guard_key": gkey, "tag": tag, "key_key": key_key, "value": value}
+
+
+def _pv_reader_lines(n: str, key: str) -> List[str]:
+    """Emit a spine reader `pydict -> option pyval` for a literal `key` (interned
+    constructor for a named key, else the `K_dyn s` `pystr_eq` fallback)."""
+    suf = _reader_suffix(key)
+    out = [f"  let rec {n}__get_{suf} (d: pydict) : option pyval",
+           "    variant { d }",
+           "  = match d with",
+           "    | DNil -> None"]
+    if key in _NAMED_KEYS:
+        out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {n}__get_{suf} rest")
+    else:
+        out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {n}__get_{suf} rest')
+        out.append(f"    | DCons _ _ rest -> {n}__get_{suf} rest")
+    out.append("    end")
+    return out
+
+
+def emit_dictfold_group(func: Dict[str, Any], df: Dict[str, Any],
+                        whyml_ident) -> List[str]:
+    """Emit the returned-`sdict` dict-fold group for a recognized census-§3 fold.
+
+    Functional (`assigns \\nothing`; no `writes`): `build`/`build_val`/
+    `build_dict` each return `sdict`, combined by the purely-defined `sappend`.
+    Threaded read-only `set` params are typed `map string bool`. Congruent
+    (modulo names / sdict-for-set) to the proven `v2_setfold_spike`."""
+    n = whyml_ident(func["name"])
+    subj = whyml_ident(df["subject"])
+    extra = df["extra_params"]
+    gkey, tag, kkey = df["guard_key"], df["tag"], df["key_key"]
+    value = df["value"]
+
+    extra_sig = "".join(f" ({whyml_ident(e)}: map string bool)" for e in extra)
+    extra_args = "".join(f" {whyml_ident(e)}" for e in extra)
+    out: List[str] = []
+
+    # ---- spine readers (dedup by key) ----
+    needed = ([kkey] if gkey is None else [gkey, kkey])
+    if value["kind"] == "str2":
+        needed += [value["child_key"], value["field_key"]]
+    elif value["kind"] == "str1":
+        needed += [value["value_key"]]
+    seen: set = set()
+    for key in needed:
+        if key in seen:
+            continue
+        seen.add(key)
+        out += _pv_reader_lines(n, key)
+
+    ksuf = _reader_suffix(kkey)
+
+    # ---- the per-node pre-action: guarded runtime-keyed insert ----
+    out.append(f"  let {n}__pre (d: pydict){extra_sig} : sdict")
+    if tag is None:
+        # FLAT string-value collector: no stmt-tag guard. Insert `SCons k (PStr v)`
+        # iff the KEY reads `Some (PStr k)` AND the no-default `.get` value reads
+        # `Some (PStr v)` (the `if v:` truthiness gate; empty-string refinement is
+        # a value fact the `ensures True` contract does not need).
+        vsuf = _reader_suffix(value["value_key"])
+        out.append(f"  = match {n}__get_{ksuf} d with")
+        out.append("    | Some (PStr k) ->")
+        out.append(f"        (match {n}__get_{vsuf} d with")
+        out.append("         | Some (PStr v) -> SCons k (PStr v) SNil")
+        out.append("         | _ -> SNil end)")
+        out.append("    | _ -> SNil end")
+    else:
+        gsuf = _reader_suffix(gkey)
+        out.append(f"  = match {n}__get_{gsuf} d with")
+        out.append("    | Some (PStr s) ->")
+        out.append(f'        if pystr_eq s "{tag}" then')
+        out.append(f"          (match {n}__get_{ksuf} d with")
+        out.append("           | Some (PStr k) ->")
+        if value["kind"] == "str2":
+            csuf = _reader_suffix(value["child_key"])
+            fsuf = _reader_suffix(value["field_key"])
+            setp = whyml_ident(value["set_param"])
+            out.append(f"               (match {n}__get_{csuf} d with")
+            out.append("                | Some (PDict vd) ->")
+            out.append(f"                    (match {n}__get_{fsuf} vd with")
+            out.append(f"                     | Some (PStr fn) -> if Map.get {setp} fn then SCons k (PStr fn) SNil else SNil")
+            out.append("                     | _ -> SNil end)")
+            out.append("                | _ -> SNil end)")
+        else:
+            out.append("               SCons k (PInt 0) SNil")
+        out.append("           | _ -> SNil end)")
+        out.append("        else SNil")
+        out.append("    | _ -> SNil end")
+
+    # ---- the returned-sdict walk / build_val / build_dict group ----
+    out.append(f"  let rec {n} ({subj}: list pyval){extra_sig} : sdict")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant {{ size_list {subj} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | Nil -> SNil")
+    out.append(f"    | Cons h t -> sappend ({n}__val h{extra_args}) ({n} t{extra_args})")
+    out.append("    end")
+    out.append(f"  with {n}__val (v: pyval){extra_sig} : sdict")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> sappend ({n}__pre d{extra_args}) ({n}__dict d{extra_args})")
+    out.append(f"    | PList xs -> {n} xs{extra_args}")
+    out.append("    | _ -> SNil")
+    out.append("    end")
+    out.append(f"  with {n}__dict (d: pydict){extra_sig} : sdict")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> SNil")
+    out.append(f"    | DCons _ v rest -> sappend ({n}__val v{extra_args}) ({n}__dict rest{extra_args})")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
+# G-void-dispatch-thin — the thin VOID-returning statement-list fan-out:
+#     def wrapper(stmts, *ctx):
+#         for s in stmts:
+#             if isinstance(s, dict):
+#                 sibling(s, *ctx)
+# `sibling` is a DIFFERENT top-level function that STAYS \trusted: its `val`
+# types every untyped/Any param with the corpus-wide opaque-`int` fallback
+# (`_param_type_str`'s final default — no annotation, no other recognized
+# shape). To keep the call `sibling h ...` type-matching that unchanged
+# `val` with NO callee edit and NO new value model, the wrapper's own
+# `stmts: List[...]` parameter is modelled — UNLIKE the standard `array`
+# lowering — as the built-in Why3 `list int` (Cons/Nil): an OPAQUE-element
+# linked list, so each element `s` is ALSO plain `int`.
+#
+# This sidesteps the array-for-loop invariant problem entirely: a plain
+# (non-`@mutable_state`) `for x in <list>:` lowers to an index/`while` loop
+# whose termination needs an explicit `#@ loop variant` naming the internal
+# `_idx_x` counter — a name Module4 does not expose to source-level
+# annotations, and the body text must stay verbatim-faithful to the live
+# source (no annotation can be inserted). Structural `Cons h t -> …;
+# wrapper t …` recursion instead terminates for FREE off `list`'s own
+# well-founded order (`variant { stmts }`, Why3-native — no bespoke size
+# theory, matching the plan's "reuse existing termination machinery, don't
+# add a new theory").
+#
+# `isinstance(s, dict)` on the opaque `s` lowers exactly as the standard
+# (non-recognized) `_handle_isinstance` does for an untyped/Any value in
+# program (non-spec) context: an UNINTERPRETED `typeof_op` tag read compared
+# against the inlined `tag_dict` literal (4) — the SAME formula
+# (`sum(ord(c) for c in name)`) and the SAME literal `_handle_isinstance`
+# uses, so the guard is neither constant-folded true nor false, faithfully
+# preserving "s's dynamic type is unknown here" rather than erasing the
+# branch. `ensures True` makes the branch's actual outcome irrelevant to
+# the wrapper's own proof.
+#
+# ONE code path handles every match (no per-method name/tag is hardcoded):
+# the sibling's name+arity and the ctx params are read off the recognized
+# call itself.
+# =========================================================================
+
+def recognize_void_dispatch(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the G-void-dispatch-thin fan-out (see the module
+    note above): a void function whose ENTIRE body is `for s in stmts: if
+    isinstance(s, dict): <sibling>(s, *ctx)`, where `<sibling>` is any OTHER
+    top-level function (not `func` itself, not a `self.`/dotted call) and
+    `ctx` is `func`'s remaining formal params, forwarded positionally and
+    unchanged. `stmts` (must be `list`-annotated) and the sibling name/arity
+    are the recognizer's only degrees of freedom.
+
+    Returns {subject, stmtvar, callee, ctx_params} or None. Never raises."""
+    try:
+        return _recognize_void_dispatch(func)
+    except Exception:
+        return None
+
+
+def _recognize_void_dispatch(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) < 2:
+        return None
+    subj, ctx_params = params[0], params[1:]
+    pann = func.get("param_annotations", {}) or {}
+    if pann.get(subj) != "list":
+        return None
+    # ctx params stay fully opaque (no OTHER recognized annotation) — the
+    # thing that lets them lower to the same `int` fallback the unmodified
+    # \trusted sibling's `val` already uses.
+    if any(p in pann for p in ctx_params):
+        return None
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    loop = body[0]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and not loop.get("orelse") and _is_var(loop.get("iter"), subj)):
+        return None
+    stmtvar = loop.get("target")
+    if not isinstance(stmtvar, str) or stmtvar in ctx_params or stmtvar == subj:
+        return None
+    lbody = loop.get("body", [])
+    if len(lbody) != 1:
+        return None
+    guard = lbody[0]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If" and not guard.get("orelse")):
+        return None
+    if not _match_isinstance(guard.get("test", {}), stmtvar, "dict"):
+        return None
+    gbody = guard.get("body", [])
+    if len(gbody) != 1:
+        return None
+    call_stmt = gbody[0]
+    if not (isinstance(call_stmt, dict) and call_stmt.get("stmt") == "Expr"):
+        return None
+    call = call_stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    callee = call.get("func")
+    # a DIFFERENT top-level function — not self-recursion, not a method call
+    # (a dotted `self.foo`/`obj.foo` callee is a different call-lowering
+    # shape entirely, out of scope for this recognizer).
+    if not isinstance(callee, str) or "." in callee or callee == func.get("name"):
+        return None
+    args = call.get("args", [])
+    if len(args) != 1 + len(ctx_params):
+        return None
+    if not _is_var(args[0], stmtvar):
+        return None
+    for a, p in zip(args[1:], ctx_params):
+        if not _is_var(a, p):
+            return None
+    return {"subject": subj, "stmtvar": stmtvar, "callee": callee,
+            "ctx_params": ctx_params}
+
+
+def emit_void_dispatch_group(func: Dict[str, Any], desc: Dict[str, Any],
+                             whyml_ident) -> List[str]:
+    """Emit the G-void-dispatch-thin fan-out as structural `list int`
+    recursion (see the module note above for the type-matching rationale).
+    The callee is called UNCHANGED (still `\\trusted`; its `val` keeps the
+    standard opaque-`int` param types) — the wrapper's own element/ctx types
+    are chosen to match it exactly, so no callee-side edit is needed.
+
+    The `isinstance(s, dict)` guard is lowered to `mod h 2 = 0` — an
+    UNDECIDABLE-to-the-solver condition over the already-in-scope, otherwise
+    unconstrained `h` (the Cons head), using ONLY `int.EuclideanDivision`
+    (unconditionally `use`d by every emitted module already). This was
+    chosen over registering a NEW abstract `typeof_op` symbol (the standard
+    `_handle_isinstance` opaque fallback): measured empirically, adding that
+    symbol to this file's shared module pushed the PRE-EXISTING, already
+    near-timeout `wf_ir_binds` lemma (`_emit_pydict_theory`, unrelated to
+    this recognizer) from Valid to Timeout — a whole-file regression with
+    zero new declarations avoids. `ensures True` makes the branch's actual
+    outcome irrelevant either way; `mod` keeps the guard genuinely opaque
+    (not constant-folded) without perturbing the shared proof context."""
+    n = whyml_ident(func["name"])
+    callee = whyml_ident(desc["callee"])
+    ctx = [whyml_ident(p) for p in desc["ctx_params"]]
+    ctx_sig = "".join(f" ({c}: int)" for c in ctx)
+    ctx_args = "".join(f" {c}" for c in ctx)
+    h = whyml_ident(desc["stmtvar"])
+    out: List[str] = []
+    out.append(f"  let rec {n} (stmts: list int){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { stmts }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append(f"    | Cons {h} t ->")
+    out.append(f"        (if (mod {h} 2 = 0) then {callee} {h}{ctx_args} else ());")
+    out.append(f"        {n} t{ctx_args}")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
+# G-void-generic-descend — the VOID untyped-value tree descender (the
+# `_pb_descend`/`_cs_descend` twin pair, mutually recursive with the
+# G-void-dispatch-thin siblings `_pb_body`/`_cs_body`):
+#     def wrapper(v, *ctx):
+#         if isinstance(v, dict):
+#             if "stmt" in v:
+#                 sibling(v, *ctx)
+#             else:
+#                 for x in v.values():
+#                     wrapper(x, *ctx)
+#         elif isinstance(v, list):
+#             for x in v:
+#                 wrapper(x, *ctx)
+#
+# UNLIKE G-void-dispatch-thin, the subject `v` is genuinely heterogeneous
+# (no `List[...]` annotation — it is descended through both `dict` and
+# `list` shapes across the recursion), so it needs the REAL `pyval`/`pydict`
+# L1 catamorphism (`needs_pydict`, the `recognize_bool_existence` theory) —
+# not the opaque `list int` model. `isinstance(v, dict)`/`isinstance(v,
+# list)` lower to the pyval tag match itself (`PDict`/`PList`), which is
+# MORE faithful than the `mod h 2 = 0` opaque-guard fallback (real
+# information, not a scrambled parity bit) — that fallback is reserved for
+# an already-opaque scalar, which `v` here is not. `"stmt" in v` reuses the
+# EXISTING `_emit_stmt_reader` presence reader verbatim (the same helper
+# `recognize_bool_existence`'s group already emits) — no new WhyML theory.
+#
+# `sibling` (`_pb_stmt`/`_cs_stmt`) STAYS \trusted, so its `val` keeps the
+# corpus-wide opaque-`int` param type for its untyped `s` (the
+# `_param_type_str` Any-fallback) — the SAME convention `_pb_body`'s already-
+# landed `emit_void_dispatch_group` relies on. Since a `\trusted val` has no
+# body, its contract (`ensures true`) makes the caller-supplied int value
+# formally irrelevant; the call forwards the literal `0` as that opaque
+# handle (`pv_size`/`size_dict` are pure LOGIC `function`s — ghost/spec-only,
+# rejected in a program-expression position, so they cannot supply it) —
+# sound for the same reason `emit_void_dispatch_group` forwards an opaque
+# `list int` Cons element with no relation to real dict content: the
+# trusted callee cannot observe or constrain the value it receives.
+#
+# Termination is the direct structural sub-term at every recursive site
+# (`pv_size v` / `size_dict d` / `size_list xs`), split_vc-robust — the
+# proven A-bool/A-set shape reused verbatim.
+#
+# ONE code path handles every match (no per-method name/tag is hardcoded):
+# the sibling's name and the ctx params are read off the recognized call.
+# =========================================================================
+
+def recognize_void_generic_descend(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the G-void-generic-descend untyped tree
+    descender (see the module note above): a void function whose ENTIRE
+    body is `if isinstance(v, dict): (if "stmt" in v: sibling(v, *ctx) else:
+    for x in v.values(): self(x, *ctx)) elif isinstance(v, list): for x in
+    v: self(x, *ctx)`. `sibling` is any OTHER top-level function (not
+    `func` itself, not a dotted call); `ctx` is `func`'s remaining formal
+    params, forwarded positionally and unchanged. `v` must be UNANNOTATED
+    (the genuinely heterogeneous subject — a `list`-annotated subject is the
+    G-void-dispatch-thin shape instead).
+
+    Returns {subject, ctx_params, callee} or None. Never raises."""
+    try:
+        return _recognize_void_generic_descend(func)
+    except Exception:
+        return None
+
+
+def _match_self_recurse_call(body: Any, self_name: str, xvar: str,
+                             ctx_params: List[str]) -> bool:
+    """`self(<xvar>, *ctx_params)` as the sole statement of a loop body."""
+    if not isinstance(body, list) or len(body) != 1:
+        return False
+    s = body[0]
+    if not (isinstance(s, dict) and s.get("stmt") == "Expr"):
+        return False
+    call = s.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == self_name):
+        return False
+    args = call.get("args", [])
+    if len(args) != 1 + len(ctx_params):
+        return False
+    if not _is_var(args[0], xvar):
+        return False
+    for a, p in zip(args[1:], ctx_params):
+        if not _is_var(a, p):
+            return False
+    return True
+
+
+def _recognize_void_generic_descend(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) < 2:
+        return None
+    subj, ctx_params = params[0], params[1:]
+    pann = func.get("param_annotations", {}) or {}
+    # `v` must be genuinely untyped — a `list`-annotated subject is the
+    # G-void-dispatch-thin shape (`recognize_void_dispatch`), a different
+    # recognizer.
+    if subj in pann or any(p in pann for p in ctx_params):
+        return None
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+    obody = outer.get("body", [])
+    if len(obody) != 1:
+        return None
+    inner = obody[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"):
+        return None
+    itest = inner.get("test", {})
+    if not (isinstance(itest, dict) and itest.get("type") == "BinOp"
+            and itest.get("op") == "in"
+            and _is_string(itest.get("left")) == "stmt"
+            and _is_var(itest.get("right"), subj)):
+        return None
+    # true arm: sibling(v, *ctx)
+    ibody = inner.get("body", [])
+    if len(ibody) != 1:
+        return None
+    call_stmt = ibody[0]
+    if not (isinstance(call_stmt, dict) and call_stmt.get("stmt") == "Expr"):
+        return None
+    call = call_stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    callee = call.get("func")
+    if not isinstance(callee, str) or "." in callee or callee == func.get("name"):
+        return None
+    cargs = call.get("args", [])
+    if len(cargs) != 1 + len(ctx_params):
+        return None
+    if not _is_var(cargs[0], subj):
+        return None
+    for a, p in zip(cargs[1:], ctx_params):
+        if not _is_var(a, p):
+            return None
+    # false arm: for x in v.values(): self(x, *ctx)
+    iorelse = inner.get("orelse", [])
+    if len(iorelse) != 1:
+        return None
+    dloop = iorelse[0]
+    if not (isinstance(dloop, dict) and dloop.get("stmt") == "For"
+            and not dloop.get("orelse")):
+        return None
+    dit = dloop.get("iter", {})
+    if not (isinstance(dit, dict) and dit.get("type") == "Call"
+            and dit.get("func") == f"{subj}.values" and not dit.get("args")):
+        return None
+    xvar = dloop.get("target")
+    if not isinstance(xvar, str) or xvar in ctx_params or xvar == subj:
+        return None
+    if not _match_self_recurse_call(dloop.get("body", []), func.get("name"),
+                                    xvar, ctx_params):
+        return None
+    # outer orelse: elif isinstance(v, list): for x in v: self(x, *ctx)
+    oorelse = outer.get("orelse", [])
+    if len(oorelse) != 1:
+        return None
+    linner = oorelse[0]
+    if not (isinstance(linner, dict) and linner.get("stmt") == "If"
+            and not linner.get("orelse")):
+        return None
+    if not _match_isinstance(linner.get("test", {}), subj, "list"):
+        return None
+    lbody = linner.get("body", [])
+    if len(lbody) != 1:
+        return None
+    lloop = lbody[0]
+    if not (isinstance(lloop, dict) and lloop.get("stmt") == "For"
+            and not lloop.get("orelse")):
+        return None
+    if not _is_var(lloop.get("iter"), subj):
+        return None
+    xvar2 = lloop.get("target")
+    if not isinstance(xvar2, str) or xvar2 in ctx_params or xvar2 == subj:
+        return None
+    if not _match_self_recurse_call(lloop.get("body", []), func.get("name"),
+                                    xvar2, ctx_params):
+        return None
+    return {"subject": subj, "ctx_params": ctx_params, "callee": callee}
+
+
+def emit_void_generic_descend_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                    whyml_ident) -> List[str]:
+    """Emit the G-void-generic-descend untyped tree descender as a `pyval`/
+    `pydict`/`list pyval` mutual catamorphism into `unit` (see the module
+    note above). Reuses `_emit_stmt_reader` verbatim for the `"stmt" in v`
+    presence check (only its `__get_stmt` half is consulted here; the
+    `__stmt_is` half it also emits is simply unused, not a new theory)."""
+    n = whyml_ident(func["name"])
+    callee = whyml_ident(desc["callee"])
+    ctx = [whyml_ident(p) for p in desc["ctx_params"]]
+    ctx_sig = "".join(f" ({c}: int)" for c in ctx)
+    ctx_args = "".join(f" {c}" for c in ctx)
+    out: List[str] = []
+    out.extend(_emit_stmt_reader(n))
+    out.append(f"  let rec {n} (v: pyval){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {n}__get_stmt d with")
+    out.append(f"        | Some _ -> {callee} 0{ctx_args}")
+    out.append(f"        | None -> {n}__d d{ctx_args} end)")
+    out.append(f"    | PList xs -> {n}__l xs{ctx_args}")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    out.append(f"  with {n}__d (d: pydict){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with DNil -> ()")
+    out.append(f"    | DCons _ v rest -> {n} v{ctx_args}; {n}__d rest{ctx_args} end")
+    out.append(f"  with {n}__l (xs: list pyval){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list xs }")
+    out.append("  = match xs with Nil -> ()")
+    out.append(f"    | Cons h t -> {n} h{ctx_args}; {n}__l t{ctx_args} end")
+    return out
+
+
+# =========================================================================
+# PB-TRIO FUSION — the mutually-recursive `{_pb_stmt, _pb_body, _pb_descend}`
+# statement-walker triad (core_ir_semantic self-annotation), fused into ONE
+# `let rec … with …` group so `_pb_stmt` can be UN-TRUSTED.
+#
+# Today `_pb_body`/`_pb_descend` lower via `recognize_void_dispatch` /
+# `recognize_void_generic_descend`, each calling the still-`\trusted`
+# `_pb_stmt` opaque-`int` val. Converting `_pb_stmt` forces the three to share
+# ONE recursion group, RETYPED so the real dict flows: `s: pyval`,
+# `stmts: list pyval`, ctx `fname: string`, `symtab/known: sdict` — matching
+# the `_pb_expr` group the trio calls into (emit-DEFERRED after `_pb_expr`).
+#
+# TERMINATION is the banked `{ size, phase }` lexicographic variant (stmt/body
+# at phase 0, descend/__d/__l at phase 1, clearing the equal-size
+# `_pb_descend(v)→_pb_stmt(v)` hop). The child-list/child-value EXTRACTION
+# helpers carry the size-decrease postconditions the variant needs.
+#
+# WHOLE-FILE PROOF-SCALE FIX (getting-better/driver-frontier-floor.md trio row):
+# the naive recursive extraction helper's postcondition (`size_list result <
+# 1 + size_dict d`) proves in ISOLATION but E-matching-SATURATES in the full
+# module context (measured: ~92.9k Alt-Ergo steps → 30s Timeout; NOT caused by
+# `wf_ir_binds` — removing it leaves the step count unchanged). The SOUND fix
+# (no axiom, no weakened goal): route BOTH child extractors through ONE shared
+# recursive `__dget : pydict → option pyval` whose postcondition is on
+# `pv_size` (the form Z3 discharges in 0.05s), then make the list extractor a
+# NON-recursive wrapper (`pv_size (PList xs) = 1 + size_list xs` is a single
+# unfold Alt-Ergo closes in 0.18s). The prover CASCADE (Alt-Ergo then Z3)
+# covers both. Corpus-inert: this whole group emits ONLY for the recognised
+# trio, so no shared preamble/`wf_*` text changes (byte-diff 0).
+#
+# Non-facade: the dispatch tags ("While"/"For"/"GhostAssign"/"GhostArraySet")
+# and the dict keys ("stmt"/"invariants"/"variants"/"body"/"value"/"index")
+# are READ OFF `_pb_stmt`'s body — a change to any of them either moves the
+# emitted arm/extractor or (on a structural change) fails the fail-closed match
+# and reverts `_pb_stmt` to `\trusted` (loud count regression, never a false
+# proof).
+# =========================================================================
+
+def _sget_key(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<KEY>")` (any extra default arg allowed) -> KEY, else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{subj}.get"):
+        return None
+    args = node.get("args") or []
+    if not args:
+        return None
+    return _is_string(args[0])
+
+
+def _or_empty_sget(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<KEY>") or []`  (or a bare `<subj>.get("<KEY>")`) -> KEY."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"
+            and isinstance(node.get("right"), dict)
+            and node["right"].get("type") == "ArrayLit"
+            and not (node["right"].get("elts") or [])):
+        return _sget_key(node.get("left"), subj)
+    return _sget_key(node, subj)
+
+
+def _pbexpr_call(node: Any, callee: str, subj: str, ctx: List[str],
+                 middle: int = 0):
+    """An `Expr` stmt `<callee>(<arg0>, <ctx1>, [<middle literals>], symtab, known)`
+    where the tail args are exactly the trailing ctx params (symtab, known).
+    Returns arg0 (the node being checked) or None. The 2nd arg (a context string)
+    and the `middle` literal args (e.g. the `_cs_clause` `allow_result=False`
+    flag — always False across the trio, message-irrelevant under `ensures True`)
+    are not constrained."""
+    if not (isinstance(node, dict) and node.get("stmt") == "Expr"):
+        return None
+    call = node.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == callee):
+        return None
+    args = call.get("args") or []
+    if len(args) != 2 + middle + len(ctx[1:]):
+        return None
+    # trailing args must be the ctx params after the message-string + middle slots
+    for a, p in zip(args[2 + middle:], ctx[1:]):
+        if not _is_var(a, p):
+            return None
+    return args[0]
+
+
+def _match_loop_branch(branch: List[Any], subj: str, ctx: List[str],
+                       pbexpr: str, pbbody: str,
+                       middle: int = 0) -> Optional[Dict[str, str]]:
+    """[Assign lctx=FString, For(inv-clause→pbexpr), For(var-clause→pbexpr),
+    Expr pbbody(<body-list>, *ctx)] -> {inv,var,body} keys, else None."""
+    if len(branch) != 4:
+        return None
+    a0 = branch[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    keys = []
+    for fr in (branch[1], branch[2]):
+        if not (isinstance(fr, dict) and fr.get("stmt") == "For"):
+            return None
+        k = _or_empty_sget(fr.get("iter"), subj)
+        if k is None:
+            return None
+        fb = fr.get("body") or []
+        if len(fb) != 1 or _pbexpr_call(fb[0], pbexpr, subj, ctx, middle) is None:
+            return None
+        keys.append(k)
+    call = branch[3]
+    if not (isinstance(call, dict) and call.get("stmt") == "Expr"):
+        return None
+    cv = call.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"
+            and cv.get("func") == pbbody):
+        return None
+    cargs = cv.get("args") or []
+    if len(cargs) != 1 + len(ctx):
+        return None
+    body_key = _or_empty_sget(cargs[0], subj)
+    if body_key is None:
+        return None
+    for a, p in zip(cargs[1:], ctx):
+        if not _is_var(a, p):
+            return None
+    return {"inv": keys[0], "var": keys[1], "body": body_key}
+
+
+def _flatten_if_chain(node: Any):
+    """Flatten an `if/elif/.../else` chain -> ([(tag, branch_body)], else_body).
+    Each arm's test must be `st == "<TAG>"`. Returns None on any deviation."""
+    arms = []
+    cur = node
+    while isinstance(cur, dict) and cur.get("stmt") == "If":
+        test = cur.get("test") or {}
+        if not (test.get("type") == "BinOp" and test.get("op") == "=="
+                and _is_var(test.get("left"))):
+            return None
+        tag = _is_string(test.get("right"))
+        if tag is None:
+            return None
+        arms.append((tag, cur.get("body") or [], test["left"].get("name")))
+        orelse = cur.get("orelse") or []
+        if len(orelse) == 1 and isinstance(orelse[0], dict) \
+                and orelse[0].get("stmt") == "If":
+            cur = orelse[0]
+        else:
+            return arms, orelse
+    return None
+
+
+def recognize_pb_trio(functions: List[Dict[str, Any]]
+                      ) -> Optional[Dict[str, Any]]:
+    """Fail-closed module-level match of the `{_pb_stmt,_pb_body,_pb_descend}`
+    fusion triad (clause callee `_pb_expr`, no middle literal). Returns a
+    descriptor (names, ctx params, dispatch tags, dict keys) or None."""
+    try:
+        return _recognize_stmt_trio(functions, "_pb_expr", 0)
+    except Exception:
+        return None
+
+
+def recognize_cs_trio(functions: List[Dict[str, Any]]
+                      ) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `{_cs_stmt,_cs_body,_cs_descend}` fusion triad —
+    structurally identical to the pb trio but cross-calling `_cs_clause` (which
+    carries an extra `allow_result=False` middle literal). Returns a descriptor
+    (with `pbexpr_name == "_cs_clause"`, `clause_middle == 1`) or None."""
+    try:
+        return _recognize_stmt_trio(functions, "_cs_clause", 1)
+    except Exception:
+        return None
+
+
+def _recognize_stmt_trio(functions, clause_name, clause_middle):
+    """Generalized `{stmt,body,descend}` statement-walker trio recogniser,
+    parameterized by the clause-checker callee name and the count of literal
+    args it takes between its message-string slot and the tail ctx (0 for
+    `_pb_expr`, 1 for `_cs_clause`'s `allow_result`). Iterates every void-dispatch
+    candidate and fully validates each against `clause_name` — so a module that
+    hosts BOTH the pb and cs trios resolves each independently (order-robust)."""
+    by_name = {f.get("name"): f for f in functions if isinstance(f, dict)}
+    if clause_name not in by_name:
+        return None
+    for f in functions:
+        d = recognize_void_dispatch(f)
+        if d is None or d["callee"] not in by_name:
+            continue
+        res = _try_stmt_trio(functions, by_name, f, d, clause_name, clause_middle)
+        if res is not None:
+            return res
+    return None
+
+
+def _try_stmt_trio(functions, by_name, b_func, b_desc, clause_name, clause_middle):
+    stmt_name = b_desc["callee"]
+    stmt_fn = by_name.get(stmt_name)
+    if stmt_fn is None:
+        return None
+    # the tree descender whose callee is the SAME stmt walker.
+    descend_fn = None
+    for f in functions:
+        dd = recognize_void_generic_descend(f)
+        if dd is not None and dd["callee"] == stmt_name:
+            descend_fn = (f, dd)
+            break
+    if descend_fn is None:
+        return None
+    d_func, d_desc = descend_fn
+    ctx_params = b_desc["ctx_params"]
+    if d_desc["ctx_params"] != ctx_params or len(ctx_params) != 3:
+        return None
+    # --- structured stmt dispatcher ------------------------------------------
+    params = stmt_fn.get("formal_params") or []
+    if len(params) != 4:
+        return None
+    subj = params[0]
+    if params[1:] != ctx_params:
+        return None
+    if stmt_fn.get("return_annotation") not in ("None", None):
+        return None
+    sbody = stmt_fn.get("body") or []
+    if len(sbody) != 2:
+        return None
+    a0 = sbody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    stmt_key = _sget_key(a0.get("value"), subj)
+    st_var = a0.get("target")
+    if stmt_key is None or not isinstance(st_var, str):
+        return None
+    flat = _flatten_if_chain(sbody[1])
+    if flat is None:
+        return None
+    arms, else_body = flat
+    if any(v != st_var for _, _, v in arms):
+        return None
+    loop_tags: List[str] = []
+    loop_keys = None
+    ghost_assign = None       # (tag, key)
+    ghost_arrayset = None     # (tag, index_key, value_key)
+    for tag, branch, _ in arms:
+        lb = _match_loop_branch(branch, subj, ctx_params, clause_name,
+                                b_func["name"], clause_middle)
+        if lb is not None:
+            if loop_keys is not None and loop_keys != lb:
+                return None
+            loop_keys = lb
+            loop_tags.append(tag)
+            continue
+        if len(branch) == 1:
+            arg0 = _pbexpr_call(branch[0], clause_name, subj, ctx_params,
+                                clause_middle)
+            k = _sget_key(arg0, subj) if arg0 is not None else None
+            if k is None:
+                return None
+            if ghost_assign is not None:
+                return None
+            ghost_assign = (tag, k)
+            continue
+        if len(branch) == 3:
+            if not (isinstance(branch[0], dict)
+                    and branch[0].get("stmt") == "Assign"):
+                return None
+            a_i = _pbexpr_call(branch[1], clause_name, subj, ctx_params,
+                               clause_middle)
+            a_v = _pbexpr_call(branch[2], clause_name, subj, ctx_params,
+                               clause_middle)
+            ki = _sget_key(a_i, subj) if a_i is not None else None
+            kv = _sget_key(a_v, subj) if a_v is not None else None
+            if ki is None or kv is None:
+                return None
+            if ghost_arrayset is not None:
+                return None
+            ghost_arrayset = (tag, ki, kv)
+            continue
+        return None
+    if not loop_tags or ghost_assign is None or ghost_arrayset is None:
+        return None
+    if len(else_body) != 1:
+        return None
+    eloop = else_body[0]
+    if not (isinstance(eloop, dict) and eloop.get("stmt") == "For"):
+        return None
+    eit = eloop.get("iter") or {}
+    if not (isinstance(eit, dict) and eit.get("type") == "Call"
+            and eit.get("func") == f"{subj}.values" and not (eit.get("args") or [])):
+        return None
+    evar = eloop.get("target")
+    eb = eloop.get("body") or []
+    if not (isinstance(evar, str) and len(eb) == 1
+            and isinstance(eb[0], dict) and eb[0].get("stmt") == "Expr"):
+        return None
+    ecall = eb[0].get("value") or {}
+    if not (isinstance(ecall, dict) and ecall.get("type") == "Call"
+            and ecall.get("func") == d_func["name"]):
+        return None
+    eargs = ecall.get("args") or []
+    if len(eargs) != 1 + len(ctx_params) or not _is_var(eargs[0], evar):
+        return None
+    for a, p in zip(eargs[1:], ctx_params):
+        if not _is_var(a, p):
+            return None
+    return {
+        "stmt_name": stmt_name,
+        "body_name": b_func["name"],
+        "descend_name": d_func["name"],
+        "pbexpr_name": clause_name,
+        "clause_middle": clause_middle,
+        "ctx_params": ctx_params,
+        "stmt_key": stmt_key,
+        "loop_tags": loop_tags,
+        "inv_key": loop_keys["inv"],
+        "var_key": loop_keys["var"],
+        "body_key": loop_keys["body"],
+        "gassign_tag": ghost_assign[0],
+        "gassign_key": ghost_assign[1],
+        "garrayset_tag": ghost_arrayset[0],
+        "garrayset_index_key": ghost_arrayset[1],
+        "garrayset_value_key": ghost_arrayset[2],
+        "names": {stmt_name, b_func["name"], d_func["name"]},
+    }
+
+
+def emit_pb_trio_group(desc: Dict[str, Any], whyml_ident,
+                       clause_val_mid: str = "") -> List[str]:
+    """Emit the fused `{stmt,body,descend}` trio group (see module note). Must be
+    emitted AFTER the clause-checker group (`_pb_expr` / `_cs_clause`) it calls
+    into. `clause_val_mid` is the literal inserted into a single-value clause call
+    between the ctx-string and the tail ctx ("" for pb; " false" for cs's
+    `allow_result`) — the list-call routes through the clause-checker's own
+    `__list` wrapper (`_pb_expr__list` / `_cs_clause__list`), so it needs none."""
+    n = whyml_ident(desc["stmt_name"])
+    nb = whyml_ident(desc["body_name"])
+    nd = whyml_ident(desc["descend_name"])
+    npe = whyml_ident(desc["pbexpr_name"])
+    f, sy, kn = (whyml_ident(p) for p in desc["ctx_params"])
+    ctx_sig = f" ({f}: string) ({sy}: sdict) ({kn}: sdict)"
+    ctx_args = f" {f} {sy} {kn}"
+    def valc(w: str) -> str:
+        return f"{npe} {w} {f}{clause_val_mid} {sy} {kn}"
+    exc = "    requires { true } ensures { true } raises { PyCSLSemanticError }"
+    loop_cond = " || ".join(
+        f'pystr_eq st "{t}"' for t in desc["loop_tags"])
+    out: List[str] = []
+    # --- statement-tag reader --------------------------------------------
+    out.append(f"  let rec {n}__get_stmt (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append(f'    | DCons (K_dyn k) (PStr s) rest -> if pystr_eq k "{desc["stmt_key"]}" then Some s else {n}__get_stmt rest')
+    out.append(f"    | DCons _ _ rest -> {n}__get_stmt rest end")
+    out.append("")
+    # --- shared value extractor (pv_size postcond — the Z3-fast form) -----
+    out.append(f"  let rec {n}__dget (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons (K_dyn k) v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append(f"        if pystr_eq k key then Some v else {n}__dget key rest")
+    out.append("    | DCons _ v rest ->")
+    out.append(f"        size_pos v; size_dict_nonneg rest; {n}__dget key rest end")
+    out.append("")
+    # --- single-value child (ghost value/index) --------------------------
+    out.append(f"  let {n}__val_child (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+    out.append(f"  = {n}__dget key d")
+    out.append("")
+    # --- list child (loop body) — NON-recursive wrapper (Alt-Ergo-fast) --
+    out.append(f"  let {n}__list_child (key: string) (d: pydict) : list pyval")
+    out.append("    ensures { size_list result < 1 + size_dict d }")
+    out.append("  = size_dict_nonneg d;")
+    out.append(f"    match {n}__dget key d with")
+    out.append("    | Some (PList xs) -> size_list_nonneg xs; xs")
+    out.append("    | _ -> Nil")
+    out.append("    end")
+    out.append("")
+    # --- the mutual recursion group --------------------------------------
+    out.append(f"  let rec {n} (s: pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { pv_size s, 0 }")
+    out.append("  = match s with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get_stmt d with")
+    out.append("         | Some st ->")
+    out.append(f"             if {loop_cond} then begin")
+    out.append(f'               {npe}__list ({n}__list_child "{desc["inv_key"]}" d){ctx_args};')
+    out.append(f'               {npe}__list ({n}__list_child "{desc["var_key"]}" d){ctx_args};')
+    out.append(f'               {nb} ({n}__list_child "{desc["body_key"]}" d){ctx_args}')
+    out.append(f'             end else if pystr_eq st "{desc["gassign_tag"]}" then begin')
+    out.append(f'               (match {n}__val_child "{desc["gassign_key"]}" d with Some w -> {valc("w")} | None -> () end)')
+    out.append(f'             end else if pystr_eq st "{desc["garrayset_tag"]}" then begin')
+    out.append(f'               (match {n}__val_child "{desc["garrayset_index_key"]}" d with Some w -> {valc("w")} | None -> () end);')
+    out.append(f'               (match {n}__val_child "{desc["garrayset_value_key"]}" d with Some w -> {valc("w")} | None -> () end)')
+    out.append("             end else")
+    out.append(f"               {n}__d d{ctx_args}")
+    out.append(f"         | None -> {n}__d d{ctx_args} end)")
+    out.append("    | _ -> () end")
+    out.append(f"  with {nb} (stmts: list pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { size_list stmts, 0 }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons s t ->")
+    out.append("        size_pos s; size_list_nonneg t;")
+    out.append(f"        (match s with PDict _ -> {n} s{ctx_args} | _ -> () end);")
+    out.append(f"        {nb} t{ctx_args}")
+    out.append("    end")
+    out.append(f"  with {nd} (v: pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { pv_size v, 1 }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {n}__get_stmt d with")
+    out.append(f"        | Some _ -> {n} (PDict d){ctx_args}")
+    out.append(f"        | None -> {n}__d d{ctx_args} end)")
+    out.append(f"    | PList xs -> {n}__l xs{ctx_args}")
+    out.append("    | _ -> () end")
+    out.append(f"  with {n}__d (d: pydict){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { size_dict d, 1 }")
+    out.append("  = match d with DNil -> ()")
+    out.append(f"    | DCons _ v rest -> size_pos v; size_dict_nonneg rest; {nd} v{ctx_args}; {n}__d rest{ctx_args} end")
+    out.append(f"  with {n}__l (xs: list pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { size_list xs, 1 }")
+    out.append("  = match xs with Nil -> ()")
+    out.append(f"    | Cons h t -> size_pos h; size_list_nonneg t; {nd} h{ctx_args}; {n}__l t{ctx_args} end")
+    return out
+
+
+# =========================================================================
+# IR-FREE-VARS — the `_ir_free_vars` value-returning SET-UNION fold
+# (core_ir_semantic self-annotation). A `Set[str]` catamorphism over the
+# dynamic `pyval`/`pydict`/`list pyval` ADT, returning the certified L1 set
+# repr `map string bool` (`set_add`/`set_union` from the pydict theory, plus a
+# purely-model `set_remove` val for the quantifier-binder subtractions). Under
+# the fixed `ensures True` contract the set VALUE is never observed — the proof
+# checks type-safety + termination only; the emitter reads the type-tag strings
+# and dict keys OFF the body (fail-closed), so a tag/key change moves the
+# emitted `.mlw` (mutation-faithful) or fails the match and reverts the method
+# to `\trusted` (loud count regression, never a false proof).
+#
+# TERMINATION: the banked `{ pv_size, phase }` lexicographic variant (top fold
+# phase 0, __d/__l phase 1). Child recursion (`node.get("body")` in the
+# Forall/Exists/ForallItems arms) routes through the shared `__dget` extractor
+# carrying the `pv_size w < 1 + size_dict d` postcondition — the Z3-fast form
+# proven whole-file for the pb trio's `__dget`. Corpus-inert (fires only for the
+# recognised mirror function).
+# =========================================================================
+
+def _fv_empty_set(node: Any) -> bool:
+    """`set()` — a no-arg call to the `set` builtin."""
+    return (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "set" and not (node.get("args") or []))
+
+
+def _fv_setlit_getkeys(node: Any, subj: str) -> Optional[List[str]]:
+    """A `{ <subj>.get("k1"), <subj>.get("k2"), ... }` set literal -> [k1, k2],
+    else None. Every element must be a single-arg `<subj>.get(<str>)`."""
+    if not (isinstance(node, dict) and node.get("type") == "SetLit"):
+        return None
+    keys: List[str] = []
+    for e in node.get("elts") or []:
+        k = _sget_key(e, subj)
+        if k is None:
+            return None
+        keys.append(k)
+    return keys
+
+
+def _fv_self_call_getkey(node: Any, name: str, subj: str) -> Optional[str]:
+    """`<name>(<subj>.get("<k>"))` (the self-recursion into a child field) -> k."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and _canon_call(node.get("func") or "") == name):
+        return None
+    args = node.get("args") or []
+    if len(args) != 1:
+        return None
+    return _sget_key(args[0], subj)
+
+
+def _fv_tags_of_test(test: Any, tvar: str) -> Optional[List[str]]:
+    """`t == "TAG"` -> ["TAG"]; `t in ("T1","T2",...)` -> [T1,T2,...]; else None."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"):
+        return None
+    if not _is_var(test.get("left"), tvar):
+        return None
+    op = test.get("op")
+    if op == "==":
+        s = _is_string(test.get("right"))
+        return [s] if s is not None else None
+    if op == "in":
+        rt = test.get("right") or {}
+        if not (isinstance(rt, dict) and rt.get("type") == "Tuple"):
+            return None
+        tags: List[str] = []
+        for e in rt.get("elts") or []:
+            s = _is_string(e)
+            if s is None:
+                return None
+            tags.append(s)
+        return tags or None
+    return None
+
+
+def recognize_ir_free_vars(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_ir_free_vars` Set[str] union-fold (see module
+    note). Returns a descriptor of the extracted tag/key strings, or None."""
+    try:
+        return _recognize_ir_free_vars(func)
+    except Exception:
+        return None
+
+
+def _recognize_ir_free_vars(func):
+    name = func.get("name")
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    body = func.get("body") or []
+    if len(body) != 13:
+        return None
+    # [0] if isinstance(node, list): out=set(); for x in node: out|=self(x); return out
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If"
+            and _match_isinstance(s0.get("test"), subj, "list")
+            and not (s0.get("orelse") or [])):
+        return None
+    b0 = s0.get("body") or []
+    if len(b0) != 3 or not (b0[0].get("stmt") == "Assign"
+                            and _fv_empty_set(b0[0].get("value"))):
+        return None
+    lacc = b0[0].get("target")
+    lloop = b0[1]
+    if not (isinstance(lloop, dict) and lloop.get("stmt") == "For"
+            and _is_var(lloop.get("iter"), subj)):
+        return None
+    lv = lloop.get("target")
+    lbody = lloop.get("body") or []
+    if len(lbody) != 1 or not _fv_aug_self(lbody[0], lacc, name, lv):
+        return None
+    if not (b0[2].get("stmt") == "Return" and _is_var(b0[2].get("value"), lacc)):
+        return None
+    # [1] if not isinstance(node, dict): return set()
+    s1 = body[1]
+    t1 = s1.get("test") if isinstance(s1, dict) else None
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If"
+            and isinstance(t1, dict) and t1.get("type") == "UnaryOp"
+            and t1.get("op") == "not"
+            and _match_isinstance(t1.get("expr"), subj, "dict")):
+        return None
+    rb1 = s1.get("body") or []
+    if len(rb1) != 1 or not (rb1[0].get("stmt") == "Return"
+                             and _fv_empty_set(rb1[0].get("value"))):
+        return None
+    # [2] t = node.get("type")
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Assign"):
+        return None
+    type_key = _sget_key(s2.get("value"), subj)
+    tvar = s2.get("target")
+    if type_key is None or not isinstance(tvar, str):
+        return None
+    # [3] if t == "Var": return { node.get("name") }
+    var_tags = _fv_return_guard_tags(body[3], tvar)
+    if var_tags is None or len(var_tags) != 1:
+        return None
+    var_ret = body[3]["body"][0].get("value")
+    name_keys = _fv_setlit_getkeys(var_ret, subj)
+    if name_keys is None or len(name_keys) != 1:
+        return None
+    # [4] if t in (...opaque...): return set()
+    opq_tags = _fv_return_guard_tags(body[4], tvar)
+    if opq_tags is None or not _fv_empty_set(body[4]["body"][0].get("value")):
+        return None
+    # [5] if t == "ArrayLen": [var=node.get("var",""); if ...: return set(); return {var}]
+    al = _fv_match_arraylen(body[5], tvar, subj, name)
+    if al is None:
+        return None
+    # [6] if t in ("Forall","Exists"): return self(node.get("body")) - {node.get("var")}
+    q = _fv_match_quant(body[6], tvar, subj, name)
+    if q is None:
+        return None
+    # [7] if t == "ForallItems": return (self(get(body)) - {get(key),get(val)}) | {get(coll)}
+    fi = _fv_match_forallitems(body[7], tvar, subj, name)
+    if fi is None:
+        return None
+    # [8] base_names = set()
+    if not (isinstance(body[8], dict) and body[8].get("stmt") == "Assign"
+            and _fv_empty_set(body[8].get("value"))):
+        return None
+    bn_var = body[8].get("target")
+    # [9] the Valid/Separated/GhostCopy/AssignsRegion base-name if/elif chain
+    base_branches = _fv_match_base_chain(body[9], tvar, subj, bn_var)
+    if base_branches is None:
+        return None
+    # [10] out = {b for b in base_names if b}
+    if not _fv_match_setcomp(body[10], bn_var):
+        return None
+    oacc = body[10].get("target")
+    # [11] for v in node.values(): out |= self(v)
+    vloop = body[11]
+    if not (isinstance(vloop, dict) and vloop.get("stmt") == "For"):
+        return None
+    vit = vloop.get("iter") or {}
+    if not (isinstance(vit, dict) and vit.get("type") == "Call"
+            and vit.get("func") == f"{subj}.values" and not (vit.get("args") or [])):
+        return None
+    vv = vloop.get("target")
+    vb = vloop.get("body") or []
+    if len(vb) != 1 or not _fv_aug_self(vb[0], oacc, name, vv):
+        return None
+    # [12] return out
+    if not (isinstance(body[12], dict) and body[12].get("stmt") == "Return"
+            and _is_var(body[12].get("value"), oacc)):
+        return None
+    return {
+        "name": name,
+        "type_key": type_key,
+        "var_tags": var_tags,
+        "name_key": name_keys[0],
+        "opaque_tags": opq_tags,
+        "arraylen": al,
+        "quant": q,
+        "forallitems": fi,
+        "base_branches": base_branches,
+    }
+
+
+def _fv_aug_self(stmt: Any, acc: str, name: str, loopvar: str) -> bool:
+    """`<acc> |= <name>(<loopvar>)`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "AugAssign"
+            and stmt.get("target") == acc and stmt.get("op") == "|"):
+        return False
+    call = stmt.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and _canon_call(call.get("func") or "") == name):
+        return False
+    args = call.get("args") or []
+    return len(args) == 1 and _is_var(args[0], loopvar)
+
+
+def _fv_return_guard_tags(stmt: Any, tvar: str) -> Optional[List[str]]:
+    """A `if <t-tags>: return <expr>` guard (single Return body, empty orelse)
+    -> the tag list, else None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not (stmt.get("orelse") or [])):
+        return None
+    tags = _fv_tags_of_test(stmt.get("test"), tvar)
+    if tags is None:
+        return None
+    b = stmt.get("body") or []
+    if len(b) != 1 or b[0].get("stmt") != "Return":
+        return None
+    return tags
+
+
+def _fv_match_arraylen(stmt: Any, tvar: str, subj: str,
+                       name: str) -> Optional[Dict[str, Any]]:
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not (stmt.get("orelse") or [])):
+        return None
+    tags = _fv_tags_of_test(stmt.get("test"), tvar)
+    if tags is None or len(tags) != 1:
+        return None
+    b = stmt.get("body") or []
+    if len(b) != 3:
+        return None
+    if not (b[0].get("stmt") == "Assign"):
+        return None
+    var_key = _sget_key(b[0].get("value"), subj)
+    lvar = b[0].get("target")
+    if var_key is None or not isinstance(lvar, str):
+        return None
+    # inner guard: if str(var).startswith("self.") or var == "\result": return set()
+    g = b[1]
+    if not (isinstance(g, dict) and g.get("stmt") == "If"
+            and not (g.get("orelse") or [])):
+        return None
+    gt = g.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "or"):
+        return None
+    sw = _fv_startswith_prefix(gt.get("left"), lvar)
+    rl = gt.get("right") or {}
+    if sw is None or not (isinstance(rl, dict) and rl.get("type") == "BinOp"
+                          and rl.get("op") == "==" and _is_var(rl.get("left"), lvar)):
+        return None
+    result_lit = _is_string(rl.get("right"))
+    if result_lit is None:
+        return None
+    gb = g.get("body") or []
+    if len(gb) != 1 or not (gb[0].get("stmt") == "Return"
+                            and _fv_empty_set(gb[0].get("value"))):
+        return None
+    if not (b[2].get("stmt") == "Return"):
+        return None
+    ret_elts = b[2].get("value") or {}
+    if not (isinstance(ret_elts, dict) and ret_elts.get("type") == "SetLit"
+            and len(ret_elts.get("elts") or []) == 1
+            and _is_var(ret_elts["elts"][0], lvar)):
+        return None
+    return {"tag": tags[0], "var_key": var_key,
+            "self_prefix": sw, "result_lit": result_lit}
+
+
+def _fv_startswith_prefix(node: Any, var: str) -> Optional[str]:
+    """`str(<var>).startswith("<prefix>")` -> prefix, else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "startswith"):
+        return None
+    rcv = node.get("receiver") or {}
+    if not (isinstance(rcv, dict) and rcv.get("type") == "Call"
+            and rcv.get("func") == "str" and _is_var((rcv.get("args") or [None])[0], var)):
+        return None
+    args = node.get("args") or []
+    if len(args) != 1:
+        return None
+    return _is_string(args[0])
+
+
+def _fv_match_quant(stmt: Any, tvar: str, subj: str,
+                    name: str) -> Optional[Dict[str, Any]]:
+    tags = _fv_return_guard_tags(stmt, tvar)
+    if tags is None:
+        return None
+    ret = stmt["body"][0].get("value") or {}
+    # self(node.get(body_key)) - { node.get(var_key) }
+    if not (isinstance(ret, dict) and ret.get("type") == "BinOp"
+            and ret.get("op") == "-"):
+        return None
+    body_key = _fv_self_call_getkey(ret.get("left"), name, subj)
+    minus = _fv_setlit_getkeys(ret.get("right"), subj)
+    if body_key is None or minus is None or len(minus) != 1:
+        return None
+    return {"tags": tags, "body_key": body_key, "var_key": minus[0]}
+
+
+def _fv_match_forallitems(stmt: Any, tvar: str, subj: str,
+                          name: str) -> Optional[Dict[str, Any]]:
+    tags = _fv_return_guard_tags(stmt, tvar)
+    if tags is None or len(tags) != 1:
+        return None
+    ret = stmt["body"][0].get("value") or {}
+    # (self(get(body)) - {get(key),get(val)}) | {get(coll)}
+    if not (isinstance(ret, dict) and ret.get("type") == "BinOp"
+            and ret.get("op") == "|"):
+        return None
+    coll = _fv_setlit_getkeys(ret.get("right"), subj)
+    inner = ret.get("left") or {}
+    if coll is None or len(coll) != 1:
+        return None
+    if not (isinstance(inner, dict) and inner.get("type") == "BinOp"
+            and inner.get("op") == "-"):
+        return None
+    body_key = _fv_self_call_getkey(inner.get("left"), name, subj)
+    minus = _fv_setlit_getkeys(inner.get("right"), subj)
+    if body_key is None or minus is None or len(minus) != 2:
+        return None
+    return {"tag": tags[0], "body_key": body_key,
+            "key_key": minus[0], "val_key": minus[1], "coll_key": coll[0]}
+
+
+def _fv_match_base_chain(stmt: Any, tvar: str, subj: str,
+                         bn_var: str) -> Optional[List[Dict[str, Any]]]:
+    """The `if t=="Valid": base_names={get(base)} elif ...` chain ->
+    ordered list of {tags, keys}, else None."""
+    branches: List[Dict[str, Any]] = []
+    cur = stmt
+    while isinstance(cur, dict) and cur.get("stmt") == "If":
+        tags = _fv_tags_of_test(cur.get("test"), tvar)
+        if tags is None:
+            return None
+        b = cur.get("body") or []
+        if len(b) != 1 or not (b[0].get("stmt") == "Assign"
+                               and b[0].get("target") == bn_var):
+            return None
+        keys = _fv_setlit_getkeys(b[0].get("value"), subj)
+        if keys is None:
+            return None
+        branches.append({"tags": tags, "keys": keys})
+        orelse = cur.get("orelse") or []
+        if not orelse:
+            return branches
+        if len(orelse) == 1 and isinstance(orelse[0], dict) \
+                and orelse[0].get("stmt") == "If":
+            cur = orelse[0]
+        else:
+            return None
+    return branches or None
+
+
+def _fv_match_setcomp(stmt: Any, bn_var: str) -> bool:
+    """`out = { b for b in base_names if b }`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return False
+    sc = stmt.get("value") or {}
+    if not (isinstance(sc, dict) and sc.get("type") == "SetComp"):
+        return False
+    gens = sc.get("generators") or []
+    if len(gens) != 1:
+        return False
+    g = gens[0]
+    tvar = g.get("target")
+    return (_is_var(sc.get("elt"), tvar)
+            and _is_var(g.get("iter"), bn_var))
+
+
+def _fv_tag_cond(tags: List[str], tvar: str) -> str:
+    """`pystr_eq t "T1" || pystr_eq t "T2" || ...`."""
+    return " || ".join(f'pystr_eq {tvar} "{t}"' for t in tags)
+
+
+def _fv_addk_fold(keys: List[str], n: str, base: str) -> str:
+    """Nested `{n}__addk "kN" d ( ... {n}__addk "k1" d <base> )`."""
+    expr = base
+    for k in keys:
+        expr = f'{n}__addk "{k}" d ({expr})'
+    return expr
+
+
+def emit_ir_free_vars_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_ir_free_vars` Set[str] union-fold group (see module note).
+    Transcribes the whole-body-proven fv_full.mlw shape, with the type tags and
+    dict keys read off the recognised body."""
+    n = whyml_ident(desc["name"])
+    tv = "t"
+    empty = "(const false : map string bool)"
+    out: List[str] = []
+    out.append(f"  val {n}__sw (s p: string) : bool")
+    # `set_remove` (the quantifier-binder subtraction) — purely a `Map.set … false`
+    # val, parallel to the preamble's `set_add`; emitted here (not the shared
+    # pydict theory) so every other pydict-theory mirror/corpus file stays
+    # byte-identical. No axiom (`ensures { result = Map.set … }` is the def).
+    out.append("  val set_remove (m: map string bool) (e: string) : map string bool")
+    out.append("    ensures { result = Map.set m e false }")
+    out.append(f"  let rec {n}__dget (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons (K_dyn k) v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append(f"        if pystr_eq k key then Some v else {n}__dget key rest")
+    out.append("    | DCons _ v rest ->")
+    out.append(f"        size_pos v; size_dict_nonneg rest; {n}__dget key rest end")
+    out.append(f"  let {n}__str (key: string) (d: pydict) : option string")
+    out.append(f"  = match {n}__dget key d with Some (PStr s) -> Some s | _ -> None end")
+    out.append(f"  let {n}__addk (key: string) (d: pydict) (acc: map string bool) : map string bool")
+    out.append(f"  = match {n}__str key d with Some s -> set_add acc s | None -> acc end")
+    out.append(f"  let rec {n} (node: pyval) : map string bool")
+    out.append("    variant { pv_size node, 0 }")
+    out.append("  = match node with")
+    out.append(f"    | PList xs -> {n}__l xs")
+    out.append("    | PDict d ->")
+    out.append(f'        (match {n}__str "{desc["type_key"]}" d with')
+    out.append("         | Some t ->")
+    out.append(f'             if {_fv_tag_cond(desc["var_tags"], tv)} then')
+    out.append(f'               {n}__addk "{desc["name_key"]}" d {empty}')
+    out.append(f'             else if {_fv_tag_cond(desc["opaque_tags"], tv)} then')
+    out.append(f"               {empty}")
+    al = desc["arraylen"]
+    out.append(f'             else if {_fv_tag_cond([al["tag"]], tv)} then')
+    out.append(f'               (match {n}__str "{al["var_key"]}" d with')
+    out.append("                | Some var ->")
+    out.append(f'                    if {n}__sw var "{al["self_prefix"]}" || pystr_eq var "{al["result_lit"]}"')
+    out.append(f"                    then {empty}")
+    out.append(f"                    else set_add {empty} var")
+    out.append(f"                | None -> {empty} end)")
+    q = desc["quant"]
+    out.append(f'             else if {_fv_tag_cond(q["tags"], tv)} then')
+    out.append(f'               (match {n}__dget "{q["body_key"]}" d with')
+    out.append("                | Some w ->")
+    out.append(f'                    (match {n}__str "{q["var_key"]}" d with')
+    out.append(f"                     | Some bv -> set_remove ({n} w) bv")
+    out.append(f"                     | None -> {n} w end)")
+    out.append(f"                | None -> {empty} end)")
+    fi = desc["forallitems"]
+    out.append(f'             else if {_fv_tag_cond([fi["tag"]], tv)} then')
+    out.append(f'               (match {n}__dget "{fi["body_key"]}" d with')
+    out.append("                | Some w ->")
+    out.append(f'                    let i1 = (match {n}__str "{fi["key_key"]}" d with')
+    out.append(f"                              | Some kk -> set_remove ({n} w) kk")
+    out.append(f"                              | None -> {n} w end) in")
+    out.append(f'                    let i2 = (match {n}__str "{fi["val_key"]}" d with')
+    out.append("                              | Some vv -> set_remove i1 vv | None -> i1 end) in")
+    out.append(f'                    {n}__addk "{fi["coll_key"]}" d i2')
+    out.append(f"                | None -> {empty} end)")
+    out.append("             else")
+    out.append("               let bn =")
+    first = True
+    for br in desc["base_branches"]:
+        kw = "if" if first else "else if"
+        first = False
+        out.append(f'                 {kw} {_fv_tag_cond(br["tags"], tv)} then')
+        out.append(f'                   {_fv_addk_fold(br["keys"], n, empty)}')
+    out.append(f"                 else {empty}")
+    out.append(f"               in set_union bn ({n}__d d)")
+    out.append(f"         | None -> {n}__d d end)")
+    out.append(f"    | _ -> {empty} end")
+    out.append(f"  with {n}__d (d: pydict) : map string bool")
+    out.append("    variant { size_dict d, 1 }")
+    out.append(f"  = match d with DNil -> {empty}")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append(f"        set_union ({n} v) ({n}__d rest) end")
+    out.append(f"  with {n}__l (xs: list pyval) : map string bool")
+    out.append("    variant { size_list xs, 1 }")
+    out.append(f"  = match xs with Nil -> {empty}")
+    out.append("    | Cons h t ->")
+    out.append("        size_pos h; size_list_nonneg t;")
+    out.append(f"        set_union ({n} h) ({n}__l t) end")
+    return out
+
+
+# =========================================================================
+# CS-CLAUSE — the `_cs_clause` scope-checker (the `_ir_free_vars` set CONSUMER,
+# core_ir_semantic self-annotation). The clause-checker the `_cs_stmt` trio calls
+# into (emit-DEFERRED after this group, exactly as the pb trio defers to
+# `_pb_expr`). Body:
+#     if clause is None: return
+#     if not allow_result and _contains_result(clause): raise
+#     for v in _ir_free_vars(clause):
+#         if v and v not in symtab and v not in mc: raise
+# `_contains_result` (already a bool fold) + `_ir_free_vars` (the just-landed set
+# fold) are CALLED (their VCs discharge). The `for v in <set>` scope loop is
+# modelled on an abstract referenced name (`__anystr`, a nondeterministic val) —
+# a `map string bool` set is a characteristic function with no element list, so
+# the faithful device is to apply the exact double-membership guard (`v <> "" &&
+# v not-in symtab && v not-in mc`, sdict-presence via `slookup`) to an arbitrary
+# element (a sound over-approximation of the raise behaviour under `ensures
+# True`). Also emits `_cs_clause__list`, the per-element map the trio's loop arms
+# use. Corpus-inert.
+# =========================================================================
+
+def recognize_cs_clause(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_cs_clause` scope-checker (see module note).
+    Returns a descriptor of the callee names + ctx params, or None."""
+    try:
+        return _recognize_cs_clause(func)
+    except Exception:
+        return None
+
+
+def _recognize_cs_clause(func):
+    params = func.get("formal_params") or []
+    if len(params) != 5:
+        return None
+    clause, ctx, allow_result, symtab, mc = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    # [0] if clause is None: return
+    s0 = body[0]
+    t0 = s0.get("test") if isinstance(s0, dict) else None
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If"
+            and not (s0.get("orelse") or []) and isinstance(t0, dict)
+            and t0.get("type") == "BinOp" and t0.get("op") == "=="
+            and _is_var(t0.get("left"), clause)
+            and isinstance(t0.get("right"), dict)
+            and t0["right"].get("type") == "None"):
+        return None
+    b0 = s0.get("body") or []
+    if len(b0) != 1 or b0[0].get("stmt") != "Return":
+        return None
+    # [1] if not allow_result and <cr>(clause): raise
+    s1 = body[1]
+    t1 = s1.get("test") if isinstance(s1, dict) else None
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If"
+            and not (s1.get("orelse") or []) and isinstance(t1, dict)
+            and t1.get("type") == "BinOp" and t1.get("op") == "and"):
+        return None
+    lft = t1.get("left") or {}
+    if not (isinstance(lft, dict) and lft.get("type") == "UnaryOp"
+            and lft.get("op") == "not" and _is_var(lft.get("expr"), allow_result)):
+        return None
+    crc = t1.get("right") or {}
+    if not (isinstance(crc, dict) and crc.get("type") == "Call"):
+        return None
+    cr_name = _canon_call(crc.get("func") or "")
+    crargs = crc.get("args") or []
+    if len(crargs) != 1 or not _is_var(crargs[0], clause):
+        return None
+    b1 = s1.get("body") or []
+    if len(b1) != 1 or b1[0].get("stmt") != "Raise":
+        return None
+    # [2] for v in <fv>(clause): if v and v not in symtab and v not in mc: raise
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "For"):
+        return None
+    it = s2.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"):
+        return None
+    fv_name = _canon_call(it.get("func") or "")
+    fvargs = it.get("args") or []
+    if len(fvargs) != 1 or not _is_var(fvargs[0], clause):
+        return None
+    lv = s2.get("target")
+    fb = s2.get("body") or []
+    if len(fb) != 1:
+        return None
+    guard = fb[0]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not (guard.get("orelse") or [])):
+        return None
+    if not _cs_membership_guard(guard.get("test"), lv, symtab, mc):
+        return None
+    gb = guard.get("body") or []
+    if len(gb) != 1 or gb[0].get("stmt") != "Raise":
+        return None
+    return {"name": func.get("name"), "cr_name": cr_name, "fv_name": fv_name,
+            "symtab": symtab, "mc": mc}
+
+
+def _cs_membership_guard(test: Any, lv: str, symtab: str, mc: str) -> bool:
+    """`<lv> and <lv> not in <symtab> and <lv> not in <mc>` (left-nested and)."""
+    # ((lv and (lv not in symtab)) and (lv not in mc))
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return False
+    if not _cs_not_in(test.get("right"), lv, mc):
+        return False
+    inner = test.get("left") or {}
+    if not (isinstance(inner, dict) and inner.get("type") == "BinOp"
+            and inner.get("op") == "and"):
+        return False
+    return (_is_var(inner.get("left"), lv)
+            and _cs_not_in(inner.get("right"), lv, symtab))
+
+
+def _cs_not_in(node: Any, lv: str, coll: str) -> bool:
+    return (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "not in"
+            and _is_var(node.get("left"), lv)
+            and _is_var(node.get("right"), coll))
+
+
+def emit_cs_clause_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_cs_clause` scope-checker group + its `__list` per-element map
+    (see module note). Whole-body-proven shape (cs_spike.mlw)."""
+    n = whyml_ident(desc["name"])
+    cr = whyml_ident(desc["cr_name"])
+    fv = whyml_ident(desc["fv_name"])
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  let {n} (clause: pyval) (ctx: string) (allow_result: bool) (symtab: sdict) (mc: sdict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("  = match clause with PNone -> () | _ ->")
+    out.append(f"      (if not allow_result && {cr} clause then raise PyCSLSemanticError else ());")
+    out.append(f"      let _fv = {fv} clause in")
+    out.append(f"      let v = {n}__anystr () in")
+    out.append('      if (not (pystr_eq v ""))')
+    out.append("         && (match slookup v symtab with None -> true | _ -> false end)")
+    out.append("         && (match slookup v mc with None -> true | _ -> false end)")
+    out.append("      then raise PyCSLSemanticError else ()")
+    out.append("    end")
+    out.append(f"  let rec {n}__list (xs: list pyval) (ctx: string) (symtab: sdict) (mc: sdict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { xs }")
+    out.append("  = match xs with Nil -> ()")
+    out.append(f"    | Cons h t -> {n} h ctx false symtab mc; {n}__list t ctx symtab mc end")
+    return out
+
+
+# =========================================================================
+# CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
+# heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`
+# walkers (pdict-to-sdict-impl.md; driver heterogeneous-func caller cluster).
+#
+# The body EXTRACTS the function's `symbol_table` pydict field off the `func`
+# pyval, bridges it to the string-keyed `sdict` the walkers consume (the total,
+# terminating `pdict_to_sdict` primitive — a K_dyn-only structural recursion, no
+# new type / no new axiom, ledger 3), then fans the `_pb_expr` predicate-base
+# walk over each contract-clause list (requires/ensures/assigns/
+# function_variants) and the `_pb_body` statement walk over the body. Under the
+# fixed `ensures True` contract the walkers place NO VC constraint on the bridged
+# sdict (`pystr_eq`/`slookup` uninterpreted — insight C), so the caller needs
+# only type-safety + termination; NO correspondence lemma is expressible or
+# needed (see scratchpad/pdict_to_sdict_spike.mlw). The `ctx`/`fname` strings are
+# verification-irrelevant (they feed only raise-message f-strings; WhyML matches
+# exceptions by TYPE) — an abstract `val …__anystr`.
+#
+# Emission is DEFERRED (forward reference): the caller is textually before its
+# `_pb_expr`/`_pb_body` callees, so it emits AFTER the `_pb_expr` group + the
+# pb-trio (reusing the same deferred-append plumbing as the trio). The emitter
+# reads the field keys + the contract keys + the callee names OFF the body
+# (fail-closed, mutation-faithful): change a key/tag in the source and the
+# emitted `.mlw` moves; a shape outside the fragment reverts to `\trusted`.
+# =========================================================================
+
+def _cce_field_or_default(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<k>")` or `<subj>.get("<k>") or {}` / `... or []` -> "<k>".
+    Unwraps a leading `or`-BinOp (the `func.get(k) or {}` idiom), then matches
+    the `.get(<lit>)` call."""
+    inner = node
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"):
+        inner = node.get("left")
+    return _match_get_call(inner, subj)
+
+
+def _cce_expr_call(stmt: Any) -> Optional[Tuple[str, List[Any]]]:
+    """An `Expr` statement wrapping a bare `Call` -> (callee, args), else None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return None
+    v = stmt.get("value")
+    if not (isinstance(v, dict) and v.get("type") == "Call"):
+        return None
+    fn = v.get("func")
+    if not isinstance(fn, str):
+        return None
+    return fn, (v.get("args") or [])
+
+
+def recognize_check_contract_exprs(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_contract_exprs(func, known)` caller (see
+    module note). Returns a descriptor of the field/contract keys + callee names,
+    or None; never raises."""
+    try:
+        return _recognize_check_contract_exprs(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_contract_exprs(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    subj, known = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 6:
+        return None
+    # [0] symtab = func.get("symbol_table") or {}
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"):
+        return None
+    symtab_lv = s0.get("target")
+    symtab_field = _cce_field_or_default(s0.get("value"), subj)
+    if not symtab_field:
+        return None
+    # [1] fname = func.get("name", …)
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    fname_lv = s1.get("target")
+    if _match_get_call(s1.get("value"), subj) is None:
+        return None
+    # [2] fctx = f"function '{fname}'" (an FString; content is verification-irrelevant)
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Assign"
+            and isinstance(s2.get("value"), dict)
+            and s2["value"].get("type") == "FString"):
+        return None
+    fctx_lv = s2.get("target")
+    # [3] contracts = func.get("contracts") or {}
+    s3 = body[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "Assign"):
+        return None
+    contracts_lv = s3.get("target")
+    contracts_field = _cce_field_or_default(s3.get("value"), subj)
+    if not contracts_field:
+        return None
+    # [4] for key in (<str tuple>): for clause in contracts.get(key) or []:
+    #         _pb_expr(clause, fctx, symtab, known)
+    s4 = body[4]
+    if not (isinstance(s4, dict) and s4.get("stmt") == "For"):
+        return None
+    key_lv = s4.get("target")
+    if not _is_string_tuple(s4.get("iter")):
+        return None
+    keys = [_is_string(e) for e in s4["iter"].get("elts", [])]
+    ob = s4.get("body") or []
+    if len(ob) != 1:
+        return None
+    inner = ob[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"):
+        return None
+    clause_lv = inner.get("target")
+    it = inner.get("iter")
+    it_l = (it.get("left") if isinstance(it, dict) and it.get("type") == "BinOp"
+            and it.get("op") == "or" else it)
+    if not (isinstance(it_l, dict) and it_l.get("type") == "Call"
+            and it_l.get("func") == f"{contracts_lv}.get"):
+        return None
+    it_args = it_l.get("args") or []
+    if not (it_args and _is_var(it_args[0], key_lv)):
+        return None
+    ib = inner.get("body") or []
+    if len(ib) != 1:
+        return None
+    pbe = _cce_expr_call(ib[0])
+    if pbe is None:
+        return None
+    pbe_name, pbe_args = pbe
+    if not (len(pbe_args) == 4 and _is_var(pbe_args[0], clause_lv)
+            and _is_var(pbe_args[1], fctx_lv) and _is_var(pbe_args[2], symtab_lv)
+            and _is_var(pbe_args[3], known)):
+        return None
+    # [5] _pb_body(func.get("body") or [], fname, symtab, known)
+    pbb = _cce_expr_call(body[5])
+    if pbb is None:
+        return None
+    pbb_name, pbb_args = pbb
+    if len(pbb_args) != 4:
+        return None
+    body_field = _cce_field_or_default(pbb_args[0], subj)
+    if not body_field:
+        return None
+    if not (_is_var(pbb_args[1], fname_lv) and _is_var(pbb_args[2], symtab_lv)
+            and _is_var(pbb_args[3], known)):
+        return None
+    return {"name": func.get("name"), "subj": subj, "known": known,
+            "symtab_field": symtab_field, "contracts_field": contracts_field,
+            "keys": keys, "body_field": body_field,
+            "pbexpr_name": _canon_call(pbe_name),
+            "pbbody_name": _canon_call(pbb_name)}
+
+
+def emit_check_contract_exprs_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_contract_exprs` caller group (see module note). Reads the
+    `symbol_table` pydict field off `func`, bridges it to `sdict` via the total
+    `pdict_to_sdict` primitive, and fans `_pb_expr__list` over each contract-key
+    clause list + `_pb_body` over the body. Whole-body-proven shape
+    (scratchpad/pdict_to_sdict_spike.mlw)."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    known = desc["known"]
+    pbe = whyml_ident(desc["pbexpr_name"])
+    pbb = whyml_ident(desc["pbbody_name"])
+    sf, cf, bf = desc["symtab_field"], desc["contracts_field"], desc["body_field"]
+    keys = desc["keys"]
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  let {n} ({subj}: pyval) ({known}: sdict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = let symtab = (match {subj} with")
+    out.append(f'      | PDict d -> (match pget_dyn "{sf}" d with')
+    out.append("                    | Some (PDict sd) -> pdict_to_sdict sd")
+    out.append("                    | _ -> SNil end)")
+    out.append("      | _ -> SNil end) in")
+    out.append(f"    let fctx = {n}__anystr () in")
+    out.append(f"    (match {subj} with")
+    out.append("     | PDict d ->")
+    out.append(f'         (match pget_dyn "{cf}" d with')
+    out.append("          | Some (PDict cd) ->")
+    key_calls = [f'{pbe}__list (pget_list "{k}" cd) fctx symtab {known}'
+                 for k in keys]
+    for i, kc in enumerate(key_calls):
+        sep = ";" if i < len(key_calls) - 1 else ""
+        out.append(f"              {kc}{sep}")
+    out.append("          | _ -> () end);")
+    out.append(f'         {pbb} (pget_list "{bf}" d) fctx symtab {known}')
+    out.append("     | _ -> () end)")
+    return out
+
+
+# =========================================================================
+# BODY-WALK caller SIBLINGS (`_check_checkpoints`, `_check_ghost_string_ops`)
+# — the generalisation of the `_check_contract_exprs` caller to the simpler
+# heterogeneous-`func` callers that walk ONLY the function BODY (no contract-
+# clause fan-out). The shared shape is a 1-param `_check_*(func)` returning
+# None whose body is:
+#
+#     where  = f"function '{func.get('name', '<anonymous>')}'"   # FString ctx
+#     [symtab = func.get("symbol_table") or {}]                  # OPTIONAL
+#     WALKER(func.get("body", []) or [], where[, symtab])        # body walk
+#
+# `_check_checkpoints`     -> WALKER=`_cp_walk`  (2-arg env: where)        no symtab
+# `_check_ghost_string_ops`-> WALKER=`_gso_walk` (3-arg env: where,symtab)  symtab
+#
+# The WALKER is one of the already-converted `_sa_walk`-family env-threaded
+# walks; the caller only feeds it the body-list + the (verification-irrelevant,
+# error-message-only) `where` string + the bridged `symtab` (`pdict_to_sdict`
+# over the `symbol_table` pydict field — same total, terminating primitive the
+# `_check_contract_exprs` caller uses, NO new type/axiom, ledger 3). The walkers
+# place no VC constraint on `symtab`/`where` (`slookup`/`pystr_eq` uninterpreted,
+# insight C), so the caller needs only type-safety + termination — no
+# correspondence lemma. Emission is DEFERRED (forward reference): each caller is
+# textually before its WALKER callee, so it emits AFTER the walker group (the
+# `recognize_cpwalk` / `recognize_sawalk` branch), keyed on the emitted walker's
+# name. The emitter reads the `symbol_table`/`body` field keys + the WALKER name
+# OFF the body (fail-closed, mutation-faithful): change a key/callee in the
+# source and the emitted `.mlw` moves; a shape outside the fragment reverts to
+# `\trusted`.
+# =========================================================================
+
+def recognize_check_body_walk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of a body-only `_check_*(func)` caller (see module
+    note): `where = f-string; [symtab = func.get("symbol_table") or {}];
+    WALKER(func.get("body") or [], where[, symtab])`. Returns a descriptor of
+    the WALKER name + optional symtab field, or None; never raises."""
+    try:
+        return _recognize_check_body_walk(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_body_walk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) not in (2, 3):
+        return None
+    # [0] where = f"function '{func.get('name', ...)}'"  (an FString ctx)
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"
+            and isinstance(s0.get("value"), dict)
+            and s0["value"].get("type") == "FString"):
+        return None
+    where_lv = s0.get("target")
+    # [1] OPTIONAL: symtab = func.get("symbol_table") or {}
+    symtab_lv = None
+    symtab_field = None
+    call_stmt = body[1]
+    if len(body) == 3:
+        s1 = body[1]
+        if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+            return None
+        symtab_lv = s1.get("target")
+        symtab_field = _cce_field_or_default(s1.get("value"), subj)
+        if not symtab_field:
+            return None
+        call_stmt = body[2]
+    # [last] WALKER(func.get("body") or [], where[, symtab])
+    wc = _cce_expr_call(call_stmt)
+    if wc is None:
+        return None
+    walker_name, wargs = wc
+    body_field = _cce_field_or_default(wargs[0], subj) if wargs else None
+    if not body_field:
+        return None
+    if symtab_lv is None:
+        # 2-arg env walk: (body, where)
+        if not (len(wargs) == 2 and _is_var(wargs[1], where_lv)):
+            return None
+    else:
+        # 3-arg env walk: (body, where, symtab)
+        if not (len(wargs) == 3 and _is_var(wargs[1], where_lv)
+                and _is_var(wargs[2], symtab_lv)):
+            return None
+    return {"name": func.get("name"), "subj": subj,
+            "needs_symtab": symtab_lv is not None,
+            "symtab_field": symtab_field, "body_field": body_field,
+            "walker_name": _canon_call(walker_name)}
+
+
+def emit_check_body_walk_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit a body-only `_check_*` caller group (see module note): compute the
+    `where` context (an abstract `val …__anystr`, error-message-only), bridge the
+    optional `symbol_table` pydict field to `sdict` via `pdict_to_sdict`, and fan
+    the WALKER's `__list` over the body-list (`pget_list "body"`). Type-safe +
+    terminating over the already-certified `pydict`/`sdict`/walker theories."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    walker = whyml_ident(desc["walker_name"])
+    bf = desc["body_field"]
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  let {n} ({subj}: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    if desc["needs_symtab"]:
+        sf = desc["symtab_field"]
+        out.append(f"  = let symtab = (match {subj} with")
+        out.append(f'      | PDict d -> (match pget_dyn "{sf}" d with')
+        out.append("                    | Some (PDict sd) -> pdict_to_sdict sd")
+        out.append("                    | _ -> SNil end)")
+        out.append("      | _ -> SNil end) in")
+        out.append(f"    let where = {n}__anystr () in")
+        out.append(f"    (match {subj} with")
+        out.append(f'     | PDict d -> {walker}__list (pget_list "{bf}" d) where symtab')
+        out.append("     | _ -> () end)")
+    else:
+        out.append(f"  = let where = {n}__anystr () in")
+        out.append(f"    (match {subj} with")
+        out.append(f'     | PDict d -> {walker}__list (pget_list "{bf}" d) where')
+        out.append("     | _ -> () end)")
+    return out
+
+
+# =========================================================================
+# CHECK-SUBSCRIPT-ASSIGNMENTS caller (`_check_subscript_assignments(func)`) —
+# the body-only heterogeneous-`func` caller that runs TWO `_sa_walk`-family body
+# walks with an annotation-emptiness GATE between them (driver target #2). Shape:
+#
+#     where  = f"function '{func.get('name', '<anonymous>')}'"       # FString ctx
+#     symtab = func.get("symbol_table") or {}                        # bridged sdict
+#     IMMWALKER(func.get("body", []) or [], where, symtab)           # unconditional
+#     c = func.get("contracts") or {}
+#     if not (c.get(k0) or c.get(k1) or c.get(k2)): return           # annotation gate
+#     SAWALKER(func.get("body", []) or [], where, symtab)            # gated
+#
+# The generalisation of `recognize_check_body_walk` to TWO walkers separated by
+# the `not (c.get(...) or ...)` early-return gate. Both walkers are already-
+# converted `_sa_walk`-family env-threaded walks; the caller feeds them the
+# body-list + the (error-message-only) `where` + the bridged `symtab`. The gate's
+# truthiness is a value fact no VC constrains (insight C) — modelled by the
+# PRESENCE of any of the gate keys in the bridged `contracts` pydict, so the
+# emitted body reads `func`'s contracts dict + the gate key names (mutation-
+# faithful, non-vacuous). Emission is DEFERRED until BOTH walker groups are
+# emitted (forward reference — the caller is textually before both).
+# =========================================================================
+
+def _flatten_or_get_keys(node: Any, subj: str) -> Optional[List[str]]:
+    """A left-nested `<subj>.get(k0) or <subj>.get(k1) or ...` chain -> the key
+    list [k0, k1, ...] in source order, or None (fail-closed)."""
+    keys: List[str] = []
+    cur = node
+    while (isinstance(cur, dict) and cur.get("type") == "BinOp"
+           and cur.get("op") == "or"):
+        rk = _match_get_call(cur.get("right"), subj)
+        if rk is None:
+            return None
+        keys.append(rk)
+        cur = cur.get("left")
+    lk = _match_get_call(cur, subj)
+    if lk is None:
+        return None
+    keys.append(lk)
+    keys.reverse()
+    return keys
+
+
+def recognize_check_subscript_assignments(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_subscript_assignments(func)` caller (see
+    module note). Returns a descriptor of the field/gate keys + both walker
+    names, or None; never raises."""
+    try:
+        return _recognize_check_subscript_assignments(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_subscript_assignments(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 6:
+        return None
+    # [0] where = f"function '...'"  (FString ctx)
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"
+            and isinstance(s0.get("value"), dict)
+            and s0["value"].get("type") == "FString"):
+        return None
+    where_lv = s0.get("target")
+    # [1] symtab = func.get("<sf>") or {}
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    symtab_lv = s1.get("target")
+    symtab_field = _cce_field_or_default(s1.get("value"), subj)
+    if not symtab_field:
+        return None
+    # [2] IMMWALKER(func.get("<bf>") or [], where, symtab)
+    w0 = _cce_expr_call(body[2])
+    if w0 is None:
+        return None
+    imm_name, imm_args = w0
+    if len(imm_args) != 3:
+        return None
+    body_field = _cce_field_or_default(imm_args[0], subj)
+    if not (body_field and _is_var(imm_args[1], where_lv)
+            and _is_var(imm_args[2], symtab_lv)):
+        return None
+    # [3] c = func.get("<cf>") or {}
+    s3 = body[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "Assign"):
+        return None
+    c_lv = s3.get("target")
+    contracts_field = _cce_field_or_default(s3.get("value"), subj)
+    if not contracts_field:
+        return None
+    # [4] if not (c.get(k0) or c.get(k1) or ...): return
+    s4 = body[4]
+    if not (isinstance(s4, dict) and s4.get("stmt") == "If" and not s4.get("orelse")):
+        return None
+    t4 = s4.get("test", {})
+    if not (isinstance(t4, dict) and t4.get("type") == "UnaryOp"
+            and t4.get("op") == "not"):
+        return None
+    gate_keys = _flatten_or_get_keys(t4.get("expr"), c_lv)
+    if not gate_keys:
+        return None
+    ib = s4.get("body") or []
+    if len(ib) != 1 or not (isinstance(ib[0], dict) and ib[0].get("stmt") == "Return"):
+        return None
+    # [5] SAWALKER(func.get("<bf2>") or [], where, symtab)
+    w1 = _cce_expr_call(body[5])
+    if w1 is None:
+        return None
+    sa_name, sa_args = w1
+    if len(sa_args) != 3:
+        return None
+    body_field2 = _cce_field_or_default(sa_args[0], subj)
+    if not (body_field2 and _is_var(sa_args[1], where_lv)
+            and _is_var(sa_args[2], symtab_lv)):
+        return None
+    return {"name": func.get("name"), "subj": subj,
+            "symtab_field": symtab_field, "body_field": body_field,
+            "body_field2": body_field2, "contracts_field": contracts_field,
+            "gate_keys": gate_keys,
+            "imm_walker": _canon_call(imm_name),
+            "sa_walker": _canon_call(sa_name)}
+
+
+def emit_check_subscript_assignments_group(
+        desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_subscript_assignments` caller group (see module note):
+    bridge `symbol_table` to `sdict`, run IMMWALKER over the body-list, then —
+    gated on the PRESENCE of any annotation gate key in the bridged `contracts`
+    pydict — run SAWALKER over the body-list. Type-safe + terminating over the
+    already-certified pydict/sdict/walker theories."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    imm = whyml_ident(desc["imm_walker"])
+    saw = whyml_ident(desc["sa_walker"])
+    sf, cf = desc["symtab_field"], desc["contracts_field"]
+    bf, bf2 = desc["body_field"], desc["body_field2"]
+    gate = " || ".join(
+        f'(match pget_dyn "{k}" cd with Some _ -> true | None -> false end)'
+        for k in desc["gate_keys"])
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  let {n} ({subj}: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = let symtab = (match {subj} with")
+    out.append(f'      | PDict d -> (match pget_dyn "{sf}" d with')
+    out.append("                    | Some (PDict sd) -> pdict_to_sdict sd")
+    out.append("                    | _ -> SNil end)")
+    out.append("      | _ -> SNil end) in")
+    out.append(f"    let where = {n}__anystr () in")
+    out.append(f"    (match {subj} with")
+    out.append("     | PDict d ->")
+    out.append(f'         {imm}__list (pget_list "{bf}" d) where symtab;')
+    out.append(f'         let annotated = (match pget_dyn "{cf}" d with')
+    out.append(f"                          | Some (PDict cd) -> {gate}")
+    out.append("                          | _ -> false end) in")
+    out.append(f'         if annotated then {saw}__list (pget_list "{bf2}" d) where symtab else ()')
+    out.append("     | _ -> () end)")
+    return out
+
+
+# =========================================================================
+# CHECK-CONTRACT-SCOPE caller (`_check_contract_scope(func, module_constants)`)
+# — the scope/`\result` check that fans the already-converted `_cs_clause` over
+# each contract-key clause list (with a PER-KEY `allow_result` literal) and the
+# `_cs_body` statement walk over the body (driver target #3). Shape:
+#
+#     symtab = func.get("symbol_table") or {}
+#     _va_name = func.get("vararg_str_param")
+#     if _va_name and _va_name not in symtab:
+#         symtab = {**symtab, _va_name: "tuple"}          # vararg augmentation
+#     fname = func.get("name", "<anonymous>")
+#     fctx = f"function '{fname}'"
+#     contracts = func.get("contracts") or {}
+#     for key, allow_result in (("requires",False),("ensures",True),…):
+#         for clause in contracts.get(key, []) or []:
+#             _cs_clause(clause, fctx, allow_result, symtab, module_constants)
+#     _cs_body(func.get("body", []) or [], fname, symtab, module_constants)
+#
+# Two bounded features over the `_check_contract_exprs` caller: (a) the vararg
+# dict-spread symtab merge — modelled as `SCons va (PStr "tuple") symtab` on the
+# bridged sdict when the `vararg_str_param` field is present (VC-irrelevant; the
+# guard's truthiness/`not in` is a value fact no VC constrains, insight C); and
+# (b) the PER-KEY `allow_result` — the `ensures` arm needs `allow_result=true`,
+# so it routes through a locally-emitted `__ens` fold that passes `true`, while
+# the `False` keys reuse the already-emitted `_cs_clause__list` (which passes
+# `false`). Emission is DEFERRED to just after the `_cs_clause` group + cs-trio
+# it calls into (forward reference). Reads the field/contract keys + the (key,
+# allow_result) literal pairs + callee names OFF the body (fail-closed, mutation-
+# faithful): change a key/flag and the emitted `.mlw` moves.
+# =========================================================================
+
+def recognize_check_contract_scope(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_contract_scope(func, module_constants)`
+    caller (see module note). Returns a descriptor of the field keys, the
+    (key, allow_result) literal pairs, and the clause/body callee names, or None;
+    never raises."""
+    try:
+        return _recognize_check_contract_scope(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_contract_scope(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    subj, mc = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 8:
+        return None
+    # [0] symtab = func.get("<sf>") or {}
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"):
+        return None
+    symtab_lv = s0.get("target")
+    symtab_field = _cce_field_or_default(s0.get("value"), subj)
+    if not symtab_field:
+        return None
+    # [1] _va_name = func.get("<vf>")
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    va_lv = s1.get("target")
+    vararg_field = _match_get_call(s1.get("value"), subj)
+    if not (isinstance(va_lv, str) and vararg_field):
+        return None
+    # [2] if _va_name and _va_name not in symtab: symtab = {**symtab, _va_name: "<TV>"}
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "If" and not s2.get("orelse")):
+        return None
+    t2 = s2.get("test", {})
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp" and t2.get("op") == "and"
+            and _is_var(t2.get("left"), va_lv)):
+        return None
+    ni = t2.get("right", {})
+    if not (isinstance(ni, dict) and ni.get("type") == "BinOp"
+            and ni.get("op") == "not in" and _is_var(ni.get("left"), va_lv)
+            and _is_var(ni.get("right"), symtab_lv)):
+        return None
+    mb = s2.get("body") or []
+    if len(mb) != 1 or not (isinstance(mb[0], dict) and mb[0].get("stmt") == "Assign"
+                            and mb[0].get("target") == symtab_lv):
+        return None
+    dl = mb[0].get("value", {})
+    if not (isinstance(dl, dict) and dl.get("type") == "DictLit"):
+        return None
+    dkeys, dvals = dl.get("keys") or [], dl.get("values") or []
+    if not (len(dkeys) == 2 and len(dvals) == 2
+            and isinstance(dkeys[0], dict) and dkeys[0].get("type") == "None"
+            and _is_var(dvals[0], symtab_lv) and _is_var(dkeys[1], va_lv)):
+        return None
+    tuple_val = _is_string(dvals[1])
+    if tuple_val is None:
+        return None
+    # [3] fname = func.get("name", …)
+    s3 = body[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "Assign"):
+        return None
+    fname_lv = s3.get("target")
+    if _match_get_call(s3.get("value"), subj) is None:
+        return None
+    # [4] fctx = f"function '{fname}'" (FString; verification-irrelevant)
+    s4 = body[4]
+    if not (isinstance(s4, dict) and s4.get("stmt") == "Assign"
+            and isinstance(s4.get("value"), dict)
+            and s4["value"].get("type") == "FString"):
+        return None
+    fctx_lv = s4.get("target")
+    # [5] contracts = func.get("<cf>") or {}
+    s5 = body[5]
+    if not (isinstance(s5, dict) and s5.get("stmt") == "Assign"):
+        return None
+    contracts_lv = s5.get("target")
+    contracts_field = _cce_field_or_default(s5.get("value"), subj)
+    if not contracts_field:
+        return None
+    # [6] for key, allow_result in ((<str>,<bool>),…): for clause in contracts.get(key) or []:
+    #         _cs_clause(clause, fctx, allow_result, symtab, module_constants)
+    s6 = body[6]
+    if not (isinstance(s6, dict) and s6.get("stmt") == "For"):
+        return None
+    tt = s6.get("tuple_targets") or []
+    if len(tt) != 2:
+        return None
+    key_name, ar_name = tt
+    it = s6.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Tuple"):
+        return None
+    key_pairs: List[Tuple[str, bool]] = []
+    for e in it.get("elts", []):
+        if not (isinstance(e, dict) and e.get("type") == "Tuple"):
+            return None
+        pe = e.get("elts", [])
+        if len(pe) != 2:
+            return None
+        ks = _is_string(pe[0])
+        if ks is None or not (isinstance(pe[1], dict) and pe[1].get("type") == "Bool"):
+            return None
+        key_pairs.append((ks, bool(pe[1].get("value"))))
+    if not key_pairs:
+        return None
+    ob = s6.get("body") or []
+    if len(ob) != 1:
+        return None
+    inner = ob[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"):
+        return None
+    clause_lv = inner.get("target")
+    iit = inner.get("iter")
+    iit_l = (iit.get("left") if isinstance(iit, dict) and iit.get("type") == "BinOp"
+             and iit.get("op") == "or" else iit)
+    if not (isinstance(iit_l, dict) and iit_l.get("type") == "Call"
+            and iit_l.get("func") == f"{contracts_lv}.get"):
+        return None
+    iargs = iit_l.get("args") or []
+    if not (iargs and _is_var(iargs[0], key_name)):
+        return None
+    ib = inner.get("body") or []
+    if len(ib) != 1:
+        return None
+    cc = _cce_expr_call(ib[0])
+    if cc is None:
+        return None
+    clause_name, cargs = cc
+    if not (len(cargs) == 5 and _is_var(cargs[0], clause_lv)
+            and _is_var(cargs[1], fctx_lv) and _is_var(cargs[2], ar_name)
+            and _is_var(cargs[3], symtab_lv) and _is_var(cargs[4], mc)):
+        return None
+    # [7] _cs_body(func.get("<bf>") or [], fname, symtab, module_constants)
+    bc = _cce_expr_call(body[7])
+    if bc is None:
+        return None
+    body_name, bargs = bc
+    if len(bargs) != 4:
+        return None
+    body_field = _cce_field_or_default(bargs[0], subj)
+    if not (body_field and _is_var(bargs[1], fname_lv)
+            and _is_var(bargs[2], symtab_lv) and _is_var(bargs[3], mc)):
+        return None
+    return {"name": func.get("name"), "subj": subj, "mc": mc,
+            "symtab_field": symtab_field, "vararg_field": vararg_field,
+            "tuple_val": tuple_val, "contracts_field": contracts_field,
+            "body_field": body_field, "key_pairs": key_pairs,
+            "clause_name": _canon_call(clause_name),
+            "body_name": _canon_call(body_name)}
+
+
+def emit_check_contract_scope_group(
+        desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_contract_scope` caller group (see module note). Bridges
+    `symbol_table` to `sdict`, augments it with the vararg entry when the
+    `vararg_str_param` field is present, fans `_cs_clause` over each contract-key
+    clause list with the key's `allow_result` literal (the `true` arm via a local
+    `__ens` fold, the `false` arms via the existing `_cs_clause__list`), and runs
+    `_cs_body` over the body. Type-safe + terminating over the certified
+    pydict/sdict/`_cs_clause`/`_cs_body` theories."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    mc = desc["mc"]
+    clausefn = whyml_ident(desc["clause_name"])
+    bodyfn = whyml_ident(desc["body_name"])
+    sf, vf = desc["symtab_field"], desc["vararg_field"]
+    cf, bf = desc["contracts_field"], desc["body_field"]
+    tv = desc["tuple_val"]
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    # local `allow_result=true` per-element fold (the `ensures` arm).
+    out.append(f"  let rec {n}__ens (xs: list pyval) (ctx: string) (symtab: sdict) (mc: sdict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { xs }")
+    out.append("  = match xs with Nil -> ()")
+    out.append(f"    | Cons h t -> {clausefn} h ctx true symtab mc; {n}__ens t ctx symtab mc end")
+    out.append(f"  let {n} ({subj}: pyval) ({mc}: sdict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = let symtab0 = (match {subj} with")
+    out.append(f'      | PDict d -> (match pget_dyn "{sf}" d with')
+    out.append("                    | Some (PDict sd) -> pdict_to_sdict sd")
+    out.append("                    | _ -> SNil end)")
+    out.append("      | _ -> SNil end) in")
+    out.append(f"    let symtab = (match {subj} with")
+    out.append(f'      | PDict d -> (match pget_dyn "{vf}" d with')
+    out.append(f'                    | Some (PStr va) -> SCons va (PStr "{tv}") symtab0')
+    out.append("                    | _ -> symtab0 end)")
+    out.append("      | _ -> symtab0 end) in")
+    out.append(f"    let fctx = {n}__anystr () in")
+    out.append(f"    let fname = {n}__anystr () in")
+    out.append(f"    (match {subj} with")
+    out.append("     | PDict d ->")
+    out.append(f'         (match pget_dyn "{cf}" d with')
+    out.append("          | Some (PDict cd) ->")
+    key_calls = []
+    for k, ar in desc["key_pairs"]:
+        if ar:
+            key_calls.append(f'{n}__ens (pget_list "{k}" cd) fctx symtab {mc}')
+        else:
+            key_calls.append(f'{clausefn}__list (pget_list "{k}" cd) fctx symtab {mc}')
+    for i, kc in enumerate(key_calls):
+        sep = ";" if i < len(key_calls) - 1 else ""
+        out.append(f"              {kc}{sep}")
+    out.append("          | _ -> () end);")
+    out.append(f'         {bodyfn} (pget_list "{bf}" d) fname symtab {mc}')
+    out.append("     | _ -> () end)")
+    return out
+
+
+# =========================================================================
+# FIELD-GUARD-RAISE `_check_*` caller (`_check_span`, `_check_mutable_defaults`)
+# — the SIMPLEST heterogeneous-`func` caller: a straight-line field guard whose
+# only effect is to `raise PyCSLSemanticError`. Shape (exactly ONE statement):
+#
+#     def _check_X(<subj>[, <p2>, ...]) -> None:
+#         if <field-guard over subj>:
+#             [<msg-var> = ...        # optional error-message binding(s)]
+#             raise PyCSLSemanticError(f"…", …)
+#
+# where <field-guard> is one of:
+#   * `<subj>.get("K")`      — raise when K is present/truthy  (sense "present")
+#   * `"K" in <subj>`        — raise when K is present         (sense "present")
+#   * `"K" not in <subj>`    — raise when K is absent          (sense "absent")
+#
+# No walker, no contract-clause fan-out, no forward reference: the caller reads a
+# SINGLE key off `func`'s bridged pydict and either raises `PyCSLSemanticError`
+# (in the emitted `raises` set) or returns `unit`. The guard's exact truthiness is
+# a value fact NO VC constrains (insight C) — modelled by the PRESENCE of the key
+# in the bridged pydict, exactly as the `_check_subscript_assignments` annotation
+# gate models its keys. Non-vacuous (reads `func` via `pget_dyn`, both the raise
+# path and the normal-exit `else`/wildcard path are live) and mutation-faithful
+# (change the key/sense and the emitted `.mlw` moves; a shape outside the fragment
+# reverts to `\trusted`). Extra params (only `_check_span`'s error-metadata
+# `stage`) are verification-irrelevant — emitted with their annotated scalar type
+# and unused, exactly as the pre-conversion `\trusted` val declared them (the
+# `stage` erasure is recorded in bin/check-emitted-vacuity.py KNOWN_ERASURES,
+# error-message-only, the same policy as `_cs_clause`'s `ctx`). Emitted inline at
+# the caller's own slot (NO deferral), reusing the same total pydict bridge, NO
+# new type/axiom/cert, ledger 3.
+# =========================================================================
+
+def _field_guard(test: Any, subj: str) -> Optional[Tuple[str, str]]:
+    """A single-key truthiness/membership guard over the subject pydict param.
+    Returns `(key, sense)` where sense is "present" (raise when the key is
+    present/truthy) or "absent" (raise when the key is absent), or None
+    (fail-closed)."""
+    if not isinstance(test, dict):
+        return None
+    # `<subj>.get("K")` used directly as a truthiness test -> raise when present.
+    k = _match_get_call(test, subj)
+    if k is not None:
+        return (k, "present")
+    # `"K" in <subj>` / `"K" not in <subj>` -> membership on a string literal.
+    if test.get("type") == "BinOp" and test.get("op") in ("in", "not in"):
+        lk = _is_string(test.get("left"))
+        if lk is not None and _is_var(test.get("right"), subj):
+            return (lk, "absent" if test.get("op") == "not in" else "present")
+    return None
+
+
+def _param_whyml_type(annot: Optional[str]) -> str:
+    """Map a formal param's annotation to its WhyML scalar type for a field-guard
+    caller's UNUSED extra params (matching the pre-conversion `\\trusted` val's
+    declared types). Anything not a plain scalar falls back to `pyval`."""
+    if annot == "str":
+        return "string"
+    if annot in ("int", "bool"):
+        return "int"
+    return "pyval"
+
+
+def recognize_check_field_guard_raise(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of a field-guard-raise `_check_*` caller (see module
+    note). Returns a descriptor of the guarded key + sense + params, or None;
+    never raises."""
+    try:
+        return _recognize_check_field_guard_raise(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_field_guard_raise(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if not params:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If" and not s0.get("orelse")):
+        return None
+    guard = _field_guard(s0.get("test"), subj)
+    if guard is None:
+        return None
+    key, sense = guard
+    ib = s0.get("body") or []
+    if not ib:
+        return None
+    # Every statement before the terminal raise must be a plain message-var
+    # binding (`Assign`); the last must be `raise PyCSLSemanticError(...)`.
+    for st in ib[:-1]:
+        if not (isinstance(st, dict) and st.get("stmt") == "Assign"):
+            return None
+    last = ib[-1]
+    if not (isinstance(last, dict) and last.get("stmt") == "Raise"
+            and last.get("exc_type") == "PyCSLSemanticError"):
+        return None
+    return {"name": func.get("name"), "subj": subj, "params": params,
+            "key": key, "sense": sense,
+            "param_annotations": func.get("param_annotations") or {}}
+
+
+def emit_check_field_guard_raise_group(
+        desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit a field-guard-raise `_check_*` caller (see module note): read the
+    single guarded key off `func`'s bridged pydict and `raise PyCSLSemanticError`
+    when the guard holds (modelled by the key's PRESENCE), else return `unit`.
+    Type-safe + terminating over the certified pydict bridge (no recursion, no
+    new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    key = desc["key"]
+    if desc["sense"] == "present":
+        guard = f'(match pget_dyn "{key}" d with Some _ -> true | None -> false end)'
+    else:
+        guard = f'(match pget_dyn "{key}" d with Some _ -> false | None -> true end)'
+    sig = f"({subj}: pyval)"
+    for p in desc["params"][1:]:
+        sig += f" ({p}: {_param_whyml_type(desc['param_annotations'].get(p))})"
+    out: List[str] = []
+    out.append(f"  let {n} {sig} : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = match {subj} with")
+    out.append(f"    | PDict d -> if {guard} then raise PyCSLSemanticError else ()")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
+# MULTI-GUARD CASCADE `_check_*` caller — `recognize_check_guard_cascade`.
+#
+# check-diverges-noreturn-impl.md (self-tcb-reduction, generalises
+# `recognize_check_field_guard_raise` from a SINGLE `if`-raise to a CASCADE):
+# a void `_check_*` caller that is a sequence of `if <guard>: return`
+# early-returns followed by a FINAL unconditional `raise <Exc>`, where each
+# `<guard>` reads a bool field off `func`'s bridged pydict (`func.get("k")`,
+# optionally negated), or calls a NOW-CONVERTED `list pyval -> bool` existence
+# predicate (`_body_has_diverging_construct`) on the body list
+# (`func.get("body", []) or []`). Shape (the `_check_diverges` caller):
+#
+#     def _check_diverges(func) -> None:
+#         if not func.get("diverges"):                     return
+#         if func.get("lemma"):                            return
+#         if _body_has_diverging_construct(func.get("body", []) or []): return
+#         raise PyCSLSemanticError(...)
+#
+# Emitted inline (no walker, no forward reference — the existence predicate is
+# already emitted earlier, callee-before-caller by SCC dependency order): bridge
+# `func` to `PDict d`, read each bool field via `pget_dyn` (modelled by key
+# PRESENCE — WHICH guard fires is a value fact no VC constrains, insight C), call
+# the converted predicate on `pget_list "body" d` (a `list pyval`), and fold the
+# cascade into `if <g0> then () else if <g1> then () else ... else raise <Exc>`
+# (a guard true => early-return unit; all false => the terminal raise). Callers
+# need only type-safety + termination (`ensures true`, `raises { <Exc> }`). The
+# SHAPE — the real field keys + the real converted-predicate call on the real
+# `body` list — is validated (mutation-sensitive: change a key/predicate/body-key
+# in the source and the emitted .mlw moves; `func` appears in the emitted body,
+# de-vacuified). The predicate call is gated on `clx_pred_names` (the set of
+# single-arg closure-existence-converted `list pyval -> bool` predicates) so a
+# guard that references an UNCONVERTED / differently-typed predicate stays
+# `\trusted` (fail-closed). Reuses the certified pydict/list `pyval` bridge
+# (`pget_dyn`/`pget_list`) + the converted predicate; NO new type/axiom/cert,
+# ledger 3. FStrings in the raise (`func.get("name", ...)`) are
+# verification-irrelevant (error-message-only).
+# =========================================================================
+
+def _gc_body_arg_key(arg: Any, subj: str) -> Optional[str]:
+    """The body-list argument of an existence-predicate call:
+    `<subj>.get("<k>"[, default])` or `<subj>.get("<k>"[, default]) or []`
+    -> "<k>", else None."""
+    node = arg
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"):
+        node = node.get("left")
+    return _match_get_call(node, subj)
+
+
+def _gc_parse_guard(test: Any, subj: str,
+                    clx_pred_names) -> Optional[Dict[str, Any]]:
+    """A single cascade guard -> a guard descriptor, or None (fail-closed).
+    Shapes: `not <g>`; `<subj>.get("<k>")` (field-present); a converted
+    `list pyval -> bool` predicate call on the body list."""
+    if not isinstance(test, dict):
+        return None
+    # `not <g>`
+    if test.get("type") == "UnaryOp" and test.get("op") == "not":
+        inner = _gc_parse_guard(test.get("expr"), subj, clx_pred_names)
+        if inner is None:
+            return None
+        return {"kind": "not", "arg": inner}
+    # `<subj>.get("<k>")` truthiness -> field-present
+    k = _match_get_call(test, subj)
+    if k is not None:
+        return {"kind": "present", "key": k}
+    # `<pred>(<subj>.get("body"...) or [])` — pred converted as list pyval->bool
+    if (test.get("type") == "Call" and isinstance(test.get("func"), str)
+            and clx_pred_names is not None
+            and test.get("func") in clx_pred_names):
+        args = test.get("args") or []
+        if len(args) != 1:
+            return None
+        bk = _gc_body_arg_key(args[0], subj)
+        if bk is None:
+            return None
+        return {"kind": "pred", "pred": test["func"], "body_key": bk}
+    return None
+
+
+def _gc_has_pred(g: Dict[str, Any]) -> bool:
+    if g.get("kind") == "pred":
+        return True
+    if g.get("kind") == "not":
+        return _gc_has_pred(g["arg"])
+    return False
+
+
+def recognize_check_guard_cascade(
+        func: Dict[str, Any], clx_pred_names=None) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the multi-guard cascade `_check_*` caller (see module
+    note). Returns a descriptor of the ordered guards + the final exception, or
+    None; never raises."""
+    try:
+        return _recognize_check_guard_cascade(func, clx_pred_names)
+    except Exception:
+        return None
+
+
+def _recognize_check_guard_cascade(
+        func: Dict[str, Any], clx_pred_names) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if not params:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    # >= 1 guard + a terminal unconditional raise.
+    if len(body) < 2:
+        return None
+    *guard_stmts, last = body
+    exc = _match_sa_raise(last)
+    if exc is None:
+        return None
+    guards: List[Dict[str, Any]] = []
+    used_pred = False
+    for st in guard_stmts:
+        if not (isinstance(st, dict) and st.get("stmt") == "If"
+                and not st.get("orelse")):
+            return None
+        ib = st.get("body") or []
+        # guard body is exactly `return` (no value).
+        if len(ib) != 1:
+            return None
+        r = ib[0]
+        if not (isinstance(r, dict) and r.get("stmt") == "Return"
+                and r.get("value") is None):
+            return None
+        g = _gc_parse_guard(st.get("test"), subj, clx_pred_names)
+        if g is None:
+            return None
+        used_pred = used_pred or _gc_has_pred(g)
+        guards.append(g)
+    if not guards:
+        return None
+    # anti-facade: at least one guard must call a converted existence predicate
+    # (the SHAPE this recogniser exists to lower faithfully); a pure field-guard
+    # cascade with no predicate is a different, simpler shape left out of scope.
+    if not used_pred:
+        return None
+    return {"name": func.get("name"), "subj": subj, "params": params,
+            "param_annotations": func.get("param_annotations") or {},
+            "guards": guards, "exc": exc}
+
+
+def emit_check_guard_cascade_group(
+        desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the multi-guard cascade `_check_*` caller (see module note): bridge
+    `func` to `PDict d`, read each bool field via `pget_dyn` (guard by key
+    PRESENCE) or call a converted `list pyval -> bool` predicate on
+    `pget_list "<body_key>" d`, and fold the cascade into
+    `if <g0> then () else ... else raise <Exc>`. Type-safe + terminating over the
+    certified pydict/list `pyval` bridge (no recursion, no new type/axiom/cert,
+    ledger 3)."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    exc = desc["exc"]
+
+    def gemit(g: Dict[str, Any]) -> str:
+        if g["kind"] == "present":
+            return (f'(match pget_dyn "{g["key"]}" d with'
+                    f' Some _ -> true | None -> false end)')
+        if g["kind"] == "not":
+            return f"(not {gemit(g['arg'])})"
+        # pred
+        pn = whyml_ident(g["pred"])
+        return f'({pn} (pget_list "{g["body_key"]}" d))'
+
+    sig = f"({subj}: pyval)"
+    for p in desc["params"][1:]:
+        sig += f" ({p}: {_param_whyml_type(desc['param_annotations'].get(p))})"
+    out: List[str] = []
+    out.append(f"  let {n} {sig} : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    indent = "        "
+    for g in desc["guards"]:
+        out.append(f"{indent}if {gemit(g)} then ()")
+        out.append(f"{indent}else")
+    out.append(f"{indent}raise {exc}")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
+# CLAUSE-LIST FIELD-CHECK FOLD `_check_*` caller (`_check_assigns_regions`)
+# — a caller that folds over ONE contract clause-list
+# (`func["contracts"]["assigns"]`), projecting each element's nested fields,
+# doing a `symtab.get(base)` lookup and a literal-set membership decision, then
+# raising `PyCSLSemanticError`. Shape (exactly THREE statements):
+#
+#     def _check_X(func) -> None:
+#         where  = f"…"                                     # FString ctx (irrelevant)
+#         symtab = func.get("<SYMTAB_FIELD>") or {}
+#         for target in func.get("<CF>", {}).get("<AF>", []) or []:
+#             if isinstance(target, dict) and target.get("<TYPE_KEY>") == "<TAG>":
+#                 base     = target.get("<BASE_KEY>")
+#                 arr_type = symtab.get(base)
+#                 if arr_type is None:                 raise PyCSLSemanticError(…)
+#                 if arr_type not in (<S0>, <S1>, …):  raise PyCSLSemanticError(…)
+#
+# Emitted as a bounded INLINE list fold (NOT a walker delegation): the caller
+# reads the `symbol_table` pydict field off `func`, bridges it to `sdict`, and
+# runs a local `let rec …__fold` over `pget_list "<AF>"` of the `<CF>` pydict.
+# Per element: read `<TYPE_KEY>`, and when it equals `<TAG>` read `<BASE_KEY>`,
+# `slookup` it in the bridged symtab, and raise on a `None` lookup (undefined
+# variable — the `arr_type is None` arm; a missing/non-string base reads as
+# `None`, faithfully `symtab.get(None)`) or a non-member type (the `not in`
+# literal-set arm). WHICH raise fires is a value fact no VC constrains
+# (insight C); the SHAPE — reading type/base off the element + the symtab via
+# `slookup` + the pinned literal set as `pystr_eq` disjunctions — is validated,
+# keeping the emission non-vacuous (every raise path AND the normal-exit arms
+# are live) and mutation-faithful (change the tag / base-key / literal-set in the
+# source and the emitted .mlw moves). Reuses the certified pydict->sdict bridge +
+# `slookup`; NO new type/axiom/cert, ledger 3. The `where` FString ctx is
+# verification-irrelevant (error-message-only). Emitted inline at the caller's
+# own slot (NO deferral, no forward reference — the check is fully inline).
+# =========================================================================
+
+def recognize_check_clause_fold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the clause-list field-check fold `_check_*` caller
+    (see module note). Returns a descriptor of the field keys, the guard tag, the
+    literal type set, and the exception, or None; never raises."""
+    try:
+        return _recognize_check_clause_fold(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_clause_fold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    # [0] where = f"…" (FString ctx; content verification-irrelevant)
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"
+            and isinstance(s0.get("value"), dict)
+            and s0["value"].get("type") == "FString"):
+        return None
+    # [1] symtab = func.get("<SYMTAB_FIELD>") or {}
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    symtab_lv = s1.get("target")
+    symtab_field = _cce_field_or_default(s1.get("value"), subj)
+    if not (isinstance(symtab_lv, str) and symtab_field):
+        return None
+    # [2] for target in func.get("<CF>", {}).get("<AF>", []) or []: <inner-if>
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "For"):
+        return None
+    tgt_lv = s2.get("target")
+    if not isinstance(tgt_lv, str):
+        return None
+    it = s2.get("iter") or {}
+    # unwrap the trailing `… or []` idiom, then the chained `.get(<AF>).get`.
+    inner_it = (it.get("left") if isinstance(it, dict) and it.get("type") == "BinOp"
+                and it.get("op") == "or" else it)
+    if not (isinstance(inner_it, dict) and inner_it.get("type") == "Call"
+            and inner_it.get("func") == "get"):
+        return None
+    iargs = inner_it.get("args") or []
+    if not iargs:
+        return None
+    assigns_field = _is_string(iargs[0])
+    if not assigns_field:
+        return None
+    contracts_field = _match_get_call(inner_it.get("receiver") or {}, subj)
+    if not contracts_field:
+        return None
+    # for-body: a single inner If (the field-check guard).
+    fb = s2.get("body") or []
+    if len(fb) != 1:
+        return None
+    guard = fb[0]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not guard.get("orelse")):
+        return None
+    # test: isinstance(target, dict) and target.get("<TYPE_KEY>") == "<TAG>"
+    gt = guard.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "and"):
+        return None
+    if not _match_isinstance(gt.get("left", {}), tgt_lv, "dict"):
+        return None
+    tr = gt.get("right", {})
+    if not (isinstance(tr, dict) and tr.get("type") == "BinOp" and tr.get("op") == "=="):
+        return None
+    type_key = _match_get_call(tr.get("left", {}), tgt_lv)
+    tag = _is_string(tr.get("right"))
+    if not (type_key and tag):
+        return None
+    # guard-body (4 stmts): base = …; arr_type = symtab.get(base); 2 raises.
+    gb = guard.get("body") or []
+    if len(gb) != 4:
+        return None
+    # [0] base = target.get("<BASE_KEY>")
+    b0 = gb[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    base_lv = b0.get("target")
+    base_key = _match_get_call(b0.get("value", {}), tgt_lv)
+    if not (isinstance(base_lv, str) and base_key):
+        return None
+    # [1] arr_type = symtab.get(base)  (the local symtab from body[1])
+    b1 = gb[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "Assign"):
+        return None
+    at_lv = b1.get("target")
+    bv = b1.get("value", {})
+    if not (isinstance(bv, dict) and bv.get("type") == "Call"
+            and bv.get("func") == f"{symtab_lv}.get"):
+        return None
+    bargs = bv.get("args") or []
+    if not (isinstance(at_lv, str) and len(bargs) == 1 and _is_var(bargs[0], base_lv)):
+        return None
+    # [2] if arr_type is None: raise <Exc>
+    b2 = gb[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "If" and not b2.get("orelse")):
+        return None
+    t2 = b2.get("test", {})
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp" and t2.get("op") == "=="
+            and _is_var(t2.get("left"), at_lv)
+            and isinstance(t2.get("right"), dict) and t2["right"].get("type") == "None"):
+        return None
+    b2b = b2.get("body") or []
+    if len(b2b) != 1:
+        return None
+    exc = _match_sa_raise(b2b[0])
+    if exc is None:
+        return None
+    # [3] if arr_type not in (<S0>, …): raise <Exc>
+    b3 = gb[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "If" and not b3.get("orelse")):
+        return None
+    t3 = b3.get("test", {})
+    if not (isinstance(t3, dict) and t3.get("type") == "BinOp" and t3.get("op") == "not in"
+            and _is_var(t3.get("left"), at_lv)):
+        return None
+    tup = t3.get("right", {})
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return None
+    ok_types = [_is_string(e) for e in tup.get("elts", [])]
+    if not ok_types or any(s is None for s in ok_types):
+        return None
+    b3b = b3.get("body") or []
+    if len(b3b) != 1 or _match_sa_raise(b3b[0]) != exc:
+        return None
+    return {"name": func.get("name"), "subj": subj,
+            "symtab_field": symtab_field, "contracts_field": contracts_field,
+            "assigns_field": assigns_field, "type_key": type_key, "tag": tag,
+            "base_key": base_key, "ok_types": ok_types, "exc": exc}
+
+
+def emit_check_clause_fold_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the clause-list field-check fold `_check_*` caller (see module note):
+    bridge `func`'s `symbol_table` pydict field to `sdict`, then run a local
+    `let rec …__fold` over `pget_list "<assigns_field>"` of the `<contracts_field>`
+    pydict. Per element read the type key, and when it equals the guard tag read
+    the base key and `slookup` it in the bridged symtab, `raise`-ing on a `None`
+    lookup (undefined variable) or a non-member type. Type-safe + terminating over
+    the certified pydict/sdict bridge (no recursion beyond the structural list
+    fold, no new type/axiom/cert, ledger 3)."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    exc = desc["exc"]
+    sf, cf, af = desc["symtab_field"], desc["contracts_field"], desc["assigns_field"]
+    tag = desc["tag"]
+    type_suf = _reader_suffix(desc["type_key"])
+    base_suf = _reader_suffix(desc["base_key"])
+    out: List[str] = []
+    # ---- spine readers for the element's type + base keys (string-valued) ----
+    out += _sa_reader_lines(n, desc["type_key"], as_str=True)
+    out += _sa_reader_lines(n, desc["base_key"], as_str=True)
+    # ---- ok-type membership (semantic guard, insight C: result unconstrained) ----
+    cond = " || ".join(f'pystr_eq s "{t}"' for t in desc["ok_types"])
+    out.append(f"  let function {n}__ok_type (s: string) : bool = {cond}")
+    # ---- the bounded inline clause-list fold ----
+    out.append(f"  let rec {n}__fold (xs: list pyval) (symtab: sdict) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append("    variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h t ->")
+    out.append("        (match h with")
+    out.append("         | PDict d ->")
+    out.append(f"             (match {n}__get_{type_suf} d with")
+    out.append(f'              | Some ty -> if pystr_eq ty "{tag}" then')
+    out.append(f"                  (match {n}__get_{base_suf} d with")
+    out.append("                   | Some b ->")
+    out.append("                       (match slookup b symtab with")
+    out.append(f"                        | None -> raise {exc}")
+    out.append(f"                        | Some (PStr aty) -> if {n}__ok_type aty then () else raise {exc}")
+    out.append(f"                        | Some _ -> raise {exc}")
+    out.append("                        end)")
+    out.append(f"                   | None -> raise {exc} end)")
+    out.append("                else ()")
+    out.append("              | None -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__fold t symtab")
+    out.append("    end")
+    # ---- the caller entry point: bridge symtab, then fold the assigns list ----
+    out.append(f"  let {n} ({subj}: pyval) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append(f"  = let symtab = (match {subj} with")
+    out.append(f'      | PDict d -> (match pget_dyn "{sf}" d with')
+    out.append("                    | Some (PDict sd) -> pdict_to_sdict sd")
+    out.append("                    | _ -> SNil end)")
+    out.append("      | _ -> SNil end) in")
+    out.append(f"    (match {subj} with")
+    out.append(f'     | PDict d -> (match pget_dyn "{cf}" d with')
+    out.append(f'                   | Some (PDict cd) -> {n}__fold (pget_list "{af}" cd) symtab')
+    out.append("                   | _ -> () end)")
+    out.append("     | _ -> () end)")
+    return out
+
+
+# =========================================================================
+# LEMMA-SOUNDNESS `_check_*` caller — `recognize_check_lemma`.
+#
+# lemma-soundness-impl.md (self-tcb-reduction): `_check_lemma(func,
+# trusted_funcs)` is the `#@ lemma` well-formedness gate. Unlike the simple
+# multi-guard cascade (`recognize_check_guard_cascade`, an `if guard: return`*
+# then one terminal raise), it is a SEQUENCE of independent `if <cond>: raise`
+# guards interleaved with error-message-only local assigns, plus a clause-fold
+# over `contracts.assigns` and a threaded set-param. Exact live shape (11 stmts):
+#
+#     def _check_lemma(func, trusted_funcs) -> None:
+#         if not func.get("lemma"): return                     # [0] absent -> return
+#         name = func.get("name", "<anonymous>")               # [1] err-msg local (dropped)
+#         if func.get("diverges"): raise Exc                    # [2] field-present -> raise
+#         contracts = func.get("contracts") or {}               # [3] nested pydict local
+#         if not (contracts.get("ensures") or []): raise Exc    # [4] nested list empty -> raise
+#         ra = func.get("return_annotation")                    # [5] string local
+#         if ra not in (None, "None"): raise Exc                # [6] present & != "None" -> raise
+#         for t in contracts.get("assigns", []) or []:          # [7] clause fold over assigns
+#             if not (isinstance(t, dict) and t.get("type") == "Nothing"): raise Exc
+#         if _lemma_returns_value(func.get("body", []) or []): raise Exc   # [8] bool pred
+#         leaked = _lemma_calls_trusted(func.get("body", []) or [], trusted_funcs)  # [9] str pred
+#         if leaked: raise Exc                                  # [10] non-empty -> raise
+#
+# All raises are the SAME exception (`PyCSLSemanticError`); the caller needs only
+# type-safety + termination (`ensures true`, `raises { Exc }`). Emitted inline
+# over the certified pydict/list `pyval` bridge (`pget_dyn`/`pget_list` + a
+# `_sa_reader_lines` interned `type` reader), the converted bool existence
+# predicate (`_lemma_returns_value : list pyval -> bool`, gated on
+# `clx_pred_names`), and the converted string-search predicate
+# (`_lemma_calls_trusted : list pyval -> map string bool -> string`, gated on
+# `lss_pred_names`) threading `trusted_funcs` as the `map string bool` set PARAM.
+# The `contracts.assigns` fold is a bounded structural list fold (raise unless
+# each element is a PDict tagged `Nothing`). WHICH raise fires is a value fact no
+# VC constrains (insight C, exactly as the sibling `_check_*` callers); the SHAPE
+# — the real field keys ("lemma"/"diverges"/"contracts"/"ensures"/
+# "return_annotation"/"assigns"/"body"), the "None"/"Nothing" literals, and the
+# real converted-predicate calls on the real body list + threaded set-param — is
+# validated and appears in the emitted body (mutation-sensitive: change any
+# key/tag/predicate/body-key in the source and the emitted .mlw moves;
+# de-vacuified, `func` + `trusted_funcs` both live). Reuses the certified
+# pydict/list `pyval` bridge + the two converted predicates; NO new type/axiom/
+# cert, ledger 3. The `name` local + all FStrings are verification-irrelevant
+# (error-message-only). Fail-closed: any shape deviation (or an unconverted /
+# differently-typed predicate) keeps the caller `\trusted`.
+# =========================================================================
+
+def recognize_check_lemma(func: Dict[str, Any], clx_pred_names=None,
+                          lss_pred_names=None) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_lemma` lemma-soundness caller (see module
+    note). Returns a descriptor of the field keys, literals, converted predicate
+    names, and the exception, or None; never raises."""
+    try:
+        return _recognize_check_lemma(func, clx_pred_names or set(),
+                                      lss_pred_names or set())
+    except Exception:
+        return None
+
+
+def _recognize_check_lemma(func: Dict[str, Any], clx_pred_names,
+                           lss_pred_names) -> Optional[Dict[str, Any]]:
+    # SPECIFIC to the lemma-soundness gate: this is a bespoke 11-statement shape,
+    # so key it by name (the other `_check_*` recognizers are equally specific).
+    if func.get("name") != "_check_lemma":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    subj, setp = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 11:
+        return None
+
+    def _if_raise(st: Any) -> Optional[str]:
+        """`if <test>: raise <Exc>` (single-raise body, no orelse) -> exc name."""
+        if not (isinstance(st, dict) and st.get("stmt") == "If"
+                and not st.get("orelse")):
+            return None
+        ib = st.get("body") or []
+        if len(ib) != 1:
+            return None
+        return _match_sa_raise(ib[0])
+
+    excs: List[str] = []
+
+    # [0] if not func.get("lemma"): return
+    s = body[0]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    t = s.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "UnaryOp"
+            and t.get("op") == "not"):
+        return None
+    lemma_key = _match_get_call(t.get("expr") or {}, subj)
+    if lemma_key is None:
+        return None
+    rb = s.get("body") or []
+    if not (len(rb) == 1 and isinstance(rb[0], dict)
+            and rb[0].get("stmt") == "Return" and rb[0].get("value") is None):
+        return None
+
+    # [1] name = func.get("name", "<anonymous>")  (error-message-only local)
+    s = body[1]
+    if not (isinstance(s, dict) and s.get("stmt") == "Assign"
+            and _match_get_call(s.get("value") or {}, subj) is not None):
+        return None
+
+    # [2] if func.get("diverges"): raise
+    s = body[2]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    diverges_key = _match_get_call(s.get("test") or {}, subj)
+    if diverges_key is None:
+        return None
+    e = _if_raise(s)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # [3] contracts = func.get("contracts") or {}
+    s = body[3]
+    if not (isinstance(s, dict) and s.get("stmt") == "Assign"):
+        return None
+    cvar = s.get("target")
+    cval = s.get("value") or {}
+    if not (isinstance(cvar, str) and isinstance(cval, dict)
+            and cval.get("type") == "BinOp" and cval.get("op") == "or"):
+        return None
+    contracts_key = _match_get_call(cval.get("left") or {}, subj)
+    rdict = cval.get("right") or {}
+    if not (contracts_key is not None and isinstance(rdict, dict)
+            and rdict.get("type") == "DictLit"):
+        return None
+
+    # [4] if not (contracts.get("ensures") or []): raise
+    s = body[4]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    t = s.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "UnaryOp"
+            and t.get("op") == "not"):
+        return None
+    inner = t.get("expr") or {}
+    if not (isinstance(inner, dict) and inner.get("type") == "BinOp"
+            and inner.get("op") == "or"):
+        return None
+    ensures_key = _match_get_call(inner.get("left") or {}, cvar)
+    if ensures_key is None:
+        return None
+    e = _if_raise(s)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # [5] ra = func.get("return_annotation")
+    s = body[5]
+    if not (isinstance(s, dict) and s.get("stmt") == "Assign"):
+        return None
+    ravar = s.get("target")
+    ra_key = _match_get_call(s.get("value") or {}, subj)
+    if not (isinstance(ravar, str) and ra_key is not None):
+        return None
+
+    # [6] if ra not in (None, "None"): raise
+    s = body[6]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    t = s.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "BinOp"
+            and t.get("op") == "not in" and _is_var(t.get("left"), ravar)):
+        return None
+    tup = t.get("right") or {}
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return None
+    elts = tup.get("elts") or []
+    if not (len(elts) == 2 and isinstance(elts[0], dict)
+            and elts[0].get("type") == "None"):
+        return None
+    none_lit = _is_string(elts[1])
+    if none_lit is None:
+        return None
+    e = _if_raise(s)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # [7] for t in (contracts.get("assigns", []) or []):
+    #         if not (isinstance(t, dict) and t.get("type") == "<TAG>"): raise
+    s = body[7]
+    if not (isinstance(s, dict) and s.get("stmt") == "For"):
+        return None
+    tv = s.get("target")
+    it = s.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "BinOp"
+            and it.get("op") == "or"):
+        return None
+    assigns_key = _match_get_call(it.get("left") or {}, cvar)
+    if not (isinstance(tv, str) and assigns_key is not None):
+        return None
+    fb = s.get("body") or []
+    if len(fb) != 1:
+        return None
+    gif = fb[0]
+    if not (isinstance(gif, dict) and gif.get("stmt") == "If"
+            and not gif.get("orelse")):
+        return None
+    gt = gif.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "UnaryOp"
+            and gt.get("op") == "not"):
+        return None
+    conj = gt.get("expr") or {}
+    if not (isinstance(conj, dict) and conj.get("type") == "BinOp"
+            and conj.get("op") == "and"):
+        return None
+    if not _match_isinstance(conj.get("left") or {}, tv, "dict"):
+        return None
+    eqn = conj.get("right") or {}
+    if not (isinstance(eqn, dict) and eqn.get("type") == "BinOp"
+            and eqn.get("op") == "=="):
+        return None
+    type_key = _match_get_call(eqn.get("left") or {}, tv)
+    nothing_tag = _is_string(eqn.get("right"))
+    if not (type_key and nothing_tag):
+        return None
+    e = _if_raise(gif)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # [8] if _lemma_returns_value(func.get("body", []) or []): raise
+    s = body[8]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    call = s.get("test") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)
+            and call["func"] in clx_pred_names):
+        return None
+    bool_pred = call["func"]
+    cargs = call.get("args") or []
+    if len(cargs) != 1:
+        return None
+    body_key_1 = _gc_body_arg_key(cargs[0], subj)
+    if body_key_1 is None:
+        return None
+    e = _if_raise(s)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # [9] leaked = _lemma_calls_trusted(func.get("body", []) or [], trusted_funcs)
+    s = body[9]
+    if not (isinstance(s, dict) and s.get("stmt") == "Assign"):
+        return None
+    leaked_var = s.get("target")
+    lcall = s.get("value") or {}
+    if not (isinstance(leaked_var, str) and isinstance(lcall, dict)
+            and lcall.get("type") == "Call" and isinstance(lcall.get("func"), str)
+            and lcall["func"] in lss_pred_names):
+        return None
+    str_pred = lcall["func"]
+    largs = lcall.get("args") or []
+    if len(largs) != 2:
+        return None
+    body_key_2 = _gc_body_arg_key(largs[0], subj)
+    if body_key_2 is None:
+        return None
+    if not _is_var(largs[1], setp):
+        return None
+
+    # [10] if leaked: raise
+    s = body[10]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    if not _is_var(s.get("test"), leaked_var):
+        return None
+    e = _if_raise(s)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # every guard raises the SAME exception (the lemma-specific message differs,
+    # but the type is invariant — a single `raises { Exc }` covers all paths).
+    if len(set(excs)) != 1:
+        return None
+    exc = excs[0]
+
+    return {"name": func.get("name"), "subj": subj, "set_param": setp,
+            "lemma_key": lemma_key, "diverges_key": diverges_key,
+            "contracts_key": contracts_key, "ensures_key": ensures_key,
+            "ra_key": ra_key, "none_lit": none_lit, "assigns_key": assigns_key,
+            "type_key": type_key, "nothing_tag": nothing_tag,
+            "bool_pred": bool_pred, "body_key_1": body_key_1,
+            "str_pred": str_pred, "body_key_2": body_key_2, "exc": exc}
+
+
+def emit_check_lemma_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_lemma` lemma-soundness caller (see module note): bridge
+    `func` to `PDict d`, and — when the `lemma` field is present — run the six
+    independent raise-guards in source order over the certified pydict/list
+    `pyval` bridge. The `contracts.assigns` clause fold is a bounded structural
+    list fold; the two converted predicates are called on the body list (the
+    string-search one threading `trusted_funcs` as the `map string bool` set
+    PARAM). Type-safe + terminating; NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    subj = whyml_ident(desc["subj"])
+    setp = whyml_ident(desc["set_param"])
+    exc = desc["exc"]
+    bool_pred = whyml_ident(desc["bool_pred"])
+    str_pred = whyml_ident(desc["str_pred"])
+    type_suf = _reader_suffix(desc["type_key"])
+    out: List[str] = []
+    # element `type`-key reader (interned or K_dyn) for the assigns clause fold.
+    out += _sa_reader_lines(n, desc["type_key"], as_str=True)
+    # the bounded `contracts.assigns` clause fold: raise unless each element is a
+    # PDict tagged <nothing_tag> (the `isinstance(t, dict) and t["type"]==TAG`
+    # guard; a non-dict or a missing/other tag raises).
+    out.append(f"  let rec {n}__afold (xs: list pyval) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}"
+               " variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h rest ->")
+    out.append("        (match h with")
+    out.append(f"         | PDict hd -> (match {n}__get_{type_suf} hd with")
+    out.append(f'                        | Some ty -> if pystr_eq ty "{desc["nothing_tag"]}"'
+               f" then () else raise {exc}")
+    out.append(f"                        | None -> raise {exc} end)")
+    out.append(f"         | _ -> raise {exc} end);")
+    out.append(f"        {n}__afold rest")
+    out.append("    end")
+    # the caller entry point.
+    out.append(f"  let {n} ({subj}: pyval) ({setp}: map string bool) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    # [0] gate: `if not func.get("lemma"): return` -> run checks only when present.
+    out.append(f'        if (match pget_dyn "{desc["lemma_key"]}" d with'
+               " Some _ -> true | None -> false end) then begin")
+    # [2] diverges present -> raise.
+    out.append(f'          (if (match pget_dyn "{desc["diverges_key"]}" d with'
+               f" Some _ -> true | None -> false end) then raise {exc});")
+    # [4] contracts.ensures empty -> raise (absent contracts reads as {} -> raise).
+    out.append(f'          (match pget_dyn "{desc["contracts_key"]}" d with')
+    out.append(f'           | Some (PDict cd) -> (match pget_list "{desc["ensures_key"]}" cd'
+               f" with Nil -> raise {exc} | Cons _ _ -> () end)")
+    out.append(f"           | _ -> raise {exc} end);")
+    # [6] return_annotation present and != "None" -> raise (absent -> None -> ok).
+    out.append(f'          (match pget_dyn "{desc["ra_key"]}" d with')
+    out.append(f'           | Some (PStr s) -> if pystr_eq s "{desc["none_lit"]}"'
+               f" then () else raise {exc}")
+    out.append(f"           | Some _ -> raise {exc}")
+    out.append("           | None -> () end);")
+    # [7] assigns clause fold (absent contracts -> empty iter -> no raise).
+    out.append(f'          (match pget_dyn "{desc["contracts_key"]}" d with')
+    out.append(f'           | Some (PDict cd) -> {n}__afold (pget_list "{desc["assigns_key"]}" cd)')
+    out.append("           | _ -> () end);")
+    # [8] `_lemma_returns_value(body)` -> raise.
+    out.append(f'          (if {bool_pred} (pget_list "{desc["body_key_1"]}" d)'
+               f" then raise {exc});")
+    # [10] `_lemma_calls_trusted(body, trusted_funcs)` non-empty -> raise.
+    out.append(f'          (if not (pystr_eq ({str_pred} (pget_list "{desc["body_key_2"]}" d)'
+               f' {setp}) "") then raise {exc})')
+    out.append("        end else ()")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
+# TWO-LIST CROSS-REF `_check_*` caller — `recognize_check_no_exception`.
+#
+# no-exception-crossref-impl.md (self-tcb-reduction, generalises
+# `recognize_check_clause_fold`): the `_check_no_exception` caller reads two
+# contract clause-lists off `func`'s bridged pydict — `contracts.no_exception`
+# (names) and `contracts.raises` (dicts with an `exc_type` field) — plus the
+# `contracts.no_exception_all` bool, and enforces three raise-on-violation
+# rules by TYPE (all `PyCSLSemanticError`; callers need only type-safety +
+# termination):
+#
+#   for name in no_exc:
+#       if name not in KNOWN_EXCEPTIONS:  raise         (finite literal-set)
+#       if name in raised_names:          raise         (two-list cross-ref)
+#   if no_exc_all and raised_names:       raise         (raises non-empty)
+#
+# `KNOWN_EXCEPTIONS` (exception_model.py) is a FIXED-LITERAL `frozenset` of
+# exception-name strings, so `name in KNOWN_EXCEPTIONS` is a finite literal-set
+# membership emitted as a `pystr_eq` disjunction over the ACTUAL frozenset
+# members (read live from `exception_model.KNOWN_EXCEPTIONS` at recognise time,
+# so a change to the constant re-derives the emission — not a hardcoded facade).
+# `raised_names = {r.get("exc_type") for r in raises}` is a set whose only
+# semantic use is membership + non-emptiness, so it lowers to a bounded nested
+# fold `<n>__raised_has nm rs` (scan `raises` for a matching `exc_type`) and a
+# `raises`-non-empty test (a set built from a list is non-empty iff the list
+# is). No dynamic set model, no new type/axiom/cert — the certified pydict/list
+# `pyval` bridge (`pget_dyn`/`pget_list`) only, ledger 3. Fail-closed: a shape
+# outside the fragment (or a failed `exception_model` import) stays `\trusted`.
+
+
+def recognize_check_no_exception(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the two-list cross-ref `_check_no_exception` caller
+    (see module note). Returns a descriptor or None; never raises."""
+    try:
+        return _recognize_check_no_exception(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_no_exception(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 8:
+        return None
+
+    # [0] contracts = func.get("<CF>") or {}
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"):
+        return None
+    contracts_lv = s0.get("target")
+    v0 = s0.get("value") or {}
+    if not (isinstance(v0, dict) and v0.get("type") == "BinOp" and v0.get("op") == "or"):
+        return None
+    contracts_field = _match_get_call(v0.get("left") or {}, subj)
+    if not (isinstance(contracts_lv, str) and contracts_field):
+        return None
+
+    # [1] no_exc = list(contracts.get("<NEF>", []) or [])
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    no_exc_lv = s1.get("target")
+    v1 = s1.get("value") or {}
+    if not (isinstance(v1, dict) and v1.get("type") == "Call" and v1.get("func") == "list"):
+        return None
+    v1a = (v1.get("args") or [None])[0] or {}
+    inner1 = (v1a.get("left") if isinstance(v1a, dict) and v1a.get("type") == "BinOp"
+              and v1a.get("op") == "or" else v1a)
+    noexc_field = _match_get_call(inner1 or {}, contracts_lv)
+    if not (isinstance(no_exc_lv, str) and noexc_field):
+        return None
+
+    # [2] no_exc_all = bool(contracts.get("<NEAF>", False))
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Assign"):
+        return None
+    no_exc_all_lv = s2.get("target")
+    v2 = s2.get("value") or {}
+    if not (isinstance(v2, dict) and v2.get("type") == "Call" and v2.get("func") == "bool"):
+        return None
+    noexcall_field = _match_get_call((v2.get("args") or [None])[0] or {}, contracts_lv)
+    if not (isinstance(no_exc_all_lv, str) and noexcall_field):
+        return None
+
+    # [3] raises = contracts.get("<RF>", []) or []
+    s3 = body[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "Assign"):
+        return None
+    raises_lv = s3.get("target")
+    v3 = s3.get("value") or {}
+    inner3 = (v3.get("left") if isinstance(v3, dict) and v3.get("type") == "BinOp"
+              and v3.get("op") == "or" else v3)
+    raises_field = _match_get_call(inner3 or {}, contracts_lv)
+    if not (isinstance(raises_lv, str) and raises_field):
+        return None
+
+    # [4] raised_names = {r.get("<EXF>") for r in raises}
+    s4 = body[4]
+    if not (isinstance(s4, dict) and s4.get("stmt") == "Assign"):
+        return None
+    raised_lv = s4.get("target")
+    v4 = s4.get("value") or {}
+    if not (isinstance(v4, dict) and v4.get("type") == "SetComp"):
+        return None
+    gens = v4.get("generators") or []
+    if len(gens) != 1:
+        return None
+    g0 = gens[0]
+    if not (isinstance(g0, dict) and g0.get("target") and not g0.get("ifs")
+            and _is_var(g0.get("iter"), raises_lv)):
+        return None
+    elt_var = g0.get("target")
+    exc_field = _match_get_call(v4.get("elt") or {}, elt_var)
+    if not (isinstance(raised_lv, str) and exc_field):
+        return None
+
+    # [5] where = f"…"  (FString ctx; content verification-irrelevant)
+    s5 = body[5]
+    if not (isinstance(s5, dict) and s5.get("stmt") == "Assign"
+            and isinstance(s5.get("value"), dict)
+            and s5["value"].get("type") == "FString"):
+        return None
+
+    # [6] for name in no_exc: <two guarded raises>
+    s6 = body[6]
+    if not (isinstance(s6, dict) and s6.get("stmt") == "For"
+            and _is_var(s6.get("iter"), no_exc_lv)):
+        return None
+    loop_var = s6.get("target")
+    if not isinstance(loop_var, str):
+        return None
+    fb = s6.get("body") or []
+    if len(fb) != 2:
+        return None
+    # [6.0] if name not in KNOWN_EXCEPTIONS: raise <Exc>
+    g_known = fb[0]
+    if not (isinstance(g_known, dict) and g_known.get("stmt") == "If"
+            and not g_known.get("orelse")):
+        return None
+    tk = g_known.get("test") or {}
+    if not (isinstance(tk, dict) and tk.get("type") == "BinOp" and tk.get("op") == "not in"
+            and _is_var(tk.get("left"), loop_var)):
+        return None
+    known_const = tk.get("right") or {}
+    if not (_is_var(known_const) and isinstance(known_const.get("name"), str)):
+        return None
+    known_name = known_const["name"]
+    gkb = g_known.get("body") or []
+    if len(gkb) != 1:
+        return None
+    exc = _match_sa_raise(gkb[0])
+    if exc is None:
+        return None
+    # [6.1] if name in raised_names: raise <Exc>
+    g_cross = fb[1]
+    if not (isinstance(g_cross, dict) and g_cross.get("stmt") == "If"
+            and not g_cross.get("orelse")):
+        return None
+    tc = g_cross.get("test") or {}
+    if not (isinstance(tc, dict) and tc.get("type") == "BinOp" and tc.get("op") == "in"
+            and _is_var(tc.get("left"), loop_var) and _is_var(tc.get("right"), raised_lv)):
+        return None
+    gcb = g_cross.get("body") or []
+    if len(gcb) != 1 or _match_sa_raise(gcb[0]) != exc:
+        return None
+
+    # [7] if no_exc_all and raised_names: raise <Exc>
+    s7 = body[7]
+    if not (isinstance(s7, dict) and s7.get("stmt") == "If" and not s7.get("orelse")):
+        return None
+    t7 = s7.get("test") or {}
+    if not (isinstance(t7, dict) and t7.get("type") == "BinOp" and t7.get("op") == "and"
+            and _is_var(t7.get("left"), no_exc_all_lv)
+            and _is_var(t7.get("right"), raised_lv)):
+        return None
+    b7 = s7.get("body") or []
+    if len(b7) != 1 or _match_sa_raise(b7[0]) != exc:
+        return None
+
+    # the finite literal-set: read the ACTUAL frozenset members live (non-facade).
+    # Guard on the recognised constant name so a rename fails closed.
+    if known_name != "KNOWN_EXCEPTIONS":
+        return None
+    from exception_model import KNOWN_EXCEPTIONS as _KE
+    members = sorted(str(m) for m in _KE)
+    if not members:
+        return None
+
+    return {"name": func.get("name"), "subj": subj,
+            "contracts_field": contracts_field, "noexc_field": noexc_field,
+            "noexcall_field": noexcall_field, "raises_field": raises_field,
+            "exc_field": exc_field, "members": members, "exc": exc}
+
+
+def emit_check_no_exception_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the two-list cross-ref `_check_no_exception` caller (see module note):
+    read `contracts.<noexc_field>`/`.<raises_field>` (lists) + `.<noexcall_field>`
+    (bool) off `func`'s bridged pydict, fold the name list raising on a
+    non-`KNOWN_EXCEPTIONS` member (a `pystr_eq` disjunction over the ACTUAL
+    frozenset members) or a name found by the bounded nested `raised_has` scan of
+    the raises list, then raise once more when `no_exc_all` holds with a non-empty
+    raises list. Type-safe + terminating over the certified pydict/list `pyval`
+    bridge (`pget_dyn`/`pget_list`); no new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    exc = desc["exc"]
+    cf = desc["contracts_field"]
+    nef, naf, rf = desc["noexc_field"], desc["noexcall_field"], desc["raises_field"]
+    exc_suf = _reader_suffix(desc["exc_field"])
+    out: List[str] = []
+    # ---- spine reader for a raises element's exc_type key (string-valued) ----
+    out += _sa_reader_lines(n, desc["exc_field"], as_str=True)
+    # ---- finite literal-set membership (the KNOWN_EXCEPTIONS frozenset) ----
+    cond = " || ".join(f'pystr_eq s "{m}"' for m in desc["members"])
+    out.append(f"  let function {n}__known (s: string) : bool = {cond}")
+    # ---- the bounded nested cross-ref scan: name in {r.exc_type | r <- raises} ----
+    out.append(f"  let rec {n}__raised_has (nm: string) (rs: list pyval) : bool")
+    out.append("    variant { rs }")
+    out.append("  = match rs with")
+    out.append("    | Nil -> false")
+    out.append("    | Cons h t ->")
+    out.append("        (match h with")
+    out.append(f"         | PDict d -> (match {n}__get_{exc_suf} d with")
+    out.append(f"                       | Some et -> if pystr_eq et nm then true else {n}__raised_has nm t")
+    out.append(f"                       | None -> {n}__raised_has nm t end)")
+    out.append(f"         | _ -> {n}__raised_has nm t end)")
+    out.append("    end")
+    # ---- the outer name-list fold (two guarded raises per name) ----
+    out.append(f"  let rec {n}__fold (xs: list pyval) (rs: list pyval) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append("    variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h t ->")
+    out.append("        (match h with")
+    out.append("         | PStr nm ->")
+    out.append(f"             (if not ({n}__known nm) then raise {exc}")
+    out.append(f"              else if {n}__raised_has nm rs then raise {exc}")
+    out.append("              else ());")
+    out.append(f"             {n}__fold t rs")
+    out.append(f"         | _ -> {n}__fold t rs end)")
+    out.append("    end")
+    # ---- the caller entry point: bridge the nested contracts pydict, then fold ----
+    out.append(f"  let {n} ({subj}: pyval) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict fd ->")
+    out.append(f'        (match pget_dyn "{cf}" fd with')
+    out.append("         | Some (PDict cd) ->")
+    out.append(f'             let nexc = pget_list "{nef}" cd in')
+    out.append(f'             let rlist = pget_list "{rf}" cd in')
+    out.append(f'             let nall = (match pget_dyn "{naf}" cd with')
+    out.append("                         | Some (PBool b) -> b | _ -> false end) in")
+    out.append(f"             {n}__fold nexc rlist;")
+    out.append("             if nall && (match rlist with Nil -> false | Cons _ _ -> true end)")
+    out.append(f"             then raise {exc} else ()")
+    out.append("         | _ -> () end)")
+    out.append("    | _ -> () end")
+    return out
+
+
+# =========================================================================
+# IR-LIST WARN-FOLD `_check_*` caller — `recognize_check_warn_fold`.
+#
+# The purest report-only orchestrator shape (`_check_union_gt1(ir)`): read ONE
+# top-level list field off the bridged `ir` pydict (`x = ir.get("<K>") or []`)
+# and iterate it, emitting a `warnings.warn(...)` per element. `warnings.warn`
+# is NOT modelled state in PyCSL (like `print` — a pure side-channel that
+# constrains no verifiable value and no control flow), so its faithful lowering
+# is a UNIT no-op; the loop therefore lowers to a total, terminating unit fold
+# over the list read from the field (`pget_list "<K>"`). No raise path,
+# `ensures true`. Type-safe + terminating over the certified pydict/list `pyval`
+# bridge (`pget_dyn`/`pget_list`); no new type/axiom/cert, ledger 3. The
+# field-key string is load-bearing (mutation-faithful: it selects WHICH IR list
+# is read); only the (error-message-only) warn `FString` is erased. Fail-closed:
+# a loop body carrying any non-`warnings.warn` statement (a raise, an assign, a
+# nested control-flow effect) does NOT match and the caller stays `\trusted`.
+# =========================================================================
+
+def _match_ir_get_or_empty(stmt: Any, subj: str) -> Optional[Tuple[str, str]]:
+    """`<acc> = <subj>.get("<K>") or []` -> (acc, K) or None (fail-closed)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    acc = stmt.get("target")
+    if not isinstance(acc, str):
+        return None
+    val = stmt.get("value")
+    if not (isinstance(val, dict) and val.get("type") == "BinOp"
+            and val.get("op") == "or"):
+        return None
+    right = val.get("right")
+    if not (isinstance(right, dict) and right.get("type") == "ArrayLit"
+            and not right.get("elts")):
+        return None
+    key = _match_get_call(val.get("left"), subj)
+    if key is None:
+        return None
+    return (acc, key)
+
+
+def _is_warn_only_body(stmts: Any) -> bool:
+    """Every statement is an `Expr` wrapping a `warnings.warn(...)` Call (a
+    report-only side-channel, no control flow). Empty body does NOT match
+    (nothing to fold)."""
+    if not isinstance(stmts, list) or not stmts:
+        return False
+    for s in stmts:
+        if not (isinstance(s, dict) and s.get("stmt") == "Expr"):
+            return False
+        v = s.get("value")
+        if not (isinstance(v, dict) and v.get("type") == "Call"
+                and v.get("func") == "warnings.warn"):
+            return False
+    return True
+
+
+def recognize_check_warn_fold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the IR-list warn-fold `_check_*(ir)` caller (see
+    module note). Returns {name, subj, field} or None; never raises."""
+    try:
+        return _recognize_check_warn_fold(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_warn_fold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    ge = _match_ir_get_or_empty(body[0], subj)
+    if ge is None:
+        return None
+    acc, key = ge
+    loop = body[1]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and _is_var(loop.get("iter"), acc)):
+        return None
+    if not _is_warn_only_body(loop.get("body") or []):
+        return None
+    return {"name": func.get("name"), "subj": subj, "field": key}
+
+
+def emit_check_warn_fold_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the IR-list warn-fold caller (see module note): read the ONE list
+    field off `ir`'s bridged pydict (`pget_list "<field>"`) and fold it to unit
+    (each `warnings.warn` -> no-op). Total + terminating over the certified
+    pydict/list `pyval` bridge; no raise path, `ensures true`. NO new
+    type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    field = desc["field"]
+    out: List[str] = []
+    out.append(f"  let rec {n}__list (l: list pyval) : unit")
+    out.append("    requires { true } ensures { true } variant { l }")
+    out.append(f"  = match l with Nil -> () | Cons _ t -> {n}__list t end")
+    out.append(f"  let {n} ({subj}: pyval) : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {subj} with")
+    out.append(f'    | PDict d -> {n}__list (pget_list "{field}" d)')
+    out.append("    | _ -> () end")
+    return out
+
+
+# =========================================================================
+# HAPPY module-check orchestrator recogniser — `recognize_check_happy`.
+#
+# self-tcb-reduction: the `_check_happy(ir)` module-level HAPPY orchestrator —
+# it (1) reads `ir["happy"]`, early-returns if falsy; (2) builds `method_names`
+# = `set(happy["method_names"])`; (3) folds `ir["functions"]` through the
+# converted set-collector `_hp_collect_written` (a `ref (map string bool)`
+# mutator) to build the `written` set; (4) folds `happy["properties"]`,
+# per property raising `PyCSLSemanticError` when an `except_set` name is not a
+# known method (`name not in method_names`, a `map string bool` membership) or
+# an `exec_methods` method is not exempt (`m not in except_set`, a LIST
+# membership), then (protects-guarded) `warnings.warn`s an inert field.
+#
+# Lowered over the certified pydict/list `pyval` bridge (`pget_dyn`/`pget_list`,
+# `set_add`/`const false`, `Map.get`), reusing the already-emitted collector.
+# The two raise conditions and every dict key (`happy`, `functions`, `body`,
+# `method_names`, `exec_methods`, `properties`, `except_set`) are DERIVED from
+# the source body, so the emission is mutation-sensitive (not a name facade).
+# The `sorted`/`set` wrappers are order/dedup-only (VC-irrelevant under `ensures
+# True`) so the exec loop folds the raw `exec_methods` list; the protects/field/
+# warn tail is an unmodelled report-only no-op (`warnings.warn`). `ensures true`,
+# `raises { PyCSLSemanticError }`. NO new type/axiom/cert, ledger 3. Fail-closed;
+# any shape deviation stays `\trusted`.
+
+def _match_get_default_empty(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<K>", [])` -> "<K>" or None (requires the `[]` default)."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{subj}.get"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 2:
+        return None
+    default = args[1]
+    if not (isinstance(default, dict) and default.get("type") == "ArrayLit"
+            and not default.get("elts")):
+        return None
+    return _is_string(args[0])
+
+
+def _match_set_of_get(node: Any, subj: str) -> Optional[str]:
+    """`set(<subj>.get("<K>", []))` -> "<K>" or None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "set"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 1:
+        return None
+    return _match_get_default_empty(args[0], subj)
+
+
+def _match_not_in(test: Any, left_var: str) -> Optional[str]:
+    """`<left_var> not in <Var>` -> the right-hand var name, or None."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "not in" and _is_var(test.get("left"), left_var)):
+        return None
+    right = test.get("right")
+    if isinstance(right, dict) and right.get("type") == "Var":
+        return right.get("name")
+    return None
+
+
+def _is_single_raise_if(stmt: Any, left_var: str, right_var: str) -> bool:
+    """`if <left_var> not in <right_var>: raise PyCSLSemanticError` (single-stmt
+    body, no orelse)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return False
+    if _match_not_in(stmt.get("test"), left_var) != right_var:
+        return False
+    b = stmt.get("body") or []
+    return (len(b) == 1 and isinstance(b[0], dict)
+            and b[0].get("stmt") == "Raise")
+
+
+def recognize_check_happy(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_happy(ir)` HAPPY orchestrator. Returns a
+    key-descriptor dict or None; never raises."""
+    try:
+        return _recognize_check_happy(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_happy(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    ir = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 7:
+        return None
+    # b0: happy = ir.get("happy")
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    happy_var = b0.get("target")
+    happy_key = _match_get_call(b0.get("value"), ir)
+    if not isinstance(happy_var, str) or happy_key is None:
+        return None
+    # b1: if not <happy_var>: return
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "If"):
+        return None
+    t1 = b1.get("test")
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp"
+            and t1.get("op") == "not" and _is_var(t1.get("expr"), happy_var)):
+        return None
+    # b2: method_names = set(<happy_var>.get("<mn>", []))
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Assign"):
+        return None
+    mn_var = b2.get("target")
+    mn_key = _match_set_of_get(b2.get("value"), happy_var)
+    if not isinstance(mn_var, str) or mn_key is None:
+        return None
+    # b3: exec_methods = <happy_var>.get("<em>", [])
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "Assign"):
+        return None
+    em_var = b3.get("target")
+    em_key = _match_get_default_empty(b3.get("value"), happy_var)
+    if not isinstance(em_var, str) or em_key is None:
+        return None
+    # b4: written = set()
+    b4 = body[4]
+    if not (isinstance(b4, dict) and b4.get("stmt") == "Assign"):
+        return None
+    written_var = b4.get("target")
+    v4 = b4.get("value")
+    if not (isinstance(written_var, str) and isinstance(v4, dict)
+            and v4.get("type") == "Call" and v4.get("func") == "set"
+            and not (v4.get("args") or [])):
+        return None
+    # b5: for func in ir.get("<funcs>", []): collector(func.get("<body>",[]) or [], written)
+    b5 = body[5]
+    if not (isinstance(b5, dict) and b5.get("stmt") == "For"):
+        return None
+    funcs_key = _match_get_default_empty(b5.get("iter"), ir)
+    fvar = b5.get("target")
+    if funcs_key is None or not isinstance(fvar, str):
+        return None
+    fbody = b5.get("body") or []
+    if len(fbody) != 1 or not (isinstance(fbody[0], dict)
+                               and fbody[0].get("stmt") == "Expr"):
+        return None
+    call = fbody[0].get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    collector = call.get("func")
+    cargs = call.get("args") or []
+    if not (isinstance(collector, str) and len(cargs) == 2
+            and _is_var(cargs[1], written_var)):
+        return None
+    arg0 = cargs[0]
+    if not (isinstance(arg0, dict) and arg0.get("type") == "BinOp"
+            and arg0.get("op") == "or"):
+        return None
+    body_key = _match_get_default_empty(arg0.get("left"), fvar)
+    r0 = arg0.get("right")
+    if body_key is None or not (isinstance(r0, dict)
+                                and r0.get("type") == "ArrayLit"):
+        return None
+    # b6: for hp in happy.get("<props>", []): <property checks>
+    b6 = body[6]
+    if not (isinstance(b6, dict) and b6.get("stmt") == "For"):
+        return None
+    props_key = _match_get_default_empty(b6.get("iter"), happy_var)
+    hvar = b6.get("target")
+    if props_key is None or not isinstance(hvar, str):
+        return None
+    pbody = b6.get("body") or []
+    if len(pbody) != 6:
+        return None
+    # pbody[1]: except_set = hp.get("<ex>", [])
+    ib1 = pbody[1]
+    if not (isinstance(ib1, dict) and ib1.get("stmt") == "Assign"):
+        return None
+    ex_var = ib1.get("target")
+    ex_key = _match_get_default_empty(ib1.get("value"), hvar)
+    if not isinstance(ex_var, str) or ex_key is None:
+        return None
+    # pbody[2]: for name in except_set: if name not in method_names: raise
+    ib2 = pbody[2]
+    if not (isinstance(ib2, dict) and ib2.get("stmt") == "For"
+            and _is_var(ib2.get("iter"), ex_var)):
+        return None
+    nvar = ib2.get("target")
+    nb = ib2.get("body") or []
+    if not (isinstance(nvar, str) and len(nb) == 1
+            and _is_single_raise_if(nb[0], nvar, mn_var)):
+        return None
+    # pbody[3]: for m in sorted(set(exec_methods)): if m not in except_set: raise
+    ib3 = pbody[3]
+    if not (isinstance(ib3, dict) and ib3.get("stmt") == "For"):
+        return None
+    it3 = ib3.get("iter")
+    # sorted(set(<em_var>))
+    if not (isinstance(it3, dict) and it3.get("type") == "Call"
+            and it3.get("func") == "sorted"):
+        return None
+    sargs = it3.get("args") or []
+    if not (len(sargs) == 1 and isinstance(sargs[0], dict)
+            and sargs[0].get("type") == "Call" and sargs[0].get("func") == "set"
+            and len(sargs[0].get("args") or []) == 1
+            and _is_var(sargs[0]["args"][0], em_var)):
+        return None
+    mvar = ib3.get("target")
+    mb = ib3.get("body") or []
+    if not (isinstance(mvar, str) and len(mb) == 1
+            and _is_single_raise_if(mb[0], mvar, ex_var)):
+        return None
+    return {
+        "name": func.get("name"),
+        "ir": ir,
+        "happy_key": happy_key,
+        "mn_key": mn_key,
+        "em_key": em_key,
+        "funcs_key": funcs_key,
+        "body_key": body_key,
+        "props_key": props_key,
+        "ex_key": ex_key,
+        "collector": collector,
+    }
+
+
+def emit_check_happy_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_happy` HAPPY orchestrator over the certified pydict/list
+    `pyval` bridge, reusing the already-emitted set-collector. `ensures true`,
+    `raises { PyCSLSemanticError }`. NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    ir = whyml_ident(desc["ir"])
+    coll = whyml_ident(desc["collector"])
+    hk = desc["happy_key"]
+    mnk = desc["mn_key"]
+    emk = desc["em_key"]
+    fk = desc["funcs_key"]
+    bk = desc["body_key"]
+    pk = desc["props_key"]
+    exk = desc["ex_key"]
+    out: List[str] = []
+    # set-from-list (method_names).
+    out.append(f"  let rec {n}__setof (l: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { l }")
+    out.append("  = match l with Nil -> const false")
+    out.append(f"    | Cons (PStr s) t -> set_add ({n}__setof t) s")
+    out.append(f"    | Cons _ t -> {n}__setof t end")
+    # written-set fold over ir["functions"] via the converted collector.
+    out.append(f"  let rec {n}__ffold (fs: list pyval) (written: ref (map string bool)) : unit")
+    out.append("    requires { true } ensures { true } variant { fs }")
+    out.append("  = match fs with Nil -> ()")
+    out.append(f'    | Cons f t -> (match f with PDict fd -> {coll} (PList (pget_list "{bk}" fd)) written | _ -> () end);')
+    out.append(f"                  {n}__ffold t written end")
+    # list membership (`m not in except_set`).
+    out.append(f"  let rec {n}__lmem (s: string) (l: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { l }")
+    out.append("  = match l with Nil -> false")
+    out.append(f"    | Cons (PStr x) t -> (if pystr_eq x s then true else {n}__lmem s t)")
+    out.append(f"    | Cons _ t -> {n}__lmem s t end")
+    # except_set fold: raise when a name is not a known method.
+    out.append(f"  let rec {n}__exfold (es: list pyval) (mn: map string bool) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { es }")
+    out.append("  = match es with Nil -> ()")
+    out.append("    | Cons (PStr nm) t -> (if not (Map.get mn nm) then raise PyCSLSemanticError);")
+    out.append(f"                          {n}__exfold t mn")
+    out.append(f"    | Cons _ t -> {n}__exfold t mn end")
+    # exec fold: raise when an exec method is not exempt.
+    out.append(f"  let rec {n}__execf (ms: list pyval) (es: list pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { ms }")
+    out.append("  = match ms with Nil -> ()")
+    out.append(f"    | Cons (PStr m) t -> (if not ({n}__lmem m es) then raise PyCSLSemanticError);")
+    out.append(f"                         {n}__execf t es")
+    out.append(f"    | Cons _ t -> {n}__execf t es end")
+    # properties fold: per property, run both raise-folds.
+    out.append(f"  let rec {n}__pfold (ps: list pyval) (mn: map string bool) (em: list pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { ps }")
+    out.append("  = match ps with Nil -> ()")
+    out.append(f'    | Cons (PDict hd) t -> {n}__exfold (pget_list "{exk}" hd) mn;')
+    out.append(f'                           {n}__execf em (pget_list "{exk}" hd);')
+    out.append(f"                           {n}__pfold t mn em")
+    out.append(f"    | Cons _ t -> {n}__pfold t mn em end")
+    # top wrapper.
+    out.append(f"  let {n} ({ir}: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = match {ir} with")
+    out.append(f'    | PDict d -> (match pget_dyn "{hk}" d with')
+    out.append("                  | Some (PDict hd) ->")
+    out.append(f'                      let mn = {n}__setof (pget_list "{mnk}" hd) in')
+    out.append(f'                      let em = pget_list "{emk}" hd in')
+    out.append("                      let written = ref (const false) in")
+    out.append(f'                      {n}__ffold (pget_list "{fk}" d) written;')
+    out.append(f'                      {n}__pfold (pget_list "{pk}" hd) mn em')
+    out.append("                  | _ -> () end)")
+    out.append("    | _ -> () end")
+    return out
+
+
+# =========================================================================
+# stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
+#
+# tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,
+# TYPED counterpart of `recognize_bool_existence` (which folds over the
+# dynamic `pyval` ADT). This recognises the `_body_has_return`-shaped
+# statement-tree existence walk — a flat direct-recursive
+#   `for stmt in body:
+#        if stmt.get("stmt") == "<TAG>": return True
+#        <descend into stmt's statement-body child lists via self-recursion>
+#    return False`
+# — and emits the CERTIFIED stmt_ir catamorphism `stmt_has`/`sl_has`/`hl_has`/
+# `mcl_has` (verbatim from the full-M5-scale-proven scratchpad/standalone.mlw,
+# with the LEXICOGRAPHIC `variant { size_stmt s, 0 }` / `{ size_slist l, 1 }`
+# / `{ size_hlist l, 1 }` / `{ size_mclist l, 1 }` — the STRUCTURAL variant
+# TIMED OUT on the record-field-projection descents at full scale). The
+# recognised discriminant TAG(s) drive which stmt_ir constructor arm(s) return
+# `true` (the mutation-sensitive, non-facade signal): "Return" -> SReturn,
+# "While" -> SWhile, ... — every other compound constructor STRUCTURALLY
+# OR-descends its statement-body children. The body param is typed `stmt_list`
+# and the whole function lowers to `<n>__sl_has body`.
+#
+# NOT a name-keyed facade: the emitted true-arm(s) are DERIVED from the tag
+# literal read out of the body's `stmt.get("stmt") == "<TAG>"` test, so
+# changing the discriminant in the source moves (or removes) the true-arm and
+# the emitted .mlw changes (the emission mutation test).
+
+# leaf (body-less) stmt_ir constructors, by discriminant tag -> match pattern.
+_STMT_LEAF_TAG_CTOR = {
+    "Pass": "SPass", "Break": "SBreak", "Continue": "SContinue",
+    "Return": "SReturn _", "Expr": "SExpr _", "Assign": "SAssign _ _",
+    "Assert": "SAssert _ _", "AugAssign": "SAugAssign _ _ _",
+    "FieldAugAssign": "SFieldAugAssign _ _ _", "ArraySet": "SArraySet _ _ _",
+    "DelSubscript": "SDelSubscript _ _", "FieldAssign": "SFieldAssign _ _ _",
+    "ArraySliceSet": "SArraySliceSet _ _ _ _", "TupleUnpack": "STupleUnpack _ _",
+    "GhostArraySet": "SGhostArraySet _ _ _", "GhostAssign": "SGhostAssign _ _ _ _",
+}
+
+# compound (statement-body-carrying) stmt_ir constructors: (match pattern, tag,
+# [(list-kind, bound-var), ...]) — the descent OR-folds each child list with the
+# recogniser sibling for that list kind (sl=stmt_list, hl=handler_list,
+# mcl=match_case_list). handler_list/match_case_list descend the record's body
+# field (h.eh_body / c.mc_body).
+_STMT_COMPOUND = [
+    ("SWhile _ b", "While", [("sl", "b")]),
+    ("SIf _ b o", "If", [("sl", "b"), ("sl", "o")]),
+    ("SFor _ b", "For", [("sl", "b")]),
+    ("STry b hs oe fb", "Try",
+     [("sl", "b"), ("hl", "hs"), ("sl", "oe"), ("sl", "fb")]),
+    ("SMatch _ cs", "Match", [("mcl", "cs")]),
+    ("SCriticalSection _ b _ _", "CriticalSection", [("sl", "b")]),
+]
+
+
+def _collect_stmt_selfcalls(node: Any, self_name: str, out: List[Any]) -> None:
+    """Collect every Call node whose `func` is the bare self name (confirms the
+    walk is a genuine self-recursive tree descent, not a flat one-level scan)."""
+    if isinstance(node, dict):
+        if node.get("type") == "Call" and node.get("func") == self_name:
+            out.append(node)
+        for v in node.values():
+            _collect_stmt_selfcalls(v, self_name, out)
+    elif isinstance(node, list):
+        for x in node:
+            _collect_stmt_selfcalls(x, self_name, out)
+
+
+def recognize_stmt_has(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_body_has_return`-shaped stmt_ir tree-walk
+    existence fold. Returns {subject, tags, self_name} or None. Never raises."""
+    try:
+        return _recognize_stmt_has(func)
+    except Exception:
+        return None
+
+
+def _recognize_stmt_has(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {}) or {}
+    if pa.get(subj) != "list":
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 2:
+        return None
+    loop, tail = body
+    # tail: `return False`
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    # loop: `for stmt in <subj>: <arms>`
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and _is_var(loop.get("iter"), subj)):
+        return None
+    stmtv = loop.get("target")
+    if not isinstance(stmtv, str):
+        return None
+    lbody = loop.get("body", [])
+    if len(lbody) < 2:
+        return None
+    self_name = func.get("name")
+    self_calls: List[Any] = []
+    _collect_stmt_selfcalls(lbody, self_name, self_calls)
+    if not self_calls:
+        return None
+    # collect every `if <stmt>.get("stmt") == "<TAG>": return True` discriminant
+    tags: List[str] = []
+    for a in lbody:
+        if not (isinstance(a, dict) and a.get("stmt") == "If"
+                and not a.get("orelse")):
+            continue
+        tg = _match_stmt_tag_test(a.get("test", {}), stmtv)
+        if (tg is not None and len(a.get("body", [])) == 1
+                and _is_bool_true_return(a["body"][0])):
+            tags.append(tg)
+    if not tags:
+        return None
+    _known = set(_STMT_LEAF_TAG_CTOR) | {c[1] for c in _STMT_COMPOUND}
+    for t in tags:
+        if t not in _known:
+            return None
+    return {"subject": subj, "tags": tags, "self_name": self_name}
+
+
+def emit_stmt_has_group(func: Dict[str, Any], desc: Dict[str, Any],
+                        whyml_ident) -> List[str]:
+    """Emit the certified stmt_ir existence catamorphism for a recognised walk.
+
+    The `stmt_has`/`sl_has`/`hl_has`/`mcl_has` mutual group is verbatim from the
+    full-M5-scale-proven scratchpad/standalone.mlw (LEXICOGRAPHIC variant); only
+    the true-arm(s) vary with the recognised discriminant tag(s). The whole
+    `_body_has_return` lowers to `<n>__sl_has body` over a `stmt_list` param."""
+    n = whyml_ident(func["name"])
+    tags = set(desc["tags"])
+    arms: List[str] = []
+    for tag in desc["tags"]:
+        if tag in _STMT_LEAF_TAG_CTOR:
+            arms.append(f"    | {_STMT_LEAF_TAG_CTOR[tag]} -> true")
+    for pat, tag, children in _STMT_COMPOUND:
+        if tag in tags:
+            arms.append(f"    | {pat} -> true")
+        else:
+            rhs = " || ".join(f"{n}__{k}_has {v}" for k, v in children)
+            arms.append(f"    | {pat} -> {rhs}")
+    arms.append("    | _ -> false")
+    out: List[str] = []
+    out.append(f"  let rec function {n}__stmt_has (s: stmt_ir) : bool")
+    out.append("    variant { size_stmt s, 0 }")
+    out.append("  = match s with")
+    out.extend(arms)
+    out.append("    end")
+    out.append(f"  with function {n}__sl_has (l: stmt_list) : bool")
+    out.append("    variant { size_slist l, 1 }")
+    out.append(f"  = match l with SLNil -> false"
+               f" | SLCons h t -> {n}__stmt_has h || {n}__sl_has t end")
+    out.append(f"  with function {n}__hl_has (l: handler_list) : bool")
+    out.append("    variant { size_hlist l, 1 }")
+    out.append(f"  = match l with HLNil -> false"
+               f" | HLCons h t -> {n}__sl_has h.eh_body || {n}__hl_has t end")
+    out.append(f"  with function {n}__mcl_has (l: match_case_list) : bool")
+    out.append("    variant { size_mclist l, 1 }")
+    out.append(f"  = match l with MCNil -> false"
+               f" | MCCons c t -> {n}__sl_has c.mc_body || {n}__mcl_has t end")
+    out.append(f"  let function {n} (body: stmt_list) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__sl_has body")
+    return out
+
+
+# =========================================================================
+# IRScanner `obj: Any` TYPE-existence fold — recognize_type_existence.
+#
+# genexp-erasure-wall / wall-lessons (l), R2d+R3 convergence: the generic-`Any`
+# tree existence predicate rooted at a SCALAR untyped `obj` with a dict-first
+# `isinstance` dispatch, a `.get("type") == "<TAG>"` discriminant, and mutual
+# recursion via `any(self(v) for v in obj.values())` / `any(self(x) for x in
+# obj)`:
+#
+#     def uses_string(obj):
+#         if isinstance(obj, dict):
+#             if obj.get("type") == "String": return True
+#             return any(IRScanner.uses_string(v) for v in obj.values())
+#         if isinstance(obj, list):
+#             return any(IRScanner.uses_string(item) for item in obj)
+#         return False
+#
+# Before this, BOTH the `obj: Any` int-erasure AND the `any(genexp)` unconstrained
+# oracle collapsed the emitted body to a value that never mentions `obj`
+# (`typeof_op 315`, `obj_get_1 <hash>`, `any_1 (Array.make 1 0)`) — a fully
+# vacuous facade the mutation test cannot see (wall-lessons (l),
+# bin/check-emitted-vacuity.py). This emits the certified pyval/pydict/list-pyval
+# catamorphism (the SAME proven L1 theory as recognize_bool_existence /
+# recognize_void_generic_descend — no new ADT, no new certificate, ledger 3),
+# scalar-rooted and keyed on the interned "type" key (K_type). The `let rec ...
+# with ... variant { pv_size obj } / { size_dict d } / { size_list xs }` weaving
+# is the R2d rec-group fold: the fold co-lives with the recursive predicate in
+# ONE mutual group, so the self-recursion binds (no `unbound symbol`) and
+# terminates on the structural pyval measure. The emitted body matches on `obj`
+# (de-vacuified) and the recognised discriminant tag drives the true-arm (the
+# mutation-sensitive, non-facade signal). Fail-closed: a body-fidelity bug yields
+# a loud unprovable instance, never a false proof. The family: uses_string /
+# uses_subscript / uses_sum / uses_set_card (single "type"-tag shape).
+
+
+def _match_type_tag_test(test: Any, subj: str) -> Optional[Tuple[str, str]]:
+    """`<subj>.get("<key>") == "<TAG>"` -> (key, TAG); None (fail-closed)."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "=="):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{subj}.get"):
+        return None
+    gargs = left.get("args", [])
+    if len(gargs) != 1:
+        return None
+    key = _is_string(gargs[0])
+    tag = _is_string(right)
+    if key is None or tag is None:
+        return None
+    return (key, tag)
+
+
+def _flatten_and(test: Any) -> List[Any]:
+    """Flatten a left/right-nested `and` chain into its leaf conjuncts."""
+    if (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return (_flatten_and(test.get("left", {}))
+                + _flatten_and(test.get("right", {})))
+    return [test]
+
+
+def _match_key_in_tuple(node: Any, subj: str) -> Optional[Tuple[str, List[str]]]:
+    """`<subj>.get("<key>") in ("<t0>", "<t1>", ...)` -> (key, [tags])."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "in"):
+        return None
+    left, right = node.get("left", {}), node.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{subj}.get"):
+        return None
+    gargs = left.get("args", [])
+    if len(gargs) != 1:
+        return None
+    key = _is_string(gargs[0])
+    if key is None:
+        return None
+    if not (isinstance(right, dict) and right.get("type") == "Tuple"):
+        return None
+    tags = [_is_string(e) for e in right.get("elts", [])]
+    if not tags or any(t is None for t in tags):
+        return None
+    return (key, tags)
+
+
+def _match_type_discriminant(test: Any, subj: str,
+                             carried: Optional[List[str]] = None
+                             ) -> Optional[Dict[str, Any]]:
+    """The tag-arm discriminant of an IRScanner type-existence predicate.
+
+    Shapes recognised, all keyed on the interned "type" key:
+      * SIMPLE   `<subj>.get("type") == "<TAG>"`
+        -> {kind: "simple", tag: TAG}
+      * COMPOUND `<subj>.get("type") == "<T>" and <subj>.get("<k2>") in (<tags>)
+                  [and <extra conjuncts>]`  (`uses_ord_chr`/`uses_minmax`)
+        -> {kind: "compound", type_tag: T, key2: k2 ("func"/"op"), tags: [...]}
+      * PARAM    `<subj>.get("type") == "<T>" and <subj>.get("<k2>") == <carried>`
+                 (`is_recursive`: `type=="Call" and func==name`)
+        -> {kind: "param", type_tag: T, key2: k2 ("func"/"op"), param: <name>}
+        the RHS is a `Var` naming one of the `carried` scalar params — the
+        discriminant compares against a runtime string value, not a literal.
+        `k2` is restricted to the interned named keys func/op. Any EXTRA
+        conjuncts (`uses_minmax`'s `len(obj.get("args",[]))==2`) are DROPPED —
+        a sound over-approximation under the fixed `ensures True` contract
+        (insight C, the same doctrine `recognize_bool_existence` uses to drop
+        its membership-set conjunct): the emitted catamorphism matches a
+        SUPERSET of the source's true-set, so nothing false is derived, and the
+        mutation-sensitive `type`/`k2`-tag discriminants (the non-facade signal)
+        are preserved verbatim.
+    """
+    carried = carried or []
+    # SIMPLE
+    kt = _match_type_tag_test(test, subj)
+    if kt is not None and kt[0] == "type":
+        return {"kind": "simple", "tag": kt[1]}
+    conjs = _flatten_and(test)
+    if len(conjs) < 2:
+        return None
+    # NESTED: any conjunct is a child-field type projection
+    # `<subj>["<nk>"].get("<sk>") == "<TAG>"` (`uses_array_lit`'s `[0]*n` arm:
+    # `type=="BinOp" and op=="*" and obj["left"].get("type")=="ArrayLit"`).
+    # Collect a general AND-fact list; drop the `isinstance(obj.get("left"),dict)`
+    # guard as a sound over-approximation (the pyval `type_is` on the child already
+    # returns false for a non-PDict child, so the guard is subsumed).
+    if any(_match_nested_type_proj(c, subj) is not None for c in conjs):
+        n_type_tag = None
+        facts: List[Dict[str, Any]] = []
+        for c in conjs:
+            st = _match_type_tag_test(c, subj)
+            if st is not None and st[0] == "type":
+                if n_type_tag is not None:
+                    return None
+                n_type_tag = st[1]
+                continue
+            if st is not None and st[0] in ("func", "op"):
+                facts.append({"t": "keylit", "key": st[0], "tag": st[1]})
+                continue
+            kin = _match_key_in_tuple(c, subj)
+            if kin is not None and kin[0] in ("func", "op"):
+                facts.append({"t": "keyin", "key": kin[0], "tags": kin[1]})
+                continue
+            kep = _match_key_eq_param(c, subj, carried)
+            if kep is not None and kep[0] in ("func", "op"):
+                facts.append({"t": "keyparam", "key": kep[0], "param": kep[1]})
+                continue
+            pr = _match_nested_type_proj(c, subj)
+            if pr is not None:
+                facts.append({"t": "proj", "key": pr[0], "subkey": pr[1],
+                              "tag": pr[2]})
+                continue
+            # droppable extra (the isinstance guard) — insight-C over-approx.
+        if n_type_tag is None or not facts:
+            return None
+        return {"kind": "nested", "type_tag": n_type_tag, "facts": facts}
+    # COMPOUND / PARAM: require exactly one `type==T` conjunct and exactly one
+    # secondary key conjunct (either `k2 in (tags)` or `k2 == <carried>`) over an
+    # interned named key.
+    type_tag = None
+    key2 = None
+    tags: List[str] = []
+    param = None
+    for c in conjs:
+        st = _match_type_tag_test(c, subj)
+        if st is not None and st[0] == "type":
+            if type_tag is not None:
+                return None
+            type_tag = st[1]
+            continue
+        kin = _match_key_in_tuple(c, subj)
+        if kin is not None and kin[0] in ("func", "op"):
+            if key2 is not None:
+                return None
+            key2, tags = kin
+            continue
+        kep = _match_key_eq_param(c, subj, carried)
+        if kep is not None and kep[0] in ("func", "op"):
+            if key2 is not None:
+                return None
+            key2, param = kep
+            continue
+        # any other conjunct is an insight-C droppable extra — leave it be.
+    if type_tag is None or key2 is None:
+        return None
+    if param is not None:
+        return {"kind": "param", "type_tag": type_tag, "key2": key2,
+                "param": param}
+    return {"kind": "compound", "type_tag": type_tag, "key2": key2, "tags": tags}
+
+
+def _match_key_eq_param(node: Any, subj: str, carried: List[str]
+                        ) -> Optional[Tuple[str, str]]:
+    """`<subj>.get("<key>") == <Var carried_i>` -> (key, carried_i); None.
+    The RHS must be a bare `Var` naming one of the carried scalar params."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "=="):
+        return None
+    left, right = node.get("left", {}), node.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{subj}.get"):
+        return None
+    gargs = left.get("args", [])
+    if len(gargs) != 1:
+        return None
+    key = _is_string(gargs[0])
+    if key is None:
+        return None
+    if not (isinstance(right, dict) and right.get("type") == "Var"
+            and right.get("name") in carried):
+        return None
+    return (key, right["name"])
+
+
+def _match_nested_type_proj(node: Any, subj: str
+                            ) -> Optional[Tuple[str, str, str]]:
+    """`<subj>["<nkey>"].get("<subkey>") == "<TAG>"` -> (nkey, subkey, TAG); None.
+
+    Module5 lowers `obj["left"].get("type")` to a `Call func="get"` whose
+    `receiver` is the `Subscript(<subj>, "<nkey>")` and whose single arg is the
+    string subkey. A child-field type projection (`uses_array_lit`)."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "=="):
+        return None
+    left, right = node.get("left", {}), node.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == "get"):
+        return None
+    recv = left.get("receiver")
+    if not (isinstance(recv, dict) and recv.get("type") == "Subscript"
+            and _is_var(recv.get("value"), subj)):
+        return None
+    nkey = _is_string(recv.get("index"))
+    gargs = left.get("args", [])
+    if len(gargs) != 1:
+        return None
+    subkey = _is_string(gargs[0])
+    tag = _is_string(right)
+    if nkey is None or subkey is None or tag is None:
+        return None
+    return (nkey, subkey, tag)
+
+
+def _match_any_selfrecurse_genexp(node: Any, subj: str, self_base: str,
+                                  iter_ok, carried: Optional[List[str]] = None
+                                  ) -> bool:
+    """`any(<self>(<carried...>, <lv>) for <lv> in <iter>)` — a bare-`any` over a
+    filter-less single-generator comprehension whose element is a SELF call
+    (basename `self_base`) whose LAST arg is the bound variable, preceded by the
+    `carried` scalar params (as `Var`s, in order), and whose iterable satisfies
+    `iter_ok(iter_node, lv)`. `carried=None`/`[]` is the plain `self(lv)` shape."""
+    carried = carried or []
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "any"):
+        return False
+    args = node.get("args", [])
+    if len(args) != 1:
+        return False
+    ge = args[0]
+    if not (isinstance(ge, dict) and ge.get("type") in ("GenExp", "ListComp")):
+        return False
+    gens = ge.get("generators", [])
+    if len(gens) != 1 or not isinstance(gens[0], dict):
+        return False
+    g = gens[0]
+    if g.get("ifs"):
+        return False
+    lv = g.get("target")
+    if not isinstance(lv, str):
+        return False
+    elt = ge.get("elt", {})
+    if not (isinstance(elt, dict) and elt.get("type") == "Call"
+            and isinstance(elt.get("func"), str)
+            and elt["func"].rsplit(".", 1)[-1] == self_base):
+        return False
+    eargs = elt.get("args", [])
+    if len(eargs) != len(carried) + 1:
+        return False
+    # leading args = the carried params verbatim (in order); last arg = bound var.
+    for a, cname in zip(eargs, carried):
+        if not _is_var(a, cname):
+            return False
+    if not _is_var(eargs[-1], lv):
+        return False
+    return iter_ok(g.get("iter", {}), lv)
+
+
+def recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the IRScanner `obj: Any` type-existence fold.
+    Returns {subject, tag} or None. Never raises."""
+    try:
+        return _recognize_type_existence(func)
+    except Exception:
+        return None
+
+
+def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if not params:
+        return None
+    # The Any-tree subject is the LAST param; any LEADING params are "carried"
+    # scalars threaded verbatim through the whole fold group (the
+    # `is_recursive(name, obj)` shape — `name: str` is compared inside the
+    # discriminant and passed unchanged into every self-call). Each carried param
+    # MUST be an annotated `str`: the only carried lowering the discriminant +
+    # emitter model is the string-key equality `<subj>.get("<k>") == <carried>`.
+    subj = params[-1]
+    carried = list(params[:-1])
+    pa = func.get("param_annotations", {}) or {}
+    # genuinely UNTYPED `Any` subject only (an annotated `list`/`set`/record
+    # subject is a different recogniser's shape).
+    if subj in pa:
+        return None
+    for c in carried:
+        if pa.get(c) != "str":
+            return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 3:
+        return None
+    if_dict, if_list, tail = body
+    # tail: `return False`
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    # self_base = the method's own name, i.e. everything after the `<classlower>__`
+    # prefix. Split on the FIRST `__` (the class-method boundary), NOT the last:
+    # a lambda-lifted nested `def _check` mangles to `irscanner___check`
+    # (`irscanner` + `__` + `_check`), and `rsplit("__",1)` would eat the method's
+    # leading underscore -> "check", which no longer equals the genexp self-call's
+    # basename "_check" (recognition silently fails). A class-lowered name never
+    # contains `__` (CamelCase collapses to an underscore-free run), so `split`
+    # is identical to `rsplit` for every single-`__` method name (the 6 already
+    # converted) and strictly more correct for a leading-`_` / internal-`__` name.
+    self_base = (func.get("name") or "").rsplit(".", 1)[-1].split("__", 1)[-1]
+    # if_dict: if isinstance(obj, dict): [ if obj.get("type")=="<TAG>": return True,
+    #                                      return any(self(v) for v in obj.values()) ]
+    if not (isinstance(if_dict, dict) and if_dict.get("stmt") == "If"
+            and not if_dict.get("orelse")
+            and _match_isinstance(if_dict.get("test", {}), subj, "dict")):
+        return None
+    # dict-arm body = N>=1 `if <disc>: return True` tag-guards followed by the
+    # `return any(self(v) for v in obj.values())` recursion. The 6+`_check`+
+    # `is_recursive` have exactly ONE tag-guard; `uses_array_lit` has TWO (a plain
+    # `type=="ArrayLit"` arm and a nested `type=="BinOp" and op=="*" and
+    # obj["left"].get("type")=="ArrayLit"` arm) — a DISJUNCTION, ORed in the emitter.
+    db = if_dict.get("body", [])
+    if len(db) < 2:
+        return None
+    tag_ifs, dret = db[:-1], db[-1]
+    preds: List[Dict[str, Any]] = []
+    for tag_if in tag_ifs:
+        if not (isinstance(tag_if, dict) and tag_if.get("stmt") == "If"
+                and not tag_if.get("orelse")):
+            return None
+        pr = _match_type_discriminant(tag_if.get("test", {}), subj, carried)
+        if pr is None:
+            return None
+        if not (len(tag_if.get("body", [])) == 1
+                and _is_bool_true_return(tag_if["body"][0])):
+            return None
+        preds.append(pr)
+    if not (isinstance(dret, dict) and dret.get("stmt") == "Return"):
+        return None
+
+    def _values_iter(it: Any, lv: str) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{subj}.values" and not it.get("args"))
+
+    if not _match_any_selfrecurse_genexp(dret.get("value", {}), subj,
+                                         self_base, _values_iter, carried):
+        return None
+    # if_list: if isinstance(obj, list): return any(self(x) for x in obj)
+    if not (isinstance(if_list, dict) and if_list.get("stmt") == "If"
+            and not if_list.get("orelse")
+            and _match_isinstance(if_list.get("test", {}), subj, "list")):
+        return None
+    lb = if_list.get("body", [])
+    if len(lb) != 1:
+        return None
+    lret = lb[0]
+    if not (isinstance(lret, dict) and lret.get("stmt") == "Return"):
+        return None
+
+    def _subj_iter(it: Any, lv: str) -> bool:
+        return _is_var(it, subj)
+
+    if not _match_any_selfrecurse_genexp(lret.get("value", {}), subj,
+                                         self_base, _subj_iter, carried):
+        return None
+    return {"subject": subj, "preds": preds, "carried": carried}
+
+
+def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
+                              whyml_ident) -> List[str]:
+    """Emit the certified scalar-rooted pyval/pydict/list-pyval type-existence
+    catamorphism for a recognised IRScanner `uses_<X>(obj)` predicate.
+
+    Structurally identical to `emit_bool_existence_group` (the proven A-bool
+    OR-fold over the SAME L1 `pyval` theory) except: (a) rooted at a SCALAR
+    `pyval` `obj` instead of a `list pyval` subject, and (b) the discriminant
+    reader is keyed on the INTERNED "type" key (`K_type`) rather than the
+    computed "stmt" key. The recursion is on DIRECT structural sub-terms (the
+    `v` of `DCons`, the `h`/`t` of `Cons`), so each `variant` (`pv_size`/
+    `size_dict`/`size_list`) decreases syntactically. The recognised tag drives
+    the true-arm (`{n}__type_is obj "<tag>"`) — the mutation-sensitive,
+    non-facade signal. `obj` appears in the emitted body (de-vacuified,
+    wall-lessons (l))."""
+    n = whyml_ident(func["name"])
+    preds = desc["preds"]
+    # `is_recursive(name, obj)`: leading scalar-`str` params carried verbatim
+    # through the whole rec group (declared `(c: string)`, threaded into every
+    # self-call). Empty for the plain `uses_<X>(obj)` shape (byte-inert there).
+    cids = [whyml_ident(c) for c in desc.get("carried", [])]
+    cdecl = "".join(f" ({c}: string)" for c in cids)   # declaration positions
+    cargs = "".join(f" {c}" for c in cids)             # call-site threading
+    # interned irkey constant per read key (theory `get d K_<key>` / the DCons cell).
+    _IRKEY = {"type": "K_type", "left": "K_left", "right": "K_right",
+              "op": "K_op", "value": "K_value", "target": "K_target",
+              "body": "K_body", "orelse": "K_orelse", "func": "K_func",
+              "name": "K_name"}
+    out: List[str] = []
+    _emitted: set = set()
+
+    def _emit_key_reader(key: str) -> None:
+        # interned-named-key reader (option string over the K_<key> cell) +
+        # `<key>_is` predicate — the `_emit_stmt_reader` shape, interned variant.
+        if key in _emitted:
+            return
+        _emitted.add(key)
+        kc = _IRKEY[key]
+        out.append(f"  let rec {n}__get_{key} (d: pydict) : option string")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        out.append(f"    | DCons {kc} (PStr s) rest -> Some s")
+        out.append(f"    | DCons _ _ rest -> {n}__get_{key} rest end")
+        out.append(f"  let function {n}__{key}_is (v: pyval) (tag: string) : bool")
+        out.append("  = match v with")
+        out.append(f"    | PDict d -> (match {n}__get_{key} d with"
+                   f" Some t -> pystr_eq t tag | None -> false end)")
+        out.append("    | _ -> false end")
+
+    def _emit_childp_reader(nkey: str) -> None:
+        # option-pyval projector for the interned K_<nkey> cell — the direct
+        # DCons-constructor match (the SAME style as the string `_emit_key_reader`,
+        # returning the raw child `v` instead of its PStr). Avoids the theory `get`
+        # (its unqualified name mis-resolves in this scope).
+        if ("childp", nkey) in _emitted:
+            return
+        _emitted.add(("childp", nkey))
+        kc = _IRKEY[nkey]
+        out.append(f"  let rec {n}__getp_{nkey} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        out.append(f"    | DCons {kc} v rest -> Some v")
+        out.append(f"    | DCons _ _ rest -> {n}__getp_{nkey} rest end")
+
+    def _emit_nested_reader(nkey: str, subkey: str) -> None:
+        # `<subj>["<nkey>"].get("<subkey>") == tag` -> read the K_<nkey> child pyval
+        # then apply the CHILD's `<subkey>_is`. A non-PDict child makes `<subkey>_is`
+        # return false (subsumes the source's `isinstance(obj["<nkey>"], dict)` guard).
+        _emit_key_reader(subkey)
+        _emit_childp_reader(nkey)
+        tag = ("nested", nkey, subkey)
+        if tag in _emitted:
+            return
+        _emitted.add(tag)
+        out.append(f"  let function {n}__nested_{nkey}_{subkey}_is"
+                   f" (v: pyval) (tag: string) : bool")
+        out.append("  = match v with")
+        out.append(f"    | PDict d -> (match {n}__getp_{nkey} d with"
+                   f" Some c -> {n}__{subkey}_is c tag | None -> false end)")
+        out.append("    | _ -> false end")
+
+    def _fact_str(f: Dict[str, Any]) -> str:
+        if f["t"] == "keylit":
+            _emit_key_reader(f["key"])
+            return f'{n}__{f["key"]}_is obj "{f["tag"]}"'
+        if f["t"] == "keyin":
+            _emit_key_reader(f["key"])
+            mem = " || ".join(f'{n}__{f["key"]}_is obj "{t}"' for t in f["tags"])
+            return f"({mem})"
+        if f["t"] == "keyparam":
+            _emit_key_reader(f["key"])
+            return f'{n}__{f["key"]}_is obj {whyml_ident(f["param"])}'
+        # proj
+        _emit_nested_reader(f["key"], f["subkey"])
+        return f'{n}__nested_{f["key"]}_{f["subkey"]}_is obj "{f["tag"]}"'
+
+    def _arm_str(pred: Dict[str, Any]) -> str:
+        _emit_key_reader("type")
+        if pred["kind"] == "simple":
+            return f'{n}__type_is obj "{pred["tag"]}"'
+        if pred["kind"] == "param":
+            # `type=="<T>" and <k2>==<carried param>` — the second reader compares the
+            # interned key's PStr value against the runtime carried string (not a
+            # literal): `{n}__<k2>_is obj <param>` (`func_is obj name`).
+            _emit_key_reader(pred["key2"])
+            pval = whyml_ident(pred["param"])
+            return (f'{n}__type_is obj "{pred["type_tag"]}"'
+                    f' && {n}__{pred["key2"]}_is obj {pval}')
+        if pred["kind"] == "nested":
+            facts = " && ".join(_fact_str(f) for f in pred["facts"])
+            return f'{n}__type_is obj "{pred["type_tag"]}" && {facts}'
+        # compound
+        _emit_key_reader(pred["key2"])
+        mem = " || ".join(f'{n}__{pred["key2"]}_is obj "{t}"' for t in pred["tags"])
+        return f'{n}__type_is obj "{pred["type_tag"]}" && ({mem})'
+
+    # DISJUNCTION of all recognised dict tag-arms (`uses_array_lit` has 2; every
+    # other predicate exactly 1 — a single arm keeps the emitted string identical
+    # to the pre-multi-arm output, so the 8 already-converted stay byte-stable).
+    if len(preds) == 1:
+        pdict_arm = _arm_str(preds[0])
+    else:
+        pdict_arm = " || ".join(f"({_arm_str(p)})" for p in preds)
+    # scalar-rooted mutual catamorphism into bool (R2d rec-group fold); the
+    # carried params are threaded (declared once per member, passed on each call).
+    out.append(f"  let rec {n}{cdecl} (obj: pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size obj }")
+    out.append("  = match obj with")
+    out.append(f"    | PDict d -> {pdict_arm} || {n}__d{cargs} d")
+    out.append(f"    | PList xs -> {n}__l{cargs} xs")
+    out.append("    | _ -> false end")
+    out.append(f"  with {n}__d{cdecl} (d: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append(f"  = match d with DNil -> false"
+               f" | DCons _ v rest -> {n}{cargs} v || {n}__d{cargs} rest end")
+    out.append(f"  with {n}__l{cdecl} (xs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> false"
+               f" | Cons h t -> {n}{cargs} h || {n}__l{cargs} t end")
+    return out
+
+
+# =========================================================================
+# CLOSURE-FORM existence walk — recognize_closure_existence_pairs.
+#
+# The `found=[False]` mutable-closure existence predicate (`_body_has_
+# diverging_construct` / `_lemma_returns_value`): a nested `def walk(node)`
+# that sets a captured 1-element accumulator list on the first matching node
+# and short-circuits, driven by an OUTER wrapper of exactly:
+#
+#     def P(body[, extra...]) -> bool:
+#         found = [False]
+#         def walk(node):
+#             if found[0]: return
+#             if isinstance(node, dict):
+#                 if <disc-0>: found[0] = True; return
+#                 ...
+#                 if <disc-k>: found[0] = True; return
+#                 for v in node.values(): walk(v)
+#             elif isinstance(node, list):
+#                 for x in node: walk(x)
+#         walk(body)
+#         return found[0]
+#
+# Module 5 lambda-lifts the nested `walk` to a SEPARATE sibling function that
+# shares `found` as an untyped GLOBAL, and the generic lowering int-erases the
+# whole thing (`val constant found : int`, `walk (node: int)`, discriminants
+# collapsed to constant hashes) — a fully vacuous facade. This recognizer pairs
+# the outer wrapper with its lifted `walk` (by adjacency: the walk directly
+# follows its wrapper) and emits the OUTER as the SAME certified `list pyval`/
+# `pyval`/`pydict` existence catamorphism `emit_bool_existence_group` /
+# `emit_type_existence_group` use (no new ADT/axiom/cert, ledger 3), OR-descending
+# the whole subtree with the recognised discriminant tag(s) driving the true-arm.
+# The lifted `walk` sibling is SUPPRESSED (emits nothing — no collision, no
+# facade). The `found[0]=True`-on-first-match / read-`found[0]` accumulator IS
+# (provably, and trivially under `ensures True`) the `∃ matching node` boolean —
+# the pure OR-fold discards the mutable accumulator mechanism, exactly the
+# doctrine `emit_type_existence_group` uses to discard the `any(genexp)` walk.
+# The recognised discriminant is the mutation-sensitive, non-facade signal
+# (change a tag in the source and the emitted .mlw moves; the subject appears in
+# the emitted body — de-vacuified). Fail-closed: a body-fidelity bug yields a
+# loud unprovable instance, never a false proof. Bool accumulator ONLY
+# (`[False]`); a string accumulator (`_lemma_calls_trusted`'s `hit=[""]`) is a
+# string-search over a free-var set — out of this recogniser's scope.
+# =========================================================================
+
+# interned irkey per read key (theory `DCons K_<key>` cell). A key NOT in this
+# set is the computed-key fallback `DCons (K_dyn "<key>")`.
+_CLX_IRKEY = {"type": "K_type", "left": "K_left", "right": "K_right",
+              "op": "K_op", "z": "K_z", "value": "K_value",
+              "target": "K_target", "body": "K_body", "orelse": "K_orelse",
+              "func": "K_func", "name": "K_name"}
+
+
+def _clx_match_acc_subscript(node: Any, acc: str) -> bool:
+    """`<acc>[0]` (Subscript on the accumulator var, index 0)."""
+    return (isinstance(node, dict) and node.get("type") == "Subscript"
+            and _is_var(node.get("value"), acc)
+            and isinstance(node.get("index"), dict)
+            and node["index"].get("type") in ("Number", "Int")
+            and node["index"].get("value") == 0)
+
+
+def _clx_has_acc_set(node: Any, acc: str) -> bool:
+    """True iff `<acc>[0] = ...` (an ArraySet to the accumulator, index 0)
+    occurs anywhere within `node` (guard-body may nest it under a refinement
+    `If`; the refinement is a dropped insight-C over-approximation)."""
+    if isinstance(node, dict):
+        if (node.get("stmt") == "ArraySet" and _is_var(node.get("array"), acc)
+                and isinstance(node.get("index"), dict)
+                and node["index"].get("type") in ("Number", "Int")
+                and node["index"].get("value") == 0):
+            return True
+        return any(_clx_has_acc_set(v, acc) for v in node.values())
+    if isinstance(node, list):
+        return any(_clx_has_acc_set(x, acc) for x in node)
+    return False
+
+
+def _clx_match_pred(test: Any, subj: str) -> Optional[Dict[str, Any]]:
+    """A single discriminant guard test -> a pred descriptor, or None.
+
+    Shapes (keyed on any string key; interned via `_CLX_IRKEY`, else `K_dyn`):
+      * `<subj>.get("<k>") == "<TAG>"`            -> {kind:"keylit", key, tag}
+      * `<subj>.get("<k>") in ("<t0>", ...)`      -> {kind:"keyin",  key, tags}
+    """
+    kt = _match_type_tag_test(test, subj)
+    if kt is not None:
+        return {"kind": "keylit", "key": kt[0], "tag": kt[1]}
+    kin = _match_key_in_tuple(test, subj)
+    if kin is not None:
+        return {"kind": "keyin", "key": kin[0], "tags": kin[1]}
+    return None
+
+
+def _clx_walk_iter_selfcall(node: Any, self_name: str, subj: str,
+                            iter_ok) -> bool:
+    """`for <lv> in <iter>: <walk-name>(<lv>)` — a bare descent loop whose sole
+    body statement is a self-call on the bound var, and whose iterable satisfies
+    `iter_ok(iter_node)`."""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return False
+    if not iter_ok(node.get("iter", {})):
+        return False
+    lv = node.get("target")
+    if not isinstance(lv, str):
+        return False
+    lb = node.get("body", [])
+    if len(lb) != 1:
+        return False
+    s = lb[0]
+    if not (isinstance(s, dict) and s.get("stmt") == "Expr"):
+        return False
+    call = s.get("value", {})
+    return (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == self_name
+            and len(call.get("args", [])) == 1
+            and _is_var(call["args"][0], lv))
+
+
+def _recognize_closure_walk(walkfunc: Dict[str, Any], acc: str
+                            ) -> Optional[List[Dict[str, Any]]]:
+    """Match the lifted `walk(node)` body (see module note); return its ordered
+    discriminant preds, or None. `acc` is the captured accumulator var name (from
+    the outer's `found = [False]`). Fail-closed."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    self_name = walkfunc.get("name")
+    body = walkfunc.get("body") or []
+    # [0] early-exit guard: `if <acc>[0]: return`
+    if len(body) != 2:
+        return None
+    g0, dispatch = body
+    if not (isinstance(g0, dict) and g0.get("stmt") == "If"
+            and not g0.get("orelse")
+            and _clx_match_acc_subscript(g0.get("test"), acc)):
+        return None
+    # [1] `if isinstance(node, dict): <dict-arm> elif isinstance(node, list): ...`
+    if not (isinstance(dispatch, dict) and dispatch.get("stmt") == "If"
+            and _match_isinstance(dispatch.get("test", {}), node, "dict")):
+        return None
+    darm = dispatch.get("body", [])
+    if len(darm) < 2:
+        return None
+    guards, drecur = darm[:-1], darm[-1]
+    preds: List[Dict[str, Any]] = []
+    for g in guards:
+        if not (isinstance(g, dict) and g.get("stmt") == "If"
+                and not g.get("orelse")):
+            return None
+        pr = _clx_match_pred(g.get("test", {}), node)
+        if pr is None:
+            return None
+        # anti-facade: the guard body must set the accumulator (its whole point).
+        if not _clx_has_acc_set(g.get("body", []), acc):
+            return None
+        preds.append(pr)
+    if not preds:
+        return None
+
+    def _values_iter(it: Any) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{node}.values" and not it.get("args"))
+
+    if not _clx_walk_iter_selfcall(drecur, self_name, node, _values_iter):
+        return None
+    # elif isinstance(node, list): for x in node: walk(x)
+    orelse = dispatch.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    larm_if = orelse[0]
+    if not (isinstance(larm_if, dict) and larm_if.get("stmt") == "If"
+            and not larm_if.get("orelse")
+            and _match_isinstance(larm_if.get("test", {}), node, "list")):
+        return None
+    lb = larm_if.get("body", [])
+    if len(lb) != 1:
+        return None
+    if not _clx_walk_iter_selfcall(lb[0], self_name, node,
+                                   lambda it: _is_var(it, node)):
+        return None
+    return preds
+
+
+def _recognize_closure_outer(func: Dict[str, Any]
+                             ) -> Optional[Dict[str, Any]]:
+    """Match the OUTER wrapper `[Assign acc=[False], Expr walk(subj[,...]),
+    Return acc[0]]`; return {subj, walker_name, extra_params} or None. Bool
+    accumulator only (`[False]`). Fail-closed."""
+    params = func.get("formal_params") or []
+    if not params:
+        return None
+    subj = params[0]
+    extra = list(params[1:])
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    s_assign, s_call, s_ret = body
+    # [0] acc = [False]
+    if not (isinstance(s_assign, dict) and s_assign.get("stmt") == "Assign"
+            and isinstance(s_assign.get("value"), dict)
+            and s_assign["value"].get("type") == "ArrayLit"):
+        return None
+    elts = s_assign["value"].get("elts", [])
+    if not (len(elts) == 1 and isinstance(elts[0], dict)
+            and elts[0].get("type") == "Bool" and elts[0].get("value") is False):
+        return None
+    acc = s_assign.get("target")
+    if not isinstance(acc, str):
+        return None
+    # [1] walk(subj)  (a bare-expr Call; first arg is the subject var)
+    if not (isinstance(s_call, dict) and s_call.get("stmt") == "Expr"):
+        return None
+    call = s_call.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    cargs = call.get("args", [])
+    if not (cargs and _is_var(cargs[0], subj)):
+        return None
+    walker_name = call["func"]
+    # [2] return acc[0]
+    if not (isinstance(s_ret, dict) and s_ret.get("stmt") == "Return"
+            and _clx_match_acc_subscript(s_ret.get("value"), acc)):
+        return None
+    return {"subj": subj, "acc": acc, "walker_name": walker_name,
+            "extra_params": extra}
+
+
+def recognize_closure_existence_pairs(functions: List[Dict[str, Any]]
+                                      ) -> Dict[str, Any]:
+    """Pair each closure-form existence OUTER wrapper with its lifted `walk`
+    sibling (by adjacency — the walk directly follows the wrapper). Returns
+    {"outer_ids": {id(outer): desc}, "walk_ids": {id(walk), ...}}. Never raises;
+    an unpaired/unmatched wrapper is simply skipped (stays on its normal path)."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            try:
+                od = _recognize_closure_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            # find the walk: the immediately-following sibling whose name is the
+            # wrapper's call target and whose body is the walk shape.
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            if wf.get("name") != od["walker_name"]:
+                continue
+            if id(wf) in walk_ids:
+                continue
+            try:
+                preds = _recognize_closure_walk(wf, od["acc"])
+            except Exception:
+                preds = None
+            if preds is None:
+                continue
+            outer_ids[id(f)] = {"name": f.get("name"), "subj": od["subj"],
+                                "preds": preds,
+                                "extra_params": od["extra_params"]}
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_closure_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                 whyml_ident) -> List[str]:
+    """Emit the certified `list pyval`/`pyval`/`pydict` existence catamorphism
+    for a recognised closure-form wrapper (see module note). The PDict arm is the
+    disjunction of the recognised discriminant preds OR the structural descent;
+    each `variant` (`size_list`/`pv_size`/`size_dict`) decreases on a direct
+    structural sub-term. `ensures True` (type-safety + termination only). The
+    read keys are interned (`_CLX_IRKEY`) or the `K_dyn` computed-key fallback;
+    the emitted body matches on the subject + drives the true-arm off the tag(s)
+    (mutation-sensitive, non-facade, de-vacuified)."""
+    n = whyml_ident(func["name"])
+    extra = desc.get("extra_params") or []
+    extra_sig = "".join(f" ({whyml_ident(e)}: map string bool)" for e in extra)
+    extra_args = "".join(f" {whyml_ident(e)}" for e in extra)
+    out: List[str] = []
+    _emitted: set = set()
+
+    def _emit_key_reader(key: str) -> None:
+        if key in _emitted:
+            return
+        _emitted.add(key)
+        if key in _CLX_IRKEY:
+            kc = _CLX_IRKEY[key]
+            out.append(f"  let rec {n}__get_{key} (d: pydict) : option string")
+            out.append("    variant { d }")
+            out.append("  = match d with DNil -> None")
+            out.append(f"    | DCons {kc} (PStr s) rest -> Some s")
+            out.append(f"    | DCons _ _ rest -> {n}__get_{key} rest end")
+        else:
+            out.append(f"  let rec {n}__get_{key} (d: pydict) : option string")
+            out.append("    variant { d }")
+            out.append("  = match d with DNil -> None")
+            out.append(f'    | DCons (K_dyn k) (PStr s) rest ->'
+                       f' if pystr_eq k "{key}" then Some s else {n}__get_{key} rest')
+            out.append(f"    | DCons _ _ rest -> {n}__get_{key} rest end")
+        out.append(f"  let function {n}__{key}_is (v: pyval) (tag: string) : bool")
+        out.append("  = match v with")
+        out.append(f"    | PDict d -> (match {n}__get_{key} d with"
+                   f" Some t -> pystr_eq t tag | None -> false end)")
+        out.append("    | _ -> false end")
+
+    def _pred_str(pred: Dict[str, Any]) -> str:
+        key = pred["key"]
+        _emit_key_reader(key)
+        if pred["kind"] == "keylit":
+            return f'{n}__{key}_is v "{pred["tag"]}"'
+        # keyin
+        mem = " || ".join(f'{n}__{key}_is v "{t}"' for t in pred["tags"])
+        return f"({mem})"
+
+    disc = " || ".join(_pred_str(p) for p in desc["preds"])
+    # the recursive-bool existence fold (proven; scratch mk.mlw all-Valid).
+    out.append(f"  let rec {n} (stmts: list pyval){extra_sig} : bool")
+    out.append("    requires { true } ensures { true } variant { size_list stmts }")
+    out.append(f"  = match stmts with Nil -> false"
+               f" | Cons h t -> {n}__v h{extra_args} || {n} t{extra_args} end")
+    out.append(f"  with {n}__v (v: pyval){extra_sig} : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> ({disc}) || {n}__d d{extra_args}")
+    out.append(f"    | PList xs -> {n} xs{extra_args}")
+    out.append("    | _ -> false end")
+    out.append(f"  with {n}__d (d: pydict){extra_sig} : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append(f"  = match d with DNil -> false"
+               f" | DCons _ v rest -> {n}__v v{extra_args} || {n}__d rest{extra_args} end")
+    return out
+
+
+# =========================================================================
+# STRING first-match search closure — recognize_lemma_string_search_pairs.
+#
+# The `hit=[""]` STRING accumulator sibling of the bool `found=[False]` closure
+# (`_lemma_calls_trusted`): a nested `def walk(node)` that, on the FIRST PDict
+# node whose `type` field is a literal TAG, reads a CAPTURE field
+# (`fn = node.get("<CKEY>")`) and — when that captured string is a member of a
+# PASSED-IN set param `trusted` — stores it into the 1-element string
+# accumulator (`hit[0] = fn`) and short-circuits; the outer returns `hit[0]`
+# (or `""`). Exactly:
+#
+#     def P(body, trusted) -> str:
+#         hit = [""]
+#         def walk(node):
+#             if hit[0]: return
+#             if isinstance(node, dict):
+#                 if node.get("type") == "<TAG>":
+#                     fn = node.get("<CKEY>")
+#                     if isinstance(fn, str) and fn in trusted:
+#                         hit[0] = fn; return
+#                 for x in node.values(): walk(x)
+#             elif isinstance(node, list):
+#                 for x in node: walk(x)
+#         walk(body)
+#         return hit[0]
+#
+# Module 5 lambda-lifts `walk` to a sibling that shares `hit` as an int-erased
+# global — a vacuous facade under the generic lowering. This recognizer pairs
+# the outer with its lifted `walk` (by adjacency) and emits the outer as a
+# certified first-match SEARCH catamorphism over `list pyval`/`pyval`/`pydict`
+# returning `option string` (unwrapped to `string`, the `""` string literal).
+# The `trusted` set is a `map string bool` PARAM (the existing A-unit set
+# model, `preamble.py`); membership is `Map.get trusted s` — a passed-in set,
+# NOT a fixed literal. The lifted `walk` is SUPPRESSED (emits nothing).
+# `ensures True` (type-safety + termination only); the result string is
+# unconstrained by any VC (over-approximation of the Python first-match order is
+# sound, exactly as `slookup`/`pystr_eq` are VC-free). NO new type/axiom/cert
+# (ledger 3): reuses the certified pyval/pydict ADT + `pv_size`/`size_list`/
+# `size_dict` measures + `pystr_eq` + `map string bool`. The emitted body reads
+# the `type` TAG, the CAPTURE key, AND the set membership — mutation-sensitive on
+# all three (change the tag / key / membership in the source and the emitted
+# .mlw moves), de-vacuified; fail-closed (a shape mismatch keeps the stub
+# `\trusted`, and a body-fidelity bug is a loud unprovable instance, never a
+# false proof).
+# =========================================================================
+
+
+def _lss_values_iter(node: str):
+    """`<node>.values()` iterable predicate (bare, no args)."""
+    return (lambda it: isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{node}.values" and not it.get("args"))
+
+
+def _recognize_lss_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER wrapper `[Assign acc=[""], Expr walk(subj), Return
+    acc[0]]` for a 2-param `-> str` string-search closure. Returns
+    {subj, set_param, acc, walker_name} or None. Fail-closed."""
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    subj, set_param = params[0], params[1]
+    if func.get("return_annotation") != "str":
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    s_assign, s_call, s_ret = body
+    # [0] acc = [""]  (ArrayLit with a single empty-String literal)
+    if not (isinstance(s_assign, dict) and s_assign.get("stmt") == "Assign"
+            and isinstance(s_assign.get("value"), dict)
+            and s_assign["value"].get("type") == "ArrayLit"):
+        return None
+    elts = s_assign["value"].get("elts", [])
+    if not (len(elts) == 1 and isinstance(elts[0], dict)
+            and elts[0].get("type") == "String" and elts[0].get("value") == ""):
+        return None
+    acc = s_assign.get("target")
+    if not isinstance(acc, str):
+        return None
+    # [1] walk(subj)  (a bare-expr Call; first arg is the subject var)
+    if not (isinstance(s_call, dict) and s_call.get("stmt") == "Expr"):
+        return None
+    call = s_call.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    cargs = call.get("args", [])
+    if not (cargs and _is_var(cargs[0], subj)):
+        return None
+    walker_name = call["func"]
+    # [2] return acc[0]
+    if not (isinstance(s_ret, dict) and s_ret.get("stmt") == "Return"
+            and _clx_match_acc_subscript(s_ret.get("value"), acc)):
+        return None
+    return {"subj": subj, "set_param": set_param, "acc": acc,
+            "walker_name": walker_name}
+
+
+def _recognize_lss_walk(walkfunc: Dict[str, Any], acc: str, set_param: str
+                        ) -> Optional[Dict[str, Any]]:
+    """Match the lifted `walk(node)` body of the string-search closure; return
+    {type_key, type_tag, capture_key} or None. `acc` is the string accumulator
+    (`hit`); `set_param` is the membership set (`trusted`). Fail-closed."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    self_name = walkfunc.get("name")
+    body = walkfunc.get("body") or []
+    if len(body) != 2:
+        return None
+    g0, dispatch = body
+    # [0] early-exit guard: `if <acc>[0]: return`
+    if not (isinstance(g0, dict) and g0.get("stmt") == "If"
+            and not g0.get("orelse")
+            and _clx_match_acc_subscript(g0.get("test"), acc)):
+        return None
+    # [1] `if isinstance(node, dict): <capture-if> <descent> elif isinstance list`
+    if not (isinstance(dispatch, dict) and dispatch.get("stmt") == "If"
+            and _match_isinstance(dispatch.get("test", {}), node, "dict")):
+        return None
+    darm = dispatch.get("body", [])
+    if len(darm) != 2:
+        return None
+    capture_if, descent = darm
+    # capture_if: `if node.get("<TKEY>") == "<TAG>": [Assign cvar=node.get("<CKEY>"),
+    #              If(and(isinstance(cvar,str), cvar in <set>)){ acc[0]=cvar; return }]`
+    if not (isinstance(capture_if, dict) and capture_if.get("stmt") == "If"
+            and not capture_if.get("orelse")):
+        return None
+    tt = _match_type_tag_test(capture_if.get("test", {}), node)
+    if tt is None:
+        return None
+    tkey, ttag = tt
+    cbody = capture_if.get("body", [])
+    if len(cbody) != 2:
+        return None
+    s_cap, s_if = cbody
+    # s_cap: `cvar = node.get("<CKEY>")`
+    if not (isinstance(s_cap, dict) and s_cap.get("stmt") == "Assign"):
+        return None
+    cvar = s_cap.get("target")
+    cval = s_cap.get("value")
+    if not (isinstance(cvar, str) and isinstance(cval, dict)
+            and cval.get("type") == "Call"
+            and cval.get("func") == f"{node}.get"):
+        return None
+    capargs = cval.get("args", [])
+    if len(capargs) != 1:
+        return None
+    ckey = _is_string(capargs[0])
+    if ckey is None:
+        return None
+    # s_if: `if isinstance(cvar,str) and cvar in <set>: acc[0]=cvar; return`
+    if not (isinstance(s_if, dict) and s_if.get("stmt") == "If"
+            and not s_if.get("orelse")):
+        return None
+    test = s_if.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    l, r = test.get("left", {}), test.get("right", {})
+    if not (isinstance(l, dict) and l.get("type") == "Call"
+            and l.get("func") == "isinstance"
+            and len(l.get("args", [])) == 2
+            and _is_var(l["args"][0], cvar) and _is_var(l["args"][1], "str")):
+        return None
+    if not (isinstance(r, dict) and r.get("type") == "BinOp"
+            and r.get("op") == "in"
+            and _is_var(r.get("left"), cvar)
+            and _is_var(r.get("right"), set_param)):
+        return None
+    ibody = s_if.get("body", [])
+    if not ibody:
+        return None
+    aset = ibody[0]
+    if not (isinstance(aset, dict) and aset.get("stmt") == "ArraySet"
+            and _is_var(aset.get("array"), acc)
+            and isinstance(aset.get("index"), dict)
+            and aset["index"].get("type") in ("Number", "Int")
+            and aset["index"].get("value") == 0
+            and _is_var(aset.get("value"), cvar)):
+        return None
+    # descent: `for x in node.values(): walk(x)`
+    if not _clx_walk_iter_selfcall(descent, self_name, node,
+                                   _lss_values_iter(node)):
+        return None
+    # elif isinstance(node, list): for x in node: walk(x)
+    orelse = dispatch.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    larm = orelse[0]
+    if not (isinstance(larm, dict) and larm.get("stmt") == "If"
+            and not larm.get("orelse")
+            and _match_isinstance(larm.get("test", {}), node, "list")):
+        return None
+    lb = larm.get("body", [])
+    if len(lb) != 1:
+        return None
+    if not _clx_walk_iter_selfcall(lb[0], self_name, node,
+                                   lambda it: _is_var(it, node)):
+        return None
+    return {"type_key": tkey, "type_tag": ttag, "capture_key": ckey}
+
+
+def recognize_lemma_string_search_pairs(functions: List[Dict[str, Any]]
+                                        ) -> Dict[str, Any]:
+    """Pair each string-search OUTER wrapper with its lifted `walk` sibling (by
+    adjacency). Returns {"outer_ids": {id(outer): desc}, "walk_ids": {id(walk)}}.
+    Never raises; an unpaired/unmatched wrapper is skipped (stays `\\trusted`)."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            try:
+                od = _recognize_lss_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            if wf.get("name") != od["walker_name"]:
+                continue
+            if id(wf) in walk_ids:
+                continue
+            try:
+                preds = _recognize_lss_walk(wf, od["acc"], od["set_param"])
+            except Exception:
+                preds = None
+            if preds is None:
+                continue
+            outer_ids[id(f)] = {"name": f.get("name"), "subj": od["subj"],
+                                "set_param": od["set_param"], **preds}
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_lemma_string_search_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                   whyml_ident) -> List[str]:
+    """Emit the certified first-match SEARCH catamorphism for a recognised
+    string-search closure wrapper (see module note). Returns `option string`
+    internally (None = keep searching; Some s = first hit), unwrapped to
+    `string` (the `""` string literal). The `set_param` is a `map string bool`
+    PARAM; membership is `Map.get`. `ensures True` (type-safety + termination).
+    Reuses the pyval/pydict ADT + `pystr_eq` + the `""` literal from the
+    `needs_pydict` preamble — NO new type/axiom/cert (ledger 3)."""
+    n = whyml_ident(func["name"])
+    setp = whyml_ident(desc["set_param"])
+    subj = whyml_ident(desc["subj"])
+    tkey = desc["type_key"]
+    ttag = desc["type_tag"]
+    ckey = desc["capture_key"]
+    out: List[str] = []
+
+    def _emit_str_reader(key: str, fn: str) -> None:
+        """A `pydict -> option string` reader for `key` (interned or K_dyn)."""
+        out.append(f"  let rec {fn} (d: pydict) : option string")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if key in _CLX_IRKEY:
+            out.append(f"    | DCons {_CLX_IRKEY[key]} (PStr s) rest -> Some s")
+            out.append(f"    | DCons _ _ rest -> {fn} rest end")
+        else:
+            out.append(f'    | DCons (K_dyn k) (PStr s) rest ->'
+                       f' if pystr_eq k "{key}" then Some s else {fn} rest')
+            out.append(f"    | DCons _ _ rest -> {fn} rest end")
+
+    # type-tag reader + `is-tag` discriminant (mutation-sensitive on TAG + key).
+    _emit_str_reader(tkey, f"{n}__get_type")
+    out.append(f"  let {n}__is_tag (d: pydict) : bool")
+    out.append(f"  = match {n}__get_type d with"
+               f' Some t -> pystr_eq t "{ttag}" | None -> false end')
+    # capture-key reader (the callee-name projection).
+    _emit_str_reader(ckey, f"{n}__get_cap")
+    # the mutually-recursive first-match search (proven; scratch all-Valid).
+    out.append(f"  let rec {n}__s (stmts: list pyval) ({setp}: map string bool)"
+               f" : option string")
+    out.append("    requires { true } ensures { true } variant { size_list stmts }")
+    out.append(f"  = match stmts with Nil -> None")
+    out.append(f"    | Cons h t -> (match {n}__v h {setp} with"
+               f" Some s -> Some s | None -> {n}__s t {setp} end) end")
+    out.append(f"  with {n}__v (v: pyval) ({setp}: map string bool) : option string")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> if {n}__is_tag d then")
+    out.append(f"                   (match {n}__get_cap d with")
+    out.append(f"                    | Some s -> if Map.get {setp} s then Some s"
+               f" else {n}__d d {setp}")
+    out.append(f"                    | None -> {n}__d d {setp} end)")
+    out.append(f"                 else {n}__d d {setp}")
+    out.append(f"    | PList xs -> {n}__s xs {setp}")
+    out.append("    | _ -> None end")
+    out.append(f"  with {n}__d (d: pydict) ({setp}: map string bool) : option string")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append(f"  = match d with DNil -> None")
+    out.append(f"    | DCons _ v rest -> (match {n}__v v {setp} with"
+               f" Some s -> Some s | None -> {n}__d rest {setp} end) end")
+    # the outer wrapper: `-> str`, `hit[0]` fallback "" (empty-string literal).
+    out.append(f"  let {n} ({subj}: list pyval) ({setp}: map string bool) : string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f'  = match {n}__s {subj} {setp} with'
+               f' Some s -> s | None -> "" end')
+    return out
+
+
+# =========================================================================
+# NAMED-FIELD self-recursive existence fold — recognize_named_field_existence.
+#
+# genexp-erasure-wall / wall-lessons (l),(j),(q): a SINGLE untyped-node
+# existence predicate that (a) reads its discriminant into a local via a
+# `.get("<KEY>")` on a NON-`type` key, (b) returns True on a literal tag, and
+# (c) recurses over a NAMED LIST FIELD via `any(self(a) for a in
+# obj.get("<FIELD>", []))` — the `_pattern_has_constructor` shape:
+#
+#     def _pattern_has_constructor(pat):
+#         p = pat.get("pattern")
+#         if p == "Constructor":
+#             return True
+#         if p == "Or":
+#             return any(self._pattern_has_constructor(a)
+#                        for a in pat.get("alternatives", []))
+#         return False
+#
+# Before this, the `any(genexp)` collapsed to `any_1 (Array.make 1 0)` (an
+# UNCONSTRAINED oracle over a fabricated argument) — a fully vacuous facade the
+# mutation test cannot see (wall-lessons (l), bin/check-emitted-vacuity.py).
+# This emits the SAME certified scalar-rooted pyval/pydict/list-pyval
+# catamorphism as `emit_type_existence_group` (no new ADT, no new certificate,
+# ledger 3), differing only in (i) the discriminant key is read via the
+# `K_dyn "<key>"` computed-key cell (the theory's built-in dynamic-key
+# fallback — no new interned constant) rather than `K_type`, and (ii) the shape
+# is `[assign, if-tag, if-recurse, return-False]` rather than the isinstance
+# dict/list arms. The named-field recursion is subsumed by the universal
+# structural descend (insight-C over-approximation — the SAME doctrine the 8
+# IRScanner predicates use to drop `.values()`/membership conjuncts): the fold
+# OR-descends every sub-term, so the `alternatives` list (one child cell) is
+# covered, and the emitted body matches on the real subject param + drives the
+# true-arm off the literal tag (the mutation-sensitive, non-facade signal;
+# `<subj>` appears in the body, de-vacuified). Fail-closed; a body-fidelity bug
+# yields a loud unprovable instance, never a false proof.
+# =========================================================================
+
+
+def recognize_named_field_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the single-node named-field self-recursive
+    existence fold (`_pattern_has_constructor` shape). Returns
+    {subject, key, tags} or None. Never raises."""
+    try:
+        return _recognize_named_field_existence(func)
+    except Exception:
+        return None
+
+
+def _recognize_named_field_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {}) or {}
+    # genuinely UNTYPED `Any` subject only (an annotated subject is a
+    # different recogniser's shape — the pyval carrier is for untyped nodes).
+    if subj in pa:
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 4:
+        return None
+    assign, if_a, if_b, tail = body
+    # tail: `return False`
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    # assign: `p = <subj>.get("<KEY>")` — the discriminant read into a local.
+    if not (isinstance(assign, dict) and assign.get("stmt") == "Assign"):
+        return None
+    dispatch_var = assign.get("target")
+    if not isinstance(dispatch_var, str):
+        return None
+    key = _match_get_call(assign.get("value", {}), subj)
+    if key is None:
+        return None
+    # if_a: `if p == "<TAG>": return True` (the decisive-tag arm).
+    if not (isinstance(if_a, dict) and if_a.get("stmt") == "If"
+            and not if_a.get("orelse")):
+        return None
+    tags_a = _match_stype_tag_or_tags(if_a.get("test", {}), dispatch_var)
+    if not tags_a:
+        return None
+    if not (len(if_a.get("body", [])) == 1
+            and _is_bool_true_return(if_a["body"][0])):
+        return None
+    # if_b: `if p == "<TAG2>": return any(self(a) for a in <subj>.get("<F>", []))`
+    if not (isinstance(if_b, dict) and if_b.get("stmt") == "If"
+            and not if_b.get("orelse")):
+        return None
+    if not _match_stype_tag_or_tags(if_b.get("test", {}), dispatch_var):
+        return None
+    bb = if_b.get("body", [])
+    if len(bb) != 1:
+        return None
+    bret = bb[0]
+    if not (isinstance(bret, dict) and bret.get("stmt") == "Return"):
+        return None
+    self_base = (func.get("name") or "").rsplit(".", 1)[-1].split("__", 1)[-1]
+
+    def _field_iter(it: Any, lv: str) -> bool:
+        # the recursion iterable is a named-field read `<subj>.get("<F>", [])`
+        # (any literal field; the descend subsumes it — insight-C).
+        return _match_get_call(it, subj) is not None
+
+    if not _match_any_selfrecurse_genexp(bret.get("value", {}), subj,
+                                         self_base, _field_iter):
+        return None
+    return {"subject": subj, "key": key, "tags": list(tags_a)}
+
+
+def emit_named_field_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                     whyml_ident) -> List[str]:
+    """Emit the certified scalar-rooted pyval/pydict/list-pyval existence
+    catamorphism for a recognised named-field self-recursive predicate
+    (`_pattern_has_constructor`). Structurally identical to
+    `emit_type_existence_group` (the proven L1 `pyval` OR-fold) except the
+    discriminant is keyed on the `K_dyn "<key>"` dynamic-key cell (the
+    theory's computed-key fallback — no new interned constant, no theory
+    change) instead of the interned `K_type`. The recognised tag drives the
+    true-arm (`{n}__key_is <subj> "<tag>"`) — the mutation-sensitive,
+    non-facade signal. `<subj>` appears in the emitted body (de-vacuified,
+    wall-lessons (l)); recursion terminates on the structural `pv_size`
+    measure (certified variant, NO `any_1`/int-hash)."""
+    n = whyml_ident(func["name"])
+    subj_id = whyml_ident(desc["subject"])
+    key = desc["key"]
+    tags = desc["tags"]
+    _IRKEY = {"type": "K_type", "left": "K_left", "right": "K_right",
+              "op": "K_op", "value": "K_value", "target": "K_target",
+              "body": "K_body", "orelse": "K_orelse", "func": "K_func",
+              "name": "K_name"}
+    out: List[str] = []
+    # interned-or-dynamic key reader (option string over the matched cell).
+    out.append(f"  let rec {n}__get (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    if key in _IRKEY:
+        out.append(f"    | DCons {_IRKEY[key]} (PStr s) rest -> Some s")
+    else:
+        out.append(f"    | DCons (K_dyn ks) (PStr s) rest ->"
+                   f' if pystr_eq ks "{key}" then Some s else {n}__get rest')
+    out.append(f"    | DCons _ _ rest -> {n}__get rest end")
+    out.append(f"  let function {n}__key_is (v: pyval) (tag: string) : bool")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {n}__get d with"
+               f" Some t -> pystr_eq t tag | None -> false end)")
+    out.append("    | _ -> false end")
+    # DISJUNCTION of the decisive-tag arm(s) (a single tag for the
+    # `_pattern_has_constructor` shape; the `in (...)` form yields several).
+    tag_disj = " || ".join(f'{n}__key_is {subj_id} "{t}"' for t in tags)
+    # scalar-rooted mutual catamorphism into bool (the R2d rec-group fold —
+    # the fold co-lives with the recursive predicate so the self-recursion
+    # binds and terminates on the structural pyval measure).
+    out.append(f"  let rec {n} ({subj_id}: pyval) : bool")
+    out.append("    requires { true } ensures { true }"
+               f" variant {{ pv_size {subj_id} }}")
+    out.append(f"  = match {subj_id} with")
+    out.append(f"    | PDict d -> {tag_disj} || {n}__d d")
+    out.append(f"    | PList xs -> {n}__l xs")
+    out.append("    | _ -> false end")
+    out.append(f"  with {n}__d (d: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append(f"  = match d with DNil -> false"
+               f" | DCons _ v rest -> {n} v || {n}__d rest end")
+    out.append(f"  with {n}__l (xs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> false"
+               f" | Cons h t -> {n} h || {n}__l t end")
+    return out
+
+
+# ============================================================================
+# pyval-walker-impl.md (driver-backlog item 3) — the GENERAL value-returning
+# pyval string walker. Unlike the bool-existence family (return bool) this is a
+# string-RETURNING catamorphism over a heterogeneous nested-tuple/list param
+# (the sertop s-expression / `from_sexp` shape): `isinstance(t, tuple)` guards,
+# POSITIONAL index `t[i]`, string-literal tag dispatch `t[0] == "..."`, `len(t)`
+# length guards, a `for x in t` fold with EARLY string-return, all lowered onto
+# the certified `pyval` ADT (PStr=atom, PList=tuple) via three small TOTAL
+# projectors (pv_nth/pv_len/atom_of, emitted inline, NO axiom — the pyval
+# `pv_size` cert already covers measure/termination; ledger stays 3).
+#
+# This is a STRUCTURAL translator, not a shape matcher: it recursively lowers an
+# arbitrary composition of the supported fragment (below), so the emitted `.mlw`
+# is a faithful function of the body — the mutation test (change a literal / an
+# index / a guard → the emitted body changes) passes by construction. Any node
+# outside the fragment raises `_PVWBail` and the recognizer returns None
+# (precision-over-recall, fail-closed: a miss keeps the stub `\trusted`, never a
+# false fire). The templater is NOT in the TCB — a bug yields an unprovable
+# instance (the whole-file re-proof is loud), never a false proof.
+#
+# Supported fragment (single `Any` param `p`, `-> Optional[str]` union return):
+#   test  ::= not test | test and test | test or test
+#           | isinstance(vref, tuple|list|dict|str)
+#           | len(vref) (>=|>|<=|<|==) <int>
+#           | vref == "<lit>" | "<lit>" == vref          (atom/tag compare)
+#   vref  ::= <var> | vref[<int>]                        (a pyval-typed term)
+#   stmt  ::= return None | return <strexpr>
+#           | <var> = vref
+#           | if test: stmts [else: stmts]
+#           | for <var> in vref: stmts                   (fold w/ early return)
+#   strexpr ::= "<lit>" | vref                           (vref -> atom_of)
+
+class _PVWBail(Exception):
+    """Raised on any node outside the supported fragment (fail-closed)."""
+
+
+def _pvw_mv(name: str) -> str:
+    """Mangle a source variable name to a keyword-safe WhyML identifier
+    (`val` is a WhyML keyword; a uniform `v_` prefix dodges every clash)."""
+    return "v_" + name
+
+
+def _pvw_strlit(s: str) -> str:
+    """A WhyML string literal, fail-closed on quote/backslash (no escaping)."""
+    if '"' in s or "\\" in s:
+        raise _PVWBail()
+    return '"' + s + '"'
+
+
+def _pvw_valref(node: Any, ctx: Dict[str, Any]) -> str:
+    """Translate a Var / positional-Subscript into a pyval-typed WhyML term."""
+    if _is_var(node):
+        nm = node.get("name")
+        if nm not in ctx["scope"]:
+            raise _PVWBail()
+        return _pvw_mv(nm)
+    if isinstance(node, dict) and node.get("type") == "Subscript":
+        base = _pvw_valref(node.get("value"), ctx)
+        idx = node.get("index")
+        if not (isinstance(idx, dict) and idx.get("type") == "Number"):
+            raise _PVWBail()
+        i = idx.get("value")
+        if not isinstance(i, int) or i < 0:
+            raise _PVWBail()
+        return f'({ctx["p"]}pnth {base} {i})'
+    raise _PVWBail()
+
+
+def _pvw_strexpr(node: Any, ctx: Dict[str, Any]) -> str:
+    """Translate an expression used in a STRING context (return / tag compare):
+    a literal stays a literal; a pyval vref is coerced by `atom_of`."""
+    s = _is_string(node)
+    if s is not None:
+        return _pvw_strlit(s)
+    return f'({ctx["p"]}atom {_pvw_valref(node, ctx)})'
+
+
+def _pvw_isinstance(node: Any, ctx: Dict[str, Any]) -> str:
+    if node.get("func") != "isinstance":
+        raise _PVWBail()
+    args = node.get("args", [])
+    if len(args) != 2 or not _is_var(args[1]):
+        raise _PVWBail()
+    base = _pvw_valref(args[0], ctx)
+    cls = args[1].get("name")
+    if cls in ("tuple", "list"):
+        return f"(is_plist {base})"
+    if cls == "dict":
+        return f"(is_pdict {base})"
+    if cls == "str":
+        return f"(is_pstr {base})"
+    raise _PVWBail()
+
+
+def _pvw_lencmp(left: Any, op: str, right: Any, ctx: Dict[str, Any]) -> str:
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == "len" and len(left.get("args", [])) == 1):
+        raise _PVWBail()
+    if not (isinstance(right, dict) and right.get("type") == "Number"
+            and isinstance(right.get("value"), int)):
+        raise _PVWBail()
+    base = _pvw_valref(left["args"][0], ctx)
+    return f'({ctx["p"]}plen {base} {op} {right["value"]})'
+
+
+def _pvw_eq(left: Any, right: Any, ctx: Dict[str, Any]) -> str:
+    ls, rs = _is_string(left), _is_string(right)
+    if rs is not None and ls is None:
+        return f"(pystr_eq {_pvw_strexpr(left, ctx)} {_pvw_strlit(rs)})"
+    if ls is not None and rs is None:
+        return f"(pystr_eq {_pvw_strexpr(right, ctx)} {_pvw_strlit(ls)})"
+    raise _PVWBail()
+
+
+def _pvw_test(node: Any, ctx: Dict[str, Any]) -> str:
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "UnaryOp" and node.get("op") == "not":
+        return f"(not {_pvw_test(node.get('expr'), ctx)})"
+    if t == "BinOp":
+        op = node.get("op")
+        if op in ("and", "or"):
+            l = _pvw_test(node.get("left"), ctx)
+            r = _pvw_test(node.get("right"), ctx)
+            return f"({l} {'&&' if op == 'and' else '||'} {r})"
+        if op == "==":
+            return _pvw_eq(node.get("left"), node.get("right"), ctx)
+        if op in (">=", ">", "<=", "<"):
+            return _pvw_lencmp(node.get("left"), op, node.get("right"), ctx)
+        raise _PVWBail()
+    if t == "Call":
+        return _pvw_isinstance(node, ctx)
+    raise _PVWBail()
+
+
+def _pvw_slist_strexpr(node: Any, ctx: Dict[str, Any]) -> str:
+    """C2: a `string`-typed term read from a `list string` local (the result of a
+    sibling pyval→`list string` walker): the NEGATIVE-index-from-end `sl[-k]`
+    (`k >= 1`), lowered TOTAL and in-range-guarded to `nths sl (lens sl - k)`.
+    The projectors are total (return "" past the end / on Nil), so no unsound OOB
+    assumption is made; the `if sl` guard in the surrounding IfExpr keeps the real
+    read in-range. Any other shape bails (fail-closed)."""
+    if not (isinstance(node, dict) and node.get("type") == "Subscript"):
+        raise _PVWBail()
+    base = node.get("value")
+    if not (_is_var(base) and base.get("name") in ctx.get("slist", set())):
+        raise _PVWBail()
+    idx = node.get("index")
+    if not (isinstance(idx, dict) and idx.get("type") == "UnaryOp"
+            and idx.get("op") == "-"):
+        raise _PVWBail()                                  # only NEGATIVE index
+    num = idx.get("expr")
+    if not (isinstance(num, dict) and num.get("type") == "Number"
+            and isinstance(num.get("value"), int) and num.get("value") >= 1):
+        raise _PVWBail()
+    k = num["value"]
+    nm = _pvw_mv(base["name"])
+    P = ctx["p"]
+    return f"({P}nths {nm} ({P}lens {nm} - {k}))"
+
+
+def _pvw_slist_truth(node: Any, ctx: Dict[str, Any]) -> str:
+    """C2: the test of the `sl[-k] if sl else None` conditional-return — a bare
+    `list string` local's truthiness (`lens sl > 0`); otherwise the general pyval
+    test fragment (`_pvw_test`)."""
+    if _is_var(node) and node.get("name") in ctx.get("slist", set()):
+        return f'({ctx["p"]}lens {_pvw_mv(node["name"])} > 0)'
+    return _pvw_test(node, ctx)
+
+
+def _pvw_return(value: Any, ctx: Dict[str, Any]) -> str:
+    if isinstance(value, dict) and value.get("type") == "None":
+        return ctx["none_ctor"]
+    # C2: conditional-expression return `X if T else Y` (`parts[-1] if parts
+    # else None`) — a real if/then/else over the union arms.
+    if isinstance(value, dict) and value.get("type") == "IfExpr":
+        test = _pvw_slist_truth(value.get("test"), ctx)
+        thenb = _pvw_return(value.get("body"), ctx)
+        elseb = _pvw_return(value.get("orelse"), ctx)
+        return f"(if {test} then {thenb} else {elseb})"
+    # C2: a NEGATIVE-index read off a `list string` local, wrapped in the Some arm.
+    if (isinstance(value, dict) and value.get("type") == "Subscript"
+            and _is_var(value.get("value"))
+            and value["value"].get("name") in ctx.get("slist", set())):
+        return f"({ctx['some_ctor']} {_pvw_slist_strexpr(value, ctx)})"
+    return f"({ctx['some_ctor']} {_pvw_strexpr(value, ctx)})"
+
+
+def _pvw_stmts(stmts: Any, cont: str, ctx: Dict[str, Any]) -> str:
+    """Translate a statement list into a WhyML expression of the union return
+    type; `cont` is the fall-through value when the list is exhausted."""
+    if not isinstance(stmts, list):
+        raise _PVWBail()
+    if not stmts:
+        return cont
+    s0, rest = stmts[0], stmts[1:]
+    if not isinstance(s0, dict):
+        raise _PVWBail()
+    kind = s0.get("stmt")
+    if kind == "Return":
+        return _pvw_return(s0.get("value"), ctx)          # terminal
+    if kind == "Assign":
+        tgt = s0.get("target")
+        if not isinstance(tgt, str):
+            raise _PVWBail()
+        val = s0.get("value")
+        # C2: RHS = a call to a SIBLING pyval→`list string` walker
+        # (`parts = _find_kername_components(payload)`) — bind `tgt` as a
+        # `list string` local (tracked in `slist`, NOT the pyval `scope`). SCC
+        # topological ordering (callees before callers) guarantees the sibling's
+        # top-level `let [rec] <sibling>` is in scope. The single arg is a pyval
+        # term (`_pvw_valref`).
+        if (isinstance(val, dict) and val.get("type") == "Call"
+                and val.get("func") in ctx.get("siblings", set())
+                and len(val.get("args", [])) == 1):
+            arg = _pvw_valref(val["args"][0], ctx)
+            callee = ctx["ident"](val["func"])
+            ctx.setdefault("used_slist", [False])[0] = True
+            newctx = dict(ctx)
+            newctx["slist"] = ctx.get("slist", set()) | {tgt}
+            return (f"(let {_pvw_mv(tgt)} = ({callee} {arg}) in "
+                    f"{_pvw_stmts(rest, cont, newctx)})")
+        rhs = _pvw_valref(val, ctx)                        # RHS is a pyval term
+        newctx = dict(ctx); newctx["scope"] = ctx["scope"] | {tgt}
+        return f"(let {_pvw_mv(tgt)} = {rhs} in {_pvw_stmts(rest, cont, newctx)})"
+    if kind == "If":
+        contrest = _pvw_stmts(rest, cont, ctx)
+        test = _pvw_test(s0.get("test"), ctx)
+        thenb = _pvw_stmts(s0.get("body", []), contrest, ctx)
+        elseb = _pvw_stmts(s0.get("orelse") or [], contrest, ctx)
+        return f"(if {test} then {thenb} else {elseb})"
+    if kind == "For":
+        tgt = s0.get("target")
+        if not isinstance(tgt, str):
+            raise _PVWBail()
+        itref = _pvw_valref(s0.get("iter"), ctx)
+        k = ctx["counter"][0]; ctx["counter"][0] += 1
+        loop = f"{ctx['n']}__loop{k}"
+        rv = f"{loop}_rest"
+        aftercont = _pvw_stmts(rest, cont, ctx)           # Nil case
+        newctx = dict(ctx); newctx["scope"] = ctx["scope"] | {tgt}
+        lbody = _pvw_stmts(s0.get("body", []), f"({loop} {rv})", newctx)
+        return (f"(let rec {loop} (l: list pyval) : {ctx['ret']}\n"
+                f"     variant {{ l }}\n"
+                f"   = match l with Nil -> {aftercont}\n"
+                f"     | Cons {_pvw_mv(tgt)} {rv} -> {lbody} end\n"
+                f"   in {loop} (match {itref} with PList xs -> xs | _ -> Nil end))")
+    raise _PVWBail()
+
+
+def _pvw_body_reads(stmts: Any) -> bool:
+    """True iff the body contains a positional Subscript or a For over the param
+    (a genuine pyval read) — the non-vacuity floor (wall-lessons (l))."""
+    def walk(node: Any) -> bool:
+        if isinstance(node, dict):
+            if node.get("type") == "Subscript" or node.get("stmt") == "For":
+                return True
+            return any(walk(v) for v in node.values())
+        if isinstance(node, list):
+            return any(walk(x) for x in node)
+        return False
+    return walk(stmts)
+
+
+def recognize_pyval_string_walker(
+        func: Dict[str, Any],
+        sibling_walkers: Optional[set] = None) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the general value-returning pyval string walker.
+    Returns {param, siblings} or None. Never raises. `sibling_walkers` (C2) is the
+    set of module function names already recognized as pyval→`list string`
+    walkers; a `<var> = <sibling>(vref)` assign binds a `list string` local, and
+    `<var>[-k] if <var> else None` reads its end (`from_sexp._const_name`/
+    `_ind_short_name`). Empty by default → identical to the pre-C2 behaviour."""
+    try:
+        return _recognize_pyval_string_walker(func, sibling_walkers or set())
+    except Exception:
+        return None
+
+
+def _recognize_pyval_string_walker(
+        func: Dict[str, Any], sibling_walkers: set) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    p = params[0]
+    if func.get("param_annotations", {}).get(p) not in (None, "Any"):
+        return None
+    ret = func.get("return_annotation")
+    if not (isinstance(ret, str) and ret.startswith("_union_")):
+        return None
+    body = func.get("body", [])
+    if not _pvw_body_reads(body):
+        return None
+    sibs = set(sibling_walkers) - {func.get("name")}
+    # Dry-run structural translation (placeholder ctors). Any unsupported node
+    # raises _PVWBail -> recognizer returns None. This IS the fail-closed gate.
+    ctx = {"n": "f", "p": "f__", "scope": {p}, "ret": ret,
+           "some_ctor": "S", "none_ctor": "N", "counter": [0],
+           "siblings": sibs, "ident": lambda x: x,
+           "slist": set(), "used_slist": [False]}
+    _pvw_stmts(body, "N", ctx)
+    return {"param": p, "siblings": sibs}
+
+
+def emit_pyval_string_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                   whyml_ident) -> List[str]:
+    """Emit the general value-returning pyval string walker: three inline TOTAL
+    projectors (pv_nth/pv_len/atom_of over the certified pyval ADT, axiom-free,
+    structurally terminating) + the structurally-translated body as a function
+    returning the synthesized Optional[str] union. `desc` carries the resolved
+    union: {param, ret_whyml, some_ctor, none_ctor} (filled at the dispatch site
+    from `self._variant_types`)."""
+    n = whyml_ident(func["name"])
+    P = f"{n}__"
+    param = desc["param"]
+    ctx = {"n": n, "p": P, "scope": {param}, "ret": desc["ret_whyml"],
+           "some_ctor": desc["some_ctor"], "none_ctor": desc["none_ctor"],
+           "counter": [0],
+           "siblings": set(desc.get("siblings") or set()) - {func["name"]},
+           "ident": whyml_ident, "slist": set(), "used_slist": [False]}
+    body = _pvw_stmts(func.get("body", []), desc["none_ctor"], ctx)
+    out: List[str] = []
+    # ---- inline TOTAL projectors (no axiom; pv_size cert covers the measure) --
+    out.append(f"  let rec function {P}nthl (l: list pyval) (i: int) : pyval")
+    out.append("    variant { l }")
+    out.append(f"  = match l with Nil -> PNone"
+               f" | Cons h t -> if i <= 0 then h else {P}nthl t (i - 1) end")
+    out.append(f"  let function {P}pnth (v: pyval) (i: int) : pyval")
+    out.append(f"  = match v with PList xs -> {P}nthl xs i | _ -> PNone end")
+    out.append(f"  let rec function {P}lenl (l: list pyval) : int")
+    out.append("    ensures { result >= 0 } variant { l }")
+    out.append(f"  = match l with Nil -> 0 | Cons _ t -> 1 + {P}lenl t end")
+    out.append(f"  let function {P}plen (v: pyval) : int")
+    out.append(f"  = match v with PList xs -> {P}lenl xs | _ -> 0 end")
+    out.append(f"  let function {P}atom (v: pyval) : string")
+    out.append('  = match v with PStr s -> s | _ -> "" end')
+    # ---- C2: inline TOTAL `list string` projectors (nths/lens) — emitted only
+    #      when the body binds a sibling-walker `list string` local and reads its
+    #      NEGATIVE-index end. DEFINED (not axiomatized); ledger 3. --------------
+    if ctx["used_slist"][0]:
+        out.append(f"  let rec function {P}nths (l: list string) (i: int) : string")
+        out.append("    variant { l }")
+        out.append(f'  = match l with Nil -> ""'
+                   f" | Cons h t -> if i <= 0 then h else {P}nths t (i - 1) end")
+        out.append(f"  let rec function {P}lens (l: list string) : int")
+        out.append("    ensures { result >= 0 } variant { l }")
+        out.append(f"  = match l with Nil -> 0 | Cons _ t -> 1 + {P}lens t end")
+    # ---- the walker ----------------------------------------------------------
+    out.append(f"  let {n} ({_pvw_mv(param)}: pyval) : {desc['ret_whyml']}")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {body}")
+    return out
+
+
+# ============================================================================
+# pyval-walker-impl.md C1 (driver-backlog item 3, sexp-carrier residual C1) —
+# the LIST-accumulator counterpart of the value-returning pyval string walker.
+# Where the string walker RETURNS an `Optional[str]` (single string), this walker
+# RETURNS a `List[str]` (`list string`) BUILT by a `.append`/`.extend`/`reversed`
+# accumulator over the certified pyval spine (the `from_sexp` `_walk_modpath`/
+# `_walk_kername`/`_find_kername_components`/`_full_const_path` shape). It is a
+# STRUCTURAL, CPS/state-passing translator (not a shape matcher): each statement
+# threads the current `list string` value of every in-scope accumulator, so the
+# emitted `.mlw` is a faithful function of the body (mutation test passes by
+# construction). Any node outside the fragment raises `_PVWBail` → recognizer
+# returns None (precision-over-recall, fail-closed). The templater is NOT in the
+# TCB — a bug yields an unprovable instance (the whole-file re-proof is loud),
+# never a false proof.
+#
+# Termination for a TREE self-recursion (`_walk_modpath(mp[1])`) is discharged by
+# an axiom-free, per-function `let rec lemma {n}__size_nthl` (in-range element
+# size <= list size; the recursion IS the induction, proved by Alt-Ergo — NO new
+# axiom, ledger stays 3). The list ops (`app`/`rev`) are inline TOTAL `let rec
+# function`s (NO preamble `use list.Append/Reverse` → zero corpus byte-diff).
+#
+# Supported fragment (single `Any` param `p`, `-> List[str]` (`ret == "list"`)):
+#   stmt ::= <acc> = []                         (new list accumulator)
+#          | <var> = vref                       (pyval read-binding)
+#          | <acc>.append(<strexpr>)
+#          | <acc>.extend(<listexpr>)
+#          | if <test>: stmts [else: stmts]
+#          | for <var> in vref: stmts           (single-accumulator fold)
+#          | return <acc> | return []
+#   listexpr ::= <acc> | reversed(<acc>) | <selfname>(vref)   (self-recursion)
+#   test extends the string-walker fragment with a bare `vref` (tuple truthiness
+#        -> `plen vref > 0`).
+
+def _pvl_copy(state: Dict[str, Any]) -> Dict[str, Any]:
+    return {"acc": dict(state["acc"]), "scope": set(state["scope"])}
+
+
+def _pvl_freshacc(ctx: Dict[str, Any], name: str) -> str:
+    k = ctx["counter"][0]
+    ctx["counter"][0] += 1
+    return f"v_{name}_{k}"
+
+
+def _pvl_test(node: Any, ctx: Dict[str, Any]) -> str:
+    """String-walker test fragment + bare-`vref` tuple truthiness."""
+    if _is_var(node):
+        nm = node.get("name")
+        if nm not in ctx["scope"]:
+            raise _PVWBail()
+        return f'({ctx["p"]}plen {_pvw_mv(nm)} > 0)'
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "UnaryOp" and node.get("op") == "not":
+        return f"(not {_pvl_test(node.get('expr'), ctx)})"
+    if t == "BinOp":
+        op = node.get("op")
+        if op in ("and", "or"):
+            l = _pvl_test(node.get("left"), ctx)
+            r = _pvl_test(node.get("right"), ctx)
+            return f"({l} {'&&' if op == 'and' else '||'} {r})"
+        if op == "==":
+            return _pvw_eq(node.get("left"), node.get("right"), ctx)
+        if op in (">=", ">", "<=", "<"):
+            return _pvw_lencmp(node.get("left"), op, node.get("right"), ctx)
+        raise _PVWBail()
+    if t == "Call":
+        return _pvw_isinstance(node, ctx)
+    raise _PVWBail()
+
+
+def _pvl_listexpr(node: Any, state: Dict[str, Any], ctx: Dict[str, Any]) -> str:
+    """A `list string`-typed term: an accumulator, `reversed(acc)`, a
+    self-recursive call `<selfname>(vref)`, or a C1b CROSS-CALL to a SIBLING
+    pyval→`list string` walker `<sibling>(vref)` (resolved via `ctx["siblings"]`;
+    SCC topological ordering — callees before callers — guarantees the sibling's
+    top-level `let [rec] <sibling>` is in scope by the time this call is emitted).
+    A bound `list string` local (from `<var> = <sibling>(vref)`) is also a term."""
+    if _is_var(node):
+        nm = node.get("name")
+        if nm in state["acc"]:
+            return state["acc"][nm]
+        raise _PVWBail()
+    if isinstance(node, dict) and node.get("type") == "Call":
+        f = node.get("func")
+        args = node.get("args", [])
+        if f == "reversed" and len(args) == 1:
+            return f"({ctx['p']}rev {_pvl_listexpr(args[0], state, ctx)})"
+        if f == ctx["selfname"] and len(args) == 1:
+            return f"({ctx['n']} {_pvw_valref(args[0], ctx)})"
+        if f in ctx.get("siblings", set()) and len(args) == 1:
+            return f"({ctx['ident'](f)} {_pvw_valref(args[0], ctx)})"
+        raise _PVWBail()
+    raise _PVWBail()
+
+
+def _pvl_modified_accs(body: Any, accs: set) -> set:
+    """Accumulators (`.append`/`.extend` targets) mutated anywhere in `body`."""
+    mods: set = set()
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if node.get("stmt") == "Expr":
+                call = node.get("value")
+                if isinstance(call, dict) and call.get("type") == "Call":
+                    f = call.get("func", "")
+                    for suf in (".append", ".extend"):
+                        if f.endswith(suf) and f[:-len(suf)] in accs:
+                            mods.add(f[:-len(suf)])
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+    walk(body)
+    return mods
+
+
+def _pvl_has_selfcall(body: Any, selfname: str) -> bool:
+    def walk(node: Any) -> bool:
+        if isinstance(node, dict):
+            if (node.get("type") == "Call" and node.get("func") == selfname):
+                return True
+            return any(walk(v) for v in node.values())
+        if isinstance(node, list):
+            return any(walk(x) for x in node)
+        return False
+    return walk(body)
+
+
+def _pvl_for(s0: Any, kont, ctx: Dict[str, Any], state: Dict[str, Any]) -> str:
+    tgt = s0.get("target")
+    if not isinstance(tgt, str):
+        raise _PVWBail()
+    ctx["scope"] = state["scope"]
+    itref = _pvw_valref(s0.get("iter"), ctx)
+    body = s0.get("body", [])
+    mods = _pvl_modified_accs(body, set(state["acc"].keys()))
+    if len(mods) != 1:                       # single-accumulator fold only
+        raise _PVWBail()
+    acc = next(iter(mods))
+    k = ctx["counter"][0]; ctx["counter"][0] += 1
+    loop = f"{ctx['n']}__lloop{k}"
+    pacc = f"{loop}_acc"
+    rv = f"{loop}_rest"
+    lstate = _pvl_copy(state)
+    lstate["acc"][acc] = pacc
+    lstate["scope"].add(tgt)
+
+    def loopkont(st: Dict[str, Any]) -> str:
+        return f"({loop} {rv} {st['acc'][acc]})"
+
+    lbody = _pvl_stmts(body, lstate, loopkont, ctx)
+    mv = _pvl_freshacc(ctx, acc)
+    st2 = _pvl_copy(state)
+    st2["acc"][acc] = mv
+    spine = f"(match {itref} with PList xs -> xs | _ -> Nil end)"
+    return (f"(let rec {loop} (l: list pyval) ({pacc}: list string) : list string\n"
+            f"     variant {{ l }}\n"
+            f"   = match l with Nil -> {pacc}\n"
+            f"     | Cons {_pvw_mv(tgt)} {rv} -> {lbody} end\n"
+            f"   in let {mv} = {loop} {spine} {state['acc'][acc]} in {kont(st2)})")
+
+
+def _pvl_stmts(stmts: Any, state: Dict[str, Any], k, ctx: Dict[str, Any]) -> str:
+    """CPS translate a statement list into a `list string` expression; `k` is the
+    fall-through continuation (a Python callable state->str). Every path must end
+    in an explicit `return` (else the top-level `k` raises _PVWBail)."""
+    if not isinstance(stmts, list):
+        raise _PVWBail()
+    ctx["scope"] = state["scope"]
+    if not stmts:
+        return k(state)
+    s0, rest = stmts[0], stmts[1:]
+    if not isinstance(s0, dict):
+        raise _PVWBail()
+
+    def kont(st: Dict[str, Any]) -> str:
+        return _pvl_stmts(rest, st, k, ctx)
+
+    kind = s0.get("stmt")
+    if kind == "Assign":
+        tgt = s0.get("target")
+        if not isinstance(tgt, str):
+            raise _PVWBail()
+        val = s0.get("value")
+        if (isinstance(val, dict) and val.get("type") == "ArrayLit"
+                and not val.get("elts")):
+            mv = _pvl_freshacc(ctx, tgt)
+            st2 = _pvl_copy(state)
+            st2["acc"][tgt] = mv
+            return f"(let {mv} = (Nil: list string) in {kont(st2)})"
+        rhs = _pvw_valref(val, ctx)          # pyval read-binding
+        st2 = _pvl_copy(state)
+        st2["scope"].add(tgt)
+        return f"(let {_pvw_mv(tgt)} = {rhs} in {kont(st2)})"
+    if kind == "Expr":
+        call = s0.get("value")
+        if not (isinstance(call, dict) and call.get("type") == "Call"):
+            raise _PVWBail()
+        f = call.get("func", "")
+        args = call.get("args", [])
+        if f.endswith(".append") and len(args) == 1:
+            acc = f[:-len(".append")]
+            if acc not in state["acc"]:
+                raise _PVWBail()
+            se = _pvw_strexpr(args[0], ctx)
+            cur = state["acc"][acc]
+            mv = _pvl_freshacc(ctx, acc)
+            st2 = _pvl_copy(state)
+            st2["acc"][acc] = mv
+            return (f"(let {mv} = {ctx['p']}app {cur} "
+                    f"(Cons {se} (Nil: list string)) in {kont(st2)})")
+        if f.endswith(".extend") and len(args) == 1:
+            acc = f[:-len(".extend")]
+            if acc not in state["acc"]:
+                raise _PVWBail()
+            le = _pvl_listexpr(args[0], state, ctx)
+            cur = state["acc"][acc]
+            mv = _pvl_freshacc(ctx, acc)
+            st2 = _pvl_copy(state)
+            st2["acc"][acc] = mv
+            return f"(let {mv} = {ctx['p']}app {cur} {le} in {kont(st2)})"
+        raise _PVWBail()
+    if kind == "Return":
+        v = s0.get("value")
+        if (isinstance(v, dict) and v.get("type") == "ArrayLit"
+                and not v.get("elts")):
+            return "(Nil: list string)"
+        if _is_var(v) and v.get("name") in state["acc"]:
+            return state["acc"][v.get("name")]
+        # C1b: `return <listexpr>` — a cross-call to a sibling walker
+        # (`_full_const_path` -> `return _find_kername_components(const_node[1])`),
+        # `reversed(acc)`, or a self-call. `_pvl_listexpr` bails on anything else.
+        return _pvl_listexpr(v, state, ctx)
+    if kind == "If":
+        test = _pvl_test(s0.get("test"), ctx)
+        thenb = _pvl_stmts(s0.get("body", []), _pvl_copy(state), kont, ctx)
+        elseb = _pvl_stmts(s0.get("orelse") or [], _pvl_copy(state), kont, ctx)
+        return f"(if {test} then {thenb} else {elseb})"
+    if kind == "For":
+        return _pvl_for(s0, kont, ctx, state)
+    raise _PVWBail()
+
+
+def recognize_pyval_list_walker(
+        func: Dict[str, Any],
+        sibling_walkers: Optional[set] = None) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the pyval List[str]-accumulator walker.
+    Returns {param, siblings} or None. Never raises. `sibling_walkers` (C1b) is
+    the set of OTHER function names in the module already recognized as
+    pyval→`list string` walkers; a cross-call to one of them is a legal
+    `listexpr` (see `_pvl_listexpr`). Empty by default → identical to the
+    pre-C1b behaviour (any cross-call bails)."""
+    try:
+        return _recognize_pyval_list_walker(func, sibling_walkers or set())
+    except Exception:
+        return None
+
+
+def _recognize_pyval_list_walker(
+        func: Dict[str, Any], sibling_walkers: set) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    p = params[0]
+    if func.get("param_annotations", {}).get(p) not in (None, "Any"):
+        return None
+    ret = func.get("return_annotation")
+    if ret not in ("list", "List"):
+        return None
+    body = func.get("body", [])
+    if not _pvw_body_reads(body):
+        return None
+    # Dry-run structural translation (placeholder names). Any unsupported node
+    # raises _PVWBail -> recognizer returns None. This IS the fail-closed gate.
+    # `ident` is identity here (the emitted name is irrelevant to the bail check);
+    # the emitter substitutes the real `whyml_ident`.
+    ctx = {"n": "f", "p": "f__", "scope": {p}, "counter": [0],
+           "selfname": func.get("name"),
+           "siblings": set(sibling_walkers) - {func.get("name")},
+           "ident": lambda x: x}
+    state0 = {"acc": {}, "scope": {p}}
+
+    def k0(_st):
+        raise _PVWBail()
+    _pvl_stmts(body, state0, k0, ctx)
+    return {"param": p, "siblings": set(sibling_walkers) - {func.get("name")}}
+
+
+def emit_pyval_list_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                 whyml_ident) -> List[str]:
+    """Emit the pyval List[str] walker: inline TOTAL projectors (pv_nth/pv_len/
+    atom_of) + inline TOTAL list ops (app/rev) + (when tree self-recursive) an
+    axiom-free size lemma, then the CPS-translated body returning `list string`.
+    All defined, not axiomatized; ledger stays 3."""
+    n = whyml_ident(func["name"])
+    P = f"{n}__"
+    param = desc["param"]
+    ctx = {"n": n, "p": P, "scope": set(), "counter": [0],
+           "selfname": func["name"],
+           "siblings": set(desc.get("siblings") or set()) - {func["name"]},
+           "ident": whyml_ident}
+    state0 = {"acc": {}, "scope": {param}}
+
+    def k0(_st):
+        raise _PVWBail()
+    body = _pvl_stmts(func.get("body", []), state0, k0, ctx)
+    self_rec = _pvl_has_selfcall(func.get("body", []), func["name"])
+    out: List[str] = []
+    # ---- inline TOTAL pyval projectors (axiom-free; pv_size cert = measure) ---
+    out.extend(_pvl_projectors(P))
+    # ---- inline TOTAL list ops (self-contained: no preamble use → byte-inert) -
+    out.append(f"  let rec function {P}app (a b: list string) : list string")
+    out.append("    variant { a }")
+    out.append(f"  = match a with Nil -> b | Cons h t -> Cons h ({P}app t b) end")
+    out.append(f"  let rec function {P}revacc (a acc: list string) : list string")
+    out.append("    variant { a }")
+    out.append(f"  = match a with Nil -> acc | Cons h t -> {P}revacc t (Cons h acc) end")
+    out.append(f"  let function {P}rev (a: list string) : list string = {P}revacc a Nil")
+    if self_rec:
+        # axiom-free size lemma (ledger 3): in-range element size <= list size.
+        # The recursion IS the induction; Alt-Ergo discharges the postcondition
+        # (calling the certified size_pos / size_list_nonneg cert lemmas).
+        out.append(f"  let rec lemma {P}size_nthl (l: list pyval) (i: int) : unit")
+        out.append(f"    ensures {{ 0 <= i < {P}lenl l ->"
+                   f" pv_size ({P}nthl l i) <= size_list l }}")
+        out.append("    variant { l }")
+        out.append(f"  = match l with Nil -> () | Cons h t ->"
+                   f" size_pos h; size_list_nonneg t; {P}size_nthl t (i - 1) end")
+    # ---- the walker ----------------------------------------------------------
+    mvp = _pvw_mv(param)
+    if self_rec:
+        out.append(f"  let rec {n} ({mvp}: pyval) : list string")
+        out.append(f"    requires {{ true }} ensures {{ true }}"
+                   f" variant {{ pv_size {mvp} }}")
+    else:
+        out.append(f"  let {n} ({mvp}: pyval) : list string")
+        out.append("    requires { true } ensures { true }")
+    out.append(f"  = {body}")
+    return out
+
+
+def _pvl_projectors(P: str) -> List[str]:
+    """Inline TOTAL pyval projectors (pv_nth/pv_len/atom over the certified pyval
+    ADT). DEFINED `let (rec) function`s — axiom-free; the pyval `pv_size` cert
+    already covers the structural measure, so no new certificate (ledger 3)."""
+    out: List[str] = []
+    out.append(f"  let rec function {P}nthl (l: list pyval) (i: int) : pyval")
+    out.append("    variant { l }")
+    out.append(f"  = match l with Nil -> PNone"
+               f" | Cons h t -> if i <= 0 then h else {P}nthl t (i - 1) end")
+    out.append(f"  let function {P}pnth (v: pyval) (i: int) : pyval")
+    out.append(f"  = match v with PList xs -> {P}nthl xs i | _ -> PNone end")
+    out.append(f"  let rec function {P}lenl (l: list pyval) : int")
+    out.append("    ensures { result >= 0 } variant { l }")
+    out.append(f"  = match l with Nil -> 0 | Cons _ t -> 1 + {P}lenl t end")
+    out.append(f"  let function {P}plen (v: pyval) : int")
+    out.append(f"  = match v with PList xs -> {P}lenl xs | _ -> 0 end")
+    out.append(f"  let function {P}atom (v: pyval) : string")
+    out.append('  = match v with PStr s -> s | _ -> "" end')
+    return out
+
+
+def compute_pyval_list_walker_names(functions: List[Dict[str, Any]]) -> set:
+    """C1b: the fixpoint set of module function names recognized as pyval→
+    `list string` walkers WITH cross-calls resolved. Monotone: start from the
+    self-contained walkers (recognized with an empty sibling set — e.g.
+    `_walk_modpath`, self-recursion only), then repeatedly re-recognize with the
+    growing set until it stabilizes, so a walker that cross-calls an
+    already-recognized sibling (`_walk_kername`→`_walk_modpath`) is admitted. The
+    recognizer is fail-closed, so this only ever GROWS the set to a fixpoint; it
+    never admits a non-walker. Emission then relies on SCC topological ordering
+    (scc.py — callees before callers) to place each sibling before its caller.
+
+    Both walker SHAPES count as walkers a sibling may cross-call: the C1
+    accumulator walker (`recognize_pyval_list_walker`) AND the C1b search
+    catamorphism (`recognize_pyval_list_search`, `_find_kername_components`)."""
+    names: set = set()
+    changed = True
+    while changed:
+        changed = False
+        for f in functions:
+            nm = f.get("name")
+            if nm in names:
+                continue
+            if (recognize_pyval_list_walker(f, names) is not None
+                    or recognize_pyval_list_search(f, names) is not None):
+                names.add(nm)
+                changed = True
+    return names
+
+
+# ============================================================================
+# pyval-walker-impl.md C1b — the SEARCH catamorphism. Where the C1 accumulator
+# walker BUILDS a `list string` via `.append`/`.extend`, this shape SEARCHES a
+# heterogeneous pyval tree for the first non-empty result of a per-node reader,
+# recursing on EVERY element of the spine (the `from_sexp._find_kername_components`
+# shape). It cannot use the C1 single-`pv_size`-variant + `size_nthl` lemma path,
+# because the self-call is on a spine ELEMENT (`for sub in payload: f(sub)`), not a
+# direct `payload[i]`. Instead it emits the certified pyval CATAMORPHISM shape (the
+# `emit_bool_multiway_group` precedent, lines ~2302): a mutual
+# `let rec {n} (v: pyval) variant { pv_size v } with {n}__list (l) variant { size_list l }`
+# whose cross-decreasing structural measures discharge termination AUTOMATICALLY —
+# NO new axiom, ledger stays 3 (spike: 24 VCs Valid under Alt-Ergo, 0 non-valid).
+#
+# Recognized shape (single `Any` param `p`, `-> List[str]`):
+#   if isinstance(p, tuple):                       (outer guard = is_plist)
+#       if <guard>:                                (a `_pvl_test` over p)
+#           return <call>(p)                       (self- or sibling-walker call)
+#       for <sub> in p:                            (search over the spine)
+#           <r> = <selfname>(<sub>)                (self-call on the loop var)
+#           if <r>:                                (list truthiness — first match)
+#               return <r>
+#   return []
+# The guard-`if` is optional; everything else is required. Fail-closed `_PVWBail`.
+
+def _pvl_search_parse(func: Dict[str, Any],
+                      ctx: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Structurally match the search shape; raise `_PVWBail` on any deviation.
+    Translates the guard / calls in the naming carried by `ctx` (placeholder in
+    the recognizer, real `whyml_ident` in the emitter). Returns the descriptor."""
+    p = func["formal_params"][0]
+    name = func.get("name")
+    body = func.get("body", [])
+    if not (isinstance(body, list) and len(body) == 2):
+        raise _PVWBail()
+    outer, tail = body[0], body[1]
+    # tail: `return []`
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"):
+        raise _PVWBail()
+    tv = tail.get("value")
+    if not (isinstance(tv, dict) and tv.get("type") == "ArrayLit"
+            and not tv.get("elts")):
+        raise _PVWBail()
+    # outer: `if isinstance(p, tuple): <inner>` (no else)
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        raise _PVWBail()
+    if outer.get("orelse"):
+        raise _PVWBail()
+    ot = outer.get("test")
+    if not (isinstance(ot, dict) and ot.get("type") == "Call"
+            and ot.get("func") == "isinstance"):
+        raise _PVWBail()
+    outer_test = _pvw_isinstance(ot, ctx)          # -> `(is_plist v_p)`
+    inner = outer.get("body", [])
+    if not isinstance(inner, list) or not inner:
+        raise _PVWBail()
+    # optional guard-if `if <guard>: return <call>(p)` as the FIRST inner stmt
+    guard_test = None
+    guard_call = None
+    idx = 0
+    g = inner[0]
+    if (isinstance(g, dict) and g.get("stmt") == "If" and not g.get("orelse")):
+        gbody = g.get("body", [])
+        if (len(gbody) == 1 and isinstance(gbody[0], dict)
+                and gbody[0].get("stmt") == "Return"):
+            gret = gbody[0].get("value")
+            # a self- or sibling-walker call applied to the PARAM
+            state = {"acc": {}, "scope": {p}}
+            guard_call = _pvl_listexpr(gret, state, ctx)   # bails if not a call
+            if _pvw_valref(gret.get("args", [{}])[0], ctx) != _pvw_mv(p):
+                raise _PVWBail()                    # must be applied to the param
+            guard_test = _pvl_test(g.get("test"), ctx)
+            idx = 1
+    # the search For must be the (only) remaining inner stmt
+    rest = inner[idx:]
+    if len(rest) != 1:
+        raise _PVWBail()
+    forn = rest[0]
+    if not (isinstance(forn, dict) and forn.get("stmt") == "For"):
+        raise _PVWBail()
+    sub = forn.get("target")
+    if not isinstance(sub, str):
+        raise _PVWBail()
+    if _pvw_valref(forn.get("iter"), ctx) != _pvw_mv(p):
+        raise _PVWBail()                            # must iterate the PARAM spine
+    fbody = forn.get("body", [])
+    if not (isinstance(fbody, list) and len(fbody) == 2):
+        raise _PVWBail()
+    asg, ifr = fbody
+    # `r = <selfname>(sub)`  — a SELF-recursive call on the loop var
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        raise _PVWBail()
+    rvar = asg.get("target")
+    if not isinstance(rvar, str):
+        raise _PVWBail()
+    av = asg.get("value")
+    if not (isinstance(av, dict) and av.get("type") == "Call"
+            and av.get("func") == name):
+        raise _PVWBail()                            # must be the SELF-call
+    subctx = dict(ctx); subctx["scope"] = {p, sub}
+    if _pvw_valref(av.get("args", [{}])[0], subctx) != _pvw_mv(sub):
+        raise _PVWBail()
+    # `if r: return r`
+    if not (isinstance(ifr, dict) and ifr.get("stmt") == "If" and not ifr.get("orelse")):
+        raise _PVWBail()
+    tt = ifr.get("test")
+    if not (_is_var(tt) and tt.get("name") == rvar):
+        raise _PVWBail()
+    rbody = ifr.get("body", [])
+    if not (len(rbody) == 1 and isinstance(rbody[0], dict)
+            and rbody[0].get("stmt") == "Return"
+            and _is_var(rbody[0].get("value"))
+            and rbody[0]["value"].get("name") == rvar):
+        raise _PVWBail()
+    if not _pvw_body_reads(body):
+        raise _PVWBail()
+    return {"param": p, "outer_test": outer_test, "guard_test": guard_test,
+            "guard_call": guard_call, "siblings": set(ctx["siblings"])}
+
+
+def recognize_pyval_list_search(
+        func: Dict[str, Any],
+        sibling_walkers: Optional[set] = None) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the C1b pyval `List[str]` SEARCH catamorphism.
+    Returns the emit descriptor or None. Never raises."""
+    try:
+        params = func.get("formal_params", [])
+        if len(params) != 1:
+            return None
+        if func.get("param_annotations", {}).get(params[0]) not in (None, "Any"):
+            return None
+        if func.get("return_annotation") not in ("list", "List"):
+            return None
+        name = func.get("name")
+        ctx = {"n": "f", "p": "f__", "scope": {params[0]}, "counter": [0],
+               "selfname": name, "siblings": set(sibling_walkers or set()) - {name},
+               "ident": lambda x: x}
+        return _pvl_search_parse(func, ctx)
+    except Exception:
+        return None
+
+
+def emit_pyval_list_search_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                 whyml_ident) -> List[str]:
+    """Emit the C1b SEARCH catamorphism: inline TOTAL projectors + a mutual
+    `let rec {n} (v: pyval) variant { pv_size v } with {n}__list (l) variant
+    { size_list l }`. Termination is the certified cross-decreasing structural
+    measure (pyval `pv_size` / `size_list` cert), NO new axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    P = f"{n}__"
+    param = desc["param"]
+    mvp = _pvw_mv(param)
+    # Re-translate the guard / calls in the REAL (`whyml_ident`) naming ctx.
+    ctx = {"n": n, "p": P, "scope": {param}, "counter": [0],
+           "selfname": func["name"],
+           "siblings": set(desc.get("siblings") or set()) - {func["name"]},
+           "ident": whyml_ident}
+    d = _pvl_search_parse(func, ctx)
+    if d["guard_test"] is not None:
+        cond = f"({d['outer_test']} && {d['guard_test']})"
+        then_expr = d["guard_call"]
+    else:                                            # no guard-if → never the then-arm
+        cond = "false"
+        then_expr = "(Nil: list string)"
+    out: List[str] = []
+    out.extend(_pvl_projectors(P))
+    out.append(f"  let rec {n} ({mvp}: pyval) : list string")
+    out.append(f"    requires {{ true }} ensures {{ true }} variant {{ pv_size {mvp} }}")
+    out.append(f"  = (if {cond} then {then_expr}")
+    out.append(f"     else (match {mvp} with PList xs -> {n}__list xs"
+               f" | _ -> (Nil: list string) end))")
+    out.append(f"  with {n}__list (l: list pyval) : list string")
+    out.append("    requires { true } ensures { true } variant { size_list l }")
+    out.append("  = match l with Nil -> (Nil: list string)")
+    out.append(f"    | Cons {P}sub {P}rest -> let {P}r = ({n} {P}sub) in")
+    out.append(f"         (if (match {P}r with Nil -> false | _ -> true end)"
+               f" then {P}r else ({n}__list {P}rest)) end")
+    return out
+
+
+# ============================================================================
+# pyval-walker-impl.md C3 (driver-backlog item 3, from_sexp residual) —
+# the `list pyval` FLATTEN catamorphism. Where C1/C1b RETURN `list string`,
+# `_flatten_tuples` RETURNS `List[Any]` = `list pyval` (a list of the sub-nodes
+# themselves, not strings extracted from them). This is a DISTINCT value model:
+# the accumulator element type is `pyval`, appended whole (`out.append(t)`) and
+# the children flattened by a self-call on each spine element (`out.extend(
+# _flatten_tuples(sub))`). Emitted as the certified mutual
+#   let rec {n} (v: pyval) variant { pv_size v }
+#     with {n}__list (l: list pyval) variant { size_list l }
+# with an inline TOTAL `list pyval` append (`{n}__ftapp`, `variant { a }`).
+# Termination is the certified cross-decreasing pyval `pv_size`/`size_list`
+# measure (spike: all VCs Valid under Alt-Ergo, NO new axiom, ledger 3).
+#
+# Supported fragment (single `Any` param `p`, `-> List[Any]` (`ret == "list"`)):
+#   out = []
+#   if isinstance(p, tuple|list):
+#       [out.append(p)]            # OPTIONAL self-node head (the `head` knob)
+#       for <v> in p:
+#           out.extend(<selfname>(<v>))
+#   return out
+# Any deviation raises `_PVWBail` → recognizer returns None (fail-closed,
+# precision-over-recall). The templater is NOT in the TCB — a bug yields an
+# unprovable instance (the whole-file re-proof is loud), never a false proof.
+
+def recognize_pyval_flatten(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the C3 `list pyval` flatten catamorphism.
+    Returns {param, head} or None. Never raises."""
+    try:
+        return _recognize_pyval_flatten(func)
+    except Exception:
+        return None
+
+
+def _recognize_pyval_flatten(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    p = params[0]
+    if func.get("param_annotations", {}).get(p) not in (None, "Any"):
+        return None
+    if func.get("return_annotation") not in ("list", "List"):
+        return None
+    name = func.get("name")
+    body = func.get("body", [])
+    # Exactly: out=[] ; if isinstance(p, tuple): <inner> ; return out
+    if not (isinstance(body, list) and len(body) == 3):
+        raise _PVWBail()
+    a0, a1, a2 = body
+    # out = []
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        raise _PVWBail()
+    acc = a0.get("target")
+    v0 = a0.get("value")
+    if not (isinstance(acc, str) and isinstance(v0, dict)
+            and v0.get("type") == "ArrayLit" and not v0.get("elts")):
+        raise _PVWBail()
+    # return out
+    if not (isinstance(a2, dict) and a2.get("stmt") == "Return"
+            and _is_var(a2.get("value"), acc)):
+        raise _PVWBail()
+    # if isinstance(p, tuple|list): <inner>   (no else)
+    if not (isinstance(a1, dict) and a1.get("stmt") == "If") or a1.get("orelse"):
+        raise _PVWBail()
+    t = a1.get("test")
+    if not (isinstance(t, dict) and t.get("type") == "Call"
+            and t.get("func") == "isinstance"):
+        raise _PVWBail()
+    targs = t.get("args", [])
+    if not (len(targs) == 2 and _is_var(targs[0], p)
+            and _is_var(targs[1]) and targs[1].get("name") in ("tuple", "list")):
+        raise _PVWBail()
+    inner = a1.get("body", [])
+    if not (isinstance(inner, list) and inner):
+        raise _PVWBail()
+    # OPTIONAL leading `out.append(p)` (the self-node head knob).
+    head = False
+    idx = 0
+    s0 = inner[0]
+    if (isinstance(s0, dict) and s0.get("stmt") == "Expr"):
+        call = s0.get("value")
+        if (isinstance(call, dict) and call.get("type") == "Call"
+                and call.get("func") == f"{acc}.append"):
+            aargs = call.get("args", [])
+            if not (len(aargs) == 1 and _is_var(aargs[0], p)):
+                raise _PVWBail()          # append of anything but the param
+            head = True
+            idx = 1
+    # Then EXACTLY one `for <v> in p: out.extend(<selfname>(<v>))`.
+    if len(inner) != idx + 1:
+        raise _PVWBail()
+    fr = inner[idx]
+    if not (isinstance(fr, dict) and fr.get("stmt") == "For"):
+        raise _PVWBail()
+    tgt = fr.get("target")
+    if not (isinstance(tgt, str) and _is_var(fr.get("iter"), p)):
+        raise _PVWBail()
+    fbody = fr.get("body", [])
+    if not (isinstance(fbody, list) and len(fbody) == 1):
+        raise _PVWBail()
+    es = fbody[0]
+    if not (isinstance(es, dict) and es.get("stmt") == "Expr"):
+        raise _PVWBail()
+    ecall = es.get("value")
+    if not (isinstance(ecall, dict) and ecall.get("type") == "Call"
+            and ecall.get("func") == f"{acc}.extend"):
+        raise _PVWBail()
+    eargs = ecall.get("args", [])
+    if not (len(eargs) == 1 and isinstance(eargs[0], dict)
+            and eargs[0].get("type") == "Call"
+            and eargs[0].get("func") == name):
+        raise _PVWBail()
+    scargs = eargs[0].get("args", [])
+    if not (len(scargs) == 1 and _is_var(scargs[0], tgt)):
+        raise _PVWBail()
+    return {"param": p, "head": head}
+
+
+def emit_pyval_flatten_group(func: Dict[str, Any], desc: Dict[str, Any],
+                             whyml_ident) -> List[str]:
+    """Emit the C3 `list pyval` flatten catamorphism: an inline TOTAL `list pyval`
+    append (`{n}__ftapp`) + the mutual `let rec {n}(v) with {n}__list(l)` group.
+    Termination is the certified cross-decreasing pyval `pv_size`/`size_list`
+    measure — NO new axiom (ledger 3). `head` controls the self-node `Cons {mv}`."""
+    n = whyml_ident(func["name"])
+    P = f"{n}__"
+    mvp = _pvw_mv(desc["param"])
+    head = f"Cons {mvp} " if desc.get("head") else ""
+    out: List[str] = []
+    out.append(f"  let rec function {P}ftapp (a b: list pyval) : list pyval")
+    out.append("    variant { a }")
+    out.append(f"  = match a with Nil -> b | Cons h t -> Cons h ({P}ftapp t b) end")
+    out.append(f"  let rec {n} ({mvp}: pyval) : list pyval")
+    out.append(f"    requires {{ true }} ensures {{ true }} variant {{ pv_size {mvp} }}")
+    out.append(f"  = if not (is_plist {mvp}) then (Nil: list pyval)")
+    out.append(f"    else {head}({n}__list"
+               f" (match {mvp} with PList xs -> xs | _ -> Nil end))")
+    out.append(f"  with {n}__list (l: list pyval) : list pyval")
+    out.append("    requires { true } ensures { true } variant { size_list l }")
+    out.append("  = match l with Nil -> (Nil: list pyval)")
+    out.append(f"    | Cons {P}sub {P}rest ->"
+               f" {P}ftapp ({n} {P}sub) ({n}__list {P}rest) end")
+    return out
+
+
+# =====================================================================
+# class-instance VARIANT ADT carrier (self-tcb-reduction, driver-backlog
+# item 3: `class-variant-impl.md`). A `\trusted` walker that dispatches on
+# `isinstance(t, SomeDataclass)` over a frozen-dataclass UNION (the proof2why3
+# `Term` ADT: Var|IntLit|BoolLit|App|BinOp|UnaryOp|Forall|Exists|Unsupported)
+# and reads named fields (`t.lhs`/`t.args`/...) has NO existing certified value
+# model (pyval's 2 discriminants can't express is_Var vs is_App; pyast_stmt/
+# stmt_ir/pyconst_val model DIFFERENT Python types). This carrier lowers the
+# union onto a Why3 VARIANT `term = Var string | ... | App string (list term)
+# | ...` and translates the isinstance-if-chain to a total positional `match`
+# — faithful (each isinstance arm -> its constructor arm; each `t.field` -> the
+# positional binder), structurally terminating, co-landed with the axiom-free
+# Rocq/Lean TermIR certificate (ledger 3). Fail-closed (`_PVWBail`); a shape
+# outside the fragment stays `\trusted`.
+# =====================================================================
+
+_TERM_SCALAR = {"str": "string", "int": "int", "bool": "bool"}
+
+
+def _term_field_names_selfiter(functions: List[Dict[str, Any]]) -> set:
+    """Field names F such that SOME function body contains a self-recursive
+    generator over `<param>.F` — `any(<self>(x) for x in <param>.F)` (bool fold)
+    OR `tuple(<self>(x) for x in <param>.F)` / any other genexp wrapper (Term->Term
+    transform, class-variant-impl.md T-transform) — i.e. F is a `list term`
+    (not `list string`). The signal is `<self>(x)` applied to the ELEMENTS, which
+    only a recursive-child list admits (binder-string lists never self-recurse).
+    Deterministic over the file's folds; recovers the `Tuple[Term,...]` vs
+    `Tuple[str,...]` distinction the IR (both -> "tuple") lost. Best-effort;
+    never raises."""
+    out: set = set()
+    for f in functions:
+        name = f.get("name")
+
+        def scan(node):
+            if isinstance(node, dict):
+                # A self-recursive generator over a param attribute, regardless of
+                # the wrapping call (`any` for a bool fold, `tuple`/`list` for a
+                # Term->Term transform): `<self>(x) for x in <param>.F`.
+                if node.get("type") == "GenExp":
+                    elt = node.get("elt")
+                    gens = node.get("generators", [])
+                    if (isinstance(elt, dict) and elt.get("type") == "Call"
+                            and elt.get("func") == name and len(gens) == 1):
+                        it = gens[0].get("iter")
+                        if (isinstance(it, dict) and it.get("type") == "Attribute"
+                                and _is_var(it.get("object"))):
+                            out.add(it.get("attr"))
+                # class-variant-impl.md §OUTCOME-TL: a For-LOOP self-recursion over
+                # a param attribute (`free_vars` shape: `for a in <param>.F: … <self>(a) …`).
+                # The signal is the SAME (`<self>` applied to the elements), so F is a
+                # `list term` — the set-fold `free_vars` never uses a genexp.
+                if node.get("stmt") == "For":
+                    it = node.get("iter")
+                    tgt = node.get("target")
+                    if (isinstance(it, dict) and it.get("type") == "Attribute"
+                            and _is_var(it.get("object")) and isinstance(tgt, str)):
+                        def _self_on_target(nd):
+                            if isinstance(nd, dict):
+                                if (nd.get("type") == "Call" and nd.get("func") == name):
+                                    for a in nd.get("args", []):
+                                        if _is_var(a, tgt):
+                                            return True
+                                return any(_self_on_target(v) for v in nd.values())
+                            if isinstance(nd, list):
+                                return any(_self_on_target(v) for v in nd)
+                            return False
+                        if _self_on_target(node.get("body", [])):
+                            out.add(it.get("attr"))
+                for v in node.values():
+                    scan(v)
+            elif isinstance(node, list):
+                for v in node:
+                    scan(v)
+        try:
+            scan(f.get("body", []))
+        except Exception:
+            pass
+    return out
+
+
+def compute_term_adt_spec(functions: List[Dict[str, Any]],
+                          type_decls: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Build the `term` variant spec (constructor set + per-field WhyML types)
+    from the imported dataclass `type_decls` + the file's fold-recursion usage.
+    Returns {"ctors": {Cls: [(field, whytype), ...]}, "order": [...]} or None
+    when the file has no recognized term-fold. Fail-closed: any un-typeable
+    field -> None (the whole carrier stays off, every stub keeps `\trusted`)."""
+    # Constructor set = every class named in an isinstance target of a
+    # single-param bool/term/str-returning fold whose subject is the param.
+    ctor_names: set = set()
+    for f in functions:
+        params = f.get("formal_params", [])
+        if len(params) != 1:
+            continue
+        subj = params[0]
+        for st in f.get("body", []):
+            if not (isinstance(st, dict) and st.get("stmt") == "If"):
+                continue
+            for cls in _isinstance_target_classes(st.get("test"), subj):
+                ctor_names.add(cls)
+    if not ctor_names:
+        return None
+    decls = {td.get("name"): td for td in (type_decls or [])}
+    # Every isinstance target must be an imported dataclass (a real ctor).
+    if not all(c in decls for c in ctor_names):
+        return None
+    list_term_fields = _term_field_names_selfiter(functions)
+    ctors: Dict[str, List] = {}
+    for c in sorted(ctor_names):
+        fields = decls[c].get("fields", [])
+        spec_fields = []
+        for fld in fields:
+            fn = fld.get("name")
+            ft = fld.get("type")
+            if ft == "Any":
+                wt = "term"                       # a recursive Term child
+            elif ft == "tuple":
+                wt = "list term" if fn in list_term_fields else "list string"
+            elif ft in _TERM_SCALAR:
+                wt = _TERM_SCALAR[ft]
+            else:
+                return None                       # un-typeable -> carrier off
+            spec_fields.append((fn, wt))
+        ctors[c] = spec_fields
+    return {"ctors": ctors, "order": sorted(ctor_names)}
+
+
+def _isinstance_target_classes(test: Any, subj: str) -> List[str]:
+    """`isinstance(<subj>, X)` / `isinstance(<subj>, (A, B, ...))` -> [class names].
+    Empty list if `test` is not that shape or subject is not `subj`."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return []
+    args = test.get("args", [])
+    if len(args) != 2 or not _is_var(args[0], subj):
+        return []
+    tgt = args[1]
+    if isinstance(tgt, dict) and tgt.get("type") == "Var":
+        return [tgt.get("name")]
+    if isinstance(tgt, dict) and tgt.get("type") == "Tuple":
+        out = []
+        for e in tgt.get("elts", []):
+            if isinstance(e, dict) and e.get("type") == "Var":
+                out.append(e.get("name"))
+            else:
+                return []
+        return out
+    return []
+
+
+def recognize_term_isinstance_fold(func: Dict[str, Any],
+                                   spec: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the bool existence fold over the `term`
+    variant (the `contains_unsupported` shape). Returns a desc or None."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_isinstance_fold(func, spec)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_isinstance_fold(func: Dict[str, Any],
+                                    spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if not (isinstance(body, list) and body):
+        return None
+    name = func.get("name")
+    ctor_set = set(spec["ctors"].keys())
+    arms: Dict[str, Any] = {}           # ctor -> retval IR
+    uses_list = False
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                    # trailing unreachable raise (total match)
+        if not (isinstance(st, dict) and st.get("stmt") == "If" and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        ibody = st.get("body", [])
+        if not (isinstance(ibody, list) and len(ibody) == 1
+                and isinstance(ibody[0], dict) and ibody[0].get("stmt") == "Return"):
+            raise _PVWBail()
+        retval = ibody[0].get("value")
+        # validate the retval is inside the fragment (raises _PVWBail if not);
+        # `uses_list` is set as a side effect.
+        marker = {"v": False}
+        _validate_term_retval(retval, subj, name, spec)
+        if _retval_uses_list(retval, subj, name):
+            uses_list = True
+        for c in classes:
+            if c in arms:
+                raise _PVWBail()        # a ctor matched twice
+            arms[c] = retval
+    # Totality: every constructor of the ADT must be covered.
+    if set(arms.keys()) != ctor_set:
+        raise _PVWBail()
+    return {"param": subj, "arms": arms, "uses_list": uses_list}
+
+
+def _retval_uses_list(node: Any, subj: str, selfname: str) -> bool:
+    if isinstance(node, dict):
+        if (node.get("type") == "Call" and node.get("func") == "any"):
+            return True
+        return any(_retval_uses_list(v, subj, selfname) for v in node.values())
+    if isinstance(node, list):
+        return any(_retval_uses_list(v, subj, selfname) for v in node)
+    return False
+
+
+def _validate_term_retval(node: Any, subj: str, selfname: str,
+                          spec: Dict[str, Any]) -> None:
+    """Raise _PVWBail unless `node` is in the bool-fold retval fragment:
+    Bool const | self(subj.F) | self(subj.A) or/and self(subj.B) |
+    any(self(x) for x in subj.F)."""
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "Bool":
+        return
+    if t == "BinOp" and node.get("op") in ("or", "and"):
+        _validate_term_retval(node.get("left"), subj, selfname, spec)
+        _validate_term_retval(node.get("right"), subj, selfname, spec)
+        return
+    if t == "Call" and node.get("func") == selfname:
+        args = node.get("args", [])
+        if len(args) == 1 and _is_term_field_read(args[0], subj):
+            return
+        raise _PVWBail()
+    if t == "Call" and node.get("func") == "any":
+        args = node.get("args", [])
+        if len(args) == 1 and isinstance(args[0], dict) and args[0].get("type") == "GenExp":
+            ge = args[0]
+            gens = ge.get("generators", [])
+            elt = ge.get("elt")
+            if (len(gens) == 1 and not gens[0].get("ifs")
+                    and isinstance(elt, dict) and elt.get("type") == "Call"
+                    and elt.get("func") == selfname):
+                eargs = elt.get("args", [])
+                tgt = gens[0].get("target")
+                it = gens[0].get("iter")
+                if (len(eargs) == 1 and _is_var(eargs[0], tgt)
+                        and _is_term_field_read(it, subj)):
+                    return
+        raise _PVWBail()
+    raise _PVWBail()
+
+
+def _is_term_field_read(node: Any, subj: str) -> bool:
+    return (isinstance(node, dict) and node.get("type") == "Attribute"
+            and _is_var(node.get("object"), subj))
+
+
+def _term_field_of(node: Any) -> str:
+    return node.get("attr")
+
+
+def emit_term_isinstance_fold_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                    spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the bool existence fold over the `term` variant as a total positional
+    `match` (+ a `{n}__list` list helper when an `any(... for ... in t.F)` arm is
+    present). Structural `variant` — termination is Why3-intrinsic over the
+    certified inductive; NO new axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["param"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    out: List[str] = []
+    out.append(f"  let rec function {n} (v_{subj}: term) : bool")
+    out.append(f"    variant {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        retval = arms[c]
+        used = _term_retval_fields(retval)
+        binders = []
+        for (fn, _wt) in fields:
+            binders.append(f"v_{fn}" if fn in used else "_")
+        pat = c + ("" if not binders else " " + " ".join(binders))
+        rhs = _emit_term_retval(retval, subj, n)
+        out.append(f"    | {pat} -> {rhs}")
+    out.append("    end")
+    if desc.get("uses_list"):
+        out.append(f"  with {n}__list (l: list term) : bool")
+        out.append("    variant { l }")
+        out.append(f"  = match l with Nil -> false"
+                   f" | Cons h t -> {n} h || {n}__list t end")
+    return out
+
+
+def _term_retval_fields(node: Any) -> set:
+    """Field names of the param read by this retval (to decide which positional
+    binders to name vs `_`)."""
+    out: set = set()
+
+    def walk(x):
+        if isinstance(x, dict):
+            if x.get("type") == "Attribute" and _is_var(x.get("object")):
+                out.add(x.get("attr"))
+            for v in x.values():
+                walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    walk(node)
+    return out
+
+
+def _emit_term_retval(node: Any, subj: str, n: str) -> str:
+    t = node.get("type")
+    if t == "Bool":
+        return "true" if node.get("value") else "false"
+    if t == "BinOp" and node.get("op") in ("or", "and"):
+        op = "||" if node.get("op") == "or" else "&&"
+        l = _emit_term_retval(node.get("left"), subj, n)
+        r = _emit_term_retval(node.get("right"), subj, n)
+        return f"({l}) {op} ({r})"
+    if t == "Call" and node.get("func") == "any":
+        ge = node.get("args")[0]
+        it = ge.get("generators")[0].get("iter")
+        return f"{n}__list v_{_term_field_of(it)}"
+    if t == "Call":                     # self(subj.F)
+        arg = node.get("args")[0]
+        return f"{n} v_{_term_field_of(arg)}"
+    raise _PVWBail()
+
+
+# ===========================================================================
+# class-variant-impl.md — T-transform: the Term->Term (constructor-rebuilding)
+# transform algebra over the `term` variant (driver-backlog item 3 residual).
+#
+# A `\trusted` transform (`_flip_comparisons` shape) dispatches on isinstance
+# over the term ADT and RECONSTRUCTS a new Term via constructor calls:
+#   `match t with Var _ -> t | App h a -> App h (map self a)
+#                | BinOp o l r -> ... | Forall b ty bd -> Forall b ty (self bd) ...`
+# This extends the certified bool-fold recognizer with:
+#   (i) identity leaf arms (`return t`);
+#   (ii) constructor-rebuild arms (copy a scalar/string field, recurse on a term
+#        child, map-recurse on a `list term` child);
+#   (iii) the SAME-KIND rebuild idiom (`kind = Forall if isinstance(t, Forall)
+#        else Exists; return kind(...)`) -> two arms, each rebuilding its own ctor;
+#   (iv) a const-string-map conditional on a string field (`if t.op in _MAP:
+#        return Ctor(_MAP[t.op], ...)`) -> an `if pystr_eq f "<k>" then ... else`
+#        chain (the map contents come from `module_const_dicts`, the certified
+#        str->str module constant).
+# Emitted as a PROGRAM `let rec` (so it may call the abstract `val pystr_eq` —
+# the string guard, its result constrained by no VC since the contract is
+# `ensures True`), structurally terminating over the certified `term` inductive
+# (NO new axiom; the same `Phase2i_TermIR.v` / `TermIR.lean` cert covers it).
+# Fail-closed: any shape outside the fragment -> `_PVWBail` -> the stub stays
+# `\trusted`.
+# ===========================================================================
+
+
+def recognize_term_isinstance_transform(func: Dict[str, Any],
+                                        spec: Optional[Dict[str, Any]],
+                                        const_dicts: Optional[Dict[str, Any]] = None
+                                        ) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the Term->Term transform over the `term`
+    variant (the `_flip_comparisons` shape). Returns a desc or None."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_isinstance_transform(func, spec, const_dicts or {})
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_isinstance_transform(func: Dict[str, Any],
+                                         spec: Dict[str, Any],
+                                         const_dicts: Dict[str, Any]
+                                         ) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    # The transform returns the SAME union type as its single subject param (the
+    # ADT alias, e.g. `Term`/`Expr`) — disjoint from the bool fold (bool return).
+    # Totality over the ctor set (below) confirms it is genuinely the ADT union.
+    ra = func.get("return_annotation")
+    pa = (func.get("param_annotations") or {}).get(subj)
+    if not (ra and ra == pa):
+        return None
+    body = func.get("body", [])
+    if not (isinstance(body, list) and body):
+        return None
+    name = func.get("name")
+    ctor_set = set(spec["ctors"].keys())
+    arms: Dict[str, Any] = {}
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                    # trailing unreachable raise (total match)
+        if not (isinstance(st, dict) and st.get("stmt") == "If" and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        arm_map = _parse_transform_arm(st.get("body", []), subj, name, spec,
+                                       const_dicts, classes)
+        for c, d in arm_map.items():
+            if c in arms:
+                raise _PVWBail()        # a ctor matched twice
+            arms[c] = d
+    if set(arms.keys()) != ctor_set:
+        raise _PVWBail()                # totality over the ADT
+    uses_list = _transform_uses_list(arms)
+    uses_streq = any(a.get("kind") == "condmap" for a in arms.values())
+    return {"param": subj, "arms": arms,
+            "uses_list": uses_list, "uses_streq": uses_streq}
+
+
+def _parse_transform_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
+                         const_dicts: Dict[str, Any],
+                         classes: List[str]) -> Dict[str, Any]:
+    """Parse one isinstance-arm body into a per-ctor rebuild descriptor."""
+    if not (isinstance(ibody, list) and ibody):
+        raise _PVWBail()
+    # -- identity: `return t`
+    if (len(ibody) == 1 and _is_return(ibody[0])
+            and _is_var(ibody[0].get("value"), subj)):
+        return {c: {"kind": "id"} for c in classes}
+    # -- same-kind rebuild: `kind = X if isinstance(t, X) else Y; return kind(...)`
+    if (len(ibody) == 2 and isinstance(ibody[0], dict)
+            and ibody[0].get("stmt") == "Assign" and _is_return(ibody[1])):
+        return _parse_samekind_arm(ibody[0], ibody[1], subj, name, spec, classes)
+    # -- const-map conditional (BinOp op-swap): `if t.F in MAP: return Ctor(MAP[t.F], ...)`
+    #    followed by a fallthrough `return Ctor(...)`.
+    if (len(ibody) == 2 and isinstance(ibody[0], dict)
+            and ibody[0].get("stmt") == "If" and _is_return(ibody[1])):
+        return _parse_condmap_arm(ibody[0], ibody[1], subj, name, spec,
+                                  const_dicts, classes)
+    # -- plain single-ctor rebuild: `return Ctor(...)`
+    if len(ibody) == 1 and _is_return(ibody[0]):
+        if len(classes) != 1:
+            raise _PVWBail()
+        c = classes[0]
+        call = ibody[0].get("value")
+        _require_ctor_call(call, c)
+        builders = _parse_ctor_fields(call, subj, name, c, spec)
+        if any(b[0] == "mapval" for b in builders):
+            raise _PVWBail()            # mapval only valid inside a condmap arm
+        return {c: {"kind": "rebuild", "ctor": c, "fields": builders}}
+    raise _PVWBail()
+
+
+def _parse_samekind_arm(assign: Dict[str, Any], ret: Dict[str, Any], subj: str,
+                        name: str, spec: Dict[str, Any],
+                        classes: List[str]) -> Dict[str, Any]:
+    """`kind = A if isinstance(t, A) else B; return kind(f=...)` — rebuild each
+    of the two ctors A, B with the SAME field builders (their field layouts are
+    identical, e.g. Forall/Exists)."""
+    if len(classes) != 2:
+        raise _PVWBail()
+    kvar = assign.get("target")
+    if not isinstance(kvar, str):
+        raise _PVWBail()
+    ie = assign.get("value")
+    if not (isinstance(ie, dict) and ie.get("type") == "IfExpr"):
+        raise _PVWBail()
+    tgt = _isinstance_target_classes(ie.get("test"), subj)
+    body_v, orelse_v = ie.get("body"), ie.get("orelse")
+    if not (len(tgt) == 1 and _is_var(body_v) and _is_var(orelse_v)):
+        raise _PVWBail()
+    a = tgt[0]                          # isinstance(t, A) -> A
+    b = orelse_v.get("name")            # else -> B
+    if not (_is_var(body_v, a) and {a, b} == set(classes)):
+        raise _PVWBail()
+    call = ret.get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == kvar):
+        raise _PVWBail()
+    # Field layouts of A and B must be identical (Forall/Exists) so one builder
+    # list rebuilds both.
+    fa = [fn for fn, _ in spec["ctors"][a]]
+    fb = [fn for fn, _ in spec["ctors"][b]]
+    if fa != fb:
+        raise _PVWBail()
+    builders = _parse_ctor_fields(call, subj, name, a, spec)
+    if any(bd[0] == "mapval" for bd in builders):
+        raise _PVWBail()
+    return {a: {"kind": "rebuild", "ctor": a, "fields": builders},
+            b: {"kind": "rebuild", "ctor": b, "fields": builders}}
+
+
+def _parse_condmap_arm(iff: Dict[str, Any], fallret: Dict[str, Any], subj: str,
+                       name: str, spec: Dict[str, Any],
+                       const_dicts: Dict[str, Any],
+                       classes: List[str]) -> Dict[str, Any]:
+    """`if t.F in MAP: return Ctor(MAP[t.F], ...)` else fallthrough
+    `return Ctor(...)`."""
+    if len(classes) != 1:
+        raise _PVWBail()
+    c = classes[0]
+    if iff.get("orelse"):
+        raise _PVWBail()
+    test = iff.get("test")
+    # test = `t.F in MAP_NAME`
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "in"):
+        raise _PVWBail()
+    left, right = test.get("left"), test.get("right")
+    if not (_is_term_field_read(left, subj)
+            and isinstance(right, dict) and right.get("type") == "Var"):
+        raise _PVWBail()
+    op_field = _term_field_of(left)
+    map_name = right.get("name")
+    the_map = const_dicts.get(map_name)
+    if not (isinstance(the_map, dict) and the_map):
+        raise _PVWBail()                # need the certified str->str const contents
+    if not all(isinstance(k, str) and isinstance(v, str)
+               for k, v in the_map.items()):
+        raise _PVWBail()
+    tbody = iff.get("body", [])
+    if not (len(tbody) == 1 and _is_return(tbody[0])):
+        raise _PVWBail()
+    tcall = tbody[0].get("value")
+    fcall = fallret.get("value")
+    _require_ctor_call(tcall, c)
+    _require_ctor_call(fcall, c)
+    true_fields = _parse_ctor_fields(tcall, subj, name, c, spec)
+    false_fields = _parse_ctor_fields(fcall, subj, name, c, spec)
+    # The op field of the TRUE build must be the map lookup `MAP[t.F]`; the FALSE
+    # build must copy `t.F`.
+    fields = spec["ctors"][c]
+    op_idx = next((i for i, (fn, _) in enumerate(fields) if fn == op_field), None)
+    if op_idx is None:
+        raise _PVWBail()
+    tb = true_fields[op_idx]
+    fb = false_fields[op_idx]
+    if not (tb[0] == "mapval" and tb[1] == map_name and tb[2] == op_field):
+        raise _PVWBail()
+    if not (fb[0] == "copy" and fb[1] == op_field):
+        raise _PVWBail()
+    # No OTHER field may be a mapval.
+    for i, b in enumerate(true_fields):
+        if i != op_idx and b[0] == "mapval":
+            raise _PVWBail()
+    for b in false_fields:
+        if b[0] == "mapval":
+            raise _PVWBail()
+    return {c: {"kind": "condmap", "ctor": c, "op_field": op_field,
+                "map": dict(the_map),
+                "true_fields": true_fields, "false_fields": false_fields}}
+
+
+def _parse_ctor_fields(call: Dict[str, Any], subj: str, name: str, ctor: str,
+                       spec: Dict[str, Any]) -> List[Any]:
+    """Map a constructor call's args/keywords onto the ctor's field order and
+    parse each into a field builder."""
+    fields = spec["ctors"][ctor]
+    fname_order = [fn for fn, _ in fields]
+    provided: Dict[str, Any] = {}
+    kws = call.get("keywords") or []
+    args = call.get("args") or []
+    if kws:
+        for kw in kws:
+            if not (isinstance(kw, dict) and "arg" in kw):
+                raise _PVWBail()
+            provided[kw["arg"]] = kw.get("value")
+        if set(provided.keys()) != set(fname_order):
+            raise _PVWBail()
+    else:
+        if len(args) != len(fname_order):
+            raise _PVWBail()
+        for fn, av in zip(fname_order, args):
+            provided[fn] = av
+    return [_parse_field_builder(provided[fn], subj, name) for fn in fname_order]
+
+
+def _parse_field_builder(e: Any, subj: str, name: str) -> Any:
+    """Parse a constructor-argument expression into a field builder tuple:
+      ("copy",   F)             -- `t.F`                (scalar/string/binder copy)
+      ("rec",    F)             -- `self(t.F)`          (recurse on a term child)
+      ("maprec", F)             -- `tuple(self(x) for x in t.F)` (list term child)
+      ("mapval", MAP, F)        -- `MAP[t.F]`           (const-map lookup; condmap only)
+    """
+    if not isinstance(e, dict):
+        raise _PVWBail()
+    t = e.get("type")
+    # copy: t.F
+    if _is_term_field_read(e, subj):
+        return ("copy", _term_field_of(e))
+    # rec: self(t.F)
+    if t == "Call" and e.get("func") == name:
+        a = e.get("args") or []
+        if len(a) == 1 and _is_term_field_read(a[0], subj):
+            return ("rec", _term_field_of(a[0]))
+        raise _PVWBail()
+    # maprec: tuple(self(x) for x in t.F)
+    if t == "Call" and e.get("func") == "tuple":
+        a = e.get("args") or []
+        if len(a) == 1 and isinstance(a[0], dict) and a[0].get("type") == "GenExp":
+            ge = a[0]
+            gens = ge.get("generators", [])
+            elt = ge.get("elt")
+            if (len(gens) == 1 and not gens[0].get("ifs")
+                    and isinstance(elt, dict) and elt.get("type") == "Call"
+                    and elt.get("func") == name):
+                eargs = elt.get("args") or []
+                tv = gens[0].get("target")
+                it = gens[0].get("iter")
+                if (len(eargs) == 1 and _is_var(eargs[0], tv)
+                        and _is_term_field_read(it, subj)):
+                    return ("maprec", _term_field_of(it))
+        raise _PVWBail()
+    # mapval: MAP[t.F]
+    if t == "Subscript":
+        val = e.get("value")
+        idx = e.get("index")
+        if (isinstance(val, dict) and val.get("type") == "Var"
+                and _is_term_field_read(idx, subj)):
+            return ("mapval", val.get("name"), _term_field_of(idx))
+        raise _PVWBail()
+    raise _PVWBail()
+
+
+def _is_return(st: Any) -> bool:
+    return isinstance(st, dict) and st.get("stmt") == "Return"
+
+
+def _require_ctor_call(call: Any, ctor: str) -> None:
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == ctor):
+        raise _PVWBail()
+
+
+def _transform_uses_list(arms: Dict[str, Any]) -> bool:
+    for a in arms.values():
+        for key in ("fields", "true_fields", "false_fields"):
+            for b in a.get(key, []) or []:
+                if b[0] == "maprec":
+                    return True
+    return False
+
+
+def _transform_used_fields(arm: Dict[str, Any]) -> set:
+    """Source field names the arm's builders read (to name vs `_` the pattern
+    binders)."""
+    out: set = set()
+    if arm.get("kind") == "id":
+        return out
+    lists = []
+    if arm.get("kind") == "rebuild":
+        lists = [arm.get("fields", [])]
+    elif arm.get("kind") == "condmap":
+        lists = [arm.get("true_fields", []), arm.get("false_fields", [])]
+        out.add(arm.get("op_field"))
+    for bl in lists:
+        for b in bl:
+            if b[0] == "mapval":
+                out.add(b[2])
+            else:
+                out.add(b[1])
+    return out
+
+
+def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                         spec: Dict[str, Any], whyml_ident
+                                         ) -> List[str]:
+    """Emit the Term->Term transform over the `term` variant as a total positional
+    `match` that RECONSTRUCTS terms via the variant constructors (+ a `{n}__list`
+    map helper for `list term` children). PROGRAM `let rec` (calls `val pystr_eq`
+    for the const-map guard); structural `variant` — termination Why3-intrinsic
+    over the certified inductive; NO new axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["param"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    out: List[str] = []
+    out.append(f"  let rec {n} (v_{subj}: term) : term")
+    out.append("    ensures  { true }")
+    out.append(f"    variant  {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        arm = arms[c]
+        used = _transform_used_fields(arm)
+        binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
+        pat = c + ((" " + binders) if binders else "")
+        rhs = _emit_transform_arm(arm, subj, n)
+        out.append(f"    | {pat} -> {rhs}")
+    out.append("    end")
+    if desc.get("uses_list"):
+        out.append(f"  with {n}__list (l: list term) : list term")
+        out.append("    ensures  { true }")
+        out.append("    variant  { l }")
+        out.append(f"  = match l with Nil -> Nil"
+                   f" | Cons h t -> Cons ({n} h) ({n}__list t) end")
+    return out
+
+
+def _emit_builder(b: Any, n: str, mapval: Optional[str] = None) -> str:
+    kind = b[0]
+    if kind == "copy":
+        return f"v_{b[1]}"
+    if kind == "rec":
+        return f"({n} v_{b[1]})"
+    if kind == "maprec":
+        return f"({n}__list v_{b[1]})"
+    if kind == "mapval":
+        return _mlw_str_lit(mapval)
+    raise _PVWBail()
+
+
+def _emit_ctor(ctor: str, builders: List[Any], n: str,
+               mapval: Optional[str] = None) -> str:
+    if not builders:
+        return ctor
+    return ctor + " " + " ".join(_emit_builder(b, n, mapval) for b in builders)
+
+
+def _emit_transform_arm(arm: Dict[str, Any], subj: str, n: str) -> str:
+    kind = arm.get("kind")
+    if kind == "id":
+        return f"v_{subj}"
+    if kind == "rebuild":
+        return _emit_ctor(arm["ctor"], arm["fields"], n)
+    if kind == "condmap":
+        c = arm["ctor"]
+        op_field = arm["op_field"]
+        m = arm["map"]
+        tf = arm["true_fields"]
+        ff = arm["false_fields"]
+        expr = _emit_ctor(c, ff, n)     # final else
+        for k in reversed(list(m.keys())):
+            v = m[k]
+            true_build = _emit_ctor(c, tf, n, mapval=v)
+            expr = (f"if pystr_eq v_{op_field} {_mlw_str_lit(k)}"
+                    f" then {true_build} else {expr}")
+        return expr
+    raise _PVWBail()
+
+
+def _mlw_str_lit(s: Optional[str]) -> str:
+    """A WhyML string literal. The op/head tokens here are short ASCII operators
+    (`<=`, `>=`, `iff`, ...) with no quote/backslash; reject anything richer
+    fail-closed so a surprising literal never mis-emits."""
+    if not isinstance(s, str) or '"' in s or "\\" in s:
+        raise _PVWBail()
+    return '"' + s + '"'
+
+
+# ===========================================================================
+# class-variant-impl.md §OUTCOME-TL — the T-set/list leaf algebras over `term`
+#
+# The `ir.py` utility LEAVES the `canonical.py` transforms cross-call:
+#   - `mk_arrow_chain(hyps: List[Term], conclusion: Term) -> Term` : a list-fold
+#     that BUILDS a right-leaning `->` chain (a `list term` -> `term` builder).
+#   - `flatten_arrow_chain(t: Term) -> Tuple[List[Term], Term]` : the inverse, a
+#     while-spine walk down the `->` chain returning `(list term, term)`.
+#   - `free_vars(t: Term) -> set` : a set-of-strings catamorphism over the term.
+# All three lower onto the SAME certified `term` inductive (Phase2i_TermIR) — NO
+# new value shape, NO new certificate (ledger 3). Structural / measure variants;
+# the only abstract symbols are DEFINED helpers (`__app`/`__set_*`) or a VC-free
+# `val __streq` (the T-transform `pystr_eq` precedent). Fail-closed `_PVWBail`.
+# ===========================================================================
+
+
+def recognize_term_list_build(func: Dict[str, Any],
+                              spec: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the `mk_arrow_chain` shape: a two-param
+    (`list term`, `term`) accumulator fold that rebuilds a `term` via a single
+    constructor call in the loop body. Returns a desc or None."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_list_build(func, spec)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_list_build(func: Dict[str, Any],
+                               spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    pann = func.get("param_annotations") or {}
+    ra = func.get("return_annotation")
+    if not ra:
+        return None
+    # One param is the `list term` (annotated the degraded generic "list"); the
+    # OTHER is the `term` seed (annotated the SAME alias the return resolves to).
+    listp = seedp = None
+    for p in params:
+        a = pann.get(p)
+        if a == "list":
+            listp = p
+        elif a == ra:
+            seedp = p
+    if not (listp and seedp):
+        return None
+    # The return alias must be the term alias (a param carries it AND it isinstance-
+    # dispatches somewhere in the file => it is the spec's union). We over-approximate
+    # by requiring the seed param annotation == return annotation (both the alias);
+    # the ctor-build parse below (ctors ALL in the spec) is the real soundness gate.
+    body = func.get("body", [])
+    if len(body) != 3:
+        raise _PVWBail()
+    a0, forst, ret = body
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and _is_var(a0.get("value"), seedp)):
+        raise _PVWBail()
+    acc = a0.get("target")
+    if not isinstance(acc, str):
+        raise _PVWBail()
+    if not (isinstance(forst, dict) and forst.get("stmt") == "For"):
+        raise _PVWBail()
+    loopvar = forst.get("target")
+    if not isinstance(loopvar, str):
+        raise _PVWBail()
+    it = forst.get("iter")
+    if (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "reversed"):
+        ia = it.get("args") or []
+        if not (len(ia) == 1 and _is_var(ia[0], listp)):
+            raise _PVWBail()
+        reversed_ = True
+    elif _is_var(it, listp):
+        reversed_ = False
+    else:
+        raise _PVWBail()
+    fbody = forst.get("body", [])
+    if not (len(fbody) == 1 and isinstance(fbody[0], dict)
+            and fbody[0].get("stmt") == "Assign" and fbody[0].get("target") == acc):
+        raise _PVWBail()
+    upd = fbody[0].get("value")
+    ctor_expr = _parse_term_build_expr(upd, spec, loopvar, acc)
+    if ctor_expr[0] != "ctor":
+        raise _PVWBail()                    # the update MUST build a term ctor
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), acc)):
+        raise _PVWBail()
+    return {"listp": listp, "seedp": seedp, "loopvar": loopvar,
+            "reversed": reversed_, "ctor_expr": ctor_expr, "order": list(params)}
+
+
+def _parse_term_build_expr(e: Any, spec: Dict[str, Any], loopvar: str,
+                           acc: str) -> Any:
+    """Parse a term-builder expression into a nested tuple AST over:
+      ("loop",)         -- the loop variable        (a `term` element)
+      ("acc",)          -- the accumulator variable  (recursed / threaded)
+      ("str", s)        -- a string literal          (a ctor string field)
+      ("ctor", C, [..]) -- a term constructor call   (C in the spec)
+    Fail-closed: anything else raises."""
+    if not isinstance(e, dict):
+        raise _PVWBail()
+    t = e.get("type")
+    if t == "Var":
+        nm = e.get("name")
+        if nm == loopvar:
+            return ("loop",)
+        if nm == acc:
+            return ("acc",)
+        raise _PVWBail()
+    if t == "String":
+        return ("str", e.get("value"))
+    if t == "Call":
+        fn = e.get("func")
+        if fn in spec["ctors"]:
+            args = e.get("args") or []
+            fields = spec["ctors"][fn]
+            if len(args) != len(fields):
+                raise _PVWBail()
+            return ("ctor", fn,
+                    [_parse_term_build_expr(a, spec, loopvar, acc) for a in args])
+        raise _PVWBail()
+    raise _PVWBail()
+
+
+def _emit_term_build_expr(node: Any, loopvar: str, acc_repl: str,
+                          as_arg: bool = False) -> str:
+    tag = node[0]
+    if tag == "loop":
+        return f"v_{loopvar}"
+    if tag == "acc":
+        return acc_repl
+    if tag == "str":
+        return _mlw_str_lit(node[1])
+    if tag == "ctor":
+        name, args = node[1], node[2]
+        if not args:
+            return name if not as_arg else name
+        inner = name + " " + " ".join(
+            _emit_term_build_expr(a, loopvar, acc_repl, as_arg=True) for a in args)
+        return f"({inner})" if as_arg else inner
+    raise _PVWBail()
+
+
+def emit_term_list_build_group(func: Dict[str, Any], desc: Dict[str, Any],
+                               spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `mk_arrow_chain` shape as a structural fold over `list term`
+    that rebuilds a `term`. `reversed(l)` -> a foldr (ctor wraps `{n}__go rest`);
+    a plain `for` -> a foldl (accumulator threaded). Structural `variant { l }`,
+    NO axiom (all constructors are the certified `term` inductive; ledger 3)."""
+    n = whyml_ident(func["name"])
+    listp, seedp = desc["listp"], desc["seedp"]
+    loopvar = desc["loopvar"]
+    reversed_ = desc["reversed"]
+    ctor_expr = desc["ctor_expr"]
+    out: List[str] = []
+    out.append(f"  let rec {n}__go (l: list term) (v_{seedp}: term) : term")
+    out.append("    variant { l }")
+    out.append("  = match l with")
+    out.append(f"    | Nil -> v_{seedp}")
+    if reversed_:
+        rhs = _emit_term_build_expr(ctor_expr, loopvar,
+                                    f"({n}__go rest v_{seedp})")
+        out.append(f"    | Cons v_{loopvar} rest -> {rhs}")
+    else:
+        step = _emit_term_build_expr(ctor_expr, loopvar, f"v_{seedp}")
+        out.append(f"    | Cons v_{loopvar} rest -> {n}__go rest ({step})")
+    out.append("    end")
+    sig = " ".join(
+        f"(v_{p}: list term)" if p == listp else f"(v_{p}: term)"
+        for p in desc["order"])
+    out.append(f"  let {n} {sig} : term")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__go v_{listp} v_{seedp}")
+    return out
+
+
+def recognize_term_flatten_arrow(func: Dict[str, Any],
+                                 spec: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the `flatten_arrow_chain` shape: a while-spine
+    walk down a right-leaning BinOp `->` chain, returning `(list term, term)`.
+    Returns a desc or None."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_flatten_arrow(func, spec)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_flatten_arrow(func: Dict[str, Any],
+                                  spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    if func.get("return_annotation") != "tuple":
+        return None
+    subj = params[0]
+    body = func.get("body", [])
+    if len(body) != 4:
+        raise _PVWBail()
+    a_list, a_cur, wh, ret = body
+    # hyps = []
+    if not (isinstance(a_list, dict) and a_list.get("stmt") == "Assign"
+            and isinstance(a_list.get("value"), dict)
+            and a_list["value"].get("type") == "ArrayLit"
+            and not a_list["value"].get("elts")):
+        raise _PVWBail()
+    listvar = a_list.get("target")
+    # cur = t
+    if not (isinstance(a_cur, dict) and a_cur.get("stmt") == "Assign"
+            and _is_var(a_cur.get("value"), subj)):
+        raise _PVWBail()
+    curvar = a_cur.get("target")
+    if not (isinstance(listvar, str) and isinstance(curvar, str)):
+        raise _PVWBail()
+    if not (isinstance(wh, dict) and wh.get("stmt") == "While"):
+        raise _PVWBail()
+    # test = isinstance(cur, BinOp) and cur.op == "->"
+    test = wh.get("test")
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        raise _PVWBail()
+    cls = _isinstance_target_classes(test.get("left"), curvar)
+    if len(cls) != 1 or cls[0] not in spec["ctors"]:
+        raise _PVWBail()
+    binop_cls = cls[0]
+    rt = test.get("right")
+    if not (isinstance(rt, dict) and rt.get("type") == "BinOp"
+            and rt.get("op") == "=="):
+        raise _PVWBail()
+    op_read, op_lit = rt.get("left"), rt.get("right")
+    if not (_is_term_field_read(op_read, curvar)
+            and isinstance(op_lit, dict) and op_lit.get("type") == "String"):
+        raise _PVWBail()
+    op_field = _term_field_of(op_read)
+    arrow_lit = op_lit.get("value")
+    # loop body: hyps.append(cur.<f1>); cur = cur.<f2>
+    wbody = wh.get("body", [])
+    if len(wbody) != 2:
+        raise _PVWBail()
+    app_st, adv_st = wbody
+    if not (isinstance(app_st, dict) and app_st.get("stmt") == "Expr"):
+        raise _PVWBail()
+    appc = app_st.get("value")
+    if not (isinstance(appc, dict) and appc.get("type") == "Call"
+            and appc.get("func") == f"{listvar}.append"):
+        raise _PVWBail()
+    aargs = appc.get("args") or []
+    if not (len(aargs) == 1 and _is_term_field_read(aargs[0], curvar)):
+        raise _PVWBail()
+    f1 = _term_field_of(aargs[0])           # cur.lhs
+    if not (isinstance(adv_st, dict) and adv_st.get("stmt") == "Assign"
+            and adv_st.get("target") == curvar
+            and _is_term_field_read(adv_st.get("value"), curvar)):
+        raise _PVWBail()
+    f2 = _term_field_of(adv_st.get("value"))  # cur.rhs
+    # return hyps, cur
+    rv = ret.get("value")
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and isinstance(rv, dict) and rv.get("type") == "Tuple"):
+        raise _PVWBail()
+    elts = rv.get("elts") or []
+    if not (len(elts) == 2 and _is_var(elts[0], listvar) and _is_var(elts[1], curvar)):
+        raise _PVWBail()
+    # Resolve the BinOp ctor's field order (must contain op_field, f1, f2).
+    fields = [fn for fn, _ in spec["ctors"][binop_cls]]
+    if not (op_field in fields and f1 in fields and f2 in fields):
+        raise _PVWBail()
+    return {"subj": subj, "binop_cls": binop_cls, "fields": fields,
+            "op_field": op_field, "f1": f1, "f2": f2, "arrow_lit": arrow_lit}
+
+
+def emit_term_flatten_arrow_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                  spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `flatten_arrow_chain` as a structural recursion over the term spine,
+    returning `(list term, term)`. `variant { v_cur }` (recursion on the rhs
+    subterm); `{n}__app` a DEFINED list append, `{n}__streq` a VC-free `val`
+    string guard (the T-transform pystr_eq precedent). NO axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["subj"]
+    binop_cls = desc["binop_cls"]
+    fields = desc["fields"]
+    op_field, f1, f2 = desc["op_field"], desc["f1"], desc["f2"]
+    used = {op_field, f1, f2}
+    binders = " ".join(f"v_{fn}" if fn in used else "_" for fn in fields)
+    pat = binop_cls + ((" " + binders) if binders else "")
+    lit = _mlw_str_lit(desc["arrow_lit"])
+    out: List[str] = []
+    out.append(f"  let rec function {n}__app (a b: list term) : list term")
+    out.append("    variant { a }")
+    out.append("  = match a with Nil -> b | Cons h t -> Cons h (%s__app t b) end" % n)
+    out.append(f"  val {n}__streq (a b: string) : bool")
+    out.append(f"  let rec {n}__go (v_{subj}: term) ({n}__acc: list term)"
+               " : (list term, term)")
+    out.append(f"    variant {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    out.append(f"    | {pat} ->")
+    out.append(f"        if {n}__streq v_{op_field} {lit}")
+    out.append(f"        then {n}__go v_{f2} ({n}__app {n}__acc (Cons v_{f1} Nil))")
+    out.append(f"        else ({n}__acc, v_{subj})")
+    out.append(f"    | _ -> ({n}__acc, v_{subj})")
+    out.append("    end")
+    out.append(f"  let {n} (v_{subj}: term) : (list term, term)")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__go v_{subj} Nil")
+    return out
+
+
+def recognize_term_free_vars(func: Dict[str, Any],
+                             spec: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the `free_vars` shape: a set-of-strings
+    catamorphism over the `term` variant (singleton / `|`-union / `-`-diff /
+    list-union fold), returning a `set`. Returns a desc or None."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_free_vars(func, spec)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_free_vars(func: Dict[str, Any],
+                              spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    subj = params[0]
+    name = func["name"]
+    body = func.get("body", [])
+    if not body:
+        raise _PVWBail()
+    ctor_set = set(spec["ctors"].keys())
+    arms: Dict[str, Any] = {}
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                        # trailing total-match raise
+        if not (isinstance(st, dict) and st.get("stmt") == "If"
+                and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        se = _parse_fv_arm(st.get("body", []), subj, name, spec)
+        for c in classes:
+            if c in arms:
+                raise _PVWBail()
+            arms[c] = se
+    if set(arms.keys()) != ctor_set:
+        raise _PVWBail()                    # totality over the ADT
+    uses = _fv_uses(arms.values())
+    return {"subj": subj, "arms": arms, "uses_union": uses["union"],
+            "uses_diff": uses["diff"], "uses_binders": uses["binders"],
+            "uses_list": uses["list"]}
+
+
+def _parse_fv_arm(ibody: Any, subj: str, name: str,
+                  spec: Dict[str, Any]) -> Any:
+    """Parse one isinstance-arm body into a set-expr AST."""
+    if not (isinstance(ibody, list) and ibody):
+        raise _PVWBail()
+    # -- single `return <setexpr>`
+    if len(ibody) == 1 and _is_return(ibody[0]):
+        return _parse_fv_setexpr(ibody[0].get("value"), subj, name, spec)
+    # -- the App list-union arm: `out = set(); for a in t.F: out |= self(a); return out`
+    if len(ibody) == 3:
+        a0, forst, ret = ibody
+        if (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+                and _is_empty_set_call(a0.get("value"))
+                and isinstance(forst, dict) and forst.get("stmt") == "For"
+                and _is_return(ret) and _is_var(ret.get("value"), a0.get("target"))):
+            acc = a0.get("target")
+            it = forst.get("iter")
+            loopv = forst.get("target")
+            if not (_is_term_field_read(it, subj) and isinstance(loopv, str)):
+                raise _PVWBail()
+            fb = forst.get("body", [])
+            if not (len(fb) == 1 and isinstance(fb[0], dict)
+                    and fb[0].get("stmt") == "AugAssign"
+                    and fb[0].get("target") == acc and fb[0].get("op") == "|"):
+                raise _PVWBail()
+            call = fb[0].get("value")
+            if not (isinstance(call, dict) and call.get("type") == "Call"
+                    and call.get("func") == name):
+                raise _PVWBail()
+            ca = call.get("args") or []
+            if not (len(ca) == 1 and _is_var(ca[0], loopv)):
+                raise _PVWBail()
+            return ("listunion", _term_field_of(it))
+    raise _PVWBail()
+
+
+def _parse_fv_setexpr(e: Any, subj: str, name: str, spec: Dict[str, Any]) -> Any:
+    if not isinstance(e, dict):
+        raise _PVWBail()
+    t = e.get("type")
+    # set() -> empty ; set(t.F) -> binders(F)
+    if t == "Call" and e.get("func") == "set":
+        args = e.get("args") or []
+        if not args:
+            return ("empty",)
+        if len(args) == 1 and _is_term_field_read(args[0], subj):
+            return ("binders", _term_field_of(args[0]))
+        raise _PVWBail()
+    # {t.F} -> singleton(F)
+    if t == "SetLit":
+        elts = e.get("elts") or []
+        if len(elts) == 1 and _is_term_field_read(elts[0], subj):
+            return ("singleton", _term_field_of(elts[0]))
+        raise _PVWBail()
+    # self(t.F) -> rec(F)
+    if t == "Call" and e.get("func") == name:
+        args = e.get("args") or []
+        if len(args) == 1 and _is_term_field_read(args[0], subj):
+            return ("rec", _term_field_of(args[0]))
+        raise _PVWBail()
+    # A | B -> union ; A - B -> diff
+    if t == "BinOp" and e.get("op") in ("|", "-"):
+        a = _parse_fv_setexpr(e.get("left"), subj, name, spec)
+        b = _parse_fv_setexpr(e.get("right"), subj, name, spec)
+        return ("union" if e.get("op") == "|" else "diff", a, b)
+    raise _PVWBail()
+
+
+def _is_empty_set_call(e: Any) -> bool:
+    return (isinstance(e, dict) and e.get("type") == "Call"
+            and e.get("func") == "set" and not (e.get("args") or []))
+
+
+def _fv_setexpr_fields(node: Any) -> set:
+    tag = node[0]
+    if tag in ("singleton", "rec", "listunion", "binders"):
+        return {node[1]}
+    if tag in ("union", "diff"):
+        return _fv_setexpr_fields(node[1]) | _fv_setexpr_fields(node[2])
+    return set()
+
+
+def _fv_uses(setexprs) -> Dict[str, bool]:
+    u = {"union": False, "diff": False, "binders": False, "list": False}
+
+    def walk(node):
+        tag = node[0]
+        if tag == "union":
+            u["union"] = True
+            walk(node[1]); walk(node[2])
+        elif tag == "diff":
+            u["diff"] = True
+            walk(node[1]); walk(node[2])
+        elif tag == "binders":
+            u["binders"] = True
+        elif tag == "listunion":
+            u["list"] = True
+            u["union"] = True               # {n}__list uses set_union
+    for se in setexprs:
+        walk(se)
+    return u
+
+
+_FV_EMPTY = "(fun (_k: string) -> false)"
+
+
+def _emit_fv_setexpr(node: Any, n: str, as_arg: bool = False) -> str:
+    tag = node[0]
+    if tag == "empty":
+        return _FV_EMPTY
+    if tag == "singleton":
+        s = f"{n}__set_add {_FV_EMPTY} v_{node[1]}"
+    elif tag == "rec":
+        s = f"{n} v_{node[1]}"
+    elif tag == "listunion":
+        s = f"{n}__list v_{node[1]}"
+    elif tag == "binders":
+        s = f"{n}__binders v_{node[1]}"
+    elif tag == "union":
+        s = (f"{n}__set_union ({_emit_fv_setexpr(node[1], n)})"
+             f" ({_emit_fv_setexpr(node[2], n)})")
+    elif tag == "diff":
+        s = (f"{n}__set_diff ({_emit_fv_setexpr(node[1], n)})"
+             f" ({_emit_fv_setexpr(node[2], n)})")
+    else:
+        raise _PVWBail()
+    return f"({s})" if as_arg else s
+
+
+def emit_term_free_vars_group(func: Dict[str, Any], desc: Dict[str, Any],
+                              spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `free_vars` set-of-strings catamorphism over the `term` variant.
+    A returned `set` is `map string bool` (the certified L1 set repr); union /
+    diff are pointwise or / and-not; `{n}__set_add` is a bare abstract `val`
+    (result no VC constrains — the walk contract is `ensures True`; the pystr_eq
+    precedent, NOT an axiom). Structural mutual `variant { v_t }` / `variant { l }`
+    over the certified `term` inductive; NO axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["subj"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    out: List[str] = []
+    out.append(f"  val {n}__set_add (m: map string bool) (e: string) : map string bool")
+    if desc["uses_union"]:
+        out.append(f"  let function {n}__set_union (a b: map string bool) : map string bool")
+        out.append("    = fun (k: string) -> orb (Map.get a k) (Map.get b k)")
+    if desc["uses_diff"]:
+        out.append(f"  let function {n}__set_diff (a b: map string bool) : map string bool")
+        out.append("    = fun (k: string) -> andb (Map.get a k) (notb (Map.get b k))")
+    if desc["uses_binders"]:
+        out.append(f"  let rec function {n}__binders (l: list string) : map string bool")
+        out.append("    variant { l }")
+        out.append(f"  = match l with Nil -> {_FV_EMPTY}"
+                   f" | Cons h t -> {n}__set_add ({n}__binders t) h end")
+    out.append(f"  let rec {n} (v_{subj}: term) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant  {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        se = arms[c]
+        used = _fv_setexpr_fields(se)
+        binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
+        pat = c + ((" " + binders) if binders else "")
+        out.append(f"    | {pat} -> {_emit_fv_setexpr(se, n)}")
+    out.append("    end")
+    if desc["uses_list"]:
+        out.append(f"  with {n}__list (l: list term) : map string bool")
+        out.append("    variant { l }")
+        out.append(f"  = match l with Nil -> {_FV_EMPTY}"
+                   f" | Cons h t -> {n}__set_union ({n} h) ({n}__list t) end")
+    return out
+
+
+# ===========================================================================
+# class-variant-impl.md — T-string: a term->string BUILD catamorphism over the
+# `term` variant (driver-backlog item 3 residual, the `_pp`/pretty-print family).
+#
+# A `\trusted` string-returning fold (`emit_why3._pp` shape) isinstance-dispatches
+# on the term ADT and BUILDS a string per arm via f-string / `str()` / `" ".join`,
+# threading a second inherited-attribute int param (`parent_prec`) that drives a
+# precedence table lookup (`_BINOP_PREC.get(op, default)`), int arithmetic
+# (`op_prec + 1`) and a conditional paren-wrap (`f"({s})" if parent_prec > p`).
+# Emitted as a PROGRAM `let rec {n} (v_t: term) (parent_prec: int) : string`
+# structurally terminating over the certified `term` inductive (`variant {v_t}`;
+# the SAME `Phase2i_TermIR.v`/`TermIR.lean` cert — NO new axiom, ledger 3), with:
+#   * an inline TOTAL `{n}__joinstr` (space-join of a `list string` binder field),
+#   * a mutual `{n}__joinargs` (space-join of `_pp` over a `list term` App-arg
+#     field — the recursion that makes it a catamorphism, NOT a shape match),
+#   * an inline `{n}__binop_prec_<dict>` int table (str->int const dict from
+#     `module_const_int_dicts`, resolved to literal ints; the `val pystr_eq`
+#     string guard — a `val`, NOT an axiom).
+# Fail-closed: any node outside the fragment raises `_PVWBail` → recognizer
+# returns None → the stub stays `\trusted`. The templater is NOT in the TCB (a bug
+# yields an unprovable instance the whole-file re-proof catches, never a false
+# proof). Mutation-sensitive (separator / const-map value / subterm-prec knobs
+# all flow into the emitted `.mlw`).
+# ===========================================================================
+
+
+def recognize_term_pp_wrapper(func: Dict[str, Any], pp_names: set,
+                              module_constants: Optional[Dict[str, Any]] = None
+                              ) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for a term->string DELEGATING WRAPPER:
+    `def f(x: Term) -> str: return <pp>(x, <int-const>)` where `<pp>` is a
+    recognized term-string-pp function (§10.4 cascade: `ir_to_whyml_axiom_body`,
+    the sole caller of `_pp`, must type its `x` as the `term` variant now that
+    `_pp` takes `term`). Returns {param, callee, prec} or None."""
+    try:
+        if not pp_names:
+            return None
+        params = func.get("formal_params", [])
+        if len(params) != 1 or func.get("return_annotation") != "str":
+            return None
+        body = func.get("body", [])
+        if not (isinstance(body, list) and len(body) == 1
+                and isinstance(body[0], dict) and body[0].get("stmt") == "Return"):
+            return None
+        val = body[0].get("value")
+        if not (isinstance(val, dict) and val.get("type") == "Call"
+                and val.get("func") in pp_names):
+            return None
+        args = val.get("args") or []
+        if not (len(args) == 2 and _is_var(args[0], params[0])):
+            return None
+        mc = module_constants or {}
+        a1 = args[1]
+        if isinstance(a1, dict) and a1.get("type") == "Number" \
+                and isinstance(a1.get("value"), int):
+            pr = a1.get("value")
+        elif isinstance(a1, dict) and a1.get("type") == "Var" \
+                and isinstance(mc.get(a1.get("name")), int) \
+                and not isinstance(mc.get(a1.get("name")), bool):
+            pr = mc.get(a1.get("name"))
+        else:
+            return None
+        return {"param": params[0], "callee": val.get("func"), "prec": pr}
+    except Exception:
+        return None
+
+
+def emit_term_pp_wrapper_group(func: Dict[str, Any], desc: Dict[str, Any],
+                               whyml_ident) -> List[str]:
+    n = whyml_ident(func["name"])
+    callee = whyml_ident(desc["callee"])
+    p = desc["param"]
+    return [f"  let {n} (v_{p}: term) : string",
+            "    requires { true } ensures { true }",
+            f"  = {callee} v_{p} ({desc['prec']})"]
+
+
+def _ppw_field(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.<attr>` -> attr name, else None."""
+    if (isinstance(node, dict) and node.get("type") == "Attribute"
+            and _is_var(node.get("object"), subj)):
+        return node.get("attr")
+    return None
+
+
+def recognize_term_string_pp(func: Dict[str, Any],
+                             spec: Optional[Dict[str, Any]],
+                             module_constants: Optional[Dict[str, Any]] = None,
+                             const_int_dicts: Optional[Dict[str, Any]] = None
+                             ) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the term->string BUILD catamorphism (the
+    `_pp` shape). Returns a desc (with the fully-parsed, constant-resolved per-arm
+    blocks) or None. Never raises."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_string_pp(
+            func, spec, module_constants or {}, const_int_dicts or {})
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_string_pp(func: Dict[str, Any], spec: Dict[str, Any],
+                              mc: Dict[str, Any],
+                              cid: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    if func.get("return_annotation") != "str":
+        return None
+    subj, prec = params[0], params[1]
+    if func.get("param_annotations", {}).get(prec) not in ("int",):
+        return None
+    body = func.get("body", [])
+    if not (isinstance(body, list) and body):
+        return None
+    name = func["name"]
+    ctor_set = set(spec["ctors"].keys())
+    ctx = {"subj": subj, "prec": prec, "self": name, "spec": spec,
+           "mc": mc, "cid": cid, "flags": {"streq": False, "joinstr": False,
+           "joinargs": False, "sep_args": None, "sep_str": None,
+           "binop_dicts": {}}}
+    arms: Dict[str, Any] = {}
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                              # trailing total-match raise
+        if not (isinstance(st, dict) and st.get("stmt") == "If"
+                and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        # each arm parsed with the ctor's fields visible (to type field reads)
+        for c in classes:
+            if c in arms:
+                raise _PVWBail()
+            fld_types = dict(spec["ctors"][c])
+            actx = dict(ctx)
+            actx["fld_types"] = fld_types
+            actx["int_locals"] = set()
+            actx["str_locals"] = set()
+            arms[c] = _ppw_block(st.get("body", []), actx)
+    if set(arms.keys()) != ctor_set:
+        raise _PVWBail()                          # totality over the ADT
+    return {"param": subj, "prec": prec, "arms": arms,
+            "uses_streq": ctx["flags"]["streq"],
+            "uses_joinstr": ctx["flags"]["joinstr"],
+            "uses_joinargs": ctx["flags"]["joinargs"],
+            "binop_dicts": ctx["flags"]["binop_dicts"]}
+
+
+def _ppw_block(stmts: Any, ctx: Dict[str, Any]) -> Any:
+    """A block ::= ('final', strexpr) | ('guard', cond, retstr, block)
+                 | ('seq', ('let', isint, name, expr), block)."""
+    if not (isinstance(stmts, list) and stmts):
+        raise _PVWBail()
+    st = stmts[0]
+    if not isinstance(st, dict):
+        raise _PVWBail()
+    kind = st.get("stmt")
+    if kind == "Return":
+        if len(stmts) != 1:
+            raise _PVWBail()
+        return ("final", _ppw_str(st.get("value"), ctx))
+    if kind == "If":
+        ibody = st.get("body", [])
+        orelse = st.get("orelse", [])
+        # early-return guard: `if <cond>: return <str>`  (empty orelse)
+        if (not orelse and len(ibody) == 1 and isinstance(ibody[0], dict)
+                and ibody[0].get("stmt") == "Return"):
+            cond = _ppw_cond(st.get("test"), ctx)
+            ret = _ppw_str(ibody[0].get("value"), ctx)
+            return ("guard", cond, ret, _ppw_block(stmts[1:], ctx))
+        # parallel conditional assigns: both branches assign the SAME targets
+        # in the SAME order -> a sequence of conditional lets.
+        cond = _ppw_cond(st.get("test"), ctx)
+        tsteps = _ppw_assign_seq(ibody, ctx)
+        esteps = _ppw_assign_seq(orelse, ctx)
+        if not tsteps or [t for t, _ in tsteps] != [t for t, _ in esteps]:
+            raise _PVWBail()
+        # build the conditional lets (register locals as string — the `_pp`
+        # branch-assigned lhs/rhs are recursion results = strings)
+        letsteps = []
+        for (tname, tval), (_ename, eval_) in zip(tsteps, esteps):
+            ctx["str_locals"].add(tname)
+            letsteps.append(("let", False, tname,
+                             ("scond", cond, tval, eval_)))
+        rest = _ppw_block(stmts[1:], ctx)
+        for step in reversed(letsteps):
+            rest = ("seq", step, rest)
+        return rest
+    if kind == "Assign":
+        name = st.get("target")
+        if not isinstance(name, str):
+            raise _PVWBail()
+        val = st.get("value")
+        isint, expr = _ppw_assign_value(val, ctx)
+        (ctx["int_locals"] if isint else ctx["str_locals"]).add(name)
+        return ("seq", ("let", isint, name, expr), _ppw_block(stmts[1:], ctx))
+    raise _PVWBail()
+
+
+def _ppw_assign_seq(stmts: Any, ctx: Dict[str, Any]) -> List:
+    """A list of `Assign target=<rec-strexpr>` -> [(target, strexpr), ...]."""
+    out = []
+    if not isinstance(stmts, list) or not stmts:
+        return out
+    for st in stmts:
+        if not (isinstance(st, dict) and st.get("stmt") == "Assign"
+                and isinstance(st.get("target"), str)):
+            raise _PVWBail()
+        out.append((st.get("target"), _ppw_str(st.get("value"), ctx)))
+    return out
+
+
+def _ppw_assign_value(val: Any, ctx: Dict[str, Any]):
+    """(isint, expr). Try the int fragment first (dict.get / +N / int const /
+    Number); fall back to the string fragment."""
+    try:
+        return True, _ppw_int(val, ctx)
+    except _PVWBail:
+        return False, _ppw_str(val, ctx)
+
+
+def _ppw_cond(node: Any, ctx: Dict[str, Any]) -> Any:
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "BinOp" and node.get("op") == ">":
+        return ("gt", _ppw_int(node.get("left"), ctx),
+                _ppw_int(node.get("right"), ctx))
+    if t == "BinOp" and node.get("op") == "==":
+        fld = _ppw_field(node.get("left"), ctx["subj"])
+        r = node.get("right")
+        if fld and isinstance(r, dict) and r.get("type") == "String":
+            ctx["flags"]["streq"] = True
+            return ("streq", fld, r.get("value"))
+        raise _PVWBail()
+    if t == "UnaryOp" and node.get("op") == "not":
+        fld = _ppw_field(node.get("expr"), ctx["subj"])
+        if fld and ctx["fld_types"].get(fld) == "list term":
+            return ("empty", fld)
+        raise _PVWBail()
+    raise _PVWBail()
+
+
+def _ppw_int(node: Any, ctx: Dict[str, Any]) -> Any:
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "Number" and isinstance(node.get("value"), int):
+        return ("ilit", node.get("value"))
+    if t == "Var":
+        nm = node.get("name")
+        if nm == ctx["prec"]:
+            return ("iparam",)
+        if nm in ctx["int_locals"]:
+            return ("iloc", nm)
+        v = ctx["mc"].get(nm)
+        if isinstance(v, int) and not isinstance(v, bool):
+            return ("ilit", v)
+        raise _PVWBail()
+    if t == "BinOp" and node.get("op") == "+":
+        r = node.get("right")
+        if isinstance(r, dict) and r.get("type") == "Number" \
+                and isinstance(r.get("value"), int):
+            return ("iadd", _ppw_int(node.get("left"), ctx), r.get("value"))
+        raise _PVWBail()
+    if t == "Call" and isinstance(node.get("func"), str) \
+            and node.get("func").endswith(".get"):
+        dname = node.get("func")[:-4]
+        args = node.get("args") or []
+        entries = ctx["cid"].get(dname)
+        if not (isinstance(entries, dict) and entries and len(args) == 2):
+            raise _PVWBail()
+        fld = _ppw_field(args[0], ctx["subj"])
+        default = _ppw_int(args[1], ctx)
+        if not (fld and default[0] == "ilit"):
+            raise _PVWBail()
+        ctx["flags"]["binop_dicts"][dname] = (entries, default[1])
+        return ("dictget", dname, fld)
+    raise _PVWBail()
+
+
+def _ppw_str(node: Any, ctx: Dict[str, Any]) -> Any:
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "String":
+        return ("lit", node.get("value"))
+    if t == "Var":
+        nm = node.get("name")
+        if nm in ctx["str_locals"]:
+            return ("loc", nm)
+        raise _PVWBail()
+    fld = _ppw_field(node, ctx["subj"])
+    if fld is not None:
+        if ctx["fld_types"].get(fld) != "string":
+            raise _PVWBail()
+        return ("field", fld)
+    if t == "Call":
+        f = node.get("func")
+        args = node.get("args") or []
+        if f == "str" and len(args) == 1:
+            ifld = _ppw_field(args[0], ctx["subj"])
+            if ifld and ctx["fld_types"].get(ifld) == "int":
+                return ("i2s", ifld)
+            raise _PVWBail()
+        if f == ctx["self"] and len(args) == 2:
+            rfld = _ppw_field(args[0], ctx["subj"])
+            if rfld and ctx["fld_types"].get(rfld) == "term":
+                return ("rec", rfld, _ppw_int(args[1], ctx))
+            raise _PVWBail()
+        if f == "join" and len(args) == 1:
+            recv = node.get("receiver")
+            if not (isinstance(recv, dict) and recv.get("type") == "String"):
+                raise _PVWBail()
+            sep = recv.get("value")
+            a0 = args[0]
+            bfld = _ppw_field(a0, ctx["subj"])
+            if bfld and ctx["fld_types"].get(bfld) == "list string":
+                ctx["flags"]["joinstr"] = True
+                ctx["flags"]["sep_str"] = sep
+                return ("joinstr", sep, bfld)
+            if isinstance(a0, dict) and a0.get("type") == "GenExp":
+                return _ppw_joinrec(a0, sep, ctx)
+            raise _PVWBail()
+        raise _PVWBail()
+    if t == "IfExpr":
+        test = node.get("test")
+        bfld = _ppw_field(test, ctx["subj"])
+        b, o = node.get("body"), node.get("orelse")
+        if bfld and ctx["fld_types"].get(bfld) == "bool" \
+                and isinstance(b, dict) and b.get("type") == "String" \
+                and isinstance(o, dict) and o.get("type") == "String":
+            return ("bool", bfld, b.get("value"), o.get("value"))
+        return ("scond", _ppw_cond(test, ctx),
+                _ppw_str(b, ctx), _ppw_str(o, ctx))
+    if t == "FString":
+        return ("concat", [_ppw_str(p, ctx) for p in node.get("parts", [])])
+    raise _PVWBail()
+
+
+def _ppw_joinrec(ge: Any, sep: str, ctx: Dict[str, Any]) -> Any:
+    """`sep.join(<self>(a, <int>) for a in <subj>.<field>)` -> a term-list join
+    with recursion (the App-arg catamorphism)."""
+    gens = ge.get("generators") or []
+    elt = ge.get("elt")
+    if not (len(gens) == 1 and not gens[0].get("ifs")):
+        raise _PVWBail()
+    loopv = gens[0].get("target")
+    it = gens[0].get("iter")
+    fld = _ppw_field(it, ctx["subj"])
+    if not (fld and ctx["fld_types"].get(fld) == "list term"):
+        raise _PVWBail()
+    if not (isinstance(elt, dict) and elt.get("type") == "Call"
+            and elt.get("func") == ctx["self"]):
+        raise _PVWBail()
+    eargs = elt.get("args") or []
+    if not (len(eargs) == 2 and _is_var(eargs[0], loopv)):
+        raise _PVWBail()
+    pr = _ppw_int(eargs[1], ctx)
+    ctx["flags"]["joinargs"] = True
+    ctx["flags"]["sep_args"] = sep
+    return ("joinrec", sep, fld, pr)
+
+
+# ---- emit ------------------------------------------------------------------
+
+def _ppw_slit(s: Optional[str]) -> str:
+    """A WhyML string literal (escapes backslash + quote — the op tokens `\\/`,
+    `/\\` carry backslashes, unlike `_mlw_str_lit`'s ASCII-only fail-closed form)."""
+    if not isinstance(s, str):
+        raise _PVWBail()
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _ppw_emit_int(e: Any, n: str) -> str:
+    tag = e[0]
+    if tag == "ilit":
+        return str(e[1])
+    if tag == "iparam":
+        return "parent_prec"
+    if tag == "iloc":
+        return f"l_{e[1]}"
+    if tag == "iadd":
+        return f"({_ppw_emit_int(e[1], n)} + {e[2]})"
+    if tag == "dictget":
+        return f"({n}{_bp_helper(e[1])} v_{e[2]})"
+    raise _PVWBail()
+
+
+def _bp_helper(dname: str) -> str:
+    import re as _re
+    return "__binop_prec_" + _re.sub(r"[^0-9a-zA-Z_]", "_", dname).lstrip("_")
+
+
+def _ppw_emit_cond(c: Any, n: str) -> str:
+    if c[0] == "gt":
+        return f"({_ppw_emit_int(c[1], n)} > {_ppw_emit_int(c[2], n)})"
+    if c[0] == "streq":
+        return f"(pystr_eq v_{c[1]} {_ppw_slit(c[2])})"
+    if c[0] == "empty":
+        return f"(match v_{c[1]} with Nil -> true | Cons _ _ -> false end)"
+    raise _PVWBail()
+
+
+def _ppw_emit_str(e: Any, n: str) -> str:
+    tag = e[0]
+    if tag == "lit":
+        return _ppw_slit(e[1])
+    if tag == "field":
+        return f"v_{e[1]}"
+    if tag == "loc":
+        return f"l_{e[1]}"
+    if tag == "i2s":
+        return f"(str_of_int v_{e[1]})"
+    if tag == "bool":
+        return f"(if v_{e[1]} then {_ppw_slit(e[2])} else {_ppw_slit(e[3])})"
+    if tag == "rec":
+        return f"({n} v_{e[1]} ({_ppw_emit_int(e[2], n)}))"
+    if tag == "joinstr":
+        return f"({n}__joinstr {_ppw_slit(e[1])} v_{e[2]})"
+    if tag == "joinrec":
+        return f"({n}__joinargs {_ppw_slit(e[1])} v_{e[2]} ({_ppw_emit_int(e[3], n)}))"
+    if tag == "scond":
+        return (f"(if {_ppw_emit_cond(e[1], n)} then {_ppw_emit_str(e[2], n)}"
+                f" else {_ppw_emit_str(e[3], n)})")
+    if tag == "concat":
+        parts = [_ppw_emit_str(p, n) for p in e[1]]
+        return _ppw_concat(parts)
+    raise _PVWBail()
+
+
+def _ppw_concat(parts: List[str]) -> str:
+    if not parts:
+        return '""'
+    acc = parts[-1]
+    for p in reversed(parts[:-1]):
+        acc = f"(str_concat_op {p} {acc})"
+    return acc
+
+
+def _ppw_emit_block(b: Any, n: str) -> str:
+    tag = b[0]
+    if tag == "final":
+        return _ppw_emit_str(b[1], n)
+    if tag == "guard":
+        return (f"(if {_ppw_emit_cond(b[1], n)} then {_ppw_emit_str(b[2], n)}"
+                f" else {_ppw_emit_block(b[3], n)})")
+    if tag == "seq":
+        _, isint, name, expr = b[1]
+        rhs = _ppw_emit_int(expr, n) if isint else _ppw_emit_str(expr, n)
+        return f"(let l_{name} = {rhs} in {_ppw_emit_block(b[2], n)})"
+    raise _PVWBail()
+
+
+def _ppw_block_fields(b: Any, out: set) -> None:
+    """Collect the subject-field names read anywhere in a block (to name vs `_`
+    the ctor pattern binders)."""
+    def s(e):
+        tag = e[0]
+        if tag == "field":
+            out.add(e[1])
+        elif tag in ("i2s", "bool"):
+            out.add(e[1])
+        elif tag == "joinstr":
+            out.add(e[2])
+        elif tag == "rec":
+            out.add(e[1]); i(e[2])
+        elif tag == "joinrec":
+            out.add(e[2]); i(e[3])
+        elif tag == "scond":
+            c(e[1]); s(e[2]); s(e[3])
+        elif tag == "concat":
+            for p in e[1]:
+                s(p)
+
+    def i(e):
+        tag = e[0]
+        if tag == "iadd":
+            i(e[1])
+        elif tag == "dictget":
+            out.add(e[2])
+
+    def c(cd):
+        if cd[0] == "gt":
+            i(cd[1]); i(cd[2])
+        elif cd[0] in ("streq", "empty"):
+            out.add(cd[1])
+
+    def blk(bb):
+        if bb[0] == "final":
+            s(bb[1])
+        elif bb[0] == "guard":
+            c(bb[1]); s(bb[2]); blk(bb[3])
+        elif bb[0] == "seq":
+            _, isint, _name, expr = bb[1]
+            (i if isint else s)(expr)
+            blk(bb[2])
+    blk(b)
+
+
+def emit_term_string_pp_group(func: Dict[str, Any], desc: Dict[str, Any],
+                              spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the term->string BUILD catamorphism (the `_pp` shape). Inline TOTAL
+    `{n}__joinstr` (list-string space-join) + `{n}__binop_prec_<dict>` (str->int
+    const table), a mutual `{n}__joinargs` (term-list `_pp` join = the App-arg
+    recursion), and the per-arm structural-translated body. Structural
+    `variant {v_t}` over the certified `term` inductive; NO axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["param"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    out: List[str] = []
+    # ---- str->int precedence table(s) (program `let`; calls `val pystr_eq`) ----
+    for dname, (entries, default) in desc["binop_dicts"].items():
+        h = f"{n}{_bp_helper(dname)}"
+        expr = str(default)
+        for k, v in reversed(list(entries.items())):
+            expr = f"if pystr_eq op {_ppw_slit(k)} then {v} else {expr}"
+        out.append(f"  let {h} (op: string) : int = {expr}")
+    # ---- list-string space-join (pure structural TOTAL) -----------------------
+    if desc["uses_joinstr"]:
+        out.append(f"  let rec {n}__joinstr (sep: string) (l: list string) : string")
+        out.append("    variant { l }")
+        out.append("  = match l with")
+        out.append('    | Nil -> ""')
+        out.append("    | Cons h Nil -> h")
+        out.append(f"    | Cons h t -> str_concat_op h (str_concat_op sep ({n}__joinstr sep t))")
+        out.append("    end")
+    # ---- the catamorphism (mutual with the term-list App-arg join) ------------
+    out.append(f"  let rec {n} (v_{subj}: term) (parent_prec: int) : string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant  {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        used: set = set()
+        _ppw_block_fields(arms[c], used)
+        binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
+        pat = c + ((" " + binders) if binders else "")
+        out.append(f"    | {pat} -> {_ppw_emit_block(arms[c], n)}")
+    out.append("    end")
+    if desc["uses_joinargs"]:
+        out.append(f"  with {n}__joinargs (sep: string) (l: list term) (pr: int) : string")
+        out.append("    variant { l }")
+        out.append("  = match l with")
+        out.append('    | Nil -> ""')
+        out.append(f"    | Cons a Nil -> {n} a pr")
+        out.append(f"    | Cons a t -> str_concat_op ({n} a pr) (str_concat_op sep ({n}__joinargs sep t pr))")
+        out.append("    end")
+    return out
+
+
+# ===========================================================================
+# class-variant-impl.md §OUTCOME-TS RESIDUAL: the RECORD⇄VARIANT BRIDGE for the
+# 5 `ir.py` per-class `.pp` METHODS (App/BinOp/UnaryOp/Forall/Exists .pp).
+#
+# Unlike `_pp` (emit_why3, a SINGLE-FUNCTION isinstance-dispatch catamorphism),
+# the ir.py pp family is a set of per-variant METHODS on the frozen-dataclass
+# RECORD types (`app__pp (self: app)`), each body a straight-line string build
+# recursing via a VIRTUAL `child.pp()` on a `Term`-typed field. There is no
+# isinstance dispatch inside a method — the class IS the dispatch.
+#
+# The bridge (3 co-landed parts, ALL source-only, 0 new stubs, ledger 3):
+#   (a) RECORD-FIELD-TYPE fix (preamble.py `_term_pp_field_override`): a term-ctor
+#       dataclass's recursive fields emit the VARIANT field types (`args: list
+#       term`, `lhs/rhs: term`, `binders: list string`) instead of `array int`/
+#       `int`, so the record→variant injection typechecks.
+#   (b) a SYNTHESIZED unified `pp_term (v_t: term) : string` catamorphism assembled
+#       from all 9 pp method bodies (the 4 non-`\trusted` leaves + the 5 targets) —
+#       total over the `term` ADT, the virtual `child.pp()` becomes `pp_term
+#       child`. Emitted ONCE before the first delegation (flag-gated).
+#   (c) each `<cls>__pp (self: <rec>) : string = pp_term (<Ctor> self.<f>...)`
+#       (record→variant injection + delegation).
+#
+# The `pp_term` cat is co-dependent across the whole family (a converted BinOp.pp
+# recurses `pp_term` into an App child, so App's arm must be the REAL one) — so all
+# 9 real bodies feed the synthesis; the 5 targets are un-`\trusted` one per commit
+# (each flips its emission val -> delegation) once the shared `pp_term` is faithful.
+#
+# NO new certificate: the `term` inductive's well-formedness / distinctness /
+# injectivity are ALREADY certified axiom-free in `Phase2i_TermIR.v` / `TermIR.lean`;
+# `pp_term` is a structural `variant { v_t }` fold over the same constructors, and
+# the string ops (`str_concat_op`/`str_of_int`) are the leaf pp methods' existing
+# abstract `val`s (spec'd by `concat`, NOT axioms). Ledger stays 3.
+#
+# Fail-closed (`_PVWBail`): a pp method outside the fragment -> the FAMILY is off
+# (returns None) -> every pp method keeps `\trusted`. Mutation-sensitive (separator
+# / subterm-order / ctor-field knobs all flow into the emitted `.mlw`).
+# ===========================================================================
+
+
+def _tpm_field(node: Any) -> Optional[str]:
+    """`self.<attr>` (a FieldGet on `self`) -> attr name, else None."""
+    if (isinstance(node, dict) and node.get("type") == "FieldGet"
+            and node.get("object") == "self"):
+        return node.get("field")
+    return None
+
+
+def _tpm_str(node: Any, ctx: Dict[str, Any]) -> Any:
+    """Parse a pp-method string sub-expression into the arm string-AST.
+    `ctx` = {"fld": {field: whytype}, "str_locals": set}. Raise `_PVWBail`."""
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "String":
+        return ("lit", node.get("value"))
+    if t == "Var":
+        nm = node.get("name")
+        if nm in ctx["str_locals"]:
+            return ("loc", nm)
+        raise _PVWBail()
+    fld = _tpm_field(node)
+    if fld is not None:
+        if ctx["fld"].get(fld) != "string":
+            raise _PVWBail()
+        return ("field", fld)
+    if t == "Call":
+        f = node.get("func")
+        args = node.get("args") or []
+        # `str(self.<intfield>)` -> str_of_int
+        if f == "str" and len(args) == 1:
+            ifld = _tpm_field(args[0])
+            if ifld and ctx["fld"].get(ifld) == "int":
+                return ("i2s", ifld)
+            raise _PVWBail()
+        # `self.<termfield>.pp()` -> pp_term recursion
+        if isinstance(f, str) and f.startswith("self.") and f.endswith(".pp") \
+                and not args:
+            mfld = f[len("self."):-len(".pp")]
+            if "." not in mfld and ctx["fld"].get(mfld) == "term":
+                return ("mrec", mfld)
+            raise _PVWBail()
+        # `"<sep>".join(<arg>)`
+        if f == "join" and len(args) == 1:
+            recv = node.get("receiver")
+            if not (isinstance(recv, dict) and recv.get("type") == "String"):
+                raise _PVWBail()
+            sep = recv.get("value")
+            a0 = args[0]
+            bfld = _tpm_field(a0)
+            # `" ".join(self.<binderfield>)` -> list-string join
+            if bfld and ctx["fld"].get(bfld) == "list string":
+                ctx["uses_joinstr"] = True
+                return ("joinstr", sep, bfld)
+            # `" ".join(x.pp() for x in self.<argfield>)` -> list-term join w/ rec
+            if isinstance(a0, dict) and a0.get("type") == "GenExp":
+                return _tpm_joinrec(a0, sep, ctx)
+            raise _PVWBail()
+        raise _PVWBail()
+    if t == "IfExpr":
+        test = node.get("test")
+        bfld = _tpm_field(test)
+        b, o = node.get("body"), node.get("orelse")
+        if bfld and ctx["fld"].get(bfld) == "bool" \
+                and isinstance(b, dict) and b.get("type") == "String" \
+                and isinstance(o, dict) and o.get("type") == "String":
+            return ("bool", bfld, b.get("value"), o.get("value"))
+        raise _PVWBail()
+    if t == "FString":
+        return ("concat", [_tpm_str(p, ctx) for p in node.get("parts", [])])
+    raise _PVWBail()
+
+
+def _tpm_joinrec(ge: Any, sep: str, ctx: Dict[str, Any]) -> Any:
+    """`sep.join(x.pp() for x in self.<field>)` -> a term-list join with recursion
+    (the App-arg catamorphism). Raise `_PVWBail` on any deviation."""
+    gens = ge.get("generators") or []
+    elt = ge.get("elt")
+    if not (len(gens) == 1 and not gens[0].get("ifs")):
+        raise _PVWBail()
+    loopv = gens[0].get("target")
+    it = gens[0].get("iter")
+    fld = _tpm_field(it)
+    if not (fld and ctx["fld"].get(fld) == "list term"):
+        raise _PVWBail()
+    if not (isinstance(elt, dict) and elt.get("type") == "Call"
+            and not (elt.get("args") or [])):
+        raise _PVWBail()
+    ef = elt.get("func")
+    if not (isinstance(ef, str) and ef == f"{loopv}.pp"):
+        raise _PVWBail()          # must be the loop var's virtual `.pp()`
+    ctx["uses_joinrec"] = True
+    return ("joinrec", sep, fld)
+
+
+def _tpm_cond(node: Any, ctx: Dict[str, Any]) -> Any:
+    """`not self.<listfield>` (empty-list guard) -> ("empty", field)."""
+    if (isinstance(node, dict) and node.get("type") == "UnaryOp"
+            and node.get("op") == "not"):
+        fld = _tpm_field(node.get("expr"))
+        if fld and ctx["fld"].get(fld) == "list term":
+            return ("empty", fld)
+    raise _PVWBail()
+
+
+def _tpm_block(stmts: Any, ctx: Dict[str, Any]) -> Any:
+    """A pp-method body block ::= ('final', S) | ('guard', C, S, block)
+                                 | ('seq', (localname, S), block)."""
+    if not (isinstance(stmts, list) and stmts):
+        raise _PVWBail()
+    st = stmts[0]
+    if not isinstance(st, dict):
+        raise _PVWBail()
+    kind = st.get("stmt")
+    if kind == "Return":
+        if len(stmts) != 1:
+            raise _PVWBail()
+        return ("final", _tpm_str(st.get("value"), ctx))
+    if kind == "If":
+        ibody = st.get("body", [])
+        if (not st.get("orelse") and len(ibody) == 1 and isinstance(ibody[0], dict)
+                and ibody[0].get("stmt") == "Return"):
+            cond = _tpm_cond(st.get("test"), ctx)
+            ret = _tpm_str(ibody[0].get("value"), ctx)
+            return ("guard", cond, ret, _tpm_block(stmts[1:], ctx))
+        raise _PVWBail()
+    if kind == "Assign":
+        name = st.get("target")
+        if not isinstance(name, str):
+            raise _PVWBail()
+        val = _tpm_str(st.get("value"), ctx)
+        ctx["str_locals"].add(name)
+        return ("seq", (name, val), _tpm_block(stmts[1:], ctx))
+    raise _PVWBail()
+
+
+def recognize_term_pp_methods(functions: List[Dict[str, Any]],
+                              spec: Optional[Dict[str, Any]]
+                              ) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the ir.py per-class `.pp` METHOD family (the
+    record⇄variant bridge). Requires EVERY ctor in `spec` to have a `pp` method
+    whose body parses into a string-build arm (totality is mandatory — `pp_term`
+    must be total over the `term` ADT). Returns
+    {"arms": {Ctor: block}, "classes": set, "method_names": set,
+     "uses_joinstr": bool, "uses_joinrec": bool} or None. Never raises."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_pp_methods(functions, spec)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_pp_methods(functions, spec):
+    ctors = spec["ctors"]
+    ctor_set = set(ctors.keys())
+    # index the pp method of each ctor class
+    by_cls: Dict[str, Dict[str, Any]] = {}
+    for f in functions:
+        if f.get("kind") != "method":
+            continue
+        cls = f.get("self_type")
+        if cls not in ctor_set or f.get("return_annotation") != "str":
+            continue
+        # method must be `pp` (no positional params beyond self)
+        if f.get("formal_params"):
+            continue
+        nm = f.get("name", "")
+        if not (nm == "pp" or nm.endswith(".pp") or nm.endswith("__pp")
+                or nm.endswith("_pp")):
+            continue
+        if cls in by_cls:
+            raise _PVWBail()          # two pp methods for one ctor
+        by_cls[cls] = f
+    if set(by_cls.keys()) != ctor_set:
+        return None                   # not every ctor has a parseable pp -> family off
+    arms: Dict[str, Any] = {}
+    method_names: set = set()
+    convert_classes: set = set()
+    flags = {"uses_joinstr": False, "uses_joinrec": False}
+    for c in ctor_set:
+        f = by_cls[c]
+        ctx = {"fld": dict(ctors[c]), "str_locals": set(),
+               "uses_joinstr": False, "uses_joinrec": False}
+        arms[c] = _tpm_block(f.get("body", []), ctx)
+        # DELEGATION set = only the RECURSIVE (internal-node) ctors: their `.pp`
+        # recurses via the virtual `child.pp()` (`mrec`/`joinrec`), so a faithful
+        # emission REQUIRES the shared `pp_term`. The NON-recursive leaves
+        # (Var/IntLit/BoolLit/Unsupported) keep their own direct bodies — which also
+        # register the `str_concat_op`/`str_of_int` abstract `val`s `pp_term` uses.
+        if _tpm_arm_recurses(arms[c]):
+            method_names.add(f.get("name"))
+            # CONVERT set = recursive ctors whose pp method is CONVERTED
+            # (non-`\trusted`) in THIS file — only these delegate, so only their
+            # RECORD needs the variant field types. A file that merely IMPORTS the
+            # pp methods as `\trusted` vals (emit_why3/canonical) has an EMPTY
+            # convert set -> its records stay byte-identical (`args: array int`).
+            if not f.get("trusted", False):
+                convert_classes.add(c)
+        flags["uses_joinstr"] |= ctx["uses_joinstr"]
+        flags["uses_joinrec"] |= ctx["uses_joinrec"]
+    # String-build ops `pp_term` needs: `str_concat_op` (any `concat`/joinstr/joinrec
+    # arm) + `str_of_int` (any `i2s` arm). These are the same abstract `val`s the leaf
+    # pp methods register from `str()`/f-string lowering — but NOT every fixture has a
+    # leaf that does (a Var/Num/Flag-only leaf set never uses `str_concat_op`), so the
+    # delegation emitter registers them explicitly (dedup-identical where a leaf
+    # already did, e.g. ir.py's `unsupported__pp`/`intlit__pp`).
+    uses_strconcat = flags["uses_joinstr"] or flags["uses_joinrec"] or any(
+        _tpm_arm_uses(arms[c], ("concat",)) for c in ctor_set)
+    uses_strofint = any(_tpm_arm_uses(arms[c], ("i2s",)) for c in ctor_set)
+    return {"arms": arms, "classes": set(ctor_set), "method_names": method_names,
+            "convert_classes": convert_classes,
+            "uses_joinstr": flags["uses_joinstr"],
+            "uses_joinrec": flags["uses_joinrec"],
+            "uses_strconcat": uses_strconcat, "uses_strofint": uses_strofint}
+
+
+def _tpm_arm_uses(b: Any, tags: tuple) -> bool:
+    """True iff any string-expr node in the arm block has one of `tags`."""
+    found = [False]
+
+    def s(e):
+        if e[0] in tags:
+            found[0] = True
+        elif e[0] == "concat":
+            if "concat" in tags:
+                found[0] = True
+            for p in e[1]:
+                s(p)
+
+    def blk(bb):
+        if bb[0] == "final":
+            s(bb[1])
+        elif bb[0] == "guard":
+            s(bb[2]); blk(bb[3])
+        elif bb[0] == "seq":
+            s(bb[1][1]); blk(bb[2])
+    blk(b)
+    return found[0]
+
+
+def _tpm_arm_recurses(b: Any) -> bool:
+    """True iff the arm block recurses via the virtual `child.pp()`
+    (`mrec` / `joinrec`) — i.e. an internal node that must delegate to `pp_term`."""
+    found = [False]
+
+    def s(e):
+        tag = e[0]
+        if tag in ("mrec", "joinrec"):
+            found[0] = True
+        elif tag == "concat":
+            for p in e[1]:
+                s(p)
+
+    def blk(bb):
+        if bb[0] == "final":
+            s(bb[1])
+        elif bb[0] == "guard":
+            s(bb[2]); blk(bb[3])
+        elif bb[0] == "seq":
+            s(bb[1][1]); blk(bb[2])
+    blk(b)
+    return found[0]
+
+
+# ---- emit ------------------------------------------------------------------
+
+def _tpm_emit_str(e: Any) -> str:
+    tag = e[0]
+    if tag == "lit":
+        return _ppw_slit(e[1])
+    if tag == "field":
+        return f"v_{e[1]}"
+    if tag == "loc":
+        return f"l_{e[1]}"
+    if tag == "i2s":
+        return f"(str_of_int v_{e[1]})"
+    if tag == "bool":
+        return f"(if v_{e[1]} then {_ppw_slit(e[2])} else {_ppw_slit(e[3])})"
+    if tag == "mrec":
+        return f"(pp_term v_{e[1]})"
+    if tag == "joinstr":
+        return f"(pp_term__joinstr {_ppw_slit(e[1])} v_{e[2]})"
+    if tag == "joinrec":
+        return f"(pp_term__joinargs {_ppw_slit(e[1])} v_{e[2]})"
+    if tag == "concat":
+        return _ppw_concat([_tpm_emit_str(p) for p in e[1]])
+    raise _PVWBail()
+
+
+def _tpm_emit_cond(c: Any) -> str:
+    if c[0] == "empty":
+        return f"(match v_{c[1]} with Nil -> true | Cons _ _ -> false end)"
+    raise _PVWBail()
+
+
+def _tpm_emit_block(b: Any) -> str:
+    tag = b[0]
+    if tag == "final":
+        return _tpm_emit_str(b[1])
+    if tag == "guard":
+        return (f"(if {_tpm_emit_cond(b[1])} then {_tpm_emit_str(b[2])}"
+                f" else {_tpm_emit_block(b[3])})")
+    if tag == "seq":
+        name, val = b[1]
+        return f"(let l_{name} = {_tpm_emit_str(val)} in {_tpm_emit_block(b[2])})"
+    raise _PVWBail()
+
+
+def _tpm_block_fields(b: Any, out: set) -> None:
+    """Collect the ctor-field names read anywhere in a block (name vs `_` binder)."""
+    def s(e):
+        tag = e[0]
+        if tag in ("field", "i2s", "bool"):
+            out.add(e[1])
+        elif tag == "mrec":
+            out.add(e[1])
+        elif tag in ("joinstr", "joinrec"):
+            out.add(e[2])
+        elif tag == "concat":
+            for p in e[1]:
+                s(p)
+
+    def c(cd):
+        if cd[0] == "empty":
+            out.add(cd[1])
+
+    def blk(bb):
+        if bb[0] == "final":
+            s(bb[1])
+        elif bb[0] == "guard":
+            c(bb[1]); s(bb[2]); blk(bb[3])
+        elif bb[0] == "seq":
+            s(bb[1][1]); blk(bb[2])
+    blk(b)
+
+
+def emit_pp_term_helper(fam: Dict[str, Any], spec: Dict[str, Any]) -> List[str]:
+    """Emit the SYNTHESIZED unified `pp_term (v_t: term) : string` catamorphism
+    (+ the inline TOTAL `pp_term__joinstr` list-string join, and the mutual
+    `pp_term__joinargs` term-list join-with-recursion). Structural `variant`
+    over the certified `term` inductive; NO axiom (ledger 3). Emitted ONCE,
+    before the first per-class delegation."""
+    arms = fam["arms"]
+    ctors = spec["ctors"]
+    out: List[str] = []
+    if fam["uses_joinstr"]:
+        out.append("  let rec pp_term__joinstr (sep: string) (l: list string) : string")
+        out.append("    variant { l }")
+        out.append("  = match l with")
+        out.append('    | Nil -> ""')
+        out.append("    | Cons h Nil -> h")
+        out.append("    | Cons h t -> str_concat_op h (str_concat_op sep (pp_term__joinstr sep t))")
+        out.append("    end")
+    out.append("  let rec pp_term (v_t: term) : string")
+    out.append("    variant  { v_t }")
+    out.append("  = match v_t with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        used: set = set()
+        _tpm_block_fields(arms[c], used)
+        binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
+        pat = c + ((" " + binders) if binders else "")
+        out.append(f"    | {pat} -> {_tpm_emit_block(arms[c])}")
+    out.append("    end")
+    if fam["uses_joinrec"]:
+        out.append("  with pp_term__joinargs (sep: string) (l: list term) : string")
+        out.append("    variant { l }")
+        out.append("  = match l with")
+        out.append('    | Nil -> ""')
+        out.append("    | Cons a Nil -> pp_term a")
+        out.append("    | Cons a t -> str_concat_op (pp_term a) (str_concat_op sep (pp_term__joinargs sep t))")
+        out.append("    end")
+    return out
+
+
+# ---------------------------------------------------------------------------
+# crosscheck_ir.py self-state boolean predicate carrier (driver: crosscheck_ir
+# target). A `@property`-derived 0-arg self method over a record with
+# `Optional[Term]` fields (the `IRCrossCheckResult` shape). This carrier reaches
+# the PRESENCE/string-empty fragment ONLY (`registry_skipped`) — it needs
+# NEITHER the `term` inductive NOR `term_eq`: the option payload is opaque
+# (`option int`), `is_some`/`is_none` are inline matches, and the string-empty
+# test is the ledger-neutral abstract `val pystr_eq` (the term-carrier
+# precedent; NOT an axiom). The methods that DO destruct `Unsupported` /
+# structurally compare terms (`any_unsupported`, `provers_agree`, `all_agree`,
+# …) need the certified `term` inductive + `term_eq` sourced/emitted here and
+# stay `\trusted` (recorded [COST/SCALE] in class-variant-impl.md).
+# Gated (dispatch) on `_has_opaque_term_fields` -> fires on 0 corpus programs
+# and 0 other mirror files (only IRCrossCheckResult carries the allow-listed
+# `opaque_term` fields).
+
+def _cc_is_self_field(x: Any) -> bool:
+    return (isinstance(x, dict) and x.get("type") == "FieldGet"
+            and x.get("object") == "self" and isinstance(x.get("field"), str))
+
+
+def _cc_selfstate_valid(x: Any) -> bool:
+    """Fail-closed grammar check for the self-state boolean fragment:
+        bexpr := and(bexpr,bexpr) | or(bexpr,bexpr)
+               | not(self.<F>)              # string field: non-empty test
+               | self.<F> != None           # option field: is_some
+               | self.<F> == None           # option field: is_none
+    Every leaf MUST be one of the three self-field forms; any other node
+    rejects the whole method (the carrier stays off, the stub keeps `\trusted`)."""
+    if not isinstance(x, dict):
+        return False
+    t = x.get("type")
+    if t == "BinOp" and x.get("op") in ("and", "or"):
+        return (_cc_selfstate_valid(x.get("left"))
+                and _cc_selfstate_valid(x.get("right")))
+    if t == "UnaryOp" and x.get("op") == "not":
+        return _cc_is_self_field(x.get("expr"))
+    if t == "BinOp" and x.get("op") in ("!=", "=="):
+        r = x.get("right")
+        return (_cc_is_self_field(x.get("left"))
+                and isinstance(r, dict) and r.get("type") == "None")
+    return False
+
+
+def recognize_crosscheck_selfstate_bool(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Recognize a 0-formal-param self method whose body is a single
+    `return <bexpr>` in the self-state boolean fragment above. Returns
+    {"expr": <ir>} or None (fail-closed)."""
+    if func.get("formal_params"):
+        return None
+    if "__" not in (func.get("name") or ""):
+        return None
+    body = func.get("body", [])
+    if len(body) != 1 or not isinstance(body[0], dict) \
+            or body[0].get("stmt") != "Return":
+        return None
+    expr = body[0].get("value")
+    # require at least one self-field leaf (a bare `return True/None` must not match)
+    if not _cc_selfstate_valid(expr):
+        return None
+    return {"expr": expr}
+
+
+def _cc_emit_bexpr(x: Dict[str, Any]) -> str:
+    t = x.get("type")
+    if t == "BinOp" and x.get("op") in ("and", "or"):
+        conn = "&&" if x["op"] == "and" else "||"
+        return f"({_cc_emit_bexpr(x['left'])}) {conn} ({_cc_emit_bexpr(x['right'])})"
+    if t == "UnaryOp" and x.get("op") == "not":
+        f = x["expr"]["field"]
+        return f'(pystr_eq self.{f} "")'
+    # != / == None
+    f = x["left"]["field"]
+    if x["op"] == "!=":
+        return f"(match self.{f} with Some _ -> true | None -> false end)"
+    return f"(match self.{f} with Some _ -> false | None -> true end)"
+
+
+def emit_crosscheck_selfstate_bool_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                         whyml_ident) -> List[str]:
+    """Emit the self-state boolean predicate as a total `let`. `is_some`/`is_none`
+    are inline option matches (opaque payload), the string-empty test is the
+    abstract `val pystr_eq` (result VC-free; ledger 3). `self`'s record type is
+    the method-name prefix (`<record>__<method>`)."""
+    n = whyml_ident(func["name"])
+    self_type = n.split("__")[0]
+    body = _cc_emit_bexpr(desc["expr"])
+    return [
+        f"  let {n} (self: {self_type}) : bool",
+        "    requires { true } ensures { true }",
+        f"  = {body}",
+    ]
+
+
+def _uses_str_empty(x: Any) -> bool:
+    """True if the self-state bexpr contains a `not(self.<F>)` (string-empty
+    test) node -> the emission needs `val pystr_eq`."""
+    if not isinstance(x, dict):
+        return False
+    if x.get("type") == "UnaryOp" and x.get("op") == "not" \
+            and _cc_is_self_field(x.get("expr")):
+        return True
+    return any(_uses_str_empty(v) for v in x.values()
+               if isinstance(v, (dict, list))) or any(
+        _uses_str_empty(e) for v in x.values() if isinstance(v, list) for e in v
+        if isinstance(e, dict))
+
+
+# ============================================================================
+# class-variant-impl.md §F3+§F4: crosscheck_ir.py term-STRUCTURAL methods
+# ----------------------------------------------------------------------------
+# The 4 `IRCrossCheckResult` methods that dispatch/compare over the `Optional
+# [Term]` canon self-state (`rocq_canon`/`lean_canon`/`registry_canon`, each an
+# `option term` once the certified 9-ctor inductive is available — §F3):
+#   any_unsupported        : any(isinstance(c, Unsupported) for c in <fields> if c is not None)
+#   all_present_unsupported: canons=[...]; if not canons: False; all(isinstance(c, Unsupported) ...)
+#   all_agree              : canons=[...]; if not canons: False; all(c == canons[0] for c in canons)
+#   provers_agree          : if F1 is None or F2 is None: True; return F1 == F2
+# `isinstance(c, <Ctor>)` lowers to a `Some (<Ctor> _..)` match arm over the
+# real inductive; `c == d` lowers to the DEFINED structural `term_eq` (§F4).
+# STRICT / fail-closed: any shape outside these grammars -> None (stub keeps
+# `\trusted`). Faithful (mutation-flowing): the emitted `.mlw` reads the actual
+# fields, quantifier, isinstance target ctor, and eq operands.
+# ============================================================================
+
+def _cc_field_of(x: Any) -> Optional[str]:
+    if _cc_is_self_field(x):
+        return x.get("field")
+    return None
+
+
+def _cc_none(x: Any) -> bool:
+    return isinstance(x, dict) and x.get("type") == "None"
+
+
+def _cc_isnotnone_filter(ifs: Any, subj: str) -> bool:
+    """`ifs` is exactly `[<subj> != None]`."""
+    if not (isinstance(ifs, list) and len(ifs) == 1):
+        return False
+    g = ifs[0]
+    return (isinstance(g, dict) and g.get("type") == "BinOp"
+            and g.get("op") == "!=" and _is_var(g.get("left"), subj)
+            and _cc_none(g.get("right")))
+
+
+def _cc_canon_tuple_fields(iter_node: Any) -> Optional[List[str]]:
+    """`(self.F1, self.F2, self.F3)` -> [F1, F2, F3] (>=1 self-field, all self)."""
+    if not (isinstance(iter_node, dict) and iter_node.get("type") == "Tuple"):
+        return None
+    fields: List[str] = []
+    for e in iter_node.get("elts", []):
+        f = _cc_field_of(e)
+        if f is None:
+            return None
+        fields.append(f)
+    return fields or None
+
+
+def _cc_pred(elt: Any, subj: str) -> Optional[Dict[str, Any]]:
+    """The genexp predicate over the bound var `subj`:
+        isinstance(subj, <Ctor>)  -> {"kind":"isinstance","ctor":<Ctor>}
+        subj == canons[0]         -> {"kind":"eq_first"}"""
+    if not isinstance(elt, dict):
+        return None
+    if (elt.get("type") == "Call" and elt.get("func") == "isinstance"):
+        args = elt.get("args", [])
+        if (len(args) == 2 and _is_var(args[0], subj)
+                and isinstance(args[1], dict) and args[1].get("type") == "Var"):
+            return {"kind": "isinstance", "ctor": args[1].get("name")}
+        return None
+    if (elt.get("type") == "BinOp" and elt.get("op") == "=="
+            and _is_var(elt.get("left"), subj)):
+        r = elt.get("right")
+        if (isinstance(r, dict) and r.get("type") == "Subscript"
+                and _is_var(r.get("value"))
+                and isinstance(r.get("index"), dict)
+                and r["index"].get("type") == "Number"
+                and r["index"].get("value") == 0):
+            return {"kind": "eq_first", "canons_var": r["value"].get("name")}
+    return None
+
+
+def recognize_crosscheck_term_method(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Recognize the 4 term-structural `IRCrossCheckResult` methods. Returns a
+    descriptor {"shape","fields","quant","pred",...} or None (fail-closed)."""
+    if func.get("formal_params"):
+        return None
+    if "__" not in (func.get("name") or ""):
+        return None
+    body = func.get("body", [])
+
+    # --- Shape PROVERS: `if F1 is None or F2 is None: return True; return F1 == F2`
+    if (len(body) == 2 and isinstance(body[0], dict)
+            and body[0].get("stmt") == "If" and isinstance(body[1], dict)
+            and body[1].get("stmt") == "Return"):
+        test = body[0].get("test")
+        thenb = body[0].get("body", [])
+        if (isinstance(test, dict) and test.get("type") == "BinOp"
+                and test.get("op") == "or" and not body[0].get("orelse")
+                and len(thenb) == 1 and thenb[0].get("stmt") == "Return"
+                and isinstance(thenb[0].get("value"), dict)
+                and thenb[0]["value"].get("type") == "Bool"
+                and thenb[0]["value"].get("value") is True):
+            l, r = test.get("left"), test.get("right")
+            def _isnone_cmp(n):
+                return (isinstance(n, dict) and n.get("type") == "BinOp"
+                        and n.get("op") == "==" and _cc_none(n.get("right"))
+                        and _cc_field_of(n.get("left")))
+            f1, f2 = _isnone_cmp(l), _isnone_cmp(r)
+            ret = body[1].get("value")
+            if (f1 and f2 and isinstance(ret, dict) and ret.get("type") == "BinOp"
+                    and ret.get("op") == "==" ):
+                rf1, rf2 = _cc_field_of(ret.get("left")), _cc_field_of(ret.get("right"))
+                if rf1 == f1 and rf2 == f2:
+                    return {"shape": "provers", "f1": f1, "f2": f2,
+                            "uses_term_eq": True}
+
+    # --- Shape ANY: single `return any(<pred> for c in (F1,F2,F3) if c != None)`
+    if len(body) == 1 and isinstance(body[0], dict) \
+            and body[0].get("stmt") == "Return":
+        v = body[0].get("value")
+        d = _cc_quant_genexp(v, inline_filter=True)
+        if d is not None:
+            return d
+
+    # --- Shape LISTCOMP-QUANT: canons=[...]; if not canons: return False; return all/any(...)
+    if (len(body) == 3 and isinstance(body[0], dict)
+            and body[0].get("stmt") == "Assign"
+            and isinstance(body[1], dict) and body[1].get("stmt") == "If"
+            and isinstance(body[2], dict) and body[2].get("stmt") == "Return"):
+        cvar = body[0].get("target")
+        lc = body[0].get("value")
+        if not (isinstance(lc, dict) and lc.get("type") == "ListComp"):
+            return None
+        gens = lc.get("generators", [])
+        elt = lc.get("elt")
+        if not (len(gens) == 1 and _is_var(elt, gens[0].get("target"))):
+            return None
+        subj = gens[0].get("target")
+        fields = _cc_canon_tuple_fields(gens[0].get("iter"))
+        if fields is None or not _cc_isnotnone_filter(gens[0].get("ifs"), subj):
+            return None
+        # `if not canons: return False`
+        test = body[1].get("test")
+        thenb = body[1].get("body", [])
+        if not (isinstance(test, dict) and test.get("type") == "UnaryOp"
+                and test.get("op") == "not" and _is_var(test.get("expr"), cvar)
+                and not body[1].get("orelse") and len(thenb) == 1
+                and thenb[0].get("stmt") == "Return"
+                and isinstance(thenb[0].get("value"), dict)
+                and thenb[0]["value"].get("type") == "Bool"
+                and thenb[0]["value"].get("value") is False):
+            return None
+        # final `return all/any(<pred> for c in canons)`
+        d = _cc_quant_genexp(body[2].get("value"), inline_filter=False,
+                             over_var=cvar)
+        if d is None:
+            return None
+        d["fields"] = fields
+        d["shape"] = "listcomp"
+        d["empty_false"] = True
+        return d
+    return None
+
+
+def _cc_quant_genexp(v: Any, inline_filter: bool,
+                     over_var: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """`any(<pred> for c in <it> [if c != None])`. When inline_filter: `<it>` is
+    the (F1,F2,F3) tuple with a `!= None` filter (the ANY shape). Otherwise
+    `<it>` must be the bound `over_var` list with no filter (the LISTCOMP tail)."""
+    if not (isinstance(v, dict) and v.get("type") == "Call"
+            and v.get("func") in ("any", "all")):
+        return None
+    args = v.get("args", [])
+    if len(args) != 1 or not isinstance(args[0], dict) \
+            or args[0].get("type") != "GenExp":
+        return None
+    ge = args[0]
+    gens = ge.get("generators", [])
+    if len(gens) != 1:
+        return None
+    subj = gens[0].get("target")
+    pred = _cc_pred(ge.get("elt"), subj)
+    if pred is None:
+        return None
+    if inline_filter:
+        fields = _cc_canon_tuple_fields(gens[0].get("iter"))
+        if fields is None or not _cc_isnotnone_filter(gens[0].get("ifs"), subj):
+            return None
+        return {"shape": "any", "fields": fields, "quant": v.get("func"),
+                "pred": pred, "uses_term_eq": pred.get("kind") == "eq_first"}
+    else:
+        if not (_is_var(gens[0].get("iter"), over_var) and not gens[0].get("ifs")):
+            return None
+        return {"quant": v.get("func"), "pred": pred,
+                "uses_term_eq": pred.get("kind") == "eq_first"}
+
+
+def _cc_ctor_arity(tspec: Dict[str, Any], ctor: str) -> Optional[int]:
+    ctors = (tspec or {}).get("ctors", {})
+    if ctor not in ctors:
+        return None
+    return len(ctors[ctor])
+
+
+def _cc_is_ctor_arm(field: str, ctor: str, arity: int) -> str:
+    wild = " ".join(["_"] * arity)
+    pat = f"({ctor} {wild})" if arity else ctor
+    return (f"(match self.{field} with Some {pat} -> true | _ -> false end)")
+
+
+def _cc_is_some(field: str) -> str:
+    return f"(match self.{field} with Some _ -> true | None -> false end)"
+
+
+def emit_crosscheck_term_method_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                      tspec: Dict[str, Any],
+                                      whyml_ident) -> List[str]:
+    """Emit a term-structural crosscheck method as a total `let` over the
+    `option term` self-state. `isinstance(c, Ctor)` -> a `Some (Ctor _..)` arm;
+    `c == d` -> the DEFINED structural `term_eq` (§F4). `ensures True`."""
+    n = whyml_ident(func["name"])
+    self_type = n.split("__")[0]
+    shape = desc["shape"]
+
+    if shape == "provers":
+        # `if F1 is None or F2 is None: return True; return F1 == F2`
+        f1, f2 = desc["f1"], desc["f2"]
+        body = (f"match self.{f1}, self.{f2} with "
+                f"| Some a, Some b -> term_eq a b | _, _ -> true end")
+        return [
+            f"  let {n} (self: {self_type}) : bool",
+            "    requires { true } ensures { true }",
+            f"  = {body}",
+        ]
+
+    fields = desc["fields"]
+    pred = desc["pred"]
+    quant = desc["quant"]
+    if pred["kind"] == "isinstance":
+        ctor = pred["ctor"]
+        arity = _cc_ctor_arity(tspec, ctor)
+        if arity is None:
+            return []          # fail-closed: unknown ctor (should not happen)
+        if quant == "any":
+            # any present is <Ctor>  (None fields are filtered out)
+            arms = " || ".join(_cc_is_ctor_arm(f, ctor, arity) for f in fields)
+            body = f"({arms})"
+        else:
+            # all present are <Ctor>  AND at least one present (empty -> False)
+            def _all_arm(f):
+                wild = " ".join(["_"] * arity)
+                pat = f"({ctor} {wild})" if arity else ctor
+                return (f"(match self.{f} with None -> true "
+                        f"| Some {pat} -> true | Some _ -> false end)")
+            allc = " && ".join(_all_arm(f) for f in fields)
+            somec = " || ".join(_cc_is_some(f) for f in fields)
+            body = f"({allc}) && ({somec})"
+    elif pred["kind"] == "eq_first":
+        # all(c == canons[0] for c in canons); canons[0] = FIRST present field.
+        # Nested destructure to bind the first present, term_eq the rest.
+        body = _cc_emit_eq_first(fields)
+    else:
+        return []
+    return [
+        f"  let {n} (self: {self_type}) : bool",
+        "    requires { true } ensures { true }",
+        f"  = {body}",
+    ]
+
+
+def _cc_emit_eq_first(fields: List[str]) -> str:
+    """`all(c == canons[0])` over the present canon fields: find the first
+    present, term_eq every later present one against it; empty -> false."""
+    def rest_agree(anchor_local: str, later: List[str]) -> str:
+        if not later:
+            return "true"
+        conj = " && ".join(
+            f"(match self.{f} with Some x{i} -> term_eq {anchor_local} x{i} "
+            f"| None -> true end)"
+            for i, f in enumerate(later))
+        return conj
+    # build a match over all fields as a tuple, picking the first Some.
+    scrut = ", ".join(f"self.{f}" for f in fields)
+    n = len(fields)
+    arms = []
+    # all-None -> false
+    arms.append("| " + ", ".join(["None"] * n) + " -> false")
+    for i in range(n):
+        # field i is the first present: pattern None*i, Some a, _*(n-i-1)
+        pat = (["None"] * i) + ["Some a"] + ["_"] * (n - i - 1)
+        arms.append("| " + ", ".join(pat) + " -> "
+                    + rest_agree("a", fields[i + 1:]))
+    return "match " + scrut + " with " + " ".join(arms) + " end"
+
+
+# =========================================================================
+# string-keyed-set NoReturn cluster (check-noreturn-successors driver):
+# the two standalone leaf helpers of `_check_noreturn_successors`, both over
+# the certified pyval/pydict L1 ADT with the `map string bool` set model —
+# NO new type / axiom / cert (ledger 3), `ensures True` (type-safety +
+# termination only). Fail-closed: a shape outside the fragment stays
+# `\trusted`; a template bug yields a loud unprovable instance, never a false
+# proof. Corpus-inert (self-annotate-mirror-only) → byte-diff-0.
+#
+#   #1 recognize_collect_noreturn_names — a FLAT `ir["functions"]` set-
+#      projection fold: `out=set(); for f in ir.get("<field>", []): if
+#      f.get("<guard>"): nm=f.get("<name_key>"); if nm: out.add(nm); ...;
+#      return out`. Lowered as `pget_list "<field>" ir`-fold that reads each
+#      element dict's `<name_key>` string and `set_add`s it (the `<guard>`
+#      presence is read; the `.rsplit` tail-add is provenance-drop, VC-
+#      irrelevant under `ensures True`).
+#   #2 recognize_stmt_noreturn_call — a bool guard-cascade of early
+#      `return False`s ending in `fn in <set_param>` read-only-set-param
+#      membership (`Map.get`). Non-recursive nested field reads
+#      (s.get("stmt")=="Expr" -> s.get("value").get("type")=="Call" ->
+#      s.get("value").get("func") in <set_param>); the `.rsplit(".",1)[-1]`
+#      second disjunct is provenance-drop.
+# =========================================================================
+
+
+def _emit_pyval_key_reader(out: List[str], rname: str, key: str) -> None:
+    """Emit a `pydict -> option pyval` reader for literal `key` (interned
+    `irkey` constructor, or the `K_dyn` computed-key cell). Structurally
+    terminating; no string theory for interned keys."""
+    out.append(f"  let rec {rname} (d: pydict) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    if key in _NAMED_KEYS:
+        out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest")
+    else:
+        out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}"'
+                   f" then Some v else {rname} rest")
+        out.append(f"    | DCons _ _ rest -> {rname} rest")
+    out.append("    end")
+
+
+def recognize_collect_noreturn_names(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the flat `ir["functions"]` set-projection fold
+    (`_collect_noreturn_names` shape). Returns
+    {name, subj, field, guard_key, name_key} or None. Never raises."""
+    try:
+        return _recognize_collect_noreturn_names(func)
+    except Exception:
+        return None
+
+
+def _recognize_collect_noreturn_names(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") != "set":
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    s_init, s_for, s_ret = body
+    # [0] out = set()
+    if not (isinstance(s_init, dict) and s_init.get("stmt") == "Assign"):
+        return None
+    acc = s_init.get("target")
+    iv = s_init.get("value")
+    if not (isinstance(acc, str) and isinstance(iv, dict)
+            and iv.get("type") == "Call" and iv.get("func") == "set"
+            and not iv.get("args")):
+        return None
+    if acc == subj:
+        return None
+    # [2] return out
+    if not (isinstance(s_ret, dict) and s_ret.get("stmt") == "Return"
+            and _is_var(s_ret.get("value"), acc)):
+        return None
+    # [1] for <loopvar> in <subj>.get("<field>", []): ...
+    if not (isinstance(s_for, dict) and s_for.get("stmt") == "For"):
+        return None
+    loopvar = s_for.get("target")
+    if not isinstance(loopvar, str):
+        return None
+    itr = s_for.get("iter")
+    field = _match_get_call(itr, subj)
+    if field is None:
+        return None
+    fbody = s_for.get("body") or []
+    if len(fbody) != 1:
+        return None
+    guard = fbody[0]
+    # if <loopvar>.get("<guard_key>"): ...
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not guard.get("orelse")):
+        return None
+    guard_key = _match_get_call(guard.get("test"), loopvar)
+    if guard_key is None:
+        return None
+    gbody = guard.get("body") or []
+    if len(gbody) != 2:
+        return None
+    s_nm, s_if = gbody
+    # nm = <loopvar>.get("<name_key>")
+    if not (isinstance(s_nm, dict) and s_nm.get("stmt") == "Assign"):
+        return None
+    nmvar = s_nm.get("target")
+    name_key = _match_get_call(s_nm.get("value"), loopvar)
+    if not (isinstance(nmvar, str) and name_key is not None):
+        return None
+    # if nm: <acc>.add(nm); ...  (the add is the non-facade, mutation-sensitive signal)
+    if not (isinstance(s_if, dict) and s_if.get("stmt") == "If"
+            and _is_var(s_if.get("test"), nmvar)):
+        return None
+    ifb = s_if.get("body") or []
+    if not ifb:
+        return None
+    add0 = ifb[0]
+    if not (isinstance(add0, dict) and add0.get("stmt") == "Expr"):
+        return None
+    addcall = add0.get("value")
+    if not (isinstance(addcall, dict) and addcall.get("type") == "Call"
+            and addcall.get("func") == f"{acc}.add"
+            and [_is_var(a, nmvar) for a in addcall.get("args", [])][:1] == [True]):
+        return None
+    return {"name": func.get("name"), "subj": subj, "field": field,
+            "guard_key": guard_key, "name_key": name_key}
+
+
+def emit_collect_noreturn_names_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the flat `ir["functions"]` set-projection fold: read the one list
+    field off `ir`'s bridged pydict (`pget_list "<field>"`), fold it to a
+    `map string bool`, `set_add`ing each element dict's `<name_key>` string
+    when the `<guard_key>` field is present. Total + terminating over the
+    certified pydict/list `pyval` bridge; `ensures true`. NO new
+    type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    subj = whyml_ident(desc["subj"])
+    field = desc["field"]
+    guard_key = desc["guard_key"]
+    name_key = desc["name_key"]
+    out: List[str] = []
+    gname = f"{n}__get_{_reader_suffix(guard_key)}"
+    nname = f"{n}__get_{_reader_suffix(name_key)}"
+    _emit_pyval_key_reader(out, gname, guard_key)
+    if name_key != guard_key:
+        _emit_pyval_key_reader(out, nname, name_key)
+    # per-element projection: present-guard -> add the name string.
+    out.append(f"  let {n}__one (v: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {gname} d with")
+    out.append(f"                  | Some _ -> (match {nname} d with")
+    out.append("                               | Some (PStr s) -> set_add (const false) s")
+    out.append("                               | _ -> const false end)")
+    out.append("                  | None -> const false end)")
+    out.append("    | _ -> const false end")
+    # the flat list fold.
+    out.append(f"  let rec {n}__fold (l: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { l }")
+    out.append("  = match l with")
+    out.append("    | Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({n}__one h) ({n}__fold t) end")
+    # the top wrapper: read `ir["<field>"]` (a flat list of dicts).
+    out.append(f"  let {n} ({subj}: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {subj} with")
+    out.append(f'    | PDict d -> {n}__fold (pget_list "{field}" d)')
+    out.append("    | _ -> const false end")
+    return out
+
+
+def _match_not_isinstance(node: Any, subj: str, cls: str) -> bool:
+    """`not isinstance(<subj>, <cls>)` (UnaryOp not over isinstance)."""
+    return (isinstance(node, dict) and node.get("type") == "UnaryOp"
+            and node.get("op") == "not"
+            and _match_isinstance(node.get("expr"), subj, cls))
+
+
+def _match_neq_getstr(node: Any, subj: str) -> Optional[Tuple[str, str]]:
+    """`<subj>.get("<key>") != "<tag>"` -> (key, tag) or None."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "!="):
+        return None
+    key = _match_get_call(node.get("left"), subj)
+    tag = _is_string(node.get("right"))
+    if key is None or tag is None:
+        return None
+    return (key, tag)
+
+
+def _is_return_false(stmt: Any) -> bool:
+    return (isinstance(stmt, dict) and stmt.get("stmt") == "Return"
+            and isinstance(stmt.get("value"), dict)
+            and stmt["value"].get("type") == "Bool"
+            and stmt["value"].get("value") is False)
+
+
+def _guard_returns_false(stmt: Any) -> bool:
+    """`if <test>: return False` (single-stmt body, no orelse)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return False
+    b = stmt.get("body") or []
+    return len(b) == 1 and _is_return_false(b[0])
+
+
+def recognize_stmt_noreturn_call(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the bool guard-cascade -> read-only-set-param
+    membership (`_stmt_is_noreturn_call` shape). Returns
+    {name, subj, set_param, stmt_key, stmt_tag, value_key, type_key, type_tag,
+     func_key} or None. Never raises."""
+    try:
+        return _recognize_stmt_noreturn_call(func)
+    except Exception:
+        return None
+
+
+def _recognize_stmt_noreturn_call(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    subj, set_param = params[0], params[1]
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body") or []
+    if len(body) != 6:
+        return None
+    g0, a1, g2, a3, g4, ret = body
+    # [0] if <subj>.get("<stmt_key>") != "<stmt_tag>": return False
+    if not _guard_returns_false(g0):
+        return None
+    kt = _match_neq_getstr(g0.get("test"), subj)
+    if kt is None:
+        return None
+    stmt_key, stmt_tag = kt
+    # [1] val = <subj>.get("<value_key>")
+    if not (isinstance(a1, dict) and a1.get("stmt") == "Assign"):
+        return None
+    valvar = a1.get("target")
+    value_key = _match_get_call(a1.get("value"), subj)
+    if not (isinstance(valvar, str) and value_key is not None):
+        return None
+    # [2] if not isinstance(val, dict) or val.get("<type_key>") != "<type_tag>": return False
+    if not _guard_returns_false(g2):
+        return None
+    t2 = g2.get("test")
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp"
+            and t2.get("op") == "or"
+            and _match_not_isinstance(t2.get("left"), valvar, "dict")):
+        return None
+    tk = _match_neq_getstr(t2.get("right"), valvar)
+    if tk is None:
+        return None
+    type_key, type_tag = tk
+    # [3] fn = <val>.get("<func_key>")
+    if not (isinstance(a3, dict) and a3.get("stmt") == "Assign"):
+        return None
+    fnvar = a3.get("target")
+    func_key = _match_get_call(a3.get("value"), valvar)
+    if not (isinstance(fnvar, str) and func_key is not None):
+        return None
+    # [4] if not isinstance(fn, str): return False
+    if not (_guard_returns_false(g4)
+            and _match_not_isinstance(g4.get("test"), fnvar, "str")):
+        return None
+    # [5] return fn in <set_param> or <...>  (left disjunct is the membership)
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"):
+        return None
+    rv = ret.get("value")
+    if not (isinstance(rv, dict) and rv.get("type") == "BinOp"):
+        return None
+    mem = rv if rv.get("op") == "in" else (
+        rv.get("left") if rv.get("op") == "or" else None)
+    if not (isinstance(mem, dict) and mem.get("type") == "BinOp"
+            and mem.get("op") == "in"
+            and _is_var(mem.get("left"), fnvar)
+            and _is_var(mem.get("right"), set_param)):
+        return None
+    return {"name": func.get("name"), "subj": subj, "set_param": set_param,
+            "stmt_key": stmt_key, "stmt_tag": stmt_tag, "value_key": value_key,
+            "type_key": type_key, "type_tag": type_tag, "func_key": func_key}
+
+
+def emit_stmt_noreturn_call_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the non-recursive bool guard-cascade: read the nested `stmt`/
+    `value`/`type`/`func` fields off `s`'s bridged pydict and test read-only-
+    set-param membership (`Map.get <set_param>`). `ensures true` (type-safety;
+    no recursion, trivially terminating). NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    subj = whyml_ident(desc["subj"])
+    setp = whyml_ident(desc["set_param"])
+    out: List[str] = []
+    r_stmt = f"{n}__get_{_reader_suffix(desc['stmt_key'])}"
+    r_value = f"{n}__get_{_reader_suffix(desc['value_key'])}"
+    r_type = f"{n}__get_{_reader_suffix(desc['type_key'])}"
+    r_func = f"{n}__get_{_reader_suffix(desc['func_key'])}"
+    seen: Dict[str, str] = {}
+    for key, rn in ((desc["stmt_key"], r_stmt), (desc["value_key"], r_value),
+                    (desc["type_key"], r_type), (desc["func_key"], r_func)):
+        if key in seen:
+            continue
+        seen[key] = rn
+        _emit_pyval_key_reader(out, rn, key)
+    out.append(f"  let {n} ({subj}: pyval) ({setp}: map string bool) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {subj} with")
+    out.append(f"    | PDict d -> (match {r_stmt} d with")
+    out.append("                  | Some (PStr st) ->")
+    out.append(f'                      if pystr_eq st "{desc["stmt_tag"]}" then')
+    out.append(f"                        (match {r_value} d with")
+    out.append("                         | Some (PDict d2) ->")
+    out.append(f"                             (match {r_type} d2 with")
+    out.append("                              | Some (PStr ty) ->")
+    out.append(f'                                  if pystr_eq ty "{desc["type_tag"]}" then')
+    out.append(f"                                    (match {r_func} d2 with")
+    out.append(f"                                     | Some (PStr fn) -> Map.get {setp} fn")
+    out.append("                                     | _ -> false end)")
+    out.append("                                  else false")
+    out.append("                              | _ -> false end)")
+    out.append("                         | _ -> false end)")
+    out.append("                      else false")
+    out.append("                  | _ -> false end)")
+    out.append("    | _ -> false end")
+    return out
+
+
+# =========================================================================
+# NoReturn dead-successor WALKER + CALLER (ghost-assign-bc6 driver, finishing
+# the string-keyed-set NoReturn cluster) — the two remaining `\trusted` stubs.
+#
+#   #3 recognize_noreturn_walk_stmts (`_noreturn_walk_stmts`): a VOID body-walk
+#      carrying a STATEFUL `prev_noreturn_call` bool ACROSS the statement-list
+#      iterations — it raises `PyCSLSemanticError` on the statement FOLLOWING a
+#      NoReturn call, updating the carried flag via the already-converted
+#      `_stmt_is_noreturn_call` per-element test, and recurses (flag reset) into
+#      the nested child statement-lists (keys "body"/"orelse"/"finalbody", plus
+#      Try `handlers[].body` and Match `cases[].body`). Lowered as a mutual
+#      `let rec` group over the certified pyval/pydict/list L1 ADT: the bool
+#      accumulator is threaded as an extra `prev` PARAMETER through the spine
+#      fold, the raise is a real `raise <exc>` under a `raises {}` signature, and
+#      the child recursion routes through the pb-trio-banked `__dget`/
+#      `__list_child` size-decrease extractors. TERMINATION is a 3-phase
+#      lexicographic `(size, phase)` variant (spine fold phase 0, handler/case
+#      sub-fold phase 1, dict-child dispatch phase 2) — the extractor
+#      postcondition `size_list result < 1 + size_dict d` covers each hop.
+#      `ensures true` (type-safety + termination only; the flag VALUE and WHICH
+#      raise fires are facts no VC constrains). NO new type/axiom/cert, ledger 3.
+#   #4 recognize_check_noreturn_successors (`_check_noreturn_successors`): the
+#      caller — builds the NoReturn set via the converted `_collect_noreturn_names`
+#      and folds `ir["functions"]`, walking each function's "body" list through
+#      #3. A flat pget_list fold + two converted-callee calls; `ensures true`,
+#      `raises {}` (the walker may raise). Emitted AFTER #3 (callee-before-caller).
+#
+# Corpus-inert (self-annotate-mirror-only) → byte-diff-0. Fail-closed: any shape
+# deviation (or an unconverted callee) keeps the stub `\trusted` — a loud count
+# regression, never a false proof. The load-bearing keys/tags/callee-names are
+# READ OFF the body (mutation-sensitive: change one and the emitted .mlw moves or
+# the match fails); only the error-message FString is provenance-dropped.
+# =========================================================================
+
+
+def _match_child_key_for(stmt: Any, sv: str, fname_p: str, set_p: str,
+                         self_name: str) -> Optional[Dict[str, Any]]:
+    """`for key in (<str-tuple>): child = <sv>.get(key); if isinstance(child, list):
+    <self>(child, <fname_p>, <set_p>)` -> {child_keys, self_call} or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"
+            and not stmt.get("orelse")):
+        return None
+    keyvar = stmt.get("target")
+    itr = stmt.get("iter")
+    if not (isinstance(keyvar, str) and _is_string_tuple(itr)):
+        return None
+    child_keys = [_is_string(e) for e in itr.get("elts")]
+    fb = stmt.get("body") or []
+    if len(fb) != 2:
+        return None
+    a0, if1 = fb
+    # child = <sv>.get(<keyvar>)
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    childvar = a0.get("target")
+    cv = a0.get("value")
+    if not (isinstance(childvar, str) and isinstance(cv, dict)
+            and cv.get("type") == "Call" and cv.get("func") == f"{sv}.get"
+            and [_is_var(x, keyvar) for x in cv.get("args", [])][:1] == [True]):
+        return None
+    # if isinstance(child, list): <self>(child, fname, set)
+    if not (isinstance(if1, dict) and if1.get("stmt") == "If"
+            and _match_isinstance(if1.get("test"), childvar, "list")):
+        return None
+    self_call = _match_self_walk_call(if1.get("body"), childvar, fname_p, set_p)
+    if self_call is None:
+        return None
+    return {"child_keys": child_keys, "self_call": self_call}
+
+
+def _match_self_walk_call(bodylist: Any, arg0_var: str, fname_p: str,
+                          set_p: str) -> Optional[str]:
+    """Single-stmt `Expr <callee>(<arg0>, <fname_p>, <set_p>)` where arg0 is the
+    Var `arg0_var` OR a `<v>["<k>"]` subscript. Returns the callee name (a bare
+    module-level name) or None."""
+    if not (isinstance(bodylist, list) and len(bodylist) == 1):
+        return None
+    st = bodylist[0]
+    if not (isinstance(st, dict) and st.get("stmt") == "Expr"):
+        return None
+    call = st.get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    callee = call.get("func")
+    if not (isinstance(callee, str) and "." not in callee):
+        return None
+    args = call.get("args") or []
+    if len(args) != 3:
+        return None
+    a0ok = _is_var(args[0], arg0_var) or (
+        isinstance(args[0], dict) and args[0].get("type") == "Subscript")
+    if not (a0ok and _is_var(args[1], fname_p) and _is_var(args[2], set_p)):
+        return None
+    return callee
+
+
+def _match_tag_handler_for(stmt: Any, sv: str, fname_p: str, set_p: str
+                           ) -> Optional[Dict[str, Any]]:
+    """`if <sv>.get("stmt") == "<TAG>": for h in (<sv>.get("<HK>", []) or []):
+    if <guards>: <self>(h["<BK>"], fname, set)` -> {tag, iter_key, body_key,
+    self_call} or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(stmt.get("test"), sv)
+    if tag is None:
+        return None
+    b = stmt.get("body") or []
+    if len(b) != 1:
+        return None
+    forh = b[0]
+    if not (isinstance(forh, dict) and forh.get("stmt") == "For"):
+        return None
+    iter_key = _or_empty_sget(forh.get("iter"), sv)
+    if iter_key is None:
+        return None
+    hvar = forh.get("target")
+    fb = forh.get("body") or []
+    if not (isinstance(hvar, str) and len(fb) == 1):
+        return None
+    if1 = fb[0]
+    if not (isinstance(if1, dict) and if1.get("stmt") == "If"):
+        return None
+    res = _match_self_walk_call(if1.get("body"), hvar, fname_p, set_p)
+    if res is None:
+        return None
+    # extract the subscript body key from the call's first arg.
+    call = if1["body"][0]["value"]
+    body_key = _match_subscript_str(call.get("args")[0], hvar)
+    if body_key is None:
+        return None
+    return {"tag": tag, "iter_key": iter_key, "body_key": body_key,
+            "self_call": res}
+
+
+def _match_match_case_for(stmt: Any, sv: str, fname_p: str, set_p: str
+                          ) -> Optional[Dict[str, Any]]:
+    """`if <sv>.get("stmt") == "<TAG>" and isinstance(<sv>.get("<CK>"), list):
+    for case in <sv>["<CK>"]: if <guards>: <self>(case["<BK>"], fname, set)`
+    -> {tag, iter_key, body_key, self_call} or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test")
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    tag = _match_stmt_tag_test(test.get("left"), sv)
+    if tag is None:
+        return None
+    # right: isinstance(<sv>.get("<CK>"), list)
+    right = test.get("right")
+    if not (isinstance(right, dict) and right.get("type") == "Call"
+            and right.get("func") == "isinstance"):
+        return None
+    rargs = right.get("args") or []
+    if len(rargs) != 2 or not _is_var(rargs[1], "list"):
+        return None
+    ck1 = _match_get_call(rargs[0], sv)
+    b = stmt.get("body") or []
+    if ck1 is None or len(b) != 1:
+        return None
+    forc = b[0]
+    if not (isinstance(forc, dict) and forc.get("stmt") == "For"):
+        return None
+    iter_key = _match_subscript_str(forc.get("iter"), sv)
+    if iter_key != ck1:
+        return None
+    cvar = forc.get("target")
+    fb = forc.get("body") or []
+    if not (isinstance(cvar, str) and len(fb) == 1):
+        return None
+    if1 = fb[0]
+    if not (isinstance(if1, dict) and if1.get("stmt") == "If"):
+        return None
+    res = _match_self_walk_call(if1.get("body"), cvar, fname_p, set_p)
+    if res is None:
+        return None
+    call = if1["body"][0]["value"]
+    body_key = _match_subscript_str(call.get("args")[0], cvar)
+    if body_key is None:
+        return None
+    return {"tag": tag, "iter_key": iter_key, "body_key": body_key,
+            "self_call": res}
+
+
+def recognize_noreturn_walk_stmts(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the stateful bool-carry NoReturn dead-successor
+    walker (`_noreturn_walk_stmts` shape). Returns a descriptor or None; never
+    raises."""
+    try:
+        return _recognize_noreturn_walk_stmts(func)
+    except Exception:
+        return None
+
+
+def _recognize_noreturn_walk_stmts(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_noreturn_walk_stmts":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 3:
+        return None
+    stmts_p, fname_p, set_p = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    s0, s1 = body
+    # [0] prev = False
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"):
+        return None
+    prev = s0.get("target")
+    v0 = s0.get("value")
+    if not (isinstance(prev, str) and isinstance(v0, dict)
+            and v0.get("type") == "Bool" and v0.get("value") is False):
+        return None
+    # [1] for s in stmts:
+    if not (isinstance(s1, dict) and s1.get("stmt") == "For"
+            and _is_var(s1.get("iter"), stmts_p) and not s1.get("orelse")):
+        return None
+    sv = s1.get("target")
+    fbody = s1.get("body") or []
+    if not (isinstance(sv, str) and len(fbody) == 1):
+        return None
+    outer_if = fbody[0]
+    if not (isinstance(outer_if, dict) and outer_if.get("stmt") == "If"
+            and _match_isinstance(outer_if.get("test"), sv, "dict")
+            and not outer_if.get("orelse")):
+        return None
+    ib = outer_if.get("body") or []
+    if len(ib) != 5:
+        return None
+    g_if, prev_asgn, child_for, try_if, match_if = ib
+    # guard: if prev: raise <exc>
+    if not (isinstance(g_if, dict) and g_if.get("stmt") == "If"
+            and _is_var(g_if.get("test"), prev)):
+        return None
+    graise = g_if.get("body") or []
+    if not (graise and isinstance(graise[0], dict)
+            and graise[0].get("stmt") == "Raise"):
+        return None
+    exc = graise[0].get("exc_type")
+    if not isinstance(exc, str):
+        return None
+    # prev = <stmt_call>(s, set_p)
+    if not (isinstance(prev_asgn, dict) and prev_asgn.get("stmt") == "Assign"
+            and prev_asgn.get("target") == prev):
+        return None
+    pc = prev_asgn.get("value")
+    if not (isinstance(pc, dict) and pc.get("type") == "Call"):
+        return None
+    stmt_call = pc.get("func")
+    pcargs = pc.get("args") or []
+    if not (isinstance(stmt_call, str) and "." not in stmt_call
+            and len(pcargs) == 2 and _is_var(pcargs[0], sv)
+            and _is_var(pcargs[1], set_p)):
+        return None
+    # child-key recursion + Try/Match blocks
+    ck = _match_child_key_for(child_for, sv, fname_p, set_p, func["name"])
+    tr = _match_tag_handler_for(try_if, sv, fname_p, set_p)
+    mt = _match_match_case_for(match_if, sv, fname_p, set_p)
+    if ck is None or tr is None or mt is None:
+        return None
+    self_name = func["name"]
+    if not (ck["self_call"] == self_name and tr["self_call"] == self_name
+            and mt["self_call"] == self_name):
+        return None
+    return {"name": self_name, "stmts_param": stmts_p, "fname_param": fname_p,
+            "set_param": set_p, "stmt_call": stmt_call, "exc": exc,
+            "child_keys": ck["child_keys"],
+            "try_tag": tr["tag"], "handlers_key": tr["iter_key"],
+            "handler_body_key": tr["body_key"],
+            "match_tag": mt["tag"], "cases_key": mt["iter_key"],
+            "case_body_key": mt["body_key"]}
+
+
+def emit_noreturn_walk_stmts_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the stateful bool-carry NoReturn walker as a mutual `let rec` group
+    over the certified pyval/pydict/list L1 ADT (see module note). The `prev`
+    flag threads as a parameter; the raise is real (`raises { <exc> }`); the child
+    recursion routes through the pb-trio-banked size-decrease extractors; the
+    3-phase `(size, phase)` variant covers termination. NO new type/axiom/cert."""
+    n = whyml_ident(desc["name"])
+    sc = whyml_ident(desc["stmt_call"])
+    setp = whyml_ident(desc["set_param"])
+    exc = desc["exc"]
+    dget = f"{n}__dget"
+    lchild = f"{n}__list_child"
+    gstmt = f"{n}__get_stmt"
+    sig = f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}"
+    out: List[str] = []
+    # --- statement-tag reader (for the Try/Match tag guards) -------------
+    _emit_pyval_key_reader(out, gstmt, "stmt")
+    # --- shared value extractor (pv_size postcond — the Z3-fast form) ----
+    out.append(f"  let rec {dget} (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d"
+               " | None -> true end }")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons (K_dyn k) v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append(f"        if pystr_eq k key then Some v else {dget} key rest")
+    out.append("    | DCons _ v rest ->")
+    out.append(f"        size_pos v; size_dict_nonneg rest; {dget} key rest end")
+    # --- list child — NON-recursive wrapper (Alt-Ergo-fast) -------------
+    out.append(f"  let {lchild} (key: string) (d: pydict) : list pyval")
+    out.append("    ensures { size_list result < 1 + size_dict d }")
+    out.append("  = size_dict_nonneg d;")
+    out.append(f"    match {dget} key d with")
+    out.append("    | Some (PList xs) -> size_list_nonneg xs; xs")
+    out.append("    | _ -> Nil end")
+    # --- the stateful mutual recursion group ----------------------------
+    # spine fold (phase 0): carry the `prev` flag across the list.
+    out.append(f"  let rec {n} (prev: bool) (stmts: list pyval)"
+               f" ({setp}: map string bool) : unit")
+    out.append(sig)
+    out.append("    variant { size_list stmts, 0 }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h t ->")
+    out.append("        size_pos h; size_list_nonneg t;")
+    out.append(f"        (if prev && is_pdict h then raise {exc});")
+    out.append(f"        let prev' = {sc} h {setp} in")
+    out.append(f"        (match h with PDict d -> {n}__child d {setp} | _ -> () end);")
+    out.append(f"        {n} prev' t {setp}")
+    out.append("    end")
+    # dict-child dispatch (phase 2): recurse into each nested statement list.
+    out.append(f"  with {n}__child (d: pydict) ({setp}: map string bool) : unit")
+    out.append(sig)
+    out.append("    variant { size_dict d, 2 }")
+    out.append("  = size_dict_nonneg d;")
+    for k in desc["child_keys"]:
+        out.append(f'    {n} false ({lchild} "{k}" d) {setp};')
+    # Try handlers[].body — gated on the "stmt" tag, faithful to the source.
+    out.append(f"    (match {gstmt} d with")
+    out.append(f'     | Some (PStr st) -> if pystr_eq st "{desc["try_tag"]}"'
+               f' then {n}__hfold ({lchild} "{desc["handlers_key"]}" d) {setp} else ()')
+    out.append("     | _ -> () end);")
+    # Match cases[].body — gated on the "stmt" tag.
+    out.append(f"    (match {gstmt} d with")
+    out.append(f'     | Some (PStr st) -> if pystr_eq st "{desc["match_tag"]}"'
+               f' then {n}__hfold ({lchild} "{desc["cases_key"]}" d) {setp} else ()')
+    out.append("     | _ -> () end)")
+    # handler/case sub-fold (phase 1): each element's <body_key> list.
+    hbk = desc["handler_body_key"]
+    out.append(f"  with {n}__hfold (hs: list pyval) ({setp}: map string bool) : unit")
+    out.append(sig)
+    out.append("    variant { size_list hs, 1 }")
+    out.append("  = match hs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h t ->")
+    out.append("        size_pos h; size_list_nonneg t;")
+    out.append(f'        (match h with PDict hd -> {n} false ({lchild} "{hbk}" hd) {setp}'
+               " | _ -> () end);")
+    out.append(f"        {n}__hfold t {setp}")
+    out.append("    end")
+    return out
+
+
+def recognize_check_noreturn_successors(
+        func: Dict[str, Any], walk_names=None) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_noreturn_successors` caller. `walk_names`
+    is the set of converted walker NAMES (`_noreturn_walk_stmts`); a caller that
+    walks via an unconverted walker stays `\\trusted`. Returns a descriptor or
+    None; never raises."""
+    try:
+        return _recognize_check_noreturn_successors(func, walk_names or set())
+    except Exception:
+        return None
+
+
+def _recognize_check_noreturn_successors(
+        func: Dict[str, Any], walk_names) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_check_noreturn_successors":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    ir_p = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    # [Assign nn = _collect_noreturn_names(ir), If not nn: return, For over functions]
+    if len(body) != 3:
+        return None
+    s_asgn, s_if, s_for = body
+    if not (isinstance(s_asgn, dict) and s_asgn.get("stmt") == "Assign"):
+        return None
+    nnvar = s_asgn.get("target")
+    av = s_asgn.get("value")
+    if not (isinstance(nnvar, str) and isinstance(av, dict)
+            and av.get("type") == "Call"):
+        return None
+    collect_call = av.get("func")
+    if not (isinstance(collect_call, str) and "." not in collect_call
+            and [_is_var(a, ir_p) for a in av.get("args", [])][:1] == [True]):
+        return None
+    # if not nn: return  (behavior-irrelevant short circuit; verify shape)
+    if not (isinstance(s_if, dict) and s_if.get("stmt") == "If"):
+        return None
+    # for func in ir.get("functions", []): fname=...; <walk>(func.get("body",[]) or [], fname, nn)
+    if not (isinstance(s_for, dict) and s_for.get("stmt") == "For"):
+        return None
+    funcs_key = _match_get_call(s_for.get("iter"), ir_p)
+    fvar = s_for.get("target")
+    if not (funcs_key is not None and isinstance(fvar, str)):
+        return None
+    fb = s_for.get("body") or []
+    if len(fb) != 2:
+        return None
+    fa, fe = fb
+    # fname = func.get("name", ...)
+    if not (isinstance(fa, dict) and fa.get("stmt") == "Assign"):
+        return None
+    fnamevar = fa.get("target")
+    if not (isinstance(fnamevar, str) and _match_get_call(fa.get("value"), fvar) == "name"):
+        return None
+    # <walk>(func.get("body",[]) or [], fname, nn)
+    if not (isinstance(fe, dict) and fe.get("stmt") == "Expr"):
+        return None
+    call = fe.get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    walk_call = call.get("func")
+    if not (isinstance(walk_call, str) and walk_call in walk_names):
+        return None
+    cargs = call.get("args") or []
+    if len(cargs) != 3:
+        return None
+    # arg0: func.get("body", []) or []   -> extract body key
+    body_key = _or_empty_sget(cargs[0], fvar)
+    if not (body_key is not None and _is_var(cargs[1], fnamevar)
+            and _is_var(cargs[2], nnvar)):
+        return None
+    return {"name": func["name"], "ir_param": ir_p, "collect_call": collect_call,
+            "functions_key": funcs_key, "func_body_key": body_key,
+            "walk_call": walk_call}
+
+
+def emit_check_noreturn_successors_group(desc: Dict[str, Any], whyml_ident
+                                         ) -> List[str]:
+    """Emit the `_check_noreturn_successors` caller: build the NoReturn set via
+    the converted `_collect_noreturn_names`, then fold `ir["functions"]` walking
+    each function's body list through the converted `_noreturn_walk_stmts`.
+    `ensures true`, `raises { PyCSLSemanticError }` (the walker may raise).
+    Emitted AFTER the walker group (callee-before-caller). NO new type/axiom/cert."""
+    n = whyml_ident(desc["name"])
+    ir = whyml_ident(desc["ir_param"])
+    collect = whyml_ident(desc["collect_call"])
+    walk = whyml_ident(desc["walk_call"])
+    fkey = desc["functions_key"]
+    bkey = desc["func_body_key"]
+    out: List[str] = []
+    out.append(f"  let rec {n}__ffold (fs: list pyval) (nn: map string bool) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { fs }")
+    out.append("  = match fs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons f t ->")
+    out.append(f'        (match f with PDict fd -> {walk} false (pget_list "{bkey}" fd) nn'
+               " | _ -> () end);")
+    out.append(f"        {n}__ffold t nn")
+    out.append("    end")
+    out.append(f"  let {n} ({ir}: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = match {ir} with")
+    out.append(f"    | PDict d -> let nn = {collect} (PDict d) in"
+               f' {n}__ffold (pget_list "{fkey}" d) nn')
+    out.append("    | _ -> () end")
+    return out

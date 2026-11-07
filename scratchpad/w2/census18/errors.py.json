@@ -1,0 +1,1 @@
+[{"file": "errors.py", "cls": "PyCSLError", "name": "as_dict", "tc": false}, {"file": "errors.py", "cls": "PyCSLError", "name": "message", "tc": true, "score": 0, "marks": {}, "sig": "let pycslsemanticerror__message (self: pycslsemanticerror) : string", "blen": 3}]

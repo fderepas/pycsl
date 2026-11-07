@@ -1,0 +1,19 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt29/h51_abc_set_impl.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_ym4mhns0.mlw", line 35, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 275 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_ym4mhns0.mlw", line 22, characters 23-27: unused variable self
+Warning, file "/tmp/.pycsl_ym4mhns0.mlw", line 22, characters 33-34: unused variable x
+Warning, file "/tmp/.pycsl_ym4mhns0.mlw", line 26, characters 19-23: unused variable self
+Warning, file "/tmp/.pycsl_ym4mhns0.mlw", line 30, characters 18-22: unused variable self
+Warning, file "/tmp/.pycsl_ym4mhns0.mlw", line 37, characters 8-9: unused variable s
+Warning, file "/tmp/.pycsl_ym4mhns0.mlw", line 34, characters 9-10: unused variable d
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

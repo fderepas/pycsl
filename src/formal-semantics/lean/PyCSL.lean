@@ -30,5 +30,17 @@ import PyCSL.SoundnessVerified
 import PyCSL.ClassInvariants   -- Phase 6: class invariant wrapping (Category A, derived)
 import PyCSL.MemModelSoundness -- Phase 7: instance-parameterised SCritical soundness + typed/store non-vacuity
 import PyCSL.ConcurrentModel  -- Phase 7 residual: havoc-aware SOS + lock-state, proven sound
+import PyCSL.RecordVal         -- Tier-3 Phase 3: record-valued Val7 (nested pathGet/pathSet), conservative
+import PyCSL.PyValDict         -- Wall-plan v2 Phase 1: pyval/pydict/irkey/doc concrete-map cert, axiom-free
+import PyCSL.PyConstVal      -- self-tcb-reduction M5: pyconst_val value-variant ADT cert, axiom-free
+import PyCSL.StmtIR          -- self-tcb-reduction M5: stmt_ir statement-IR ADT cert (C-bucket wall), axiom-free
+import PyCSL.PyAstStmt          -- self-tcb-reduction giants: pyast_stmt INPUT-ast ADT cert, axiom-free
+import PyCSL.PyVal              -- self-tcb-reduction Tier-5: pyval heterogeneous value model cert, axiom-free
+import PyCSL.TermIR             -- self-tcb-reduction item 3: class-instance-variant `term` ADT cert, axiom-free
+import PyCSL.CallKw             -- self-tcb-reduction Tier-5 J1: emit_ir Call-internals value model cert, axiom-free
+import PyCSL.TParam             -- self-tcb-reduction L1: tparam PEP-695 reflection-node value model cert, axiom-free
+import PyCSL.MethodRecv          -- self-tcb-reduction Layer-2: emit_ir Call-receiver value model cert (IrMethodCall/receiver_of), axiom-free
+import PyCSL.CslClause           -- self-tcb-reduction: csl_clause contract-clause value model cert (CGiven/is_given_node/clause_expr_of, _act_guard), axiom-free
+import PyCSL.PyAstExpr          -- self-tcb-reduction: pyast_expr INPUT-side expression-node ADT cert (PEx_*/pyx_kind_of/pyx_view consistency + dispatch non-vacuity, `_py_expr_to_ir`), axiom-free
 import PyCSL.Tests
 -- import PyCSL.Macros  -- Phase L5 bonus

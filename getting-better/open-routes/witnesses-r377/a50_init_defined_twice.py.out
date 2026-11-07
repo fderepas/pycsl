@@ -1,0 +1,23 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt29/a50_init_defined_twice.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_d0xdfujr.mlw", line 7, characters 16-24:
+Sub-goal type invariant of goal c'vc.
+Prover result is: Valid (0.00s, 10 steps).
+
+File "/tmp/.pycsl_d0xdfujr.mlw", line 10, characters 53-63:
+Sub-goal goal of goal _check_class_inv_c.
+Prover result is: Valid (0.00s, 46 steps).
+
+File "/tmp/.pycsl_d0xdfujr.mlw", line 13, characters 15-28:
+Sub-goal postcondition of goal c__get'vc.
+Prover result is: Valid (0.00s, 337 steps).
+
+File "/tmp/.pycsl_d0xdfujr.mlw", line 14, characters 15-34:
+Sub-goal postcondition of goal c__get'vc.
+Prover result is: Valid (0.00s, 30 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

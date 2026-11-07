@@ -1,0 +1,89 @@
+=== Doc-coherency check (53 directive(s)) ===
+directive                 README            annotations.md    concrete-syntax   static-semantics  translational     
+--------------------------------------------------------------------------------------------------------------------
+\abstract                 ✓                 ✓                 ✓                 ✓                 ✓                 
+\diverges                 ✓                 ✓                 ✓                 ✓                 ✓                 
+\preserves                ✓                 ✓                 ✓                 ✓                 ✓                 
+\trusted                  ✓                 ✓                 ✓                 ✓                 ✓                 
+\variant                  ✓                 ✓                 ✓                 ✓                 ✓                 
+acquires                  ✓                 ✓                 ✓                 ✓                 ✓                 
+act                       ✓                 ✓                 ✓                 ✓                 ✓                 
+allow_finalizer           ✓                 ✓                 ✓                 ✓                 ✓                 
+allow_iteration_mutation  ✓                 ✓                 ✓                 ✓                 ✓                 
+assert                    ✓                 ✓                 ✓                 ✓                 ✓                 
+assigns                   ✓                 ✓                 ✓                 ✓                 ✓                 
+assumes                   ✓                 ✓                 ✓                 ✓                 ✓                 
+check                     ✓                 ✓                 ✓                 ✓                 ✓                 
+class                     ✓                 ✓                 ✓                 ✓                 ✓                 
+complete                  ✓                 ✓                 ✓                 ✓                 ✓                 
+compose_from              ✓                 ✓                 ✓                 ✓                 ✓                 
+conforms_to               ✓                 ✓                 ✓                 ✓                 ✓                 
+critical                  ✓                 ✓                 ✓                 ✓                 ✓                 
+datatype                  ✓                 ✓                 ✓                 ✓                 ✓                 
+depends_method            ✓                 ✓                 ✓                 ✓                 ✓                 
+disjoint                  ✓                 ✓                 ✓                 ✓                 ✓                 
+ensures                   ✓                 ✓                 ✓                 ✓                 ✓                 
+footprint                 ✓                 ✓                 ✓                 ✓                 ✓                 
+for                       ✓                 ✓                 ✓                 ✓                 ✓                 
+fresh_globals             ✓                 ✓                 ✓                 ✓                 ✓                 
+ghost                     ✓                 ✓                 ✓                 ✓                 ✓                 
+given                     ✓                 ✓                 ✓                 ✓                 ✓                 
+happy                     ✓                 ✓                 ✓                 ✓                 ✓                 
+inductive                 ✓                 ✓                 ✓                 ✓                 ✓                 
+interface                 ✓                 ✓                 ✓                 ✓                 ✓                 
+label                     ✓                 ✓                 ✓                 ✓                 ✓                 
+lemma                     ✓                 ✓                 ✓                 ✓                 ✓                 
+lock_order                ✓                 ✓                 ✓                 ✓                 ✓                 
+loop                      ✓                 ✓                 ✓                 ✓                 ✓                 
+mixin                     ✓                 ✓                 ✓                 ✓                 ✓                 
+mutex_invariant           ✓                 ✓                 ✓                 ✓                 ✓                 
+no_exception              ✓                 ✓                 ✓                 ✓                 ✓                 
+no_inline                 ✓                 ✓                 ✓                 ✓                 ✓                 
+proof                     ✓                 ✓                 ✓                 ✓                 ✓                 
+propagate_frame           ✓                 ✓                 ✓                 ✓                 ✓                 
+provides                  ✓                 ✓                 ✓                 ✓                 ✓                 
+raises                    ✓                 ✓                 ✓                 ✓                 ✓                 
+releases                  ✓                 ✓                 ✓                 ✓                 ✓                 
+requires                  ✓                 ✓                 ✓                 ✓                 ✓                 
+requires_method           ✓                 ✓                 ✓                 ✓                 ✓                 
+reveal                    ✓                 ✓                 ✓                 ✓                 ✓                 
+shared                    ✓                 ✓                 ✓                 ✓                 ✓                 
+shared_state              ✓                 ✓                 ✓                 ✓                 ✓                 
+sibling_concrete          ✓                 ✓                 ✓                 ✓                 ✓                 
+thread_entry              ✓                 ✓                 ✓                 ✓                 ✓                 
+touches_field             ✓                 ✓                 ✓                 ✓                 ✓                 
+uses                      ✓                 ✓                 ✓                 ✓                 ✓                 
+verify_module             ✓                 ✓                 ✓                 ✓                 ✓                 
+
+[+] All directives present in every normative surface.
+
+=== Grammar↔annotations cross-check ===
+0 grammar `*_decl` directive keyword(s); 53 documented directive(s)
+[+] Every grammar `*_decl` directive keyword is documented in annotations.md.
+
+=== Acceptance-syntax coherency (ER gap 10) ===
+  ✓ predicate documented: 'exits'
+  ✓ predicate documented: 'stdout =='
+  ✓ predicate documented: 'stdout >='
+  ✓ predicate documented: 'stdout matches'
+  ✓ forbidden rule documented: '--force'
+  ✓ forbidden rule documented: '--hard'
+  ✓ forbidden rule documented: 'chmod'
+  ✓ forbidden rule documented: 'chown'
+  ✓ forbidden rule documented: 'clean'
+  ✓ forbidden rule documented: 'commit'
+  ✓ forbidden rule documented: 'curl'
+  ✓ forbidden rule documented: 'dd'
+  ✓ forbidden rule documented: 'mv'
+  ✓ forbidden rule documented: 'push'
+  ✓ forbidden rule documented: 'rebase'
+  ✓ forbidden rule documented: 'rm'
+  ✓ forbidden rule documented: 'wget'
+  ✓ forbidden rule documented: ';'
+  ✓ forbidden rule documented: '&&'
+  ✓ forbidden rule documented: '||'
+  ✓ forbidden rule documented: 'gh api'
+  ✓ forbidden rule documented: 'gh pr'
+  ✓ forbidden rule documented: 'gh issue'
+
+[+] acceptance-syntax.md is in sync with the supervisor.

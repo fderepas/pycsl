@@ -69,6 +69,59 @@ That is the whole point: replace blanket trust with a citation a reviewer can ch
   generated stubs are body-verified (or carry a `# TODO: body-verify or cite axiom`
   marker, never silent trust).
 
+### SIX GATES ADDED IN gen #30 — this layer had a skill and no plane until then
+
+Both are in the FAST soundness battery (`bin/run-soundness-planes.sh`), so they run on
+every pass. They answer the question body-verification CANNOT answer: **a contract here is
+proven of its own body, so it can be perfectly proven and still be false of the function
+its own docstring cites.**
+
+The later four, added the same generation and each from a finding rather than a plan:
+
+- `bin/check-stdlib-identity-stubs.py` — the `return <param>` family: **81 stubs pinned by
+  their own contract, 24 of them FALSE of the function their header cites** (`shutil.copy`
+  returns the DESTINATION, `struct.pack` returns bytes, `functools.wraps` returns a
+  partial). Only six were reachable by calling; the rest are adjudicated by hand with one
+  recorded call each, or listed as UNADJUDICATED under a ceiling that may only shrink.
+- `bin/check-stub-import-resolution.py` — measures the sentence the facade gates rest on.
+  TRUSTED_STUB resolves **nothing** (the lookup globs `*.py`, the layer ships packages),
+  and **nine package names ARE real stdlib module names** (`os`, `json`, `re`, `stat`,
+  `errno`, `http`, `copyreg`, `reprlib`, `token`), so repairing that glob without renaming
+  them first would point user imports at this layer's pinned constants.
+- `bin/check-stdlib-trusted-markers.py` — the marker ratchet, now ENFORCING a `reviewer:`
+  clause at zero after the one bare marker was measured and found FORCED.
+- `bin/check-stdlib-modules-verify.py` (SLOW) — does the layer verify at all? **84 of 104
+  modules do.** The `json` package is refused outright by route #119's constant-rebinding
+  guard and four of its files carry ZERO annotations; `os/path.py` leaves `basename`'s
+  postcondition unproven. The TCB appendix names the `os` model as its example of a
+  body-verified model.
+
+- `bin/check-stdlib-contract-fidelity.py` — generates inputs satisfying a stub's
+  `#@ requires`, runs the **real** stdlib function, and evaluates the `#@ ensures` against
+  CPython's answer. **5612 evaluations over 35 modules** after two widenings, with
+  `\str_length` translated, `==>` split at paren depth zero, and `'ß'`/`'ﬁ'` in the string
+  pool (an ASCII-only pool cannot see a case transform that GROWS — which is how
+  `strmod.capwords`'s false length bound hid). **It CALLS real code**, so its module
+  map is a SAFETY-restricted subset (no `shutil`/`subprocess`/`tempfile`/`os`/`io`/
+  `signal`/`pathlib`, no `random`/`time`, no `argparse`/`getopt`) — widening it means
+  arguing a module into the pure set, never just adding a name. Ratchet = the set of
+  diverging (package, function) pairs. Self-test: `--selftest-empty-baseline` must exit 1.
+- `bin/check-stdlib-pinned-facades.py` — pure AST, no execution, so it reaches the set the
+  gate above cannot. Flags a function whose body is a single `return <literal>` AND whose
+  contract PINS that literal: verified, computing nothing, claiming exactly that. Twelve
+  today, ten of them in `os`; `islink -> 0` is a proof that nothing is ever a symlink.
+
+**Neither is a proof-soundness gate today**, and the headers say so: `import_classifier`
+resolves stub names by `.py` stem under `src/pycsl_lib/` and no name map takes `math` to
+`mth`, so a user's `import math` never picks up these contracts. They stop the layer
+drifting further from the stdlib it documents — and they are the instruments that would
+catch the drift on the day something does substitute it.
+
+**WHEN YOU WRITE A STUB**: the RST citation in the docstring is a CLAIM about a real
+function. If the body models something else (an int domain, a scaled domain, `%` rather
+than IEEE remainder), say so in the docstring and expect the fidelity gate to carry the
+divergence in its baseline with your reason attached.
+
 ## When you hit a wall
 
 If a stub body won't prove: **do not** add `\trusted`. In order of preference:

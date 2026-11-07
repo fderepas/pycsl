@@ -20,9 +20,15 @@ class Store:
 
     #@ \trusted reviewer: demo
     #@ \preserves
+    # (#34) HONEST FRAME: this method writes `self.disk`, and a method with NO
+    # `#@ assigns` at all was assumed by callers to write nothing.
+    #@ assigns self.disk
     def ext_scrub(self, x: int) -> None:
         self.disk[3000] = x            # outside the region; body trusted, not checked
 
     #@ requires 0 <= off and off < 4096
+    # (#34) HONEST FRAME: this method writes `self.disk`, and a method with NO
+    # `#@ assigns` at all was assumed by callers to write nothing.
+    #@ assigns self.disk
     def _write_meta(self, off: int, v: int) -> None:
         self.disk[off] = v             # exempt: legitimate region writer

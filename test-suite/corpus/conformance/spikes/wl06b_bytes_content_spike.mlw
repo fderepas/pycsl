@@ -1,0 +1,55 @@
+(* WL-06b SMT-feasibility spike: FAITHFUL bytes-literal value CONTENT.
+   A `bytes`/`bytearray` value is the tau-blessed coarse `array int` buffer
+   (KEPT, WL-06). This spike proves the CONTENT layer added on top: a bytes
+   LITERAL lowers to an `array int` constructed with the REAL byte values
+   (`b"\x01\x02" -> Array.make 2 1; _[1] <- 2`; `b"abc" -> 97,98,99`), so a
+   byte-content read PROVES (`b[0] = 1 /\ b[1] = 2`; `b[1] = 98`) and the
+   byte-RANGE invariant is derivable (`0 <= b[i] < 256`). Immutability is a
+   front-end rejection (bytes[i]=v is a TypeError), not modelled here.
+   Native `array int` construction/read — must discharge on Alt-Ergo AND Z3. *)
+module Wl06bBytesContent
+  use int.Int
+  use array.Array
+
+  (* --- b"\x01\x02\x80": literal content read + range --- *)
+  let test_hex_literal ()
+    ensures { result = 1 }
+  = let b = (let _a = Array.make 3 1 in _a[1] <- 2; _a[2] <- 128; _a) in
+    assert { b[0] = 1 };
+    assert { b[1] = 2 };
+    assert { b[2] = 128 };
+    (* byte-RANGE invariant: each literal byte is in [0,256) *)
+    assert { 0 <= b[0] < 256 };
+    assert { 0 <= b[1] < 256 };
+    assert { 0 <= b[2] < 256 };
+    (* distinct indices are independent cells (no over-claim) *)
+    assert { not (b[0] = b[1]) };
+    b[0]
+
+  (* --- b"abc" -> [97,98,99]: ascii content read --- *)
+  let test_ascii_literal ()
+    ensures { result = 98 }
+  = let b = (let _a = Array.make 3 97 in _a[1] <- 98; _a[2] <- 99; _a) in
+    assert { b[0] = 97 };
+    assert { b[1] = 98 };
+    assert { b[2] = 99 };
+    b[1]
+
+  (* --- byte-RANGE invariant available for ALL indices of a literal --- *)
+  let test_range_all ()
+  = let b = (let _a = Array.make 3 1 in _a[1] <- 255; _a[2] <- 128; _a) in
+    assert { forall i. 0 <= i < Array.length b -> 0 <= b[i] < 256 }
+
+  (* --- SOUNDNESS floor: a FALSE byte-content claim must NOT prove.
+     If this `assert` discharged, the content model would be over-claiming.
+     (Kept as an `ensures` on a negated read so the spike file as a whole
+     only asserts TRUE facts; the honest read is b[0] = 97, not 98.) --- *)
+  let test_no_overclaim ()
+    ensures { result = 97 }
+  = let b = (let _a = Array.make 2 97 in _a[1] <- 98; _a) in
+    (* the honest content: b[0] = 97 (NOT 98); b[0] <> b[1] *)
+    assert { b[0] = 97 };
+    assert { not (b[0] = b[1]) };
+    b[0]
+
+end

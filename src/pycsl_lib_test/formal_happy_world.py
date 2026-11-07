@@ -82,18 +82,21 @@ fs = MiniFs()
 prc = MiniProc()
 
 # --- HAPPY ownership declarations (§2.1) ---
+# (#49) route #266: the subsystem's OWN methods write the protected field through
+# `self.<f>` — the same location as the global's dotted path — so they are owners too and
+# are listed in `except` (before #266 that spelling was simply invisible to the policy).
 
 #@ happy clock_ownership:
 #@     protects clk._ticks
-#@     except tick
+#@     except tick, monotonic
 
 #@ happy fs_ownership:
 #@     protects fs._data, fs._next_fd
-#@     except do_write, do_open
+#@     except do_write, do_open, sys_write, sys_open
 
 #@ happy proc_ownership:
 #@     protects prc._pid, prc._umask, prc._cwd
-#@     except do_umask, do_chdir
+#@     except do_umask, do_chdir, umask_set, chdir
 
 
 # --- Owner methods (in the except sets) ---

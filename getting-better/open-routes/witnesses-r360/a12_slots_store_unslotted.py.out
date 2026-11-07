@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt27/a12_slots_store_unslotted.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_22_h1rdm.mlw", line 13, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

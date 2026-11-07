@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt26/r41_self_me_into_int.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_fxpga_7r.mlw", line 26, characters 12-16: unused variable self
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

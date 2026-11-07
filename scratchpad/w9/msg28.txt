@@ -1,0 +1,58 @@
+CLOSED(#44): ROUTE #28 — a module-global field store was a documented NO-OP that proved a false postcondition, and its MIRROR half is the structural rule firing live
+
+`_py_stmt_assign` handled `self.f = v` and `p.f = v` (p in the function
+symbol table) and, for a Name base NOT in the symbol table, fell off the
+end of its `elif` chain with a comment: "keep the prior no-op
+(byte-identical; separate boundary from the record/list PARAM class
+handled above)". A documented no-op, carried for windows, never probed.
+
+PROBE (corpus witness 1000): `g = C()` at module level, then `g.v = 7;
+return g.v` under `#@ requires g.v == 0` / `#@ ensures \result == 0`
+printed "Verification SUCCESS" while Python returns 7.
+
+IT WAS NEVER A MODELLING LIMIT. A module-level `g = C()` already emits a
+real global mutable record — `let g : c = { v = 0 }` — so `g.v <- n` has
+always been expressible; the arm simply never emitted anything. CLOSED AS
+A CAPABILITY: witness 1001 carries `#@ assigns g.v` + the TRUE
+`#@ ensures \result == 7` on the same body and PROVES, and a function that
+writes a global WITHOUT declaring it is now rejected by Why3's own frame
+check rather than silently believed.
+
+*** THE MIRROR HALF IS THE POINT, AND IT IS THE STRUCTURAL RULE FIRING
+LIVE. *** The mirror's `_py_stmt_assign` is CONVERTED and its WhyML model
+is a HAND-SYNTHESIZED bespoke lowering keyed on the method NAME
+(`_emit_py_stmt_assign_bespoke`). After changing the live body AND syncing
+the mirror source:
+
+    check-self-annotate-sync.sh   GREEN
+    L3-tc                         GREEN
+    mirror emission               BYTE-IDENTICAL, all 53
+
+...while the emitted model still read `else ()` where the source now
+appends a `FieldAssign`. The model had silently stopped being the body and
+NOTHING in the battery could see it — the byte-identical emission was
+itself the symptom, and only reading the emitted `.mlw` caught it. The
+bespoke lowering had to move in the same increment; after it does, four
+mirror emissions change by the identical two lines.
+
+GATES:
+  census             4 module-global field stores tree-wide, all in the
+                     HAPPY ownership tests, and all three keep their
+                     expected verdicts: 0611 SUCCESS, 0612 FAILED (its
+                     injected `#@ check False`), 0613 PIPELINE ERROR (still
+                     rejected at weave time for aliasing a protected base)
+  pycsl-reference    exactly 2 emissions move — 0611 and 0612 — everything
+                     else byte-identical (+ the 2 new witnesses)
+  python-reference   2142/2142 BYTE-IDENTICAL, refusal set identical (75)
+  mirror emission    4 files (Module5_IREmitter + its 3 importers), each by
+                     the same 2 lines
+  mirror L3-tc       Module5_IREmitter ✓
+  fidelity           2 DIVERGED, the pre-existing pair
+  conformance        core 38/0, front-end 38/0
+  metric             UNCHANGED — markers 456 / grep 481
+  witnesses          1000/1001 negative-tested: 1000 PROVED at the parent,
+                     1001 FAILED there
+
+OWED: whole-file re-proofs of the four moved mirrors.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

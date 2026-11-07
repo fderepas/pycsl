@@ -1,0 +1,20 @@
+     55 witnesses-r421 REFUSED
+      3 witnesses-r422 REFUSED
+     12 witnesses-r423 REFUSED
+      2 witnesses-r424 REFUSED
+      4 witnesses-r425 REFUSED
+      6 witnesses-r427 REFUSED
+     19 witnesses-r428 REFUSED
+e09_fstring_spec_f_int.py	FAIL
+e12_fstring_spec_c_big.py	FAIL
+f00_c_neg.py	FAIL
+f01_c_range.py	FAIL
+f10_int_e_big.py	FAIL
+f11_int_g_big.py	FAIL
+f12_int_pct_big.py	FAIL
+m01_fspec_E.py	FAIL
+m02_fspec_dote.py	FAIL
+m03_fspec_F.py	FAIL
+m04_fspec_G.py	FAIL
+m05_fspec_dot2f.py	FAIL
+m06_fspec_plus_e.py	FAIL

@@ -1,0 +1,3 @@
+[*] Parsing and Semantic Analysis for '/tmp/pycsl-w48-head/src/self-annotate/src/frontend/module_collect.py'...
+[*] Memory model: hoare
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

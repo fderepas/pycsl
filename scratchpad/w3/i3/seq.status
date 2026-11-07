@@ -1,0 +1,15 @@
+[START 01:12:21] src/self-annotate/src/module6_whyml/types.py
+[DONE  01:21:29] src/self-annotate/src/module6_whyml/types.py valid=669 total=669 success=1
+[START 01:21:29] src/self-annotate/src/Module6_WhyMLTranspiler.py
+[DONE  01:33:11] src/self-annotate/src/Module6_WhyMLTranspiler.py valid=706 total=706 success=1
+[START 01:33:11] src/self-annotate/src/pycsl.py
+[DONE  01:49:57] src/self-annotate/src/pycsl.py valid=730 total=730 success=1
+[START 01:49:57] src/self-annotate/src/module6_whyml/statements.py
+[DONE  02:12:50] src/self-annotate/src/module6_whyml/statements.py valid=904 total=904 success=1
+[START 02:12:50] src/self-annotate/src/module6_whyml/expressions.py
+[DONE  02:28:00] src/self-annotate/src/module6_whyml/expressions.py valid=1049 total=1049 success=1
+[START 02:28:00] src/self-annotate/src/frontend/Module5_IREmitter.py
+[DONE  03:18:01] src/self-annotate/src/frontend/Module5_IREmitter.py valid=1115 total=1115 success=1
+[START 03:18:01] src/self-annotate/src/frontend/pure_ast.py
+[DONE  03:51:09] src/self-annotate/src/frontend/pure_ast.py valid=1931 total=1931 success=1
+[ALLDONE 03:51:09]

@@ -1,0 +1,325 @@
+(* gh-spike.mlw — INDEPENDENT REVIEWER SPIKE for ghost-handler-wall.md.
+   Hand-written. Models the emit_ir reader ADT (2-child constructor + leaves),
+   the name->projector lowering (left_of / right_of / svalue_of with the
+   IrOther "" sentinel fallback), the proven size-decrease lemmas, and a
+   handler-like recursive function under the campaign's FIXED contract shape
+   requires { true } / ensures { true } / variant { size t }.
+
+   Q1 evidence (module Q1Projections):
+     h_faithful  — recurses on the real left then real right child;
+     h_swapped   — recurses right-then-left (the position-swap family:
+                   SetAddExpr(set,elem) vs SetMemExpr(elem,set) under one
+                   global name->projector table);
+     h_sentinel  — one "child" is svalue_of, which on an IrBin node returns
+                   the CONSTANT IrOther "" (the committed map_set shape);
+     h_opaque    — no recursion at all (the facade baseline: what an opaque
+                   stub proves under ensures true).
+   ALL FOUR must be Valid: `ensures true` + a size-bounded argument discharges
+   type-safety + termination REGARDLESS of value-faithfulness. The verdict
+   therefore cannot come from prover output alone — it comes from WHICH
+   termination obligation each variant discharges (see the response doc and
+   the controls file gh-spike-controls.mlw).
+
+   Q1/Q2 evidence (module Q1FaithfulThirdChild): the faithful alternative to
+   the sentinel — a real 3-child constructor + a real third projector with a
+   PROVED decrease lemma — is expressible and Valid, axiom-free.
+
+   Q3 evidence (modules Q3Arity, Q3Mktuple).
+
+   NO `axiom` keyword appears in this file (grep -c '^axiom ' = 0).
+   The only unaxiomatized abstract symbol is Q3Arity's getter val, whose
+   `ensures { result >= 0 }` is an assumed CONTRACT (a trusted-stub-shaped
+   obligation to be discharged by body-verifying the getter), not an axiom
+   declaration.
+
+   Prove: why3 prove -P alt-ergo gh-spike.mlw   (fallback -P z3)            *)
+
+module Q1Projections
+
+  use int.Int
+  use string.String
+
+  (* Abstract program-level string builder: NO contract, NO axiom —
+     content-irrelevant under the type-safety+termination shape. *)
+  val cat (_a _b: string) : string
+
+  (* The emit_ir reader ADT, as ghost-handler-wall.md section 2 describes it:
+     leaves + a 2-child constructor (IrBin ~ IrBinOp op left right) + a
+     subscript node (IrSub value index) so svalue_of has its real branch. *)
+  type term =
+    | IrVar string
+    | IrStr string
+    | IrOther string
+    | IrBin string term term
+    | IrSub term term
+
+  (* Structural size measure. *)
+  let rec function size (t: term) : int
+    ensures { result >= 1 }
+    variant { t }
+  = match t with
+    | IrVar _ -> 1
+    | IrStr _ -> 1
+    | IrOther _ -> 1
+    | IrBin _ l r -> 1 + size l + size r
+    | IrSub v i -> 1 + size v + size i
+    end
+
+  (* The projectors, verbatim from the report: total, with the IrOther ""
+     sentinel on the fall-through branch. *)
+  let function left_of (t: term) : term
+  = match t with IrBin _ l _ -> l | _ -> IrOther "" end
+
+  let function right_of (t: term) : term
+  = match t with IrBin _ _ r -> r | _ -> IrOther "" end
+
+  let function svalue_of (t: term) : term
+  = match t with IrSub v _ -> v | _ -> IrOther "" end
+
+  predicate is_bin (t: term)
+  = match t with IrBin _ _ _ -> true | _ -> false end
+
+  (* The size-decrease lemmas, PROVED (plain lemmas over the definitions +
+     size's proved postcondition), NOT axioms. *)
+  lemma left_dec:  forall t: term. is_bin t -> size (left_of t)  < size t
+
+  let lemma right_dec (t: term)
+    requires { is_bin t }
+    ensures  { size (right_of t) < size t }
+  = match t with
+    | IrBin _ l r -> assert { right_of t = r && size l >= 1 }
+    | _ -> ()
+    end
+
+  (* The sentinel "decrease": on an IrBin node, svalue_of returns the CONSTANT
+     IrOther "" of size 1 — so it is trivially below any IrBin (size >= 3).
+     This lemma is TRUE and proves — that is exactly the problem Q1 probes:
+     it is a DIFFERENT (strictly weaker) obligation than "the real value
+     child is smaller than the node". *)
+  let lemma sentinel_dec (t: term)
+    requires { is_bin t }
+    ensures  { size (svalue_of t) < size t }
+  = match t with
+    | IrBin _ l r ->
+        assert { svalue_of t = IrOther "" && size l >= 1 && size r >= 1 }
+    | _ -> ()
+    end
+
+  (* THE MACHINE-CHECKABLE DISCRIMINATOR (proposed non-vacuity criterion,
+     in provable form). For every recursion site (handler dispatch shape S,
+     projector p), demand a proved CHILD-HOOD WITNESS: on shape S, p returns
+     one of the constructor's own arguments. left_of/right_of pass it on
+     IrBin; svalue_of on IrBin can only prove the opposite — that it returns
+     the CONSTANT sentinel, i.e. NOT a child. Both lemmas prove, and together
+     they separate the sound conversions from the facade site mechanically. *)
+  lemma right_is_child_on_bin:
+    forall op: string, l r: term. right_of (IrBin op l r) = r
+  lemma left_is_child_on_bin:
+    forall op: string, l r: term. left_of (IrBin op l r) = l
+  lemma svalue_is_NOT_child_on_bin:
+    forall op: string, l r: term. svalue_of (IrBin op l r) = IrOther ""
+
+  (* ---- (a) FAITHFUL: the table maps each attr to the child it really is
+          (SetAddExpr(set, elem): set->left_of, elem->right_of). ---- *)
+  let rec h_faithful (t: term) : string
+    requires { true }
+    ensures  { true }
+    variant  { size t }
+  = match t with
+    | IrBin _ _ _ ->
+        cat (h_faithful (left_of t)) (h_faithful (right_of t))
+    | _ -> "leaf"
+    end
+
+  (* ---- (b) SWAPPED: the single global table maps the attrs to the WRONG
+          positions (SetMemExpr(elem, set) read through the SetAdd table:
+          node.set projects to the elem child and vice versa). Recursion
+          arguments are still BOTH real structural children — just permuted. *)
+  let rec h_swapped (t: term) : string
+    requires { true }
+    ensures  { true }
+    variant  { size t }
+  = match t with
+    | IrBin _ _ _ ->
+        cat (h_swapped (right_of t)) (h_swapped (left_of t))
+    | _ -> "leaf"
+    end
+
+  (* ---- (c) SENTINEL: the handler's third/unmapped attr falls through to
+          svalue_of; on the IrBin node this handler is dispatched on, that is
+          the CONSTANT IrOther "" — NOT a sub-node of t. The recursion the
+          live handler performs on the real value child is replaced by a
+          recursion on a fresh constant leaf. (The committed map_set shape.) *)
+  let rec h_sentinel (t: term) : string
+    requires { true }
+    ensures  { true }
+    variant  { size t }
+  = match t with
+    | IrBin _ _ _ ->
+        cat (h_sentinel (left_of t)) (h_sentinel (svalue_of t))
+    | _ -> "leaf"
+    end
+
+  (* ---- (d) OPAQUE BASELINE: no recursion, no projector, no read of t at
+          all. Also proves under ensures true. This is the facade end of the
+          spectrum the campaign's non-vacuity rule exists to exclude — kept
+          here to show that "SUCCESS under ensures true" is NOT, by itself,
+          evidence of content. *)
+  let h_opaque (t: term) : string
+    requires { true }
+    ensures  { true }
+  = let _ = t in "stub"
+
+end
+
+(* Q1/Q2: the FAITHFUL alternative to the sentinel exists, axiom-free.
+   A 3-child node (MapSet dict key value) modeled with a REAL ternary
+   constructor and a REAL third projector whose decrease lemma is proved.
+   If this proves, the sentinel is not a boundary — it is a modeling
+   shortcut that substitutes an easier termination obligation where the
+   faithful one was available for the cost of one constructor + one
+   projector + one lemma. *)
+module Q1FaithfulThirdChild
+
+  use int.Int
+  use string.String
+
+  (* Abstract program-level string builder: NO contract, NO axiom —
+     content-irrelevant under the type-safety+termination shape. *)
+  val cat (_a _b: string) : string
+
+  type term =
+    | IrVar string
+    | IrOther string
+    | IrTer string term term term   (* MapSet: dict, key, value *)
+
+  let rec function size (t: term) : int
+    ensures { result >= 1 }
+    variant { t }
+  = match t with
+    | IrVar _ -> 1
+    | IrOther _ -> 1
+    | IrTer _ a b c -> 1 + size a + size b + size c
+    end
+
+  let function fst_of (t: term) : term
+  = match t with IrTer _ a _ _ -> a | _ -> IrOther "" end
+  let function snd_of (t: term) : term
+  = match t with IrTer _ _ b _ -> b | _ -> IrOther "" end
+  let function thd_of (t: term) : term
+  = match t with IrTer _ _ _ c -> c | _ -> IrOther "" end
+
+  predicate is_ter (t: term)
+  = match t with IrTer _ _ _ _ -> true | _ -> false end
+
+  lemma fst_dec: forall t: term. is_ter t -> size (fst_of t) < size t
+
+  let lemma snd_dec (t: term)
+    requires { is_ter t }
+    ensures  { size (snd_of t) < size t }
+  = match t with
+    | IrTer _ a b c -> assert { snd_of t = b && size a >= 1 && size c >= 1 }
+    | _ -> ()
+    end
+
+  lemma thd_dec: forall t: term. is_ter t -> size (thd_of t) < size t
+
+  (* map_set, FAITHFUL: dict->fst_of, key->snd_of, value->thd_of — every
+     recursion argument is the REAL child the live handler recurses on. *)
+  let rec h_map_set_faithful (t: term) : string
+    requires { true }
+    ensures  { true }
+    variant  { size t }
+  = match t with
+    | IrTer _ _ _ _ ->
+        cat (h_map_set_faithful (fst_of t))
+          (cat (h_map_set_faithful (snd_of t))
+                  (h_map_set_faithful (thd_of t)))
+    | _ -> "leaf"
+    end
+
+end
+
+(* Q3a: `Array.make !arity "_"` with the arity from an abstract getter.
+   BOUNDED probe: give the getter the nonneg-safe contract and nothing else;
+   the Array.make precondition (0 <= n) must discharge axiom-free.
+   The failing twin (getter with NO ensures) is in gh-spike-controls.mlw. *)
+module Q3Arity
+
+  use int.Int
+  use string.String
+  use array.Array
+
+  val get_arity_safe (_u: unit) : int
+    ensures { result >= 0 }
+
+  let mk_ctor_test (_u: unit) : array string
+    requires { true }
+    ensures  { true }
+  = Array.make (get_arity_safe ()) "_"
+
+end
+
+(* Q3b: variadic list-child fold (mktuple's node.elts) under ensures true:
+   a list projector (with the Nil sentinel fall-through, same discipline as
+   the report's scalar projectors) + a mutually recursive fold, terminating
+   by the size measure — axiom-free. *)
+module Q3Mktuple
+
+  use int.Int
+  use string.String
+
+  (* Abstract program-level string builder: NO contract, NO axiom —
+     content-irrelevant under the type-safety+termination shape. *)
+  val cat (_a _b: string) : string
+
+  use list.List
+  use list.Mem
+
+  type term =
+    | IrVar string
+    | IrOther string
+    | IrTuple (list term)
+
+  let rec function size (t: term) : int
+    ensures { result >= 1 }
+    variant { t }
+  = match t with
+    | IrVar _ -> 1
+    | IrOther _ -> 1
+    | IrTuple l -> 1 + size_list l
+    end
+  with function size_list (l: list term) : int
+    ensures { result >= 0 }
+    variant { l }
+  = match l with
+    | Nil -> 0
+    | Cons x rest -> 1 + size x + size_list rest
+    end
+
+  let function elts_of (t: term) : list term
+  = match t with IrTuple l -> l | _ -> Nil end
+
+  predicate is_tuple (t: term)
+  = match t with IrTuple _ -> true | _ -> false end
+
+  lemma elts_dec: forall t: term. is_tuple t -> size_list (elts_of t) < size t
+
+  let rec h_mktuple (t: term) : string
+    requires { true }
+    ensures  { true }
+    variant  { size t }
+  = match t with
+    | IrTuple _ -> fold_elts (elts_of t)
+    | _ -> "leaf"
+    end
+  with fold_elts (l: list term) : string
+    requires { true }
+    ensures  { true }
+    variant  { size_list l }
+  = match l with
+    | Nil -> ""
+    | Cons x rest -> cat (h_mktuple x) (fold_elts rest)
+    end
+
+end

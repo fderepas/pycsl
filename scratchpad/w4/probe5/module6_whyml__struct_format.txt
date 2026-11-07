@@ -1,0 +1,2 @@
+L3TC-FAIL            <module>.parse_format  ['The type of top-level exception Return__union_parse_format_0 has mutable components']
+L3TC-FAIL            <module>.calcsize  ['This expression has type int, but is expected to have type string']

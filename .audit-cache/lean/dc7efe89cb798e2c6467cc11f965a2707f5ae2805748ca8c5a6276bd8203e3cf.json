@@ -1,0 +1,13 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.6642026490299031,
+  "qualname_results": [
+    [
+      "Pycsl.Reference.Perm.permut_refl",
+      true,
+      []
+    ]
+  ]
+}

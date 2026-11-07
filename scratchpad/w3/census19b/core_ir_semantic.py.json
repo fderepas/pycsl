@@ -1,0 +1,1 @@
+[{"file": "core_ir_semantic.py", "cls": null, "name": "_namedtuple_check_subscript", "tc": false}, {"file": "core_ir_semantic.py", "cls": null, "name": "_namedtuple_check_call", "tc": false}, {"file": "core_ir_semantic.py", "cls": null, "name": "_typeddict_check_subscript", "tc": false}, {"file": "core_ir_semantic.py", "cls": null, "name": "run_ir_semantic_checks", "tc": false}]

@@ -1,0 +1,18 @@
+--- self-annotation suite ---
+[0;31m[FAIL][0m src/pycsl/errors.py
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/tmp/.pycsl_50vcoesf.mlw", line 39, characters 264-283:
+This expression has type string, but is expected to have type int
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
+[0;32m[PASS][0m src/self-annotate/src/errors.py
+[0;32m[PASS][0m src/self-annotate/src/ir_schema.py
+[0;32m[PASS][0m src/self-annotate/src/exception_model.py
+[0;32m[PASS][0m src/self-annotate/src/module6_whyml/identifiers.py
+[0;32m[PASS][0m src/self-annotate/src/module6_whyml/scc.py
+[0;32m[PASS][0m src/self-annotate/src/module6_whyml/abstract_ops.py

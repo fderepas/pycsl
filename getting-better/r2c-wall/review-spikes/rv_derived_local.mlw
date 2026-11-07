@@ -1,0 +1,134 @@
+(* r2c-wall REVIEW spike (independent reviewer, 2026-10-22).
+   Same definitions as spike/r2c_writeback.mlw (verbatim hval ADT, pairs_set, hval_list_set,
+   rewrite_all with `ref` root + writes { ir }). Adds the twins the review needs:
+
+   1. derived_local_hole: the CALLER-SIDE variant of alias_hole. The caller does not store
+      a shared value INTO the root; it READS a sub-object OUT of the root (`funcs =
+      ir["functions"]`, as apply_inline_globals does at ir_inline.py:521) BEFORE calling the
+      mutator with `assigns ir`. In the value model the read is a snapshot and keeps the old
+      element -> the assertion PROVES. CPython: `funcs` is the same list object and sees the
+      write. The report's obligations (i)-(iv) are all callee-side / same-body; this hole is
+      at the CALL SITE of a converted mutator and needs a fifth rule (kill every live local
+      derived from an `assigns` argument).
+   2. derived_local_ok: the same program with the local RE-READ after the call: proves the
+      NEW value (so the hole is the snapshot, not the write-back).
+   3. pairs_set_appends: pairs_set on a missing key appends at the END (report §4.2 claim).
+   4. pairs_set_dup: on a PREPEND-built pair list with a duplicate key (the literal builder
+      prepends, report §2.1), pairs_set replaces only the FIRST binding -- pairs_get agrees,
+      but the stale second binding survives: `len`/`.items()` over hpairs would be off by one.
+      A write-back build must either guarantee literal-built hpairs are duplicate-free or
+      define len/items through the first-binding view. *)
+module R2cReview
+  use int.Int
+  use map.Map
+  use map.Const
+  use option.Option
+  use ref.Ref
+
+  type hval = HStr string | HInt int | HArr hval_list | HMap hpairs | HNode hval
+  with hval_list = HNil | HCons hval hval_list
+  with hpairs = PNil | PCons string hval hpairs
+
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+  val function hpairs_key_eq (a b: string) : bool ensures { result <-> a = b }
+
+  let rec function pairs_get (p: hpairs) (k: string) : option hval
+    variant { p }
+  = match p with PNil -> None | PCons k' v t -> if hpairs_key_eq k k' then Some v else pairs_get t k end
+
+  let rec function pairs_set (p: hpairs) (k: string) (v: hval) : hpairs
+    variant { p }
+  = match p with PNil -> PCons k v PNil
+    | PCons k' v' t -> if hpairs_key_eq k k' then PCons k' v t else PCons k' v' (pairs_set t k v) end
+
+  let rec lemma pairs_set_get (p: hpairs) (k j: string) (v: hval)
+    variant { p }
+    ensures { pairs_get (pairs_set p k v) j = if k = j then Some v else pairs_get p j }
+  = match p with PNil -> () | PCons _ _ t -> pairs_set_get t k j v end
+
+  let rec function hval_list_len (l: hval_list) : int
+    variant { l }
+  = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end
+  let rec lemma len_nonneg (l: hval_list) variant { l } ensures { hval_list_len l >= 0 }
+  = match l with HNil -> () | HCons _ t -> len_nonneg t end
+
+  let rec function hval_list_nth (l: hval_list) (i: int) : hval
+    variant { l }
+  = match l with HNil -> HInt 0 | HCons h t -> if i = 0 then h else hval_list_nth t (i - 1) end
+
+  let rec function hval_list_set (l: hval_list) (i: int) (x: hval) : hval_list
+    variant { l }
+  = match l with HNil -> HNil | HCons h t -> if i = 0 then HCons x t else HCons h (hval_list_set t (i - 1) x) end
+
+  let rec lemma list_set_len (l: hval_list) (i: int) (x: hval)
+    variant { l } ensures { hval_list_len (hval_list_set l i x) = hval_list_len l }
+  = match l with HNil -> () | HCons _ t -> list_set_len t (i - 1) x end
+  let rec lemma list_set_nth (l: hval_list) (i j: int) (x: hval)
+    requires { 0 <= i < hval_list_len l } requires { 0 <= j }
+    variant { l }
+    ensures { hval_list_nth (hval_list_set l i x) j = if i = j then x else hval_list_nth l j }
+  = match l with HNil -> () | HCons _ t -> if i > 0 && j > 0 then list_set_nth t (i - 1) (j - 1) x end
+
+  let function fns (m: map string (option hval)) : hval_list =
+    match Map.get m "functions" with Some (HArr l) -> l | _ -> HNil end
+
+  let function upd (h: hval) (v: hval) : hval =
+    match h with HMap p -> HMap (pairs_set p "symbol_table" v) | _ -> h end
+
+  let rewrite_all (ir: ref (map string (option hval))) (v: hval) : unit
+    requires { match Map.get !ir "functions" with Some (HArr _) -> true | _ -> false end }
+    writes { ir }
+    ensures { hval_list_len (fns !ir) = hval_list_len (fns (old !ir)) }
+    ensures { forall j. 0 <= j < hval_list_len (fns !ir) ->
+                hval_list_nth (fns !ir) j = upd (hval_list_nth (fns (old !ir)) j) v }
+    ensures { forall k. k <> "functions" -> Map.get !ir k = Map.get (old !ir) k }
+  = let n = hval_list_len (fns !ir) in
+    for i = 0 to n - 1 do
+      invariant { hval_list_len (fns !ir) = n }
+      invariant { match Map.get !ir "functions" with Some (HArr _) -> true | _ -> false end }
+      invariant { forall j. 0 <= j < i -> hval_list_nth (fns !ir) j = upd (hval_list_nth (fns (old !ir)) j) v }
+      invariant { forall j. i <= j < n -> hval_list_nth (fns !ir) j = hval_list_nth (fns (old !ir)) j }
+      invariant { forall k. k <> "functions" -> Map.get !ir k = Map.get (old !ir) k }
+      let l = fns !ir in
+      let f = hval_list_nth l i in
+      ir := map_update_some !ir "functions" (HArr (hval_list_set l i (upd f v)))
+    done
+
+  (* 1. CALLER-SIDE hole: `funcs = ir["functions"]; rewrite(ir); funcs[0]["symbol_table"]`.
+     Python sees v. The value model keeps st0 -> PROVES. Must become an emit-time refusal. *)
+  let derived_local_hole () : unit
+  = let st0 = HMap PNil in
+    let f0 = HMap (PCons "name" (HStr "m") (PCons "symbol_table" st0 PNil)) in
+    let ir = ref (Map.set (const None) "functions" (Some (HArr (HCons f0 HNil)))) in
+    let funcs = fns !ir in                      (* the derived local, read BEFORE the call *)
+    let v = HMap (PCons "x" (HStr "int") PNil) in
+    rewrite_all ir v;
+    match hval_list_nth funcs 0 with
+    | HMap p -> assert { pairs_get p "symbol_table" = Some st0 }   (* FALSE in CPython *)
+    | _ -> absurd end
+
+  (* 2. Re-reading the root after the call gives the new value: the write-back itself is fine. *)
+  let derived_local_ok () : unit
+  = let st0 = HMap PNil in
+    let f0 = HMap (PCons "name" (HStr "m") (PCons "symbol_table" st0 PNil)) in
+    let ir = ref (Map.set (const None) "functions" (Some (HArr (HCons f0 HNil)))) in
+    let v = HMap (PCons "x" (HStr "int") PNil) in
+    rewrite_all ir v;
+    let funcs = fns !ir in
+    match hval_list_nth funcs 0 with
+    | HMap p -> assert { pairs_get p "symbol_table" = Some v }
+    | _ -> absurd end
+
+  (* 3. insertion order: a new key goes to the END *)
+  let pairs_set_appends () : unit
+  = let p = PCons "a" (HInt 1) PNil in
+    assert { pairs_set p "b" (HInt 2) = PCons "a" (HInt 1) (PCons "b" (HInt 2) PNil) }
+
+  (* 4. duplicate key (prepend-built): only the FIRST binding is replaced; the stale one stays *)
+  let pairs_set_dup () : unit
+  = let p = PCons "a" (HInt 2) (PCons "a" (HInt 1) PNil) in   (* {"a":1,"a":2} built by prepend *)
+    let q = pairs_set p "a" (HInt 9) in
+    assert { pairs_get q "a" = Some (HInt 9) };
+    assert { q = PCons "a" (HInt 9) (PCons "a" (HInt 1) PNil) }
+end

@@ -1,5 +1,10 @@
 """Test 0211 — Python Reference 8.10.2: Generic classes"""
-# pycsl-expected: FAIL
+# (#44) WAS `pycsl-expected: FAIL`, and it PROVES today. Its contract is TRUE of the
+# program, so this is a CAPABILITY GAIN, not a soundness regression — the construct
+# it exercises became supported after the file was written. Found by making the
+# suite report XPASS as a FAILURE: until then an expected-FAIL test that started
+# proving was reported PASS, which made all 241 negative witnesses unenforceable.
+# pycsl-expected: PASS
 _ = 0  # anchor
 #@ ensures \result == 0
 def test_generic_classes() -> int:

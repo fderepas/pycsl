@@ -1,0 +1,30 @@
+  let rec _substitute (node: pyval) (self_name: string) (param_map: map string (option pyval)) (rename: map string (option string)) : pyval
+    requires { true } ensures { true }
+    variant { pv_size node }
+  = match node with
+    | PList xs -> PList (_substitute__list xs self_name param_map rename)
+    | PDict d ->
+        (match _substitute__get d K_type with
+         | Some (PStr ty) -> if pystr_eq ty "Var" then
+             (match _substitute__get d K_name with
+              | Some (PStr nm) ->
+                  (match Map.get param_map nm with
+                   | Some pv -> pv
+                   | None ->
+                       (match Map.get rename nm with
+                        | Some rn -> PDict (DCons K_type (PStr "Var") (DCons K_name (PStr rn) DNil))
+                        | None -> PDict d end)
+                   end)
+              | _ -> PDict d end)
+             else PDict (_substitute__post (_substitute__dict d self_name param_map rename) self_name rename)
+         | _ -> PDict (_substitute__post (_substitute__dict d self_name param_map rename) self_name rename)
+        end)
+    | _ -> node
+    end
+  with _substitute__dict (d: pydict) (self_name: string) (param_map: map string (option pyval)) (rename: map string (option string)) : pydict
+    variant { size_dict d }
+  = match d with
+    | DNil -> DNil
+    | DCons k v rest -> DCons k (_substitute v self_name param_map rename) (_substitute__dict rest self_name param_map rename)
+    end
+  with _substitute__list (xs: list pyval) (self_name: string) (param_map: map string (option pyval)) (rename: map string (option string)) : list pyval

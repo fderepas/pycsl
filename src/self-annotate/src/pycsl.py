@@ -39,7 +39,6 @@ from frontend.ConcurrencyChecker import ConcurrencyChecker
 from frontend.ir_resolve import resolve as _ir_resolve, _collect_calls
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -137,7 +136,6 @@ def _find_coqc() -> Optional[str]:
     return _sh.which("coqc")
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -445,7 +443,7 @@ def _print_soundness_report(report: Dict[str, Any]) -> None:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns args
 def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace) -> str:
     """Run Modules 1–6 on *source_code*. Returns WhyML code string."""
     print(f"[*] Parsing and Semantic Analysis for '{args.file}'...")
@@ -602,12 +600,18 @@ def _why3_typecheck(mlw_filename: str):
     Returns ``(ok: bool, diagnostic: str)``. A run is only honestly SUCCESS if this
     passes — emitting text that does not even type-check is the silent success the spec
     (refactor.md §1.5 / Phase D) forbids. A missing why3 is NOT a failure (we do not turn
-    an absent prover into a false typecheck-fail) — it is reported as skipped."""
+    an absent prover into a false typecheck-PASS) — (#49) gen #36: a missing why3 used to
+    return ok=True, and the caller then printed `L3-tc ✓` and "WhyML generated AND
+    type-checks" for WhyML nobody had checked (measured: an ill-typed emission reported
+    SUCCESS under `env -i`). An unchecked emission is not a checked one, so it FAILS CLOSED;
+    `--no-typecheck` is the honest opt-out."""
     try:
         r = subprocess.run(["why3", "prove", "--type-only", mlw_filename],
                            capture_output=True, text=True)
     except FileNotFoundError:
-        return True, "(why3 not found — typecheck skipped)"
+        return False, ("why3 not found on PATH — the type-check could NOT run, so this is "
+                       "NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck "
+                       "for an explicitly emit-only run.")
     if r.returncode == 0:
         return True, ""
     return False, (r.stderr.strip() or r.stdout.strip())
@@ -667,20 +671,17 @@ class _MergeConservationError(Exception):
     non-Valid one). It is a trust-free, fail-closed backstop: it depends on NO merge
     implementation being correct, so it survives any future rewrite of the merge.
     See soundness-issue.md (Tier 0)."""
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def __init__(self, expected: int, got: int):
+    def __init__(self, expected: int, got: int, msg: str):
+        # (run #4, route #519) the message is formatted by the RAISER: an f-string of an
+        # int in a constructor is refused (ValueError past 4300 digits, never judged).
         self.expected = expected
         self.got = got
-        super().__init__(
-            f"merge dropped goal(s): first full-file run enumerated {expected} "
-            f"goal block(s) but the merged result has only {got} — refusing to "
-            f"report a verdict (a dropped goal must never silently pass).")
+        super().__init__(msg)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -697,7 +698,11 @@ def _check_goal_conservation(first_full_output: str, merged_output: str) -> None
     first_n = len(_parse_goal_blocks(first_full_output))
     merged_n = len(_parse_goal_blocks(merged_output))
     if merged_n < first_n:
-        raise _MergeConservationError(first_n, merged_n)
+        raise _MergeConservationError(
+            first_n, merged_n,
+            f"merge dropped goal(s): first full-file run enumerated {first_n} "
+            f"goal block(s) but the merged result has only {merged_n} — refusing to "
+            f"report a verdict (a dropped goal must never silently pass).")
 
 
 # --- Structured (`why3 prove --json`) goal handling -------------------------------
@@ -751,19 +756,17 @@ def _json_goal_records(stdout: str) -> "List[dict]":
     return [r for r in _parse_why3_json(stdout) if "prover-result" in r]
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _record_answer(rec: dict) -> str:
+def _record_answer(rec: Dict[str, PyVal]) -> str:
     return (rec.get("prover-result") or {}).get("answer", "") or ""
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _record_is_valid(rec: dict) -> bool:
+def _record_is_valid(rec: Dict[str, PyVal]) -> bool:
     """Soundness chokepoint: ONLY a literal 'Valid' answer counts as proven.
     Invalid / Unknown / Timeout / OutOfMemory / Failure / ... are never proven."""
     return _record_answer(rec) == "Valid"
@@ -1205,9 +1208,9 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
         # run is SUCCESS only if the emitted WhyML at least TYPE-CHECKS (`why3 prove
         # --type-only`) — never merely "text emitted" (§1.5). `--no-typecheck` opts out
         # (fast emit-only, for byte-diff/dev sweeps and when why3 is absent). `--typecheck`
-        # is now a harmless no-op alias (the gate is already on). A missing why3 is treated
-        # as skip-not-fail by `_why3_typecheck` (ok=True), so the gate never turns an absent
-        # prover into a false failure.
+        # is now a harmless no-op alias (the gate is already on). A missing why3 now FAILS
+        # CLOSED in `_why3_typecheck` (gen #36): it used to be ok=True, which printed `L3-tc ✓`
+        # for an emission nobody checked.
         if not getattr(args, "no_typecheck", False):
             ok, diag = _why3_typecheck(mlw_filename)
             print(f"[level] L1 ✓  L2 ✓  L3-tc {'✓' if ok else '✗'}")
@@ -1398,7 +1401,7 @@ def _run_audit_mode(args: argparse.Namespace) -> int:
     the kernel-axiom allow-list (see sticky-01.md Phase 0).
     """
     from pathlib import Path
-    from audit_proof import audit_rocq, audit_lean, AuditReport, print_report
+    from audit_proof import audit_rocq, audit_lean, AuditReport, print_report, _Directive
     py = Path(args.file)
     rocq_dir = Path(args.rocq_proofs_path) if args.rocq_proofs_path else None
     lean_dir = Path(args.lean_proofs_path) if args.lean_proofs_path else None

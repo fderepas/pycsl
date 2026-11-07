@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt29/b26_kwargs_plus_pos.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_5xer6n3n.mlw", line 23, characters 8-10: unused variable kw
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

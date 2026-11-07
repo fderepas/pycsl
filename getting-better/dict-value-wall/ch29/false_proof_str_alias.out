@@ -1,0 +1,21 @@
+[*] Parsing and Semantic Analysis for 'false_proof_str_alias.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_hndnb_pk.mlw", line 17, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.01s, 6800 steps).
+
+File "/tmp/.pycsl_hndnb_pk.mlw", line 17, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 635 steps).
+
+File "/tmp/.pycsl_hndnb_pk.mlw", line 24, characters 21-37:
+Sub-goal precondition of goal main'vc.
+Prover result is: Valid (0.01s, 532 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_hndnb_pk.mlw", line 15, characters 9-13: unused variable func
+
+[+] Verification SUCCESS! All contracts formally proven.

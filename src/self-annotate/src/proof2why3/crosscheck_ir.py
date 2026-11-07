@@ -18,7 +18,7 @@ from proof2why3.extract import extract_lean_statements, extract_rocq_statements
 from proof2why3.extract_lean_meta import extract_lean_statements_meta, lean_meta_available
 from proof2why3.from_lean_json import project_to_ir as lean_ast_to_ir
 from proof2why3.from_sexp import project_constr
-from proof2why3.ir import Term, Unsupported
+from proof2why3.ir import App, BinOp, BoolLit, Exists, Forall, IntLit, Term, UnaryOp, Unsupported, Var
 from proof2why3.parser import parse_type_expr
 from proof2why3.sertop import extract_via_sertop, sertop_available
 ""  # pycsl
@@ -35,14 +35,64 @@ class IRCrossCheckResult:
     rocq_canon: Optional[Term] = None
     lean_canon: Optional[Term] = None
     registry_canon: Optional[Term] = None
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def all_agree(self) -> bool:
-        return False
+        canons = [c for c in
+                  (self.rocq_canon, self.lean_canon, self.registry_canon)
+                  if c is not None]
+        if not canons:
+            return False
+        return all(c == canons[0] for c in canons)
 
+    # CERTIFIED-BOUNDARY, RE-MEASURED A FOURTH TIME (relaunch #17) — and the RECORDED
+    # REOPENING CAPABILITY WAS WRONG. The relaunch-#16 record said the cause was a
+    # [DEGENERATE SYNTHESIZED UNION] because "`Term` is an OPAQUE MARKER CLASS", and named
+    # the fix as "give the `Some` arm an OPAQUE payload". That capability was built and
+    # landed this session (it is right, and it fixed four other files) — but it is the
+    # WRONG FIX HERE, and the premise it rested on is FALSE FOR THIS FILE. Read from disk:
+    # `Term` is NOT opaque in `crosscheck_ir.mlw`. It is a CERTIFIED 9-constructor Why3
+    # inductive `type term` with a structural `let rec term_eq`, and the `Optional[Term]`
+    # canon FIELDS already lower to the faithful `option term` (Module5
+    # `_M5_OPTION_FIELD_ALLOWLIST` -> value_type "opaque_term" -> preamble `option term`
+    # when `_term_adt_spec` is present). The sibling methods `all_agree` and
+    # `provers_agree` ALREADY compare canons with `term_eq a b`. Converting `pairwise`
+    # onto an opaque `Arm_6_0 int` payload would therefore be a FAITHFULNESS REGRESSION
+    # RELATIVE TO ITS OWN SIBLINGS: an int-erased equality standing where a certified
+    # structural one already exists. (Lesson: verify the MODELLING premise against the
+    # emitted `.mlw`, not only the gate premise — a recorded reopening capability can be
+    # precisely wrong.)
+    #
+    # THE FAITHFUL ROUTE WAS SPIKED AND WORKS, and the blocker is TWO LEVELS FURTHER IN.
+    # Spike (measured on the type-checker, ~15 lines, kept at
+    # `scratchpad/w2/opt_term_param.spike.patch`, reverted): route `Optional[Term]` at the
+    # PARAMETER seam through the same `opaque_term` -> `option term` path the FIELD seam
+    # already takes, add the `option`-presence `is None` branch for such a param, and
+    # lower `a == b` on two of them to `(match a, b with Some x, Some y -> term_eq x y |
+    # _, _ -> false end)` at the INT type the union arm expects (lesson (bx): produce the
+    # lowering at the type the CONSUMER expects — this also SUBSUMES the "bool->int
+    # union-arm return wrap" the previous handoff predicted as a separate capability).
+    # With that, `cmp` emits FULLY FAITHFULLY: a real two-inhabitant presence test and a
+    # real `term_eq`. TWO gaps remain, and both are real:
+    #   (1) THE LIFTED NESTED `def`. `cmp(...)` does not resolve to the hoisted
+    #       `ircrosscheckresult__cmp` — it lowers to an abstract `cmp_2` op with
+    #       int-coerced arguments. This codebase has NO generic route for calling a
+    #       lifted nested def: every nested-def shape it supports is handled by a
+    #       BESPOKE outer+lifted recognizer pair in `generic_fold.py`.
+    #   (2) `Dict[str, Optional[bool]]` IS NOT EXPRESSIBLE. The dict model already spends
+    #       `option` on KEY PRESENCE (`map <k> (option <v>)`), so a Python `None` VALUE is
+    #       indistinguishable from an ABSENT KEY. A converted `pairwise` would claim
+    #       `Map.get m "rocq==lean" = None` — "there is no such key" — for exactly the case
+    #       Python represents as "key present, value None". That is lesson (ca)'s trade of
+    #       a havoc for a wrong definite value, in the other direction.
+    # DEMAND is also nil: the only reader of `.pairwise` is `diagnostic()`, itself
+    # `\trusted`.
+    # REOPENING CAPABILITY (corrected, all three needed): (a) the `Optional[Term]` PARAM
+    # route [SPIKED, works]; (b) generic lifted-nested-def call resolution, or a bespoke
+    # `recognize_crosscheck_pairwise` group beside the existing `recognize_crosscheck_*`
+    # family; (c) a dict value model that distinguishes an ABSENT key from a present
+    # `None` value.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -51,37 +101,40 @@ class IRCrossCheckResult:
     def pairwise(self) -> Dict[str, Optional[bool]]:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def any_unsupported(self) -> bool:
-        return False
+        return any(isinstance(c, Unsupported)
+                   for c in (self.rocq_canon, self.lean_canon,
+                             self.registry_canon)
+                   if c is not None)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def all_present_unsupported(self) -> bool:
-        return False
+        canons = [c for c in (self.rocq_canon, self.lean_canon,
+                              self.registry_canon) if c is not None]
+        if not canons:
+            return False
+        return all(isinstance(c, Unsupported) for c in canons)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def registry_skipped(self) -> bool:
-        return False
+        return (not self.registry_raw) and (
+            self.rocq_canon is not None or self.lean_canon is not None
+        )
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def provers_agree(self) -> bool:
-        return False
+        if self.rocq_canon is None or self.lean_canon is None:
+            return True
+        return self.rocq_canon == self.lean_canon
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -94,16 +147,33 @@ class IRCrossCheckResult:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
+#@ raises RuntimeError when True
 #@ assigns \nothing
 def _load_axiom_registry() -> int:
     return {}
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _preprocess_whyml(body: str) -> str:
-    return ""
+    """Rewrite Why3 axiom-body surface syntax into the parser's grammar.
+
+    - Why3 separates a quantifier from its body with a dot
+      (`forall x : ty. body`, and chained `forall x:ty. forall y:ty2. …`);
+      the parser expects a comma. Convert every `: <type>.` to `: <type>,`
+      for any (possibly multi-word) type such as `array int`.
+    - Why3 writes conjunction as the two-character `/\\`; the lexer's
+      conjunction token is the three-character form used throughout the
+      IR (a raw-string artifact in `_OP_TOKENS`). Bridge the two so
+      registry conjunctions tokenize like the Rocq/Lean side.
+    """
+    import re as _re
+    # `... : <type>.` (end of a quantifier) → `... : <type>,`. The type is
+    # the run of identifiers/spaces between the colon and the dot.
+    out = _re.sub(r":\s*([A-Za-z_][\w ]*?)\.", r": \1,", body)
+    # Two-char `/\` → three-char `/\\` (the lexer's conjunction token).
+    out = out.replace("/\\", "/\\\\")
+    return out
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

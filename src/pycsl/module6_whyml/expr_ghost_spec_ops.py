@@ -18,7 +18,7 @@ class GhostSpecOpsMixin:
     (which stay in `ExpressionEmissionMixin`)."""
 
     def _handle_mktuple_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
-        parts = ", ".join(self._e(e, lr) for e in node.elts)
+        parts = ", ".join([self._e(e, lr) for e in node.elts])
         return f"({parts})"
 
     def _handle_fst_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:

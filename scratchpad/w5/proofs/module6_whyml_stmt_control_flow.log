@@ -1,0 +1,95 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/stmt_control_flow.py'...
+[*] Memory model: hoare
+[*] Imported class from 'ir_schema': ReturnStmt (record + 0 method stub(s) + 18 helper(s))
+[*] Imported class from 'ir_schema': IfStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': WhileStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ForStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': TryStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': MatchStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident', 'safe_exc_name'] (trusted stubs)
+[*] Imported from 'exception_model': ['handler_catches'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 672, characters 43-45: unused variable x0
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 711, characters 20-23: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 711, characters 34-36: unused variable xs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 718, characters 27-30: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 718, characters 41-42: unused variable i
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 769, characters 50-54: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 771, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 815, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 824, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 844, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 838, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 831, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 848, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 850, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 850, characters 76-81: unused variable stmts
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 852, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 854, characters 77-84: unused variable iter_ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 854, characters 96-106: unused variable local_refs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 854, characters 131-134: unused variable idx
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 856, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 859, characters 44-48: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 859, characters 73-79: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 860, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 862, characters 73-77: unused variable expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 862, characters 89-99: unused variable local_refs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 863, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 941, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 920, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 949, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 970, characters 8-15: unused variable iter_ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 959, characters 8-23: unused variable while_parts_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 955, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1092, characters 8-25: unused variable non_none_arms_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1091, characters 8-23: unused variable other_ctors_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1087, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1247, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1364, characters 14-21: unused variable new_pat
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1357, characters 16-29: unused variable arm_ctor_info
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1316, characters 8-16: unused variable arms_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1315, characters 8-17: unused variable lines_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1311, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1462, characters 49-53: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1469, characters 53-57: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1476, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1478, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1503, characters 8-17: unused variable ctor_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1496, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1628, characters 16-22: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1624, characters 18-24: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1621, characters 18-24: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1614, characters 18-24: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1610, characters 18-24: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1605, characters 16-22: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1599, characters 12-18: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1595, characters 10-16: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1639, characters 10-16: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1636, characters 10-16: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1776, characters 16-22: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1773, characters 16-22: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1769, characters 14-20: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1738, characters 40-46: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1735, characters 40-46: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1731, characters 38-44: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1727, characters 36-42: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1723, characters 34-40: unused variable py_val
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1573, characters 97-101: unused variable rest
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1573, characters 150-163: unused variable declared_refs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1575, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1787, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1810, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1824, characters 8-12: unused variable part
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1821, characters 8-11: unused variable tag
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1819, characters 8-20: unused variable arm_tags_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1816, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 1964, characters 15-19: unused variable result
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_z80kr9wq.mlw", line 2086, characters 26-52:
+This expression has type string -> option.Option.option string,
+but is expected to have type int
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

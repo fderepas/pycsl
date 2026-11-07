@@ -1,6 +1,19 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict
+
+
+class LogicSymbolView(TypedDict):
+    """Closed-key view of the exactly-three IR-function keys that the
+    `emits_as_logic_symbol` classifier reads. Runtime-inert (a TypedDict IS a
+    dict, so every existing caller passing a full function-IR dict is
+    unaffected); statically it monomorphizes to a native WhyML record with
+    faithful per-field types (`pure`/`lemma`: bool, `kind`: str), so the
+    self-annotation mirror can lower `func.get("k")` to the record field read
+    and `func.get("kind") == "method"` to a string compare (09-2223 G1/G2)."""
+    pure: bool
+    kind: str
+    lemma: bool
 
 
 def find_calls_in_ir(obj: Any, func_names_set: Set[str]) -> Set[str]:
@@ -88,7 +101,7 @@ def compute_sccs(names: Set[str], call_graph: Dict[str, Set[str]]) -> List[List[
     return sccs
 
 
-def emits_as_logic_symbol(func: Dict[str, Any]) -> bool:
+def emits_as_logic_symbol(func: LogicSymbolView) -> bool:
     """The SINGLE shared "is this a logic symbol" classifier (scc.md). A function
     whose contract reference forces WhyML declaration order is one that lowers to a
     real `let [rec] function`, so a `(f args)` term in a contract needs `f` declared
@@ -107,15 +120,23 @@ def emits_as_logic_symbol(func: Dict[str, Any]) -> bool:
 
 
 def sort_functions_by_scc(
-    functions: List[Dict[str, Any]]
+    functions: List[Dict[str, Any]],
+    extra_concrete: Optional[Set[str]] = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, tuple]]:
-    """Return functions in SCC-topological order and a scc_info dict."""
+    """Return functions in SCC-topological order and a scc_info dict.
+
+    `extra_concrete` (W8 capability (vi)) names further callees that are concrete-called
+    from a sibling — the RECORD-returning same-class methods, which lower to
+    `(<class>__<m> self)` rather than an abstract val — so they get the same
+    callee-before-caller ordering edges. Empty by default → identical ordering."""
     func_names_set = {func["name"] for func in functions}
     func_by_name = {func["name"]: func for func in functions}
     # allocator-frame plan §2.7: only `#@ sibling_concrete` callees are concrete-called
     # from siblings, so only they need callee-before-caller ordering edges.
     sibling_concrete_set = {func["name"] for func in functions
                             if func.get("sibling_concrete")}
+    if extra_concrete:
+        sibling_concrete_set |= (set(extra_concrete) & func_names_set)
     # scc.md: the only targets a contract reference may edge to are logic symbols.
     logic_symbols = {f["name"] for f in functions if emits_as_logic_symbol(f)}
     call_graph: Dict[str, Set[str]] = {}

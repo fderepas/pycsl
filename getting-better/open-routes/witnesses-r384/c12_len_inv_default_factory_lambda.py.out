@@ -1,0 +1,30 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt30/c12_len_inv_default_factory_lambda.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_ts9ewagp.mlw", line 13, characters 14-30:
+Sub-goal array creation size of goal d'vc.
+Prover result is: Valid (0.00s, 279 steps).
+
+File "/tmp/.pycsl_ts9ewagp.mlw", line 12, characters 16-39:
+Sub-goal type invariant of goal d'vc.
+Prover result is: Valid (0.01s, 584 steps).
+
+File "/tmp/.pycsl_ts9ewagp.mlw", line 18, characters 19-57:
+Sub-goal assertion of goal d__last'vc.
+Prover result is: Valid (0.01s, 5653 steps).
+
+File "/tmp/.pycsl_ts9ewagp.mlw", line 18, characters 61-71:
+Sub-goal index in array bounds of goal d__last'vc.
+Prover result is: Valid (0.00s, 5690 steps).
+
+File "/tmp/.pycsl_ts9ewagp.mlw", line 16, characters 15-36:
+Sub-goal postcondition of goal d__last'vc.
+Prover result is: Valid (0.00s, 507 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_ts9ewagp.mlw", line 16, characters 15-36: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

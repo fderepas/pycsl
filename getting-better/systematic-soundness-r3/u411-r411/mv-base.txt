@@ -1,0 +1,15 @@
+0742 rc=0 PROVED
+0958_term_string_pp rc=0 PROVED
+0959_term_string_pp_twin rc=0 PROVED
+1956_gen36_ipm_sc4_str_list_literal_seq rc=0 PROVED
+1957_gen36_ipm_sc4_str_list_literal_seq_false_claim rc=1 FAIL
+1958_gen36_reassigned_re_sub_string_local rc=0 PROVED
+1959_gen36_reassigned_re_sub_string_local_false_claim rc=1 FAIL
+5700_r5str_split_elem_strip_eq rc=0 PROVED
+6106_r417_contract_newline_eq rc=1 FAIL
+6107_r417_contract_newline_single rc=1 FAIL
+0020 rc=0 PROVED
+0023 rc=0 PROVED
+0028 rc=0 PROVED
+0030 rc=0 PROVED
+done

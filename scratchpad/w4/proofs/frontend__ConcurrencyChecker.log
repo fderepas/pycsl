@@ -1,0 +1,47 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/ConcurrencyChecker.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_w01yi7mb.mlw", line 36, characters 18-33:
+Sub-goal loop invariant init of goal concurrencychecker___walk_body'vc.
+Prover result is: Valid (0.00s, 761 steps).
+
+File "/tmp/.pycsl_w01yi7mb.mlw", line 38, characters 21-40:
+Sub-goal index in array bounds of goal concurrencychecker___walk_body'vc.
+Prover result is: Valid (0.00s, 1365 steps).
+
+File "/tmp/.pycsl_w01yi7mb.mlw", line 37, characters 16-47:
+Sub-goal loop variant decrease of goal concurrencychecker___walk_body'vc.
+Prover result is: Valid (0.01s, 10360 steps).
+
+File "/tmp/.pycsl_w01yi7mb.mlw", line 36, characters 18-33:
+Sub-goal loop invariant preservation of goal concurrencychecker___walk_body'vc.
+Prover result is: Valid (0.01s, 10198 steps).
+
+File "/tmp/.pycsl_w01yi7mb.mlw", line 31, characters 15-19:
+Sub-goal postcondition of goal concurrencychecker___walk_body'vc.
+Prover result is: Valid (0.00s, 941 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 25, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 25, characters 70-74: unused variable func
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 33, characters 8-12: unused variable stmt
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 29, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 43, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 43, characters 65-69: unused variable node
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 43, characters 77-81: unused variable held
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 43, characters 89-98: unused variable func_name
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 47, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 47, characters 75-78: unused variable var
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 47, characters 89-93: unused variable held
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 47, characters 101-110: unused variable func_name
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 47, characters 121-125: unused variable line
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 47, characters 133-138: unused variable write
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 51, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 53, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 55, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_w01yi7mb.mlw", line 57, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

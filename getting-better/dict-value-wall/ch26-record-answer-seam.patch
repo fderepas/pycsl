@@ -1,0 +1,184 @@
+diff --git a/getting-better/trusted-reasons.tsv b/getting-better/trusted-reasons.tsv
+index 17be8640..4c793469 100644
+--- a/getting-better/trusted-reasons.tsv
++++ b/getting-better/trusted-reasons.tsv
+@@ -429,7 +429,6 @@ pycsl.py	_why3_typecheck	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE
+ pycsl.py	_parse_goal_blocks	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
+ pycsl.py	_parse_why3_json	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+ pycsl.py	_json_goal_records	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
+-pycsl.py	_record_answer	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
+ pycsl.py	_record_key	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
+ pycsl.py	_merge_records_best_of_n	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
+ pycsl.py	_synthesize_block	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 39de1049..6e23b656 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -12698,6 +12698,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                 # (`_dict_value_types` codomain "hval") unwraps to an `hval`.
+                 if getattr(self, "_dict_value_types", {}).get(recv) == "hval":
+                     return True
++            # ch26 (_record_answer): the RECEIVER-form defaulted read
++            # `(<hval-expr>).get(k, D)` (`func == "get"`, receiver carried in the Call)
++            # lowers to the K7 `pairs_get` match below and yields a raw `hval`. TWO args
++            # only: the one-arg receiver form is the doubled read, which projects a STRING.
++            if (fn == "get" and len(e.get("args") or []) == 2
++                    and self._expr_is_pyval(e.get("receiver"))):
++                return True
++        # ch26 (_record_answer): `<hval-expr> or {}` / `<hval-expr> or []` is lowered by
++        # `_recognize_pyval_or_default` to the per-constructor truthiness select, whose
++        # value is an `hval` (the kept operand or the faithful empty carrier).
++        if t == "BinOp" and e.get("op") == "or":
++            _r = e.get("right")
++            if (isinstance(_r, dict) and _r.get("type") in ("DictLit", "ArrayLit")
++                    and not _r.get("keys") and not _r.get("elts")
++                    and self._expr_is_pyval(e.get("left"))):
++                return True
+         # self-tcb-reduction _field_type_of: a subscript `self.<field>[k]` on a
+         # `map string (option hval)` self-field produces an `hval` (unwrapped by the
+         # `_handle_subscript` hval-map path), so a chained `.get(...)` on it is the
+@@ -12791,6 +12807,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         _empty_default = (isinstance(right, dict)
+                           and right.get("type") in ("DictLit", "ArrayLit")
+                           and not right.get("keys") and not right.get("elts"))
++        if (not _empty_default and isinstance(right, dict)
++                and right.get("type") == "String"):
++            # ch26 (_record_answer): `<hval-expr> or "<lit>"` — a STRING-consumed hval
++            # with a string fallback. Python keeps the operand when it is truthy, else the
++            # literal; the kept operand is projected to its `HStr` carrier (`hstr_of`, the
++            # banked string projection of a string-consumed hval read). The result is
++            # `string`-typed: an hval/int consumer fails closed at L3-tc. Gated on a pyval
++            # left -> corpus byte-inert.
++            _lws = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
++            _rws = self._expr_to_whyml(right, local_refs or set(), invariant_ctx, subst)
++            return (f"(let v_or = {_lws} in "
++                    f"if hval_truthy v_or then hstr_of v_or else {_rws})")
+         if not _empty_default:
+             return None
+         _lw = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
+@@ -12926,6 +12954,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         if func_name == "get":
+             _rcv2 = expr.get("receiver")
+             _a2 = expr.get("args") or []
++            # ch26 (_record_answer): the RECEIVER-form DEFAULTED read `(<hval-expr>).get(k,
++            # D)` (e.g. `(rec.get("prover-result") or {}).get("answer", "")`) — the K7
++            # two-arg `pairs_get` match over the LOWERED receiver, the missing key / non-map
++            # receiver answering D itself (`_pyval_wrap`-tagged). It was the receiver-dropped
++            # `get_2 <hash k> <hash D>`, an input-blind facade. Yields a raw `hval`; a string
++            # consumer projects it (`or "<lit>"` below). Gated on a pyval receiver (only
++            # `Dict[str, PyVal]` files) and a string-literal key -> corpus byte-inert.
++            if (isinstance(_rcv2, dict) and self._expr_is_pyval(_rcv2)
++                    and len(_a2) == 2 and isinstance(_a2[0], dict)
++                    and _a2[0].get("type") == "String"):
++                _rvw2 = self._expr_to_whyml(_rcv2, local_refs or set(),
++                                            invariant_ctx, subst)
++                _kw2 = self._expr_to_whyml(_a2[0], local_refs or set(),
++                                           invariant_ctx, subst)
++                _dw2 = self._pyval_wrap(_a2[1], local_refs or set())
++                return (f"(match {_rvw2} with HMap m_k9 -> "
++                        f"(match pairs_get m_k9 {_kw2} with Some v_ -> v_ "
++                        f"| None -> {_dw2} end) | _ -> {_dw2} end)")
+             if (isinstance(_rcv2, dict) and self._expr_is_pyval(_rcv2)
+                     and len(_a2) == 1):
+                 _rvw = self._expr_to_whyml(_rcv2, local_refs or set(),
+diff --git a/src/self-annotate/src/pycsl.py b/src/self-annotate/src/pycsl.py
+index 3315b91f..062872db 100644
+--- a/src/self-annotate/src/pycsl.py
++++ b/src/self-annotate/src/pycsl.py
+@@ -753,7 +753,6 @@ def _json_goal_records(stdout: str) -> "List[dict]":
+     return [r for r in _parse_why3_json(stdout) if "prover-result" in r]
+ 
+ 
+-#@ \trusted reviewer: pycsl-self-annotate
+ #@ requires True
+ #@ ensures True
+ #@ assigns \nothing
+diff --git a/test-suite/corpus/pycsl-reference/3140_gen37_ch26_hval_receiver_get_or_str.py b/test-suite/corpus/pycsl-reference/3140_gen37_ch26_hval_receiver_get_or_str.py
+new file mode 100644
+index 00000000..cf0e832c
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/3140_gen37_ch26_hval_receiver_get_or_str.py
+@@ -0,0 +1,34 @@
++r"""Test 3140 — gen #37 ch26 (expected PASS): the receiver-form defaulted read over a heterogeneous
++`Dict[str, PyVal]` record, `(rec.get(k1) or {}).get(k2, "") or ""` (the shape of the emitter's own
++`pycsl._record_answer`, the soundness chokepoint's reader). At base the outer `.get` fell to the
++receiver-dropped `get_2 <hash k2> <hash "">` (the record erased, an int where a string is
++expected: L3-tc failed). Now it is the K7 `pairs_get` match over the LOWERED receiver (missing key
++or non-map receiver -> the default), and `<hval> or "<lit>"` keeps the operand when truthy,
++projected to its `HStr` carrier. A record WITHOUT the outer key answers "" (CPython: "").
++Twins: 3141, 3142 (must FAIL).
++"""
++# pycsl-expected: PASS
++from typing import Dict
++
++
++#@ requires True
++#@ ensures True
++#@ assigns \nothing
++def record_answer(rec: Dict[str, PyVal]) -> str:
++    return (rec.get("prover-result") or {}).get("answer", "") or ""
++
++
++#@ requires True
++#@ ensures \result == ""
++#@ assigns \nothing
++def answer_of_empty() -> str:
++    rec: Dict[str, PyVal] = {}
++    return (rec.get("prover-result") or {}).get("answer", "") or ""
++
++
++if __name__ == "__main__":
++    assert record_answer({}) == ""
++    assert record_answer({"prover-result": {"answer": "Valid"}}) == "Valid"
++    assert record_answer({"prover-result": None}) == ""
++    assert answer_of_empty() == ""
++    print("ok")
+diff --git a/test-suite/corpus/pycsl-reference/3141_gen37_ch26_hval_receiver_get_or_str_false_claim.py b/test-suite/corpus/pycsl-reference/3141_gen37_ch26_hval_receiver_get_or_str_false_claim.py
+new file mode 100644
+index 00000000..4a553f27
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/3141_gen37_ch26_hval_receiver_get_or_str_false_claim.py
+@@ -0,0 +1,19 @@
++r"""Test 3141 — gen #37 ch26 (expected FAIL): FALSE twin of 3140. The record CARRIES
++`{"prover-result": {"answer": "Valid"}}`, so CPython returns "Valid", and `\result == ""` must
++stay UNPROVED. Non-vacuity of the seam: the receiver-form `.get` reads the record (a facade that
++answered the default whatever the record held would prove this false claim).
++"""
++# pycsl-expected: FAIL
++from typing import Dict
++
++
++#@ requires True
++#@ ensures \result == ""
++#@ assigns \nothing
++def answer_of_valid() -> str:
++    rec: Dict[str, PyVal] = {"prover-result": {"answer": "Valid"}}
++    return (rec.get("prover-result") or {}).get("answer", "") or ""
++
++
++if __name__ == "__main__":
++    print(repr(answer_of_valid()))
+diff --git a/test-suite/corpus/pycsl-reference/3142_gen37_ch26_hval_receiver_get_or_str_wrong_default.py b/test-suite/corpus/pycsl-reference/3142_gen37_ch26_hval_receiver_get_or_str_wrong_default.py
+new file mode 100644
+index 00000000..b364cd44
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/3142_gen37_ch26_hval_receiver_get_or_str_wrong_default.py
+@@ -0,0 +1,18 @@
++r"""Test 3142 — gen #37 ch26 (expected FAIL): FALSE twin of 3140. A record without the outer key
++answers the literal fallback "" (CPython: ""), never another string: `\result == "x"` must stay
++UNPROVED (the `or "<lit>"` arm returns ITS literal, not an unconstrained string).
++"""
++# pycsl-expected: FAIL
++from typing import Dict
++
++
++#@ requires True
++#@ ensures \result == "x"
++#@ assigns \nothing
++def answer_of_empty() -> str:
++    rec: Dict[str, PyVal] = {}
++    return (rec.get("prover-result") or {}).get("answer", "") or ""
++
++
++if __name__ == "__main__":
++    print(repr(answer_of_empty()))

@@ -954,3 +954,245 @@ FAIL`: a false byte-content conflation `b[0]` claimed `== b[1]` — stays UNPROV
 over-claim). Repro `getting-better/wrong-lowering/wl06_bytes_index_WRONGREPR.py` → TYPEERR→type-checks
 (bare read UNPROVEN on the honest bounds VC). `wrong-lowering-to-fix.md` §WL-06 (→ FIXED) + summary
 table (ALL 6 WL-* FIXED), and translational §T.15.6 updated.
+
+---
+
+## WL-04a — str/float LIST-LITERAL local & return are element-faithful (`array string`/`array real`)
+
+**Date:** 2026-07-05. **Branch:** `ghost-assign-bc6`. **Status:** IMPLEMENTED.
+
+**Decision.** Realize a `List[str]`/`List[float]` LOCAL or RETURN built by a LIST LITERAL
+(`a = ["x", "y"]`, `return ["a", "b"]`, `return [1.5, 2.5]`) at the FAITHFUL element type
+(`array string` / `array real`) — the CONSTRUCTION analog of the WL-04 PARAMETER fix (`d2e500f0`).
+This closes the "LOCALS / RETURN" residual that WL-04 explicitly filed as a distinct pre-existing
+surface.
+
+**Why.** WL-04 realized a `List[str]`/`List[float]` PARAMETER element as `array string`/`array real`,
+but a list-literal CONSTRUCTION still ran every element through `_coerce_to_int`: `["x","y"]` emitted
+`Array.make 2 (747471683)` (a `stable_hash`ed int placeholder) and a float read folded to the
+int-truncated value (`[1.5,2.5]`, `a[1]`→`2`). So a str-list LOCAL's element read was wrong-typed
+(`int` vs `string`) and a `-> List[str]` RETURN mismatched its `array string` type (TYPEERR) — a
+legitimate faithful-typed program REJECTED. Faithful semantics (no-more-int doctrine) demands the
+literal carry its real string/real element values.
+
+**Implementation (4 guarded edits).**
+1. `module6_whyml/expressions.py::_expr_to_whyml` (`ArrayLitExpr` arm): detect an ALL-string (resp.
+   ALL-float) literal and build `(let _alit = Array.make n e0 in _alit[i] <- ei; …; _alit)` at the
+   faithful element type — NO `_coerce_to_int`. Mixed / non-scalar literals keep the int default.
+2. `module6_whyml/types.py::_track_collection_metadata`: a PURE-float literal folds an indexed read
+   to the faithful real (`2.5`), not the int-truncated `2`. Int / mixed literals unchanged.
+3. `frontend/Module5_IREmitter.py`: a `-> List[float]` return captures `return_value_type = "real"`
+   (via the `_m5_get_list_flat_elem_whyml` fallback), so Module6 emits `array real`.
+4. `module6_whyml/functions.py::_compute_return_type`: `return_value_type == "real"` → `array real`;
+   `expressions.py::_handle_subscript` L0 widened from `array int`-only to ANY `array τ` return, so
+   `\result[i]` on a str/float array return lowers to a native `Array.get`.
+
+**Additive / no regression.** The full 704-file `pycsl-reference` corpus emits BYTE-IDENTICALLY
+(`bin/byte-diff-sweep.sh`, before/after via stash — only the 3 new locks are new); an all-`int`/`bool`
+literal stays `array int`. NO new axiom. `\trusted` non-increasing. Drivers
+`getting-better/wrong-lowering/wl04a_list_literal_{str_local,str_return,float_local}_*.py` → PROVEN.
+
+**Regression locks.** `0826.py` (POSITIVE: `List[str]` literal LOCAL element read + `-> List[str]`
+RETURN element read — PROVES), `0827.py` (POSITIVE: `List[float]` literal LOCAL + `-> List[float]`
+RETURN, fractional value preserved — PROVES), `0828.py` (NEGATIVE `# pycsl-expected: FAIL`: a false
+element-content conflation — stays UNPROVEN). SMT spike
+`test-suite/corpus/conformance/spikes/wl04a_list_literal_elem_spike.mlw` (Valid on Alt-Ergo AND Z3,
+no cited lemma). `wrong-lowering-to-fix.md` §WL-04 residual → IMPLEMENTED; translational τ-table +
+static-semantics §Flat note updated.
+
+**Out of scope (documented, not faked).** A `List[<record>]` literal (would need the WL-03 record
+seam threaded to the literal) and a MIXED-element literal (`[1, "x"]` / `[1, 2.5]` — no single
+faithful element type) keep the int-coercion default.
+
+## wrong-lowering WL-04b — realize a flat `List[<record>]` param/return element as `array <record>` (native `a[i].field` projection; record-leaf analog of the WL-04 str/float flat model)
+
+**Context.** WL-04 (COLLAPSED-with-consumer): the flat str/float leaf (`List[str]`→`array string`,
+`List[float]`→`array real`) and its list-literal construction analog (WL-04a) were done, but a flat
+`List[<record>]` — a list whose element is a user `@dataclass`/`NamedTuple` or a recognized
+`Tuple[T1,…,Tn]` — still collapsed its element to `int`: `a[i].x` lowered to the opaque
+`get_x(a[i])` over a collapsed int (sound but content-opaque; a concrete field value was UNPROVABLE),
+and `a[i][1]` on a `List[Tuple[int,str]]` was hijacked into `matrix int` or an ill-typed
+`subscript_get a[i] 1` (TYPEERR). The τ-table had no faithful record-leaf row.
+
+**Choice.** Realize a flat `List[R]` PARAMETER (and pass-through RETURN) whose element `R` is a KNOWN
+record as **`array <record-whyml>`**, so `a[i]` reads a REAL record and `a[i].field` / `a[i][k]`
+projects the FAITHFUL field. Module5 `_m5_get_list_record_elem` recognizes the element (a recognized
+`Tuple[…]` via the WL-03 `_m5_tuple_slot_tags` → `pytuple_<tags>`, or a user record class via the
+pre-collected `_m5_record_class_names`) and stores the record CLASS NAME in the SAME
+`param_list_flat_elem` map (Module6 resolves a record name via `_record_types`, else emits `array {τ}`
+for str/float). A record-list param is subtracted from the 2-D `matrix int` detection so `a[i][1]` is
+a slot read, not a matrix cell. Module6 `_param_type_str` emits `array <whyml>` + registers
+`_record_array_params`; `_handle_attribute_expr` lowers `a[i].field` to
+`(let _rec_ = a[i] in _rec_.<label>)`; `_namedtuple_positional_access` lowers `a[i][k]` to the k-th
+slot; `_compute_return_type` resolves a `-> List[R]` return. The projection comprehension
+`[p.x for p in a]` over a record source is threaded natively too (`list_content_comp` `src: array
+<record>`, `result[i] = (src[i]).x`, the loop target registered as a record binder), so a driver's
+own `\result[k] == a[k].x` (also native) and the content law denote the SAME value.
+
+**Rationale — PURE element record (Why3 constraint).** Why3 FORBIDS a MUTABLE element inside `array`
+(an `array` instantiates a PURE type variable; SMT-established, the same constraint the nested
+`array (seq τ)` model met — Gate-B spike `wl04b_list_record_elem_spike.mlw`). So a record used as a
+`List[<record>]` ELEMENT is emitted PURE (immutable fields): Module5 records those names in
+`list_element_record_types`; the preamble drops `mutable` for EXACTLY those records (byte-identical
+for every record NOT used as a list element). This is SOUND and FAITHFUL: a `Tuple`/`NamedTuple` is
+immutable by Python semantics, and a `List[<dataclass>]` reads its fields only — a dataclass that is
+BOTH a list element AND field-mutated fails CLOSED at Why3 type-check (a clean type error, never a
+silent unsound update). Conditional (per-module, usage-driven) purity keeps every non-list-record
+program byte-identical.
+
+**Emission-differential.** The ONLY corpus programs whose emission changes are the three pre-existing
+`List[Point]` projection programs 0769/0770/0771 (all `List[<record>]` — within the allowed change
+set); they now prove the content law via the native `(a[i]).x` projection instead of the opaque
+`get_x`, and the false twin 0771 STAYS UNPROVEN. Every OTHER of the 707 corpus files emits
+BYTE-IDENTICALLY (verified via `bin/byte-diff-sweep.sh`, before/after). No new axiom
+(`proof_axiom_allowlist` unchanged); `\trusted` non-increasing.
+
+**No smuggled axiom.** The `array <record>` element field read is SMT-direct on Alt-Ergo AND Z3 (a
+native `array` read composed with a native record projection). Spike
+`test-suite/corpus/conformance/spikes/wl04b_list_record_elem_spike.mlw` (all goals Valid on both).
+
+**Regression locks.** `0829.py` (POSITIVE `List[<dataclass>]` `a[i].field`), `0830.py` (POSITIVE
+`List[Tuple[int,str]]` `a[i][k]` slot), `0831.py` (NEGATIVE `# pycsl-expected: FAIL` false cross-field
+conflation). Repro drivers `getting-better/wrong-lowering/wl04b_list_{record,tuple}_elem_COLLAPSED.py`
+(→ PROVEN), `wl04b_list_record_falsetwin.py` (→ UNPROVEN). τ-table row
+(`τ(List[<record>]) = array <record>`, record PURE) and `wrong-lowering-to-fix.md` §WL-04 record
+residual (→ IMPLEMENTED) updated.
+
+**Out of scope (documented, not faked).** A `List[<record>]` LITERAL (`[Point(1,2), …]`, would need
+the record constructor threaded to the WL-04a list-literal seam), a FILTERED projection comprehension
+over a record source (falls back to the opaque length-only law), a `List[<plain-class-with-__init__>]`
+element (only `@dataclass`/`NamedTuple`/recognized `Tuple` are recognized), and a record slot of
+`float`/container type (the WL-03 slot recognition is int/bool/str only) keep the prior model.
+
+---
+
+## WL-05b — FAITHFUL, caller-visible dict/set PARAMETER mutation (a `ref (map …)` + `writes` frame)
+
+**Decision.** IMPLEMENT the faithful model WL-05 deferred: an inner-mutated `Dict[...]`/`Set[...]`
+PARAMETER of a STANDALONE function is now a caller-visible **mutable `ref (map κ (option ν))`** with a
+sound **`writes {d}`** frame — replacing the WL-05 CLEAN REJECTION for this case. Python passes
+dicts/sets BY REFERENCE, so `d[k]=v` / `s.add(x)` must be VISIBLE to the caller. `d[k]=v` lowers to
+`d := map_update_some !d k v`; every read derefs UNIFORMLY (`!d` / `Map.get !d k`) — fixing the exact
+`d :=`/bare-`d` inconsistency that was the WL-05 bug. The mutation ESCAPES: at a call site the argument
+at a callee's mutated position is passed as the BARE ref (not `!d`).
+
+**Chosen Why3 representation: `ref (map κ (option ν))` + `writes {d}`** (over a mutable-record wrapper).
+It reasons and frames CLEANLY: the SMT-feasibility spike
+(`test-suite/corpus/conformance/spikes/wl05b_param_mut_spike.mlw`) proves BOTH `(mutate; read-back) =
+Some v` AND caller-visibility (a caller passing a ref observes the post-state) on Alt-Ergo AND Z3 (all
+4 goals Valid) — decisive, done FIRST. No new axiom; `map_update_some`/`map_update_none` are the
+existing local-collection ops.
+
+**USAGE-DRIVEN coexistence (blast radius = the mutating programs only).** Only a param the body
+INNER-mutates is promoted; a READ-ONLY dict/set param keeps the by-value `map …` type. Promotion is a
+module-level FIXPOINT (`_build_func_mutated_collection_params`): seed = direct item-mutation
+(`ArraySet` on a param Var / `.add`/`.discard`/`.remove` on a param), propagate = transitive param
+forwarding (if A forwards its param to a callee's mutated position, A's param is mutated too — the
+by-reference escape is transitive, which keeps call sites SOUND: every Var landing in a ref position is
+itself a ref). Wired through `_param_type_str` (ref type), `_reset_function_state` (route into
+`_dict_locals`), `_emit_function` (`writes {…}`), `_handle_call_expr` (bare-ref arg), and
+`_handle_var_expr` (deref promoted param). Emission-differential: the whole `pycsl-reference` corpus is
+BYTE-IDENTICAL except 0820/0821 (which previously REJECTED and emitted no `.mlw`, now emit and prove) —
+0 content diffs on all common files.
+
+**Residual boundary (KEPT as rejection).** A mutated dict/set METHOD param (its types also feed the
+abstract-op cross-method call-contract map, which the ref promotion would desync), the `@mutable_state`
+param no-op, and record/list param mutation stay REJECTED via `_reject_param_collection_mutation`.
+
+**Regression locks.** 0820 (POSITIVE dict param write-read-back; was NEGATIVE), 0821 (POSITIVE set param
+add+membership; was NEGATIVE), 0822/0823 (POSITIVE LOCAL, unchanged), 0832 (POSITIVE dict caller-
+visibility escape), 0833 (POSITIVE set caller-visibility), 0834 (NEGATIVE `# pycsl-expected: FAIL` —
+false post-mutation claim FAILS: the frame is non-vacuous). Repro drivers
+`wl05_{dict,set}_param_mut_WRONGREPR.py` → PROVEN; baseline `wl05_dict_local_FAITHFUL.py` STAYS PROVEN.
+`wrong-lowering-to-fix.md` §WL-05→§WL-05b, UB catalog §7.9 (narrowed), static-semantics + translational
+τ-table updated. Mirror-sync green; `\trusted` non-increasing; no smuggled axiom.
+
+## WL-06b — faithful `bytes` LITERAL byte CONTENT + `bytes` immutability (the LAST wrong-lowering follow-on)
+
+**Context.** WL-06 (`wrong-lowering-to-fix.md`) delivered COHERENCE only — a `bytes`/`bytearray`
+subscript READ routes to native `Array.get` (a sound `int`), but the byte CONTENT stayed the τ-blessed
+`bytes=int†` opaque residual. WL-06b implements the tractable core of a faithful `bytes` value model so
+byte CONTENT is provable, and closes the `bytes` immutability soundness hole.
+
+**Decision — make a `bytes` LITERAL's content faithful (additive on the coarse `array int` shape), and
+REJECT a `bytes` element write (immutable); do NOT model unknown-`bytes` content or encode/decode.** A
+`bytes` literal already lowers (Module5 `_py_expr_constant`) to an `ArrayLit` of the REAL byte values,
+which Module6 emits as a native `array int` built with those exact values (`Array.make n v0; a[1] <- v1;
+…`). So byte-content reads ALREADY prove (`b"abc"[0] == 97`), the byte-RANGE invariant `0 <= b[i] < 256`
+is DERIVABLE from the concrete construction (no axiom), and a false byte-content claim stays UNPROVEN —
+the content layer is real and additive. The two gaps closed by WL-06b:
+  1. **Immutability (soundness).** A local bound to a `bytes` LITERAL is now classified `"bytes"` in the
+     symbol table (was `"Any"`), and `core_ir_semantic._sa_immutable_walk` REJECTS a subscript-store
+     `b[i] = v` to a `bytes` variable UNCONDITIONALLY (`PYCSL-SEM-SUBSCRIPT`) — Python raises `TypeError:
+     'bytes' object does not support item assignment`, so lowering it to a mutable `Array.set` was
+     silently UNSOUND. A `bytearray` (mutable) is NOT rejected — its element write is a sound array
+     mutation (a mutable byte buffer must be a `bytearray`/`list`).
+  2. **Content routing.** The `"bytes"` classification also routes the literal-local's `b[i]`/`len(b)`
+     through the WL-06 native-array branch (§T.15.6).
+
+**Scope (honest, FINAL residual).** A `bytes(...)`/`bytearray(...)` CONSTRUCTOR call stays `"Any"`
+(unchanged — 0616/0658/0665 untouched). The CONTENT of an *unknown* `bytes` (a PARAMETER) remains the
+τ-blessed opaque residual (only a user-supplied `requires`/element bound can constrain it), as do
+`str↔bytes` encode/decode and full `struct`/byte-methods beyond cleared-pack (translational §T.15.5).
+This is the LAST wrong-lowering follow-on; `wrong-lowering-to-fix.md` now reflects the final state of all
+residuals.
+
+**Implementation.** `Module5_IREmitter._build_function_symbol_table`: a plain-`Assign` local whose RHS is
+an `ast.Constant` bytes value → `scope[target] = "bytes"` (byte-safe: no corpus local binds a bare bytes
+literal). `core_ir_semantic._check_subscript_assignments`: add an unconditional `_sa_immutable_walk` that
+rejects a `bytes`-typed ArraySet target before the existing annotated list/dict check.
+
+**SMT-feasibility spike.** `test-suite/corpus/conformance/spikes/wl06b_bytes_content_spike.mlw` proves a
+byte-literal content read (`b[0]=1 /\ b[1]=2`), the range invariant (`0 <= b[i] < 256`), distinct-cell
+independence, and no over-claim — Valid on Alt-Ergo AND Z3.
+
+**Additive / no regression.** Full `pycsl-reference` corpus emits BYTE-IDENTICALLY (`bin/byte-diff-sweep.sh`
+before/after via a two-file stash — every pre-existing `.mlw` unchanged; only rejected 0838 stops
+emitting, as intended). NO new axiom. `\trusted` non-increasing; mirror-sync + doc-coherency green.
+
+**Regression locks.** `0835.py` (POSITIVE — bytes-literal exact content + hex), `0836.py` (POSITIVE —
+byte-range invariant), `0837.py` (NEGATIVE `# pycsl-expected: FAIL` — false byte value, pinned to Z3 to
+refute fast over the array literal), `0838.py` (NEGATIVE `# pycsl-expected: FAIL` — `bytes` element write
+REJECTED, immutability). Docs: `wrong-lowering-to-fix.md` §WL-06 (→ + WL-06b), translational §T.15.5/§T.15.7,
+`missing-bytes-struct-feature.md` (done-vs-follow-on).
+
+## WL-06c — byte-RANGE invariant of an UNKNOWN `bytes`/`bytearray` PARAMETER (T9, the last WL-06 follow-on)
+
+**Context.** WL-06b made a `bytes` LITERAL's content faithful, from which `0<=b[i]<256` is DERIVABLE. For
+an UNKNOWN `bytes`/`bytearray` PARAMETER the τ-blessed `array int` content is arbitrary to the solver, so
+the byte-range was NOT provable without the user writing the bound by hand (0658 carried
+`#@ requires 0 <= data[offset] <= 255` manually). Yet the range is TRUE of every real Python
+`bytes`/`bytearray` object.
+
+**Decision — EMIT the byte-range as an IMPLICIT precondition per bytes/bytearray param; do NOT model the
+exact value; keep the write fail-closed.** Every real `bytes`/`bytearray` element is in [0,256) — a
+type-level guarantee (an out-of-range byte cannot be constructed), so the callee may ASSUME it.
+`functions._bytes_param_range_requires` emits `requires { forall i. 0<=i<len(b) -> 0<=b[i]<256 }` for each
+bytes/bytearray param, just before the user contract. Chosen a `requires` (checked end-to-end, no new
+trust, no axiom) over a body `assume`; it is fully additive because no verified corpus caller passes a
+bytes argument, so no call-site obligation arises. It is SOUND-and-additive: it adds ONLY the range bound
+— a false SPECIFIC-value claim (`\result==97`) stays UNPROVEN (the range does not pin a value), the
+coherence/distinct-index twins (0594/0825) still fail. STRICTLY gated on symtype `bytes`/`bytearray` (a
+`List[int]`/`array int` param carries NO [0,256) bound → never emitted).
+
+**Write posture.** The invariant is an ENTRY precondition and is never violated in-body: no bytes/bytearray
+PARAMETER element write is emitted (`bytes` rejected immutable, WL-06b; a `bytearray` PARAMETER element
+write rejected as a caller-visibility/frame boundary, §WL-05). A future caller-visible `bytearray`
+mutation model would carry a Python-`ValueError` write obligation `0<=v<256`.
+
+**SMT-feasibility spike.** `test-suite/corpus/conformance/spikes/wl06c_bytes_param_range_spike.mlw` proves
+the range read, coherence, no-over-claim (a non-discharging false-twin goal), user-requires, and
+write-in-range — Valid on Alt-Ergo AND Z3, NO new axiom.
+
+**Additive / no regression.** Exactly the SIX corpus files with a `bytes`/`bytearray` PARAMETER gain the
+one implicit-requires line (0420, 0593, 0594, 0779, 0824, 0825); each still proves/fails as before. Every
+other file (incl. bytes-LITERAL 0836 and `list`-param codecs 0452/0658) is BYTE-IDENTICAL. `\trusted`
+non-increasing; doc-coherency + mirror-sync green.
+
+**Regression locks.** `0862.py` (POSITIVE — range of an unknown bytes AND bytearray param, no user
+requires), `0863.py` (NEGATIVE `# pycsl-expected: FAIL` — specific-value over-claim stays UNPROVEN),
+`0864.py` (POSITIVE — user `requires` bounds the exact value). Drivers under `getting-better/wrong-lowering/`:
+`wl06c_bytes_param_range_POSITIVE.py` (PROVEN), `wl06c_bytes_param_specific_falsetwin.py` (UNPROVEN),
+`wl06c_bytes_param_user_requires_FAITHFUL.py` (PROVEN), `wl06c_bytearray_param_write_REJECTED.py`
+(REJECTED). Docs: `wrong-lowering-to-fix.md` §WL-06 (→ + WL-06c), translational §T.15.8, static-semantics
+τ(bytes)/τ(bytearray) note, `missing-bytes-struct-feature.md` P2a done / P2b follow-on.

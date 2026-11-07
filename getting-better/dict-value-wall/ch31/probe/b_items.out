@@ -1,0 +1,53 @@
+[*] Parsing and Semantic Analysis for 'getting-better/dict-value-wall/ch31/probe/b_items.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 28, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.01s, 2672 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 49, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.01s, 2848 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 56, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2200 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 63, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2236 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 85, characters 18-40:
+Sub-goal loop invariant init of goal g'vc.
+Prover result is: Valid (0.00s, 767 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 86, characters 16-56:
+Sub-goal loop variant decrease of goal g'vc.
+Prover result is: Valid (0.00s, 7603 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 85, characters 18-40:
+Sub-goal loop invariant preservation of goal g'vc.
+Prover result is: Valid (0.01s, 8325 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 86, characters 16-56:
+Sub-goal loop variant decrease of goal g'vc.
+Prover result is: Valid (0.01s, 8628 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 85, characters 18-40:
+Sub-goal loop invariant preservation of goal g'vc.
+Prover result is: Valid (0.01s, 8372 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 77, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Timeout (30.00s, 24834790 steps).
+
+Warnings/Errors from Why3:
+Warning, file "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 76, characters 9-10: unused variable d
+Warning, file "getting-better/dict-value-wall/ch31/probe/b_items.mlw", line 76, characters 9-10: unused variable d
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 24834790 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

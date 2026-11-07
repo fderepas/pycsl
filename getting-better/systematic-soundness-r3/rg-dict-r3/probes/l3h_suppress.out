@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3h_suppress.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[whyml-emit]: a `with` item (line 7, in 'f') uses a context expression of kind `Call` that is not an in-file context manager proven inert (ROUTE #257): a bare `with` is lowered to its BODY ALONE — the context expression is not evaluated and neither `__enter__`/`__exit__` nor a `@contextmanager` generator's code around its `yield` is modelled — so it is accepted only when the context manager is PROVABLY INERT in the model: a name bound only by `threading.Lock()`/`RLock()`, or an in-file `@contextmanager` producer whose effects all land in a record with no fields. Measured: an imported class whose `__enter__` writes `self.n`, and an in-file `@contextmanager` method doing the same, both proved `\result == 0` where Python returns 1. Call the setup/teardown explicitly around the block as ORDINARY methods (an explicit `__enter__()` call does not carry its contract today), or guard the block with a module-level `threading.Lock()`.

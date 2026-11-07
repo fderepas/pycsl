@@ -1,0 +1,210 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "sl_name": "self-tcb-reduction-driver",
+  "version": "1.0.0",
+  "kind": "squeeze-loop-monitoring-squeeze-loop",
+  "monitors": "self-tcb-reduction",
+  "meta_pattern": "sl-monitoring-sl",
+  "description": "Machine-readable configuration for the self-tcb-reduction-driver: an SL that DRIVES (monitors) the self-tcb-reduction base loop. When the base loop hits a WALL (a \\trusted stub it cannot convert and that measurement shows is not a cheap win), this meta-loop runs the review-and-break workflow — write a self-contained SOTA report XXX.md, get an INDEPENDENT XXX-response.md from a fable reviewer blind to the sub-loop, synthesize XXX-impl.md, then execute it spike-gated with every agent claim re-verified against the base loop's three L-planes. Companion: config/skills/self-tcb-reduction-driver/SKILL.md, self-tcb-reduction (the base loop), sl-monitoring-sl, sl-builder.",
+  "terrain_archetype": ["B-authored-authority", "C-split-planes"],
+  "deliverable": "Per wall XXX: RESOLVED with one of exactly two gate-defined verdicts — BROKEN (>=1 \\trusted stub behind the wall converts to a verified body, full base-loop gate battery green, count strictly down, ledger unchanged) or CERTIFIED-BOUNDARY (a genuine limit, proven by the impl plan's make-or-break spike REFUTING the build before any emitter edit, recorded with a reproducible reason + a one-line lesson). Never a third verdict; never 'grind until done'.",
+  "correct_means": [
+    "the report XXX.md states nothing L refutes (every claim reproducible from cited evidence)",
+    "XXX-response.md was authored WITHOUT the sub-loop's rationale in context (fable barrier) AND cites >=1 independent oracle artifact",
+    "XXX-impl.md's FIRST action is a make-or-break spike (measure-before-build) with an explicit refutation exit",
+    "every executing agent's claim is re-verified FRESH by the driver-verifier against the three L-planes",
+    "the final verdict is BROKEN (gates green) or CERTIFIED-BOUNDARY (spike refuted) — gate-defined, never self-declared"
+  ],
+  "coherent_and_wrong_guards": [
+    { "id": "rubber-stamped-wrong-report", "risk": "the reviewer rubber-stamps a wrong wall report", "caught_by": "Gate R (reviewer gets L not just prose; independence via the fable barrier; >=1 oracle artifact required)" },
+    { "id": "wrong-or-incomplete-impl-plan", "risk": "a build-first plan is executed to sprawl on an impossible wall", "caught_by": "Gate P (spike-first + refutation exit) + Gate S (the spike runs)" },
+    { "id": "agent-over-claim", "risk": "an executor's self-reported gate result is accepted (--fun-only, ugrep count, 'byte-inert' premise)", "caught_by": "the three-L-plane driver-verifier (Gate B/C); count via grep -F" },
+    { "id": "over-general-wall-lesson", "risk": "an over-broad lesson ('all .values() are walls') enters the store", "caught_by": "Gate S-lesson (trigger/validity test -> carve-out, never keep-whole)" },
+    { "id": "escalating-a-non-wall", "risk": "the expensive cycle fires on a cheap win or a known boundary (cost blowout)", "caught_by": "Gate W (escalate only a measured, non-cheap, not-already-CERTIFIED wall, and only after the cheap queue is drained)" }
+  ],
+  "priority": {
+    "rule": "DRAIN CHEAP WINS FIRST; break walls only when nothing cheap remains. Non-negotiable per iteration.",
+    "rationale": "wall-breaking (report -> fable review -> impl -> execute) is EXPENSIVE and yields at most one stub; a cheap conversion is one gate battery and yields one stub too — so every remaining cheap win is converted BEFORE any wall is escalated.",
+    "phase_1_drain": "repeatedly ask the base loop for the next cheap stub (cheap_win == true under measure-before-build) and convert it (full gate battery, driver-verified, committed). Stay in Phase 1 while the base loop returns a cheap stub.",
+    "phase_2_break": "ONLY when the base loop reports no_cheap_remaining does the driver escalate ONE wall (Gate W) through the full cycle. After a wall resolves (BROKEN or CERTIFIED-BOUNDARY) RETURN to Phase 1 and re-drain before the next wall (a BROKEN wall often unlocks cheap follow-ons).",
+    "loop_shape": "drain all cheap -> break one wall -> drain all cheap again -> break the next wall -> ...; terminates at floor (no cheap stub AND every wall BROKEN or CERTIFIED-BOUNDARY)."
+  },
+  "modes": {
+    "interactive": {
+      "trigger": "invocation with NO duration",
+      "behavior": "run ONE driver iteration (loop_steps), present the outcome, STOP (the user drives the cadence). Gate W may present its escalate/decline decision."
+    },
+    "autonomous_time_boxed": {
+      "trigger": "invocation WITH a duration ('... for 2 hours' / '... for 90 min' / '... for 45m')",
+      "behavior": "iterate walls back-to-back with NO per-iteration prompting until a wall-clock deadline, committing each increment.",
+      "setup": {
+        "persist_deadline": "date -d \"+${SECS} seconds\" +%s > getting-better/.driver-deadline; date +%s > getting-better/.driver-started",
+        "why_persist": "the deadline file survives context summarization across a long run — it is the single source of truth the next context window re-reads; do NOT hold it only in context",
+        "announce": "Autonomous driver: running until <deadline>. Iterating walls; committing each increment; no prompts until the deadline or you interrupt."
+      },
+      "iteration": [
+        "clock check: NOW=date +%s; DL=cat .driver-deadline; if NOW>=DL -> finish. Reserve headroom: do not START a full cycle that cannot finish before the deadline.",
+        "Phase 1: run the base loop as a SUB-AGENT non-interactively to convert the next cheap stub (no §11 menu); on convert -> driver-verifier re-checks the three L-planes, COMMIT, stay in Phase 1; repeat until no_cheap_remaining.",
+        "Phase 2 (only on no_cheap_remaining): Gate W -> pick ONE residual wall, run the full cycle (steps 3-8), commit the outcome, RETURN to Phase 1.",
+        "commit EVERY increment immediately (never a dirty tree between iterations; revert a sprawling/refuted build to clean before committing its finding).",
+        "Gate S-lesson on any consolidated lesson -> wall-lessons.md; next iteration."
+      ],
+      "finish": {
+        "on_deadline_or_floor": "stop iterating; rm getting-better/.driver-deadline getting-better/.driver-started",
+        "summary": "emit ONE summary: walls RESOLVED (BROKEN vs CERTIFIED-BOUNDARY), conversions + count delta, lessons banked, unpushed-commit count. Do NOT auto-push (push only on an explicit push/push-it); list what is ready to push.",
+        "early_stop": "if the frontier reaches floor BEFORE the deadline, STOP EARLY and say so — do not spin on non-walls to burn the clock."
+      },
+      "discipline": [
+        "the gate battery is UNCHANGED — autonomous runs faster by not prompting, never by skipping a gate; a speed-motivated --fun-only accept is forbidden.",
+        "cross-turn continuation: when context fills before the deadline the harness summarizes and continues; the persisted .driver-deadline is how the next window knows to keep going and when to stop (re-read each iteration, do not re-ask).",
+        "interruptibility: a user message mid-run is honored immediately; each committed increment is a clean interrupt boundary.",
+        "escalate-not-thrash, time-aware: a per-wall attempt budget applies; do not START a full cycle whose fable-review + spike cannot finish before the deadline — defer it and spend the tail on cheaper items."
+      ]
+    }
+  },
+  "bounds": {
+    "U": {
+      "type": "authored-authority + base-loop-discipline",
+      "sources": [
+        "the base loop's contract discipline (self-tcb-reduction.md, triage-ranked-tcb.md, §10 lessons: type-safety+frame contract shape; measure-before-build; no-unused-facade; coupling rule; ledger stays 3)",
+        "the wall report XXX.md — a SOFT reading the reviewer may refute or carve (the strongest claim any driver actor may make)"
+      ]
+    },
+    "L": {
+      "type": "hard-executable-oracle (the base loop's three disjoint planes, ALL required) + ledger audit + strictly-decreasing count",
+      "planes": [
+        { "id": "fidelity", "cmd": ["bash bin/check-self-annotate-sync.sh", "bash bin/self-annotate-mirror-check.sh"], "verdict": "mirror body == live body, verbatim modulo #@" },
+        { "id": "type-safety", "cmd": ["python3 src/pycsl/pycsl.py <file> --import-path src/pycsl", "python3 src/pycsl/pycsl.py <file> --import-path src/pycsl --fun <method>"], "verdict": "whole-file Why3 proof (SKILL §10.10) + per-method --fun discharge; proof_axiom_allowlist unchanged" },
+        { "id": "corpus-inertness-or-sanctioned-reset", "cmd": ["git worktree add --detach <wt> HEAD", "( cd <wt> && bin/byte-diff-sweep.sh /tmp/before )", "bin/byte-diff-sweep.sh /tmp/after && diff -rq /tmp/before /tmp/after"], "verdict": "byte-diff 0 vs a worktree-at-HEAD baseline — OR, for a semantics-preserving shared-theory change, the diff is EXACTLY the change AND every affected program re-proves (the M1 discipline)" }
+      ],
+      "ledger_audit": "Print Assumptions (Rocq) / #print axioms (Lean) == 3",
+      "count": "find src/self-annotate/src -name '*.py' -exec grep -cF '\\trusted' {} \\; | paste -sd+ | bc — strictly decreasing (grep -F avoids the ugrep \\t quirk)",
+      "all_planes_required": true,
+      "no_blend": true
+    }
+  },
+  "actors": [
+    {
+      "role": "driver-coordinator",
+      "builds": "wall detection, phase sequencing, verdict (BROKEN / CERTIFIED-BOUNDARY), the wall-lesson ledger",
+      "U": "base loop U + the report",
+      "L": "the gate-machine outputs + spike verdicts",
+      "forbidden": ["edit the emitter/mirror", "rubber-stamp a claim or a lesson"],
+      "must_not_see": ["the base loop's in-context rationale (runs it as a SUB-AGENT)"]
+    },
+    {
+      "role": "base-loop",
+      "note": "self-tcb-reduction, run as a SUB-AGENT one level deeper (the barrier is physical)",
+      "builds": "the routine (cheap) conversions; surfaces a wall-signal when stuck",
+      "U": "base loop U",
+      "L": "base loop L (its three planes)",
+      "forbidden": ["(its own §2 forbidden moves)"],
+      "must_not_see": []
+    },
+    {
+      "role": "report-author",
+      "note": "may be the driver, TAINTED — that is why the reviewer exists",
+      "builds": "XXX.md — the state-of-the-art wall statement (global picture, wall as first seen, deeper truth, SOTA lens, costed routes, honest limits)",
+      "U": "base loop U",
+      "L": "none (this is U, not L)",
+      "forbidden": ["claim more than the measured facts"],
+      "must_not_see": []
+    },
+    {
+      "role": "fable-reviewer",
+      "note": "INDEPENDENT, subagent_type fable / model fable",
+      "builds": "XXX-response.md — an independent review that RUNS the oracle",
+      "U": "base loop U (the discipline)",
+      "L": "base loop L (Why3 / byte-diff / pycsl --fun / CAN write+prove a .mlw spike)",
+      "forbidden": ["see the sub-loop's rationale, attempts, or reasoning", "edit source"],
+      "must_not_see": ["the sub-loop's contents (only XXX.md + L in context)"]
+    },
+    {
+      "role": "impl-planner",
+      "builds": "XXX-impl.md (spike-first, refutation-exit, costed scope)",
+      "U": "XXX.md AND XXX-response.md",
+      "L": "none",
+      "forbidden": ["assert 'cleared' without a spike"],
+      "must_not_see": []
+    },
+    {
+      "role": "executor",
+      "note": "one or several agents spawned per the impl plan; leaves edits for the driver-verifier, no commit",
+      "builds": "the emitter/mirror edits per XXX-impl.md",
+      "U": "the impl plan + the fixed contract shape",
+      "L": "Why3 type-check (--fun) locally",
+      "forbidden": ["weaken/vacuate a contract", "add an axiom", "loosen a gate", "leave an un-trusted-unverified method"],
+      "must_not_see": ["the byte-diff baseline", "the driver's verdict logic"]
+    },
+    {
+      "role": "driver-verifier",
+      "builds": "re-runs the three L-planes FRESH on every executor claim; the spike re-proof",
+      "U": "the plan's gate battery + the contract shape",
+      "L": "the actual oracle verdicts",
+      "forbidden": ["trust an agent's self-reported gate result"],
+      "must_not_see": ["the executor's recognizer rationale (surface + gate results only)"]
+    }
+  ],
+  "disjointness_C1": "the fable reviewer holds U+L but NEVER the sub-loop's rationale (its whole value is the independent evidence base); the report author holds only U (it may be tainted — why the reviewer exists); the executor holds the plan + local type-check but never the corpus baseline or the verdict; the driver-verifier holds the acceptance oracles but never the executor's code rationale. No actor can relieve its own constraint.",
+  "catchability_C2": [
+    { "actor": "report-author", "blind_spot": "coherent-and-wrong wall claim", "caught_by": "the fable reviewer (independent U+L, >=1 oracle artifact)" },
+    { "actor": "fable-reviewer", "blind_spot": "over-scoped fix", "caught_by": "the impl plan's make-or-break spike (measure)" },
+    { "actor": "executor", "blind_spot": "over-claim / sprawl", "caught_by": "the driver-verifier's three L-planes + the refutation exit" },
+    { "actor": "driver-coordinator", "blind_spot": "over-general lesson", "caught_by": "Gate S-lesson" }
+  ],
+  "gates": {
+    "W_wall_escalation": "fires the whole workflow, or does NOT. The base-loop sub-agent RETURNS a soft wall-signal {stub, attempts_spent, first_blocker (the exact --fun/type error), cheap_win: bool} — never its in-context rationale (the barrier). Escalate to report->review->impl->execute ONLY if attempts_spent >= the per-stub budget AND cheap_win == false AND the stub is not already CERTIFIED-BOUNDARY in wall-lessons.md AND the cheap queue is empty (Phase 1 drained, base loop reported no_cheap_remaining). Otherwise the base loop handles it inline. This is the cost control AND the barrier.",
+    "R_reviewer_independence_with_artifact_teeth": "XXX-response.md is accepted only if BOTH: (a) authored by an actor whose context contained XXX.md + L and provably NOT the sub-loop's rationale (fable spawned with only the report + repo/oracle access); AND (b) it contains >=1 independent ORACLE ARTIFACT (a hand .mlw proven with why3 prove, a byte-diff-sweep, an emit-and-grep of the generated WhyML, or a pycsl --fun run) that CONFIRMS or REFUTES a NAMED factual claim of XXX.md. A prose-only response with zero oracle runs is REJECTED as a rubber stamp. The load-bearing fix: the reviewer's value is a DIFFERENT evidence base (L), not a second opinion on the prose.",
+    "P_impl_plan_acceptance": "XXX-impl.md is accepted for execution ONLY if its FIRST action is a named make-or-break falsifier spike (the cheapest test that could REFUTE the whole build before any emitter edit) AND it carries an explicit refutation exit ('spike REFUTES -> CERTIFIED-BOUNDARY, stop') AND the three-L-plane gate battery AND honest costed scope. A plan that begins with 'build' or has no refutation branch is REJECTED and re-planned — this prevents 'execute until done' from grinding an impossible wall.",
+    "S_impl_plan_spike": "XXX-impl.md's FIRST executed action is its make-or-break spike. Verdict routing: PASSES -> proceed to the build; REFUTES -> CERTIFIED-BOUNDARY (record + stop, do NOT build); REFINES (a different blocker) -> re-plan the residual, do not sprawl. 'Cleared' is never asserted without the spike's run.",
+    "B_machine_per_increment": "all three L-planes pass FRESH (driver-verifier, not the executor's self-report): fidelity AND whole-file Why3 AND byte-diff-0 (or sanctioned-reset + re-proof) AND ledger==3 AND \\trusted strictly down AND nothing smuggled (no axiom, no gate loosening, no un-trusted-unverified method).",
+    "C_coverage_no_blend": "the three planes never blend (a --fun pass never stands in for the whole-file proof; neither stands in for byte-diff-0 or fidelity); non-vacuity (the converted body reads real accessors, no opaque _get_N <hash>); a feature-editing-a-verified-emitter-method carries the §10.4 re-port + re-proof in the SAME increment; every touched stub ends VERIFIED or FLOOR+reason.",
+    "S_lesson_skill_consistency_with_concrete_store": "the lesson STORE is a named ledger getting-better/wall-lessons.md (one entry per resolved wall), and for a base-loop-policy-general lesson a CARVE-OUT appended to self-tcb-reduction.md §10 — NEVER an inline edit to the base loop's reasoning. WRITE PROTOCOL: a candidate lesson is checked BEFORE it is written — ignore-signal lessons ('treat X as a wall/noise') get the trigger test (perturb X, does L's verdict move?) -> PASS / CARVE-OUT / REJECT; defer-to-oracle lessons ('on case S do the L-sanctioned action') get the validity test (does L actually distinguish S?). Only PASS or CARVE-OUT is written, WITH the wall it came from, the L-input that revealed the divergence, and (for a carve-out) the exact narrower rule. An over-general lesson is carved to its valid complement, never kept whole; an irreconcilable one is REJECTED and logged (loud-fail)."
+  },
+  "loop_steps": [
+    "driver-coordinator runs self-tcb-reduction as a SUB-AGENT in Phase 1 (drain): convert routine cheap stubs until NONE remains, returning either a converted-cheap result (-> commit, stay in Phase 1) or no_cheap_remaining + the residual wall list (stub + measured first blocker), NOT its full rationale. Only no_cheap_remaining advances to step 2.",
+    "Gate W -> escalate or continue. On escalate, name the wall XXX (a short slug).",
+    "report-author writes the self-contained SOTA report XXX.md (global picture, wall as first seen, deeper truth, SOTA lens, costed routes, honest limits — every claim reproducible from cited evidence).",
+    "fable-reviewer (Gate R): spawn a fable sub-agent whose context is XXX.md + repo access to base loop U/L (Why3, byte-diff, pycsl --fun, write+prove a .mlw spike) and NOT the sub-loop's contents. It MUST RUN the oracle and cite >=1 artifact confirming/refuting a named claim. Gate R rejects a prose-only response and re-spawns.",
+    "impl-planner synthesizes XXX-impl.md from XXX-response.md + XXX.md. Gate P: accept for execution ONLY if first action is a make-or-break spike with a refutation exit + the three-L-plane battery + costed scope; else re-plan.",
+    "executor(s) execute XXX-impl.md (favor rigor). Each leaves edits for the driver-verifier — no commit.",
+    "Gate S (spike) -> PASS (build) / REFUTE (CERTIFIED-BOUNDARY, record + stop) / REFINE (re-plan residual). Then per built increment: Gate B (three L-planes FRESH) -> Gate C (no-blend + non-vacuity + §10.4). Verify EVERY agent claim independently.",
+    "Verdict: BROKEN (commit the conversions, \\trusted down) or CERTIFIED-BOUNDARY (commit report+response+impl+spike evidence, \\trusted unchanged, wall recorded). Gate S-lesson on any consolidated lesson. Return to Phase 1; next wall. Never a partial/un-verified commit; never 'grind until done'."
+  ],
+  "escalation": {
+    "per_wall_attempt_budget": true,
+    "on_refute_or_sprawl": "revert the build to clean + record a gap/lesson; never leave an un-verified tree",
+    "time_aware": "in autonomous mode, do not START a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record the wall-signal for the next run) and spend the tail on cheaper items"
+  },
+  "stabilizers": [
+    "rubber-stamped-wrong-report -> Gate R (reviewer gets L not prose; fable barrier) + the impl-plan spike (an independent L-run a prose-only review can't fake)",
+    "grind-until-done-on-an-impossible-wall -> the refutation exit: 'done' = BROKEN OR CERTIFIED-BOUNDARY; the impl plan is spike-first; a REFUTE verdict stops the build",
+    "agent-over-claim-accepted -> the three-L-plane driver-verifier; the executor never owns a gate verdict; count via grep -F (the ugrep \\t trap)",
+    "over-general-wall-lesson -> Gate S-lesson (trigger/validity test -> carve-out, never keep-whole)",
+    "escalating-a-non-wall (cost blowout) -> Gate W (only genuine, measured, non-cheap walls escalate; cheap queue drained first)",
+    "barrier-leak (driver sees sub-loop rationale) -> run self-tcb-reduction as a SUB-AGENT; run the reviewer as a fable sub-agent with only XXX.md+L; both barriers are physical (context), not honorary",
+    "feature-edits-a-verified-emitter-method -> Gate C's §10.4 re-port + re-proof in the same increment",
+    "sanctioned-but-unproven-shared-theory-change -> the M1 discipline (diff = exactly-the-change AND all affected programs re-prove AND ledger 3), never 'byte-diff nonzero, probably fine'"
+  ],
+  "done_criteria": "a wall is RESOLVED when the driver-verifier's gates return BROKEN (all three L-planes green on the conversion, ledger 3, count down) OR CERTIFIED-BOUNDARY (the impl plan's spike REFUTED the build with a reproducible reason). The campaign is at floor when every remaining stub is BROKEN, CERTIFIED-BOUNDARY, or below Gate W (a cheap win the base loop handles). No actor's self-report counts.",
+  "oracle_setup": {
+    "verdict_conjunction": "the three L planes + ledger==3 + strictly-decreasing \\trusted",
+    "per_increment_driver_verifier_fresh": [
+      "bash bin/check-self-annotate-sync.sh && bash bin/self-annotate-mirror-check.sh   # fidelity",
+      "PYTHONHASHSEED=0 python3 src/pycsl/pycsl.py <file> --import-path src/pycsl        # whole-file proof",
+      "git worktree add --detach <wt> HEAD; ( cd <wt> && bin/byte-diff-sweep.sh /tmp/before ); bin/byte-diff-sweep.sh /tmp/after && diff -rq /tmp/before /tmp/after   # inertness (or sanctioned reset)",
+      "find src/self-annotate/src -name '*.py' -exec grep -cF '\\trusted' {} \\; | paste -sd+ | bc   # count"
+    ],
+    "spike_oracle": "a hand-written .mlw proven with why3 prove -P alt-ergo (fall back -P z3), asserting the impl plan's make-or-break target is reachable/provable/ledger-clean — run, not argued. Templates: getting-better/composition-wall/*.mlw."
+  },
+  "reference_proven_instance": {
+    "wall": "_field_type_of (map-values-iteration)",
+    "artifacts": ["file-type-of-wall.md (report — map non-enumerability is a representation choice, not fundamental)", "file-type-of-wall-response.md (independent fable review — reverse-index carve-out)", "file-type-of-wall-impl.md (spike-gated plan)"],
+    "outcome": "S-R2 spike REFUTED the map-.values() build -> CERTIFIED-BOUNDARY; the reverse-index+U path validated its mechanism but cascaded -> residuals scoped. Demonstrates all four gate verdicts: Gate R caught the report's over-scope, Gate S refuted one build and refined another, Gate B/C caught agent over-claims, the Gate S-lesson carve-out ('search-by-value-field != enumerate') repaired an over-general lesson."
+  },
+  "run_log_2026_07": {
+    "run_1": "Gate W correctly DECLINED to escalate a non-wall (RecordInfoView value-typing = a bounded _m5_get_dict_value_type recognizer gap, not a wall). Calibrated non-escalation.",
+    "run_2": "FULL cycle fired on the Term-rewriter wall -> BOUNDED FEATURE (oracle spike 6/6 Valid, 0 axioms, driver-re-verified). Residual = emitter-generation (the M2 gap).",
+    "run_3_autonomous_4h": "Phase 1 = no_cheap_remaining; Phase 2 _field_type_for build REVERTED net-0 (receding horizon into the stmt-list-walk gap). Convergence: _field_type_for + the _collect_* class share ONE gap. Census: 42 stmt-tree walkers, 34 behind one StmtIR ADT. Escalated the stmt-walker wall -> fable oracle 14/14 Valid 0 axioms -> BOUNDED FEATURE; §2 emitter spike = GENERABLE-WITH-GAP (S-C1 theory emits+proves byte-inert; the list<T> param family at functions.py:68 is the pinned make-or-break); the list<T> type-family probe = BOUNDED green light. Both breakable walls converge on ONE shared list<T> foundation (build deferred, gap pinned). See getting-better/wall-lessons.md."
+  }
+}

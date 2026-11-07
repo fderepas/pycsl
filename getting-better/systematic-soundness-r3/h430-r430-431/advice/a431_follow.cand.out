@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-h430/getting-better/systematic-soundness-r3/h430-r430-431/advice/a431_follow.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_ibxc9_2r.mlw", line 20, characters 4-15:
+Sub-goal index in array bounds of goal f'vc.
+Prover result is: Valid (0.01s, 1050 steps).
+
+File "/tmp/.pycsl_ibxc9_2r.mlw", line 22, characters 6-17:
+Sub-goal index in array bounds of goal f'vc.
+Prover result is: Valid (0.01s, 1364 steps).
+
+File "/tmp/.pycsl_ibxc9_2r.mlw", line 17, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.01s, 10183 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

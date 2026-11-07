@@ -1,0 +1,30 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/s2/w05_values_loop.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_995ts767.mlw", line 30, characters 20-32:
+Sub-goal loop invariant init of goal f'vc.
+Prover result is: Valid (0.00s, 536 steps).
+
+File "/tmp/.pycsl_995ts767.mlw", line 23, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 780 steps).
+
+File "/tmp/.pycsl_995ts767.mlw", line 31, characters 18-38:
+Sub-goal loop variant decrease of goal f'vc.
+Prover result is: Valid (0.01s, 9614 steps).
+
+File "/tmp/.pycsl_995ts767.mlw", line 30, characters 20-32:
+Sub-goal loop invariant preservation of goal f'vc.
+Prover result is: Valid (0.00s, 9714 steps).
+
+File "/tmp/.pycsl_995ts767.mlw", line 23, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 554 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_995ts767.mlw", line 26, characters 8-9: unused variable v
+Warning, file "/tmp/.pycsl_995ts767.mlw", line 22, characters 9-10: unused variable m
+
+[+] Verification SUCCESS! All contracts formally proven.

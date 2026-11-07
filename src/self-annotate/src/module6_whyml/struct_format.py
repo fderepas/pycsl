@@ -17,21 +17,35 @@ class StructFormat:
     "Parsed `struct` format-string descriptor.\n\n    Attributes\n    ----------\n    raw : str\n        Original format string (no prefix-strip).\n    prefix : str\n        Byte-order prefix or '' if absent.\n    slots : list[str]\n        WhyML type per packed/unpacked slot, in order. Pad bytes are\n        excluded.  E.g. for `'>IHHHHHII10Ixx'` this is\n        `['int', 'int', 'int', 'int', 'int', 'int', 'int', 'int',\n         'int', 'int', 'int', 'int', 'int', 'int', 'int', 'int',\n         'int', 'int']` (18 ints).\n    "
     raw: str
     prefix: str
-    slots: int
-    #@ \trusted reviewer: pycsl-self-annotate
+    slots: List[str]
+    # CONVERTED (relaunch #16), the first `@property` in the mirror to become a real
+    # definition. Verbatim body port of the LIVE `arity`; `len(self.slots)` over the
+    # `array int` slot field is `Array.length self.slots`.
     #@ requires True
     #@ ensures True
+    #@ ensures \result >= 0
     #@ assigns \nothing
     @property
     def arity(self) -> int:
-        return 0
+        return len(self.slots)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def slot_id(self) -> str:
-        return ""
+        if not self.slots:
+            return "empty"
+        out: List[str] = []
+        run_type = self.slots[0]
+        run_count = 1
+        for t in self.slots[1:]:
+            if t == run_type:
+                run_count += 1
+            else:
+                out.append(_short_type(run_type) + str(run_count))
+                run_type, run_count = t, 1
+        out.append(_short_type(run_type) + str(run_count))
+        return "".join(out)
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

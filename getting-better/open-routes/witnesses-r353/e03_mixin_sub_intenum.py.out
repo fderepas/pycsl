@@ -1,0 +1,15 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt26/e03_mixin_sub_intenum.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_bnnct3w3.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 22 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_bnnct3w3.mlw", line 22, characters 18-22: unused variable self
+Warning, file "/tmp/.pycsl_bnnct3w3.mlw", line 22, characters 28-29: unused variable o
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

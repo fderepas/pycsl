@@ -1,0 +1,46 @@
+[*] Parsing and Semantic Analysis for 'w_len1_twin.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_flxtfc2s.mlw", line 30, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2662 steps).
+
+File "/tmp/.pycsl_flxtfc2s.mlw", line 51, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 2838 steps).
+
+File "/tmp/.pycsl_flxtfc2s.mlw", line 58, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2190 steps).
+
+File "/tmp/.pycsl_flxtfc2s.mlw", line 65, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2226 steps).
+
+File "/tmp/.pycsl_flxtfc2s.mlw", line 81, characters 80-97:
+Sub-goal variant decrease of goal pairs_set'vc.
+Prover result is: Valid (0.00s, 2662 steps).
+
+File "/tmp/.pycsl_flxtfc2s.mlw", line 85, characters 63-83:
+Sub-goal variant decrease of goal hval_list_snoc'vc.
+Prover result is: Valid (0.00s, 2190 steps).
+
+File "/tmp/.pycsl_flxtfc2s.mlw", line 88, characters 15-27:
+Sub-goal postcondition of goal w_len1_twin'vc.
+Prover result is: Unknown (why3: Out of
+memory) (9.56s, -1 steps).
+
+File "/tmp/.pycsl_flxtfc2s.mlw", line 88, characters 15-27:
+Sub-goal postcondition of goal w_len1_twin'vc.
+Prover result is: Valid (0.01s, 18418 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_flxtfc2s.mlw", line 87, characters 19-20: unused variable n
+Warning, file "/tmp/.pycsl_flxtfc2s.mlw", line 87, characters 19-20: unused variable n
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Out of
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

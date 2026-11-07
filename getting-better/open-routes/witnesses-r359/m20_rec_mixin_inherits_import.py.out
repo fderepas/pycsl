@@ -1,0 +1,60 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt26/m20_rec_mixin_inherits_import.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_t5yqakfc.mlw", line 9, characters 7-14:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 21 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 9, characters 34-41:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 208 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 9, characters 51-58:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 221 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 8, characters 14-79:
+Sub-goal postcondition of goal pycsl_div'vc.
+Prover result is: Valid (3.98s, 15267905 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 14, characters 7-14:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 21 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 14, characters 34-41:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 208 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 14, characters 51-58:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 221 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 13, characters 14-79:
+Sub-goal postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 3036 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 27, characters 15-38:
+Sub-goal postcondition of goal a__m'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 32, characters 15-38:
+Sub-goal postcondition of goal c__m'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 39, characters 4-28:
+Sub-goal modulo by zero of goal g'vc.
+Prover result is: Valid (0.00s, 14 steps).
+
+File "/tmp/.pycsl_t5yqakfc.mlw", line 37, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 184 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_t5yqakfc.mlw", line 27, characters 15-38: unused variable result
+Warning, file "/tmp/.pycsl_t5yqakfc.mlw", line 32, characters 15-38: unused variable result
+Warning, file "/tmp/.pycsl_t5yqakfc.mlw", line 36, characters 9-10: unused variable a
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

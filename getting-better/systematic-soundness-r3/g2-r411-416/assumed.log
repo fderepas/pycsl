@@ -1,0 +1,3 @@
+[*] assumed-facts: 4641 emitted file(s), 87 assumed fact(s) — 28 CONCURRENT-MUTEX-ENTRY, 8 DERIVABLE-LIST-LEMMA, 2 FRESH-GLOBALS-CTOR, 3 HASH-EQ-CONSISTENCY, 46 PROOF-IMPORT.
+[+] assumed-facts: OK — every assumed fact is in a reviewed family; 2 fresh-globals fact(s), each proof-backed.
+rc=0

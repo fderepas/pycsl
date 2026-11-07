@@ -1,0 +1,45 @@
+[ok] 0008.py: 1/1 mutants killed
+[ok] 0022.py: 2/2 mutants killed
+[ok] 0025.py: 1/1 mutants killed
+[ok] 0039.py: 1/1 mutants killed
+[ok] 0040.py: 1/1 mutants killed
+[ok] 0047.py: 1/1 mutants killed
+[ok] 0048.py: 1/1 mutants killed
+[ok] 0052.py: 2/2 mutants killed
+[ok] 0053.py: 2/2 mutants killed
+[ok] 0054.py: 3/3 mutants killed
+[ok] 0055.py: 2/2 mutants killed
+[ok] 0056.py: 1/1 mutants killed
+[ok] 0057.py: 1/1 mutants killed
+[ok] 0059.py: 1/1 mutants killed
+[ok] 0060.py: 1/1 mutants killed
+[ok] 0062.py: 1/1 mutants killed
+[ok] 0063.py: 1/1 mutants killed
+[ok] 0064.py: 1/1 mutants killed
+[ok] 0069.py: 1/1 mutants killed
+[ok] 0075.py: 1/1 mutants killed
+[ok] 0080.py: 1/1 mutants killed
+[ok] 0081.py: 1/1 mutants killed
+[ok] 0102.py: 1/1 mutants killed
+[ok] 0103.py: 1/1 mutants killed
+[ok] 0104.py: 1/1 mutants killed
+[SURVIVORS] 0105.py: 0/1 mutants killed
+[ok] 0153.py: 1/1 mutants killed
+[ok] 0154.py: 1/1 mutants killed
+[ok] 0157.py: 1/1 mutants killed
+[ok] 0164.py: 1/1 mutants killed
+[ok] 0166.py: 1/1 mutants killed
+[ok] 0167.py: 1/1 mutants killed
+[ok] 0168.py: 1/1 mutants killed
+[ok] 0169.py: 1/1 mutants killed
+[ok] 0170.py: 1/1 mutants killed
+[ok] 0171.py: 1/1 mutants killed
+[ok] 0174.py: 1/1 mutants killed
+[ok] 0175.py: 1/1 mutants killed
+[ok] 0176.py: 1/1 mutants killed
+[ok] 0177.py: 1/1 mutants killed
+
+Total: 45/46 mutants killed.
+[-] SURVIVING MUTANTS (false-greens — the verifier proved a wrong spec):
+    0105.py :: line4:result==0->1
+rc=1

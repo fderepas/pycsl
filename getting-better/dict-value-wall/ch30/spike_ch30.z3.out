@@ -1,0 +1,176 @@
+File "spike_ch30.mlw", line 34, characters 63-76:
+Sub-goal Variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2832 steps).
+
+File "spike_ch30.mlw", line 55, characters 99-120:
+Sub-goal Variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 3008 steps).
+
+File "spike_ch30.mlw", line 62, characters 48-63:
+Sub-goal Variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2338 steps).
+
+File "spike_ch30.mlw", line 69, characters 43-66:
+Sub-goal Variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2374 steps).
+
+File "spike_ch30.mlw", line 85, characters 63-83:
+Sub-goal Variant decrease of goal hval_list_to_seq'vc.
+Prover result is: Valid (0.00s, 2338 steps).
+
+File "spike_ch30.mlw", line 91, characters 69-86:
+Sub-goal Variant decrease of goal hpairs_to_map'vc.
+Prover result is: Valid (0.00s, 2342 steps).
+
+File "spike_ch30.mlw", line 95, characters 86-105:
+Sub-goal Variant decrease of goal hpairs_to_map_p'vc.
+Prover result is: Valid (0.00s, 2342 steps).
+
+File "spike_ch30.mlw", line 94, characters 14-38:
+Sub-goal Postcondition of goal hpairs_to_map_p'vc.
+Prover result is: Valid (0.01s, 11353 steps).
+
+File "spike_ch30.mlw", line 98, characters 14-92:
+Sub-goal Postcondition of goal hval_to_map'vc.
+Prover result is: Valid (0.00s, 3894 steps).
+
+File "spike_ch30.mlw", line 103, characters 14-110:
+Sub-goal Postcondition of goal is_valid'vc.
+Prover result is: Valid (0.01s, 11257 steps).
+
+File "spike_ch30.mlw", line 114, characters 20-35:
+Sub-goal Loop invariant init of goal has_named_c'vc.
+Prover result is: Valid (0.00s, 972 steps).
+
+File "spike_ch30.mlw", line 115, characters 33-38:
+Sub-goal Loop invariant init of goal has_named_c'vc.
+Prover result is: Valid (0.00s, 972 steps).
+
+File "spike_ch30.mlw", line 110, characters 14-25:
+Sub-goal Postcondition of goal has_named_c'vc.
+Prover result is: Valid (0.00s, 1448 steps).
+
+File "spike_ch30.mlw", line 116, characters 18-40:
+Sub-goal Loop variant decrease of goal has_named_c'vc.
+Prover result is: Valid (0.00s, 5228 steps).
+
+File "spike_ch30.mlw", line 114, characters 20-35:
+Sub-goal Loop invariant preservation of goal has_named_c'vc.
+Prover result is: Valid (0.01s, 16932 steps).
+
+File "spike_ch30.mlw", line 115, characters 33-38:
+Sub-goal Loop invariant preservation of goal has_named_c'vc.
+Prover result is: Valid (2.16s, 2226648 steps).
+
+File "spike_ch30.mlw", line 110, characters 14-25:
+Sub-goal Postcondition of goal has_named_c'vc.
+Prover result is: Valid (0.00s, 2883 steps).
+
+File "spike_ch30.mlw", line 132, characters 20-35:
+Sub-goal Loop invariant init of goal has_named_c_twin'vc.
+Prover result is: Valid (0.00s, 972 steps).
+
+File "spike_ch30.mlw", line 128, characters 14-24:
+Sub-goal Postcondition of goal has_named_c_twin'vc.
+Prover result is: Timeout (20.00s, 15722583 steps).
+
+File "spike_ch30.mlw", line 133, characters 18-40:
+Sub-goal Loop variant decrease of goal has_named_c_twin'vc.
+Prover result is: Valid (0.00s, 5180 steps).
+
+File "spike_ch30.mlw", line 132, characters 20-35:
+Sub-goal Loop invariant preservation of goal has_named_c_twin'vc.
+Prover result is: Valid (0.01s, 16810 steps).
+
+File "spike_ch30.mlw", line 128, characters 14-24:
+Sub-goal Postcondition of goal has_named_c_twin'vc.
+Prover result is: Valid (0.00s, 989 steps).
+
+File "spike_ch30.mlw", line 150, characters 18-44:
+Sub-goal Loop invariant init of goal count_valid'vc.
+Prover result is: Valid (0.01s, 23256 steps).
+
+File "spike_ch30.mlw", line 151, characters 28-34:
+Sub-goal Loop invariant init of goal count_valid'vc.
+Prover result is: Valid (0.01s, 2040 steps).
+
+File "spike_ch30.mlw", line 152, characters 28-34:
+Sub-goal Loop invariant init of goal count_valid'vc.
+Prover result is: Valid (0.01s, 2042 steps).
+
+File "spike_ch30.mlw", line 153, characters 28-34:
+Sub-goal Loop invariant init of goal count_valid'vc.
+Prover result is: Valid (0.01s, 2043 steps).
+
+File "spike_ch30.mlw", line 154, characters 16-36:
+Sub-goal Loop variant decrease of goal count_valid'vc.
+Prover result is: Valid (0.01s, 17271 steps).
+
+File "spike_ch30.mlw", line 150, characters 18-44:
+Sub-goal Loop invariant preservation of goal count_valid'vc.
+Prover result is: Valid (0.01s, 31236 steps).
+
+File "spike_ch30.mlw", line 151, characters 28-34:
+Sub-goal Loop invariant preservation of goal count_valid'vc.
+Prover result is: Valid (0.01s, 3841 steps).
+
+File "spike_ch30.mlw", line 152, characters 28-34:
+Sub-goal Loop invariant preservation of goal count_valid'vc.
+Prover result is: Valid (0.01s, 4920 steps).
+
+File "spike_ch30.mlw", line 153, characters 28-34:
+Sub-goal Loop invariant preservation of goal count_valid'vc.
+Prover result is: Valid (0.02s, 42029 steps).
+
+File "spike_ch30.mlw", line 154, characters 16-36:
+Sub-goal Loop variant decrease of goal count_valid'vc.
+Prover result is: Valid (0.01s, 16100 steps).
+
+File "spike_ch30.mlw", line 150, characters 18-44:
+Sub-goal Loop invariant preservation of goal count_valid'vc.
+Prover result is: Valid (0.01s, 30072 steps).
+
+File "spike_ch30.mlw", line 151, characters 28-34:
+Sub-goal Loop invariant preservation of goal count_valid'vc.
+Prover result is: Valid (0.00s, 3810 steps).
+
+File "spike_ch30.mlw", line 152, characters 28-34:
+Sub-goal Loop invariant preservation of goal count_valid'vc.
+Prover result is: Valid (0.01s, 40724 steps).
+
+File "spike_ch30.mlw", line 153, characters 28-34:
+Sub-goal Loop invariant preservation of goal count_valid'vc.
+Prover result is: Valid (0.00s, 3854 steps).
+
+File "spike_ch30.mlw", line 145, characters 14-24:
+Sub-goal Postcondition of goal count_valid'vc.
+Prover result is: Valid (2.39s, 2279524 steps).
+
+File "spike_ch30.mlw", line 167, characters 18-44:
+Sub-goal Loop invariant init of goal count_valid_twin'vc.
+Prover result is: Valid (0.01s, 23256 steps).
+
+File "spike_ch30.mlw", line 168, characters 16-36:
+Sub-goal Loop variant decrease of goal count_valid_twin'vc.
+Prover result is: Valid (0.01s, 16837 steps).
+
+File "spike_ch30.mlw", line 167, characters 18-44:
+Sub-goal Loop invariant preservation of goal count_valid_twin'vc.
+Prover result is: Valid (0.01s, 30572 steps).
+
+File "spike_ch30.mlw", line 168, characters 16-36:
+Sub-goal Loop variant decrease of goal count_valid_twin'vc.
+Prover result is: Valid (0.01s, 15688 steps).
+
+File "spike_ch30.mlw", line 167, characters 18-44:
+Sub-goal Loop invariant preservation of goal count_valid_twin'vc.
+Prover result is: Valid (0.01s, 29434 steps).
+
+File "spike_ch30.mlw", line 162, characters 14-24:
+Sub-goal Postcondition of goal count_valid_twin'vc.
+Prover result is: Unknown (unknown) (5.12s, 4151503 steps).
+
+File "spike_ch30.mlw", line 175, characters 21-26:
+Goal sanity_false.
+Prover result is: Timeout (20.00s, 20513401 steps).
+

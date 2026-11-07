@@ -1,0 +1,48 @@
+test-suite/corpus/pycsl-reference/0882.py	collect_assign_targets	23	node['target']	acc.add(node['target'])
+test-suite/corpus/pycsl-reference/0884.py	collect_assign_targets_bad	25	node['target']	acc.add(node['target'])
+test-suite/corpus/pycsl-reference/3341_gen37_r287_sorted_key_dict_subscript.py	f	10	v	d[v]
+test-suite/corpus/pycsl-reference/3596_gen37_r2c_local_store_below_param_elem_refused.py	refuse_below_param	18	t	t not in generics
+test-suite/corpus/pycsl-reference/3596_gen37_r2c_local_store_below_param_elem_refused.py	refuse_below_param	19	t	generics[t]
+test-suite/corpus/pycsl-reference/3596_gen37_r2c_local_store_below_param_elem_refused.py	refuse_below_param	20	t	generics[t]
+test-suite/corpus/pycsl-reference/3600_gen37_r2c_local_cgd_min_typechecks.py	cgd_min	18	t	t not in generics
+test-suite/corpus/pycsl-reference/3600_gen37_r2c_local_cgd_min_typechecks.py	cgd_min	19	t	generics[t]
+test-suite/corpus/pycsl-reference/3600_gen37_r2c_local_cgd_min_typechecks.py	cgd_min	20	t	generics[t]
+src/pycsl_lib/os/__init__.py	pread	575	fd	_filesystem.fd_open[fd]
+test-suite/corpus/pycsl-reference/0883.py	collect_written	27	arr.get('field')	written.add(arr.get('field'))
+test-suite/corpus/pycsl-reference/1318_route116_globals_lookup_factory_is_faithful.py	_N	16	name	_g[name]
+test-suite/corpus/pycsl-reference/3344_gen37_r287_sorted_key_dict_in_try.py	f	11	v	d[v]
+test-suite/corpus/pycsl-reference/5069_gen37_r375_star_set_erased.py	m	7	*self	{*self}
+test-suite/corpus/python-reference/0212.py	test_generic_type_aliases	6	(T, T)	tuple[T, T]
+test-suite/corpus/python-reference/0091.py	__getitem__	13	i	self._d[i]
+test-suite/corpus/python-reference/0091.py	test_emulating_container_types	13	i	self._d[i]
+test-suite/corpus/python-reference/stdlib/collections/counter_proves.py	make_counter	12	items	Counter(items)
+src/pycsl_lib/syscfg/__init__.py	get_config_var	9	name	name in _CONFIG_VARS
+src/pycsl_lib/json/scanner.py	py_make_scanner	26	idx	string[idx]
+src/pycsl_lib/json/scanner.py	_scan_once	26	idx	string[idx]
+src/pycsl_lib/re/_engine.py	group	76	n - 1	self._groups[n - 1]
+src/pycsl_lib/re/_engine.py	_match_whitespace	127	s[i]	s[i] in _WHITESPACE_CHARS
+src/pycsl_lib/re/_engine.py	_match_whitespace	127	i	s[i]
+src/pycsl_lib/re/_engine.py	_match_stringchunk	157	i	s[i]
+src/pycsl_lib/re/_engine.py	_match_stringchunk	158	c	c in _STRINGCHUNK_TERMINATORS
+src/pycsl_lib/re/_engine.py	_match_number	179	i	s[i]
+src/pycsl_lib/re/_engine.py	_match_number	175	i	s[i]
+src/pycsl_lib/re/_engine.py	_match_number	188	i	s[i]
+src/pycsl_lib/re/_engine.py	_match_number	201	i	s[i]
+src/pycsl_lib/re/_engine.py	_match_number	203	j	s[j]
+src/pycsl_lib/re/_engine.py	_match_number	213	pos	s[pos]
+src/pycsl_lib/re/_engine.py	_match_number	177	i	s[i]
+src/pycsl_lib/re/_engine.py	_match_number	182	i	s[i]
+src/pycsl_lib/re/_engine.py	_match_number	190	j	s[j]
+src/pycsl_lib/re/_engine.py	_match_number	194	j	s[j]
+src/pycsl_lib/re/_engine.py	_match_number	205	j	s[j]
+src/pycsl_lib/re/_engine.py	_match_number	208	j	s[j]
+src/pycsl_lib/re/_engine.py	_sub_escape	231	c	c in _ESCAPE_CHARS
+src/pycsl_lib/re/_engine.py	_match_escape	249	s[pos]	s[pos] in _ESCAPE_CHARS
+src/pycsl_lib/re/_engine.py	_match_escape	249	pos	s[pos]
+src/pycsl_lib/re/_engine.py	_match_escape_ascii	284	pos	s[pos]
+src/pycsl_lib/re/_engine.py	_match_has_utf8	296	pos	s[pos]
+src/pycsl_lib/re/_engine.py	_match_color_pattern	331	pos	s[pos]
+src/pycsl_lib/re/_engine.py	_match_color_pattern	339	end	s[end]
+src/pycsl_lib/re/_engine.py	_match_color_pattern	369	i	s[i]
+src/pycsl_lib/re/_engine.py	_color_match_group	383	_names.index(n)	self._groups[_names.index(n)]
+src/pycsl_lib/re/_engine.py	_sub_color	416	i	s[i]

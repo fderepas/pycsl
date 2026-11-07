@@ -45,6 +45,7 @@ def _write_packed(inode: list) -> None:
 #@ class invariant 0 <= self.fields[17] and self.fields[17] <= 4294967295
 class Inode:
     #@ requires \valid(initial, 18)
+    #@ requires \length(initial) == 18
     #@ requires 0 <= initial[0] and initial[0] <= 4294967295
     #@ requires 0 <= initial[1] and initial[1] <= 65535
     #@ requires 0 <= initial[2] and initial[2] <= 65535

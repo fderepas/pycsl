@@ -15,6 +15,7 @@ b = 0
 #@ thread_entry
 #@ \diverges
 def worker_a() -> int:
+    global a
     #@ critical lock_a
     with lock_a:
         a += 1
@@ -23,6 +24,7 @@ def worker_a() -> int:
 #@ thread_entry
 #@ \diverges
 def worker_b() -> int:
+    global b
     #@ critical lock_b
     with lock_b:
         b += 1

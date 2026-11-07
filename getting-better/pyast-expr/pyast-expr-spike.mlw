@@ -1,0 +1,117 @@
+(* Phase-0 spike for the `pyast_expr` ADT unification (driver-backlog §"L2 REST-OF-CLUSTER").
+   QUESTION: once the 23 `_py_expr_*` handlers all take ONE input-side ADT instead of 21
+   distinct records, does the resulting mutually-recursive dispatch + structural variant
+   actually DISCHARGE? Everything else in that build is emitter plumbing; this is the only
+   part that could be a CORRECTNESS boundary, so it is worth answering before the plumbing.
+
+   Modelled faithfully on the real shapes:
+     - `pyast_expr` is the INPUT-side raw-ast union (the expression analogue of the
+       certified `pyast_stmt`), carrying its children as pyast_expr;
+     - `emit_ir` is the OUTPUT-side IR sum (kept minimal here);
+     - `py_type_name_of` is the uninterpreted runtime-class tag the LANDED type-keyed
+       dispatch capability already uses (bf5435f3);
+     - the dispatcher is the if-chain that capability emits, calling each handler directly.
+   The group is written `let rec function` (pure/logic) rather than `let rec` (program) for
+   ONE reason: the non-vacuity goals at the bottom have to MENTION it, and a program symbol
+   cannot appear in a goal. The termination obligation being probed is identical either way;
+   the real emission is the program form.
+     - each handler recurses into the dispatcher on a STRICT sub-node.
+   The measure is `size`, the same structural measure the live emit_ir carries. *)
+module PyastExprSpike
+  use int.Int
+  use string.String
+
+  type pyast_expr =
+    | PName string
+    | PConst string
+    | PUnary string pyast_expr
+    | PBin string pyast_expr pyast_expr
+    | POther
+
+  type emit_ir =
+    | IrVar string
+    | IrStr string
+    | IrUnaryOp string emit_ir
+    | IrBinOp string emit_ir emit_ir
+    | IrOther string
+
+  let rec function size (e: pyast_expr) : int
+    variant { e }
+    ensures { result >= 1 }
+  = match e with
+    | PName _      -> 1
+    | PConst _     -> 1
+    | POther       -> 1
+    | PUnary _ a   -> 1 + size a
+    | PBin _ a b   -> 1 + size a + size b
+    end
+
+  (* The uninterpreted runtime-class tag: exactly what `_py_op_to_str`'s landed lowering
+     uses. Its FAITHFULNESS law is what makes the dispatch chain non-vacuous — each arm's
+     tag is pinned, so the chain really does select on the node's class. *)
+  val function py_type_name_of (e: pyast_expr) : string
+    ensures { result = match e with
+                       | PName _    -> "Name"
+                       | PConst _   -> "Constant"
+                       | PUnary _ _ -> "UnaryOp"
+                       | PBin _ _ _ -> "BinOp"
+                       | POther     -> "Other" end }
+
+  val function str_eq_op (a b: string) : bool
+    ensures { result <-> (a = b) }
+
+  (* The size-decrease facts the handlers need — the analogue of the live
+     `size_left_dec` / `size_right_dec` lemmas on emit_ir. *)
+  lemma size_unary_dec : forall o: string, a: pyast_expr. size a < size (PUnary o a)
+  lemma size_bin_l_dec : forall o: string, a b: pyast_expr. size a < size (PBin o a b)
+  lemma size_bin_r_dec : forall o: string, a b: pyast_expr. size b < size (PBin o a b)
+
+  (* ---- the mutual group: dispatcher + 4 handlers, exactly the shape the expansion emits ---- *)
+  (* THE VARIANT IS THE ENCODED PAIR, NOT `size e` — this is the spike's main finding.
+     The dispatcher hands the SAME node `e` to its handler, so `size e < size e` is FALSE
+     and every dispatcher variant goal fails (measured: 4 Timeouts at ~280k steps, which
+     looks like a scale wall and is really an unprovable goal — wall-lessons (ee)).
+     Encode (structure, level) as ONE integer exactly as the converted `_Parser` nest does:
+     multiplier 2 dominates the single level bit.
+       dispatcher(level 1) -> handler(level 0) on the SAME e : 2*size e + 0 < 2*size e + 1 ✓
+       handler(level 0) -> dispatcher(level 1) on a STRICT sub-node a, where
+                           size a <= size e - 1                 : 2*size a + 1 < 2*size e ✓ *)
+  let rec function py_expr_to_ir (e: pyast_expr) : emit_ir
+    variant { 2 * size e + 1 }
+  = if str_eq_op (py_type_name_of e) "Name" then py_expr_name e
+    else if str_eq_op (py_type_name_of e) "Constant" then py_expr_constant e
+    else if str_eq_op (py_type_name_of e) "UnaryOp" then py_expr_unaryop e
+    else if str_eq_op (py_type_name_of e) "BinOp" then py_expr_binop e
+    else IrOther "UnknownPyExpr"
+
+  with function py_expr_name (e: pyast_expr) : emit_ir
+    variant { 2 * size e + 0 }
+  = match e with PName n -> IrVar n | _ -> IrOther "" end
+
+  with function py_expr_constant (e: pyast_expr) : emit_ir
+    variant { 2 * size e + 0 }
+  = match e with PConst s -> IrStr s | _ -> IrOther "" end
+
+  with function py_expr_unaryop (e: pyast_expr) : emit_ir
+    variant { 2 * size e + 0 }
+  = match e with
+    | PUnary o a -> IrUnaryOp o (py_expr_to_ir a)
+    | _ -> IrOther "" end
+
+  with function py_expr_binop (e: pyast_expr) : emit_ir
+    variant { 2 * size e + 0 }
+  = match e with
+    | PBin o a b -> IrBinOp o (py_expr_to_ir a) (py_expr_to_ir b)
+    | _ -> IrOther "" end
+
+  (* NON-VACUITY: the dispatch really does select on the node's class, and the result
+     carries the node's payload. A facade (a chain independent of `e`) refutes these. *)
+  goal dispatch_name    : forall n: string. py_expr_to_ir (PName n) = IrVar n
+  goal dispatch_const   : forall s: string. py_expr_to_ir (PConst s) = IrStr s
+  goal dispatch_unary   : forall o: string, a: pyast_expr.
+                            py_expr_to_ir (PUnary o a) = IrUnaryOp o (py_expr_to_ir a)
+  goal dispatch_bin     : forall o: string, a b: pyast_expr.
+                            py_expr_to_ir (PBin o a b)
+                            = IrBinOp o (py_expr_to_ir a) (py_expr_to_ir b)
+  goal dispatch_other   : py_expr_to_ir POther = IrOther "UnknownPyExpr"
+end

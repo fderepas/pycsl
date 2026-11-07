@@ -36,6 +36,9 @@ from typing import List
 # abstract per-slot inode decode is 256*b0 + b1. The cited axiom closes the empty-body VC
 # (the postcondition) under the two byte preconditions. `slot_inode` is the SAME abstract
 # UnixFs.Dir symbol the os model's directory helpers / scan axioms use.
+# (#49) route #262: the cited lemma reads a RAW byte reader; a contract read is Python-indexed, so the
+# two agree only for a non-negative offset — the codec's domain, now stated (it was implied by conflation).
+#@ requires blk >= 0 and k >= 0
 #@ requires disk[blk * 512 + 32 * k] == b0
 #@ requires disk[blk * 512 + 32 * k + 1] == b1
 #@ ensures slot_inode(disk, blk, k) == 256 * b0 + b1

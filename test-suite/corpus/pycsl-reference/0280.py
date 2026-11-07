@@ -13,6 +13,7 @@ total_out = 0
 #@ thread_entry
 #@ \diverges
 def io_worker() -> int:
+    global total_in, total_out
     #@ critical lock_io
     with lock_io:
         total_in += 1

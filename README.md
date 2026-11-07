@@ -87,6 +87,7 @@ Reading the tokens:
 | `assert` / `check` | `#@ assert P` proves `P` at that statement and assumes it downstream; `#@ check P` proves without assuming. A real obligation — unlike the Python `assert`, which the prover ignores. |
 | `happy <name>:` | A module-level HAPPY region-integrity property: `#@ happy <name>:` with a 4-space-indented body `region LO .. HI` / `writes self.<field> outside region` / optional `except m1, m2`. Expands to a per-site `#@ check` at every write of `self.<field>` in every non-exempt method. |
 | `\preserves` | `#@ \preserves` opts a `\trusted`/`\abstract` method into a HAPPY trust boundary (synthesizes the assumed region-preservation `ensures`); required on any non-exempt bodyless mutator. |
+| `declared_in` | `#@ declared_in <relpath>.py::<Class>.<method>` — a certified cross-mixin DECLARATION stub in the self-annotation mirror (cross-mixin-declaration-stubs B4). Parses to the same node as `\trusted` (identical bodyless `val` emission, counted as trusted by pycsl itself); `bin/check-declaration-conformance.py` requires the named target to equal the live-MRO definition and the declaration to claim no more than it. REFUSED outside `src/self-annotate/src/`. Counted apart from `\trusted` by `bin/count-trusted-directives.py`. See `test-suite/annotations.md` §2.1.30 |
 | `footprint` | `#@ footprint <name>(<arg>)` binds the parameter of a parametric HAPPY (`#@ happy <name>(p): protects <path>[LO:HI]`) to this method's argument, so each write of the path gets a per-object containment `#@ check`. (The HAPPY `protects <paths> [except …]` subsystem-ownership form expands to a per-site `#@ check False` at non-exempt direct writes and rejects aliasing a protected base.) |
 
 Multiple `requires` / `ensures` lines are conjuncted.
@@ -262,6 +263,66 @@ By default the consistency relationship is emitted as a WhyML axiom
 (the user is on the hook to keep them aligned). Under
 `pycsl --strict-hash-eq-consistency` it becomes a goal that must be
 discharged externally via `#@ proof rocq <q>` / `#@ proof lean <q>`.
+
+**Declared model assumptions.** Like HASH-EQ-CONSISTENCY, five facts are
+assumed rather than proved and are listed by `pycsl --soundness-report`
+whenever a program relies on them: **FLOAT-FINITE** (every `float` is
+finite and non-NaN — `float` is the Why3 `real`, so `x == x` proves for
+`x: float`; drop it with `--strict-float-finite`, corpus 2500-2507) and
+**BUILTIN-EXACT** (a builtin-typed value is an exact instance, not a
+subclass overriding a dunder — `x - x == 0` proves for `x: int`; no
+strict mode, corpus 2506) and **FIELD-DISJOINT** (two distinct mutable
+fields hold distinct objects — a write through `self.xs` is invisible
+through `self.ys`; an alias built by verified code is refused, one built
+in unverified code is the ownership rule R1; no strict mode, corpus
+2570) and **PARAM-DISJOINT** (its twin for parameters and elements: two
+distinct mutable parameters — or a parameter and `self`, or a parameter and
+a module-level name — hold distinct objects, and so do distinct elements of a
+`List[List[int]]`; `f(a, a)` and `[r, r]` built by verified code are refused
+or fail closed, built in unverified code they are rule R1; no strict mode,
+corpus 3180-3196) and **LATIN1-STR** (every `str` value consists of code points
+0..255 — `str` is a Why3 string of 8-bit `string.Char`s, so
+`ord(s) < 256` and `ord(chr(300)) != 300` prove; drop it with
+`--strict-latin1`, corpus 3020-3029) and **HVAL-STR-KEYS** (every dict nested
+inside a `PyVal` value has `str` keys — `Dict[str, PyVal]` constrains only the
+top-level keys, but the `hval` model keys every nested dict by `string`, so
+`for k, v in d["xs"].items(): return isinstance(k, str)` proves for
+`{"xs": {1: 2}}`; drop it with `--strict-hval-keys`, corpus 3550-3558) and
+**BARE-CONTAINER-INT** (an element of a parameter annotated with a bare
+container — `xs: list`, `xs: List`, `Sequence`, `tuple` — is read as an `int`,
+so `xs[0] % 1 == 0` proves for `[0.5]`; likewise a VALUE of a bare `d: dict`,
+route #334; drop it with `--strict-bare-containers`, corpus 4348-4349 /
+4363-4364 / 4427 / 4443). See
+translational reference §T.10.5.
+
+**Overrides are checked by default (route #277).** A method call on a value
+typed with a user class `A` is verified against `A.m`'s contract, so every
+override of `A.m` — defined in a subclass, supplied through the MRO by another
+base (`class B(M, A): pass`), or bound in a class body (refused: it has no
+contract) — must REFINE it: a goal `((pre_A -> pre_B) /\ (post_B -> post_A))`
+plus the raise conditions, and refusals (`PYCSL-SEM-OVERRIDE-REFINEMENT`,
+route #278) when the override may raise an exception the base does not declare
+or its `no_exception` excludes, drops the base's `no_exception`, assigns a
+location the base's `assigns` does not name (a field the base class lacks is
+exempt), or moves a parameter the base contract mentions. This used to need
+`--check-behavioral-subtyping` (kept, now a no-op). `--assume-class-exact`
+turns it off and is then the declared model assumption **CLASS-EXACT** (a
+user-class-typed value is an exact instance), listed by `--soundness-report`;
+corpus 3100-3113.
+
+Under `no_exception` covering `ValueError`, every int -> DECIMAL string
+conversion (`str(x)`, `repr(x)`, `print(x)`, an f-string part `f"{x}"` /
+`!r` / `:d`, a `%` operand) owes `|x| < 10**4300` (CPython 3.11+
+`sys.int_max_str_digits`, route #281; corpus 3114-3119) — for an
+f-string spec whenever it renders in decimal (`:d`, `:5`, `:05d`, `:n`,
+`:,`, `:>10`; route #284). A format spec or `%` format INVALID for the
+operand's type (`f"{x:s}"`, `f"{x:.2}"`, `f"{s:d}"`, `"%q" % x`),
+computed (`f"{x:{w}}"`) or non-literal owes `false` (route #284; corpus
+3260-3271). A comprehension / generator expression whose element,
+condition or iterable contains an operation of ANY `exception_model`
+trigger row for an active exception (`[str(x) ...]`, `[chr(x) ...]`,
+`sum(1 << x ...)`) is refused (route #285; table-driven by
+`TRIGGER_EXPR_SHAPES`; corpus 3272-3279).
 
 A class defining only `__eq__` (no `__hash__`) is detected as
 *unhashable*; using it as a dict/set key would raise `TypeError` at
@@ -1197,7 +1258,8 @@ inconsistent rules.
 
 This invariant is enforced mechanically by `bin/doc-coherency.py`,
 wired into `bin/run-reference-tests.sh` as a leading CI gate
-(immediately after the stdlib-coverage gate, before any corpus test).
+(before any corpus test; the stdlib-coverage gate that used to precede it was retired
+when `pure_lib` was promoted to `src/pycsl_lib/` — see the NOTE in that script).
 A drift in documentation parity fails fast, before any proof is
 attempted.
 
@@ -1253,14 +1315,14 @@ trigger table that `no_exception` relies on).
 ### Operational gates, same shape
 
 PyCSL enforces four mechanical gates, each a *systems* invariant
-rather than a per-file property. Two of them — stdlib API coverage and
-directive doc coherency — run **before every corpus test** (wired into
+rather than a per-file property. One of them — directive doc coherency —
+runs **before every corpus test** (wired into
 `bin/run-reference-tests.sh`, fail-fast); the self-annotation suite and
 mirror-drift checks run separately:
 
 | Gate | Canonical source | Tool | Skill |
 |---|---|---|---|
-| Stdlib API coverage | `stdlib-coverage-report.toml` | `bin/stdlib-coverage.py --check` | `pycsl-stdlib-coverage` |
+| Stdlib API coverage (RETIRED, not run by any battery) | `stdlib-coverage-report.toml` | `attic/stdlib-coverage-tooling/stdlib-coverage.py` | `pycsl-stdlib-coverage` |
 | Directive doc coherency | `test-suite/annotations.md` | `bin/doc-coherency.py --check` | `pycsl-doc-coherency` |
 | Self-annotation suite | `bin/run-self-annotation-suite.sh` (suite list) | the script itself | `pycsl-stdlib-coverage` §step 5 |
 | Self-annotation mirror | `src/pycsl/*.py` (canonical sources) | `bin/self-annotate-mirror-check.sh` | `pycsl-stdlib-coverage` §step 5 |

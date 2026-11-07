@@ -1,0 +1,129 @@
+(* PHASE-0b SPIKE for the `pyast_expr` ADT unification — the REAL emitted shape, not the
+   idealized one. Run: why3 prove -P 'Z3,4.13.3,' -t 30 <this file>  =>  16/16 Valid.
+
+   Phase-0 (pyast-expr-spike.mlw) answered "does a mutual dispatcher+handlers group with a
+   structural variant discharge?" with hand-written ADT arms. It did NOT answer the three
+   questions the EMITTED shape actually raises, because the emitter does not have hand-written
+   arms available: the 21 `_py_expr_*` handlers take auto-derived RECORDS
+   (`ir_resolve._PURE_AST_FIELD_TABLE` -> `type binop = { binop_left: emit_ir; ... }`), some of
+   whose fields are `array emit_ir` (Tuple/List/Set `elts`) or `option emit_ir` (Slice bounds).
+
+   THREE FINDINGS, all of which change the build plan:
+
+   (1) A Why3 mutual `type A = ... with R = {...}` group CAN mix a VARIANT and RECORDS — so the
+       23 handlers do NOT have to be retyped onto one ADT parameter. Each keeps its own record
+       signature `(expr: binop) : emit_ir`; only the record's expr-child FIELD TYPES move from
+       `emit_ir` to `pyast_expr`, and the handler BODIES are textually unchanged. That is a
+       far smaller emitter delta than the backlog's "retype all 23 handlers onto it".
+
+   (2) ...but ONLY IF THE RECORDS ARE IMMUTABLE. `mutable` fields are rejected outright:
+         "This field has non-pure type, it cannot be used in a recursive type definition"
+       The emitter currently emits EVERY pure-ast record with `mutable` on every field. So the
+       group must be emitted `mutable`-free (gated, so every other file stays byte-identical),
+       and by the same rule `array` fields are ILLEGAL in the group: `array emit_ir` must
+       become a bespoke pure cons-list (`pxlist`, the irlist/psl precedent). `option` is pure
+       and stays.
+
+   (3) THE MULTIPLIER-2 ENCODED PAIR IS NOT ENOUGH. The backlog's `2 * size e + <level>` has
+       only two levels and the real shape needs THREE, because a list-carrying arm's handler
+       (`_py_expr_tuple`) calls a LIST MAPPER which in turn calls the dispatcher on each
+       element. With multiplier 2 the mapper's own goal TIMES OUT at 23M steps (measured here
+       first, exactly the wall-lessons (ee) trap again): from `2*size_pxlist l + 1` the call
+       `py_expr_to_ir h` needs `size h < size_pxlist l`, which is FALSE for a one-element list.
+       `4 * <size> + <level>` with level 0 = handlers, 1 = dispatcher, 2 = list mapper makes
+       every obligation Valid in hundredths of a second:
+         dispatcher(1) -> handler(0), SAME node        : 4s + 0 < 4s + 1
+         handler(0)    -> dispatcher(1), STRICT subnode: 4s' + 1 < 4s      (s' <= s-1)
+         handler(0)    -> mapper(2) on its own list    : 4n + 2 < 4(n+1)
+         mapper(2)     -> dispatcher(1) on an element  : 4s_h + 1 < 4n + 2 (s_h <= n)
+         mapper(2)     -> mapper(2) on the tail        : 4n' + 2 < 4n + 2  (n' < n)
+
+   NON-VACUITY is carried by g_name/g_un/g_bin at the bottom: a facade dispatch chain
+   (one independent of `e`) refutes them. *)
+module ShapeProbe3
+  use int.Int
+  use string.String
+
+  type emit_ir = IrVar string | IrUnaryOp string emit_ir | IrBinOp string emit_ir emit_ir
+               | IrTupleN irlist | IrOther string
+  with irlist = IrNil | IrCons emit_ir irlist
+
+  (* Real shape: variant arms carrying immutable records; one arm carries a LIST of
+     children (the `elts` case); one arm carries an OPAQUE node (the py_boolop_node case). *)
+  type pyast_expr =
+    | PEName name
+    | PEUnary unaryop
+    | PEBin binop
+    | PETuple tuple
+    | PEOther
+  with name = { id: string; name_ctx: int }
+  with unaryop = { unaryop_op: int; unaryop_operand: pyast_expr }
+  with binop = { binop_left: pyast_expr; binop_op: int; binop_right: pyast_expr }
+  with tuple = { tuple_elts: pxlist; tuple_ctx: int }
+  with pxlist = PXNil | PXCons pyast_expr pxlist
+
+  let rec function size (e: pyast_expr) : int
+    variant { e } ensures { result >= 1 }
+  = match e with
+    | PEName _ -> 1
+    | PEUnary u -> 1 + size_unaryop u
+    | PEBin b -> 1 + size_binop b
+    | PETuple t -> 1 + size_tuple t
+    | PEOther -> 1 end
+  with function size_unaryop (u: unaryop) : int
+    variant { u } ensures { result >= 1 }
+  = 1 + size u.unaryop_operand
+  with function size_binop (b: binop) : int
+    variant { b } ensures { result >= 1 }
+  = 1 + size b.binop_left + size b.binop_right
+  with function size_tuple (t: tuple) : int
+    variant { t } ensures { result >= 1 }
+  = 1 + size_pxlist t.tuple_elts
+  with function size_pxlist (l: pxlist) : int
+    variant { l } ensures { result >= 0 }
+  = match l with PXNil -> 0 | PXCons h t -> size h + size_pxlist t end
+
+  val function py_type_name_of (e: pyast_expr) : string
+    ensures { result = match e with
+              | PEName _ -> "Name" | PEUnary _ -> "UnaryOp" | PEBin _ -> "BinOp"
+              | PETuple _ -> "Tuple" | PEOther -> "Other" end }
+  val function str_eq_op (a b: string) : bool ensures { result <-> (a = b) }
+
+  lemma size_unary_dec : forall e: pyast_expr, u: unaryop. e = PEUnary u -> size u.unaryop_operand < size e
+  lemma size_bin_l : forall e: pyast_expr, b: binop. e = PEBin b -> size b.binop_left < size e
+  lemma size_bin_r : forall e: pyast_expr, b: binop. e = PEBin b -> size b.binop_right < size e
+
+  (* dispatcher (level 1) + handlers (level 0), records as params, encoded-pair variant *)
+  let rec function py_expr_to_ir (e: pyast_expr) : emit_ir
+    variant { 4 * size e + 1 }
+  = if str_eq_op (py_type_name_of e) "Name" then
+      (match e with PEName n -> py_expr_name n | _ -> IrOther "" end)
+    else if str_eq_op (py_type_name_of e) "UnaryOp" then
+      (match e with PEUnary u -> py_expr_unaryop u | _ -> IrOther "" end)
+    else if str_eq_op (py_type_name_of e) "BinOp" then
+      (match e with PEBin b -> py_expr_binop b | _ -> IrOther "" end)
+    else if str_eq_op (py_type_name_of e) "Tuple" then
+      (match e with PETuple t -> py_expr_tuple t | _ -> IrOther "" end)
+    else IrOther "UnknownPyExpr"
+  with function py_expr_name (n: name) : emit_ir
+    variant { 4 * 1 + 0 }
+  = IrVar n.id
+  with function py_expr_unaryop (u: unaryop) : emit_ir
+    variant { 4 * size_unaryop u + 0 }
+  = IrUnaryOp "u" (py_expr_to_ir u.unaryop_operand)
+  with function py_expr_binop (b: binop) : emit_ir
+    variant { 4 * size_binop b + 0 }
+  = IrBinOp "b" (py_expr_to_ir b.binop_left) (py_expr_to_ir b.binop_right)
+  with function py_expr_tuple (t: tuple) : emit_ir
+    variant { 4 * size_tuple t + 0 }
+  = IrTupleN (elts_map t.tuple_elts)
+  with function elts_map (l: pxlist) : irlist
+    variant { 4 * size_pxlist l + 2 }
+  = match l with
+    | PXNil -> IrNil
+    | PXCons h t -> IrCons (py_expr_to_ir h) (elts_map t) end
+
+  goal g_name : forall n: name. py_expr_to_ir (PEName n) = IrVar n.id
+  goal g_un : forall u: unaryop. py_expr_to_ir (PEUnary u) = IrUnaryOp "u" (py_expr_to_ir u.unaryop_operand)
+  goal g_bin : forall b: binop. py_expr_to_ir (PEBin b) = IrBinOp "b" (py_expr_to_ir b.binop_left) (py_expr_to_ir b.binop_right)
+end

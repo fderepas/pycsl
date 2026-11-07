@@ -1,0 +1,2 @@
+[+] mirror-check: all 53 mirrors are in sync with src/pycsl/ (a def the mirror RELOCATES into a sibling file is not staleness; its body is checked by bin/check-sibling-concrete-fidelity.py)
+mcheck-rc=0

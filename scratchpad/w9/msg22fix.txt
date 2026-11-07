@@ -1,0 +1,69 @@
+CLOSED(#44): ROUTE #22 — the declared-field guard, and it turns an ERASURE into a CAPABILITY rather than a refusal
+
+expressions._lower_getattr's fall-through emitted the `default` argument
+(or, for the 2-arg form, a fabricated 0) whenever the earlier record-field
+branches missed. Its comment claimed this "never proves false". It did:
+a declared `self.a: int = 7` with `v = getattr(self, "a", 0); if v:
+return 7; return 0` proved `\result == 0` while Python returns 7.
+
+THE FIX IS THE COMMENT'S OWN LICENCE TURNED INTO A MACHINE CHECK. A field
+the emitted record DECLARES is present, so `getattr(o, "f", d)` IS `o.f`
+and lowers as the real read. `_emitted_record_field_labels` is the
+per-class oracle; the pre-existing `_all_record_fields` branch is a UNION
+over every class AND is gated on `@mutable_state`, which is exactly why
+the corpus sat outside it. ABSENCE still takes the default — a name the
+record does not declare is genuinely missing at runtime too — so the 20
+`self.<runtime cache>` sites the census found are untouched, and are now
+correct BY CHECK rather than by luck.
+
+NOT A REFUSAL. Witness 0992 proves the TRUE `\result == 7` on the same
+body, which nothing could do before. Both witnesses were negative-tested
+against a worktree at the parent commit and BOTH FLIP: 0991 proved there
+and fails here; 0992 failed there and proves here. A fix that merely
+BANNED the shape would make 0991 fail too, and no test could tell the two
+apart -- which is why there are two.
+
+ROUTE #21'S OWN REFUSAL WAS ONE OF THE TWO VICTIMS. `getattr(stmt,
+"finalbody", None)` on `TryStmt` -- a record that literally emits
+`mutable finalbody: array emit_ir` -- had lowered the guard to
+`if ((if (0 <> 0) && true then 1 else 0) <> 0) then raise PyCSLIRError`,
+DEAD CODE. The mirror's whole-file proof had been verifying a
+_handle_try_stmt in which last night's unsoundness fix could not fire.
+It now lowers to `Array.length (!_final) <> 0` and is live.
+
+That guard had to be RESPELLED, in the live emitter and the mirror
+together, and the reason is the lesson: making the read FAITHFUL
+immediately produced an L3-tc REJECTION, because `finalbody` is an
+`array emit_ir` and both the int-truthiness form `x <> 0` and
+`iter_length` (which takes `array int`) are ill-typed on it. WL-02
+fail-closed doing its job -- an erasure hides a TYPE ERROR as much as it
+hides a value, so closing the erasure uncovers it, and the two must land
+in the same increment. Respelled with the shape the adjacent `orelse`
+block already used: bind the `to_dict()` comprehension, test that.
+`finalbody` is a REQUIRED dataclass field of TryStmt, so the old
+`getattr` default was pure defensiveness; computed once and reused by the
+`finally` emission, so the method got shorter.
+
+GATES, all re-derived from the surface against a worktree at the parent:
+  pycsl-reference    820/820 BYTE-IDENTICAL (+ the 2 new witnesses)
+  python-reference   2142/2142 BYTE-IDENTICAL, refusal set identical (75)
+  mirror emission    exactly 2 files moved, both strict improvements:
+                     stmt_control_flow (the guard above) and
+                     Module5_IREmitter (`IrCtorPayload ... 0` becomes
+                     `... node.ctorpayload_index`)
+  mirror L3-tc       53/53
+  fidelity           2 DIVERGED, byte-identical to the baseline log
+  mirror-check       byte-identical to the baseline log, no new drift
+  conformance        core 38/0, front-end 38/0, determinism 10/10
+  vacuity (--emit)   no NEW erasure, 8 known gated
+  ratchets           computed-rhs 2/0 - dropped-mutation 1/51/10/0 -
+                     yield-erasure 2 - shadowed-selfcalls 14 -
+                     frame-honesty 0/1 and 0/94 - mirror-coverage 550/41 -
+                     field-parity 7 known/0 new - signature-drift 0 -
+                     clause-survival 2 - untrusted-emitted 845/0/0
+  metric             UNCHANGED -- markers 456 / grep 481
+  witness 0990       route #21 still refused, message unchanged
+
+OWED: the two moved mirrors need whole-file re-proofs at HEAD (launched).
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

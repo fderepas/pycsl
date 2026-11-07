@@ -1,0 +1,35 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/crosscheck.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_5nap0q91.mlw", line 33, characters 15-19:
+Sub-goal postcondition of goal _module_namespace_of'vc.
+Prover result is: Valid (0.00s, 748 steps).
+
+File "/tmp/.pycsl_5nap0q91.mlw", line 42, characters 32-36:
+Sub-goal postcondition of goal crosscheckresult__all_agree'vc.
+Prover result is: Valid (0.00s, 748 steps).
+
+File "/tmp/.pycsl_5nap0q91.mlw", line 50, characters 15-19:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1173 steps).
+
+File "/tmp/.pycsl_5nap0q91.mlw", line 50, characters 15-19:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.01s, 1233 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 29, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 31, characters 37-46: unused variable rocq_file
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 33, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 37, characters 23-30: unused variable py_file
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 39, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 42, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 44, characters 36-40: unused variable self
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 46, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 50, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 54, characters 12-16: unused variable argv
+Warning, file "/tmp/.pycsl_5nap0q91.mlw", line 56, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,114 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/pure_ast.py'...
+[*] Memory model: hoare
+[*] Import 'typing.List': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'typing.Tuple': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'inspect.cleandoc': external module, no local source found — skipping
+[*] --fun filter: verifying ['_parser___binop', '_parser___call_args', '_parser__and_test', '_parser__await_expr', '_parser__comp_for', '_parser__comparison', '_parser__expr', '_parser__factor', '_parser__lambdef', '_parser__not_test', '_parser__or_test', '_parser__or_test_no_cond', '_parser__power', '_parser__test', '_parser__trailers', '_parser__unary_postfix'], trusting ['_N', '_build_nodes', '_const_value_getter', '_const_value_setter', '_decode_escapes', '_decode_fstring_middle', '_decode_string', '_fstring_prefix_raw', '_is_aug', '_lex', '_merge_str_constants', '_new', '_pad_whitespace', '_parse_number', '_parser___capture_name', '_parser___comp_target', '_parser___dict_rest', '_parser___dotted_as_name', '_parser___dotted_value', '_parser___else_block', '_parser___fin', '_parser___fin_block', '_parser___fin_pos', '_parser___for_target', '_parser___fstring', '_parser___fstring_format_spec', '_parser___fstring_replacement', '_parser___if_tail', '_parser___import_as_name', '_parser___import_as_names', '_parser___lambda_arg', '_parser___line_ends_with_colon', '_parser___looks_like_match', '_parser___looks_like_type_alias', '_parser___match_subject', '_parser___max_end', '_parser___name_str', '_parser___param_arg', '_parser___parse_type_params', '_parser___pattern_number', '_parser___sequence_pattern', '_parser___slice', '_parser___stmt_end', '_parser___subscript', '_parser___subscript_item', '_parser___testlist_end', '_parser___with_item', '_parser___with_parenthesized', '_parser__accept_kw', '_parser__accept_op', '_parser__advance', '_parser__assert_stmt', '_parser__async_stmt', '_parser__at_kw', '_parser__at_name', '_parser__at_op', '_parser__atom', '_parser__atom_brace', '_parser__atom_list', '_parser__atom_paren', '_parser__block', '_parser__case_block', '_parser__classdef', '_parser__closed_pattern', '_parser__cur', '_parser__decorated', '_parser__del_stmt', '_parser__error', '_parser__expect_kw', '_parser__expect_op', '_parser__expr_or_star', '_parser__expr_stmt', '_parser__exprlist', '_parser__for_stmt', '_parser__funcdef', '_parser__global_stmt', '_parser__if_stmt', '_parser__import_from', '_parser__import_stmt', '_parser__lambda_parameters', '_parser__match_stmt', '_parser__namedexpr_test', '_parser__node', '_parser__or_pattern', '_parser__parse_eval', '_parser__parse_module', '_parser__parse_parameters', '_parser__pattern', '_parser__peek', '_parser__raise_stmt', '_parser__return_stmt', '_parser__simple_stmt', '_parser__small_stmt', '_parser__statement', '_parser__strings', '_parser__test_or_star', '_parser__test_or_star_slice', '_parser__testlist', '_parser__testlist_for_fstring', '_parser__testlist_star_expr', '_parser__testlist_star_expr_or_yield', '_parser__try_stmt', '_parser__type_alias_stmt', '_parser__unsupported', '_parser__while_stmt', '_parser__with_stmt', '_parser__yield_expr', '_precedence__next', '_self_test', '_set_ctx', '_splitlines_no_ff', '_unparser___for_helper', '_unparser___fstring_Constant', '_unparser___fstring_FormattedValue', '_unparser___fstring_JoinedStr', '_unparser___function_helper', '_unparser___str_literal_helper', '_unparser___type_params_helper', '_unparser___write_constant', '_unparser___write_docstring', '_unparser___write_docstring_and_traverse_body', '_unparser___write_fstring_inner', '_unparser___write_str_avoiding_backslashes', '_unparser__block', '_unparser__buffered', '_unparser__delimit', '_unparser__delimit_if', '_unparser__do_visit_try', '_unparser__fill', '_unparser__get_precedence', '_unparser__get_raw_docstring', '_unparser__get_type_comment', '_unparser__interleave', '_unparser__is_non_empty_tuple', '_unparser__items_view', '_unparser__maybe_newline', '_unparser__require_parens', '_unparser__set_precedence', '_unparser__traverse', '_unparser__visit', '_unparser__visit_AnnAssign', '_unparser__visit_Assert', '_unparser__visit_Assign', '_unparser__visit_AsyncFor', '_unparser__visit_AsyncFunctionDef', '_unparser__visit_AsyncWith', '_unparser__visit_Attribute', '_unparser__visit_AugAssign', '_unparser__visit_Await', '_unparser__visit_BinOp', '_unparser__visit_BoolOp', '_unparser__visit_Break', '_unparser__visit_Call', '_unparser__visit_ClassDef', '_unparser__visit_Compare', '_unparser__visit_Constant', '_unparser__visit_Continue', '_unparser__visit_Delete', '_unparser__visit_Dict', '_unparser__visit_DictComp', '_unparser__visit_Ellipsis', '_unparser__visit_ExceptHandler', '_unparser__visit_Expr', '_unparser__visit_For', '_unparser__visit_FormattedValue', '_unparser__visit_FunctionDef', '_unparser__visit_FunctionType', '_unparser__visit_GeneratorExp', '_unparser__visit_Global', '_unparser__visit_If', '_unparser__visit_IfExp', '_unparser__visit_Import', '_unparser__visit_ImportFrom', '_unparser__visit_JoinedStr', '_unparser__visit_Lambda', '_unparser__visit_List', '_unparser__visit_ListComp', '_unparser__visit_Match', '_unparser__visit_MatchAs', '_unparser__visit_MatchClass', '_unparser__visit_MatchMapping', '_unparser__visit_MatchOr', '_unparser__visit_MatchSequence', '_unparser__visit_MatchSingleton', '_unparser__visit_MatchStar', '_unparser__visit_MatchValue', '_unparser__visit_Module', '_unparser__visit_Name', '_unparser__visit_NamedExpr', '_unparser__visit_Nonlocal', '_unparser__visit_ParamSpec', '_unparser__visit_Pass', '_unparser__visit_Raise', '_unparser__visit_Return', '_unparser__visit_Set', '_unparser__visit_SetComp', '_unparser__visit_Slice', '_unparser__visit_Starred', '_unparser__visit_Subscript', '_unparser__visit_Try', '_unparser__visit_TryStar', '_unparser__visit_Tuple', '_unparser__visit_TypeAlias', '_unparser__visit_TypeVar', '_unparser__visit_TypeVarTuple', '_unparser__visit_UnaryOp', '_unparser__visit_While', '_unparser__visit_With', '_unparser__visit_Yield', '_unparser__visit_YieldFrom', '_unparser__visit_alias', '_unparser__visit_arg', '_unparser__visit_arguments', '_unparser__visit_comprehension', '_unparser__visit_keyword', '_unparser__visit_match_case', '_unparser__visit_withitem', '_unparser__write', 'comments', 'copy_location', 'dump', 'fix_missing_locations', 'get_docstring', 'get_source_segment', 'increment_lineno', 'iter_child_nodes', 'iter_fields', 'literal_eval', 'main', 'mutable_state', 'nodetransformer__generic_visit', 'nodevisitor__generic_visit', 'nodevisitor__visit', 'nodevisitor__visit_Constant', 'parse', 'unparse', 'walk']
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 482, characters 10-14: unused variable name
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 484, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 486, characters 20-29: unused variable namespace
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 494, characters 27-32: unused variable value
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 498, characters 23-27: unused variable body
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 498, characters 35-43: unused variable is_bytes
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 502, characters 30-34: unused variable text
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 502, characters 42-48: unused variable is_raw
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 506, characters 22-25: unused variable tok
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 510, characters 27-39: unused variable start_string
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 514, characters 15-18: unused variable tok
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 516, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 518, characters 12-18: unused variable source
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 522, characters 28-34: unused variable values
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 522, characters 42-52: unused variable drop_empty
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 526, characters 12-15: unused variable cls
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 528, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 530, characters 23-29: unused variable source
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 532, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 534, characters 21-22: unused variable s
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 540, characters 15-97: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 548, characters 38-42: unused variable vals
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 552, characters 38-42: unused variable vals
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 558, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 562, characters 42-48: unused variable py_val
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 570, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 574, characters 42-48: unused variable py_val
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 576, characters 15-38: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 579, characters 42-48: unused variable py_val
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 585, characters 21-25: unused variable self
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 587, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 589, characters 42-48: unused variable py_val
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 591, characters 15-38: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 596, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 602, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 608, characters 15-38: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 614, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 620, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1069, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1051, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1024, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1007, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 997, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 980, characters 16-22: unused variable py_end
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 969, characters 14-20: unused variable py_end
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 956, characters 12-18: unused variable py_end
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 940, characters 8-14: unused variable py_end
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 930, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 874, characters 8-16: unused variable args_len
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 873, characters 8-20: unused variable keywords_len
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 868, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 833, characters 8-16: unused variable gens_len
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 832, characters 8-15: unused variable ifs_len
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 827, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 805, characters 8-18: unused variable values_len
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 799, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 777, characters 8-18: unused variable values_len
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 771, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 753, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 702, characters 8-23: unused variable comparators_len
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 701, characters 8-15: unused variable ops_len
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 695, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 687, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 673, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 654, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 626, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1089, characters 46-49: unused variable ctx
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1091, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1094, characters 43-44: unused variable t
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1094, characters 53-62: unused variable first_key
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1096, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1102, characters 15-39: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1107, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1113, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1119, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1124, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1126, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1128, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1130, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1132, characters 39-43: unused variable self
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1134, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1138, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1142, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1144, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1148, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1154, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1158, characters 49-54: unused variable close
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1160, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1166, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1170, characters 36-40: unused variable self
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1172, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1174, characters 24-28: unused variable self
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1174, characters 40-44: unused variable vals
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1176, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1180, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1186, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1192, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1198, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_tvcibjjw.mlw", line 1204, characters 15-19: unused variable result
+File "/tmp/.pycsl_tvcibjjw.mlw", line 1213, characters 15-62:
+unexpected 'variant' clause
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

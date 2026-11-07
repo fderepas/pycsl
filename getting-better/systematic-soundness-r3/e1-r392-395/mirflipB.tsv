@@ -1,0 +1,19 @@
+src/self-annotate/src/core_ir_semantic.py	_conc_check_shared_access	1147	var_name	var_name not in shared	1
+src/self-annotate/src/core_ir_semantic.py	_conc_check_shared_access	1149	var_name	shared[var_name]	1
+src/self-annotate/src/frontend/Module5_IREmitter.py	_py_stmt_assign	1587	target.value.id	target.value.id in self._cur_func_symtab	1
+src/self-annotate/src/frontend/Module5_IREmitter.py	_py_stmt_augassign	1709	stmt.target.value.id	stmt.target.value.id in self._cur_func_symtab	1
+src/self-annotate/src/frontend/Module5_IREmitter.py	_collect_type_params	2500	b.value.id	b.value.id in self._GENERIC_BASE_NAMES	1
+src/self-annotate/src/frontend/Module5_IREmitter.py	_union_arm_tag	2916	elt.id	elt.id not in self._TYPING_ALIAS_ARMS	1
+src/self-annotate/src/frontend/pure_ast.py	get_precedence	4419	node	self._precedences.get(node, _Precedence.TEST)	1
+src/self-annotate/src/frontend/pure_ast.py	visit_Module	4490	ignore.lineno	{ignore.lineno: f'ignore{ignore.tag}' for ignore in node.type_ignores}	1
+src/self-annotate/src/frontend/pure_ast.py	visit_AugAssign	4567	node.op.__class__.__name__	self.binop[node.op.__class__.__name__]	1
+src/self-annotate/src/frontend/pure_ast.py	visit_UnaryOp	5108	node.op.__class__.__name__	self.unop[node.op.__class__.__name__]	1
+src/self-annotate/src/frontend/pure_ast.py	visit_BinOp	5127	node.op.__class__.__name__	self.binop[node.op.__class__.__name__]	1
+src/self-annotate/src/frontend/pure_ast.py	visit_Compare	5153	o.__class__.__name__	self.cmpops[o.__class__.__name__]	1
+src/self-annotate/src/frontend/pure_ast.py	_new	87	cls	cls in _const_types	1
+src/self-annotate/src/frontend/pure_ast.py	_N	138	name	_g[name]	1
+src/self-annotate/src/proof2why3/canonical.py	_flip_comparisons	54	t.op	t.op in _FLIP_COMPARISON	1
+src/self-annotate/src/proof2why3/canonical.py	_flip_comparisons	56	t.op	_FLIP_COMPARISON[t.op]	1
+src/self-annotate/src/proof2why3/emit_why3.py	_pp	46	t.op	_BINOP_PREC.get(t.op, _PREC_CMP)	1
+src/self-annotate/src/proof2why3/ir.py	free_vars	151	t.name	{t.name}	1
+src/self-annotate/src/proof2why3/parser.py	parse_atom_application	424	atom.name	atom.name in _KNOWN_FN_HEADS	1

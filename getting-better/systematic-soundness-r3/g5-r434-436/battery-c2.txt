@@ -1,0 +1,39 @@
+== 2026-10-28T15:07:21Z corpus sweep
+sweep rc=0
+emitted 2537 of 4209 source file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/g5/gate-c2/ca (6 jobs)
+emitted 2186 of 2217 python-reference file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/g5/gate-c2/ca/pyref (6 jobs)
+root compare rc=0
+[*] byte-diff-compare: 2518 baseline / 2536 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 18 new source file(s) ignored.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+pyref compare rc=0
+[*] byte-diff-compare: 2186 baseline / 2186 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+== 2026-10-28T15:26:27Z mirror sweep
+mirror sweep rc=0
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/g5/gate-c2/ma
+    Compare with: bin/byte-diff-compare.py <baseline> /tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/g5/gate-c2/ma --min-files 45
+mirror compare rc=0
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+== 2026-10-28T15:28:07Z planes
+planes rc=0
+    check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival
+    and check-stdlib-modules-verify. Re-run with --slow before a GATE.
+== 2026-10-28T15:43:30Z checks
+getattr-erasure rc=0
+[+] getattr-erasure: OK — DECLARED 0 (pinned); 29 file(s) with sites, every one at or below its row; totals ABSENT 15, UNKNOWN 43 (reported, not gated).
+clause-survival rc=0
+[+] clause-survival: OK — measured 10 deficit file(s) of 1486 compared (10 ledgered, 0 unexplained).
+assumed-facts rc=0
+[+] assumed-facts: OK — every assumed fact is in a reviewed family; 2 fresh-globals fact(s), each proof-backed.
+open-route-carriers rc=0
+[+] open-route-carriers: OK — every open route's carrier still reproduces exactly as its ledger row says.
+refusal-witness-coverage rc=0
+[+] refusal-witness-coverage: OK — 338 demonstrated, 5 undemonstrated (floor 208 / ceiling 5); 14 not source-reachable, 10 unmatchable (ceiling 10).
+refusal-advice-audited rc=0
+[+] refusal-advice-audited: OK — 165 of 228 advice-bearing refusal(s) have had their advice FOLLOWED and run (floor 133). The remaining 63 are unaudited, which is a debt this plane exists to make visible rather than a failure.
+doc-coherency rc=0
+trusted-reasons rc=0
+[+] trusted-reasons: OK — 414 marker(s) <-> 414 row(s), both directions; unclassified 257 (ratchet 257)
+trusted lines: 442
+DONE-BATTERY 2026-10-28T15:50:34Z
