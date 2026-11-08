@@ -21,6 +21,6 @@ Exemplar witnesses-r580/gi1600_override_sub.py. Driver repro 2026-11-07T19:4xZ (
   PASS at base and HEAD.
 - RESIDUAL (named): the UNION arm (an override emitted before the base stub is minted) is reached by no measured shape:
   nothing calls the override, so the SCC order emits it after its base-typed callers and the refusal takes them all.
-- INERTNESS (vs the driver base scratchpad/run6/base): corpus root 3023 -> 3029 .mlw 0 MOVED / 0 GONE / 0 APPEARED (+6 new
+- INERTNESS (vs the driver base scratchpad/run6/base): corpus root 3023 -> 3030 .mlw 0 MOVED / 0 GONE / 0 APPEARED (+7 new
   controls), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed); rt55's 208 honest controls (CPython
   does not breach them): front-end verdicts identical, 81 emissions byte-identical. Fidelity / planes: run #6 README entry.

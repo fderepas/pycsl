@@ -15,7 +15,7 @@
 ##   a file class: `X`'s MRO only). Witnesses (rt55 20 + u36 probes 16) x default / typed / store: 60/60 + 48/48 REFUSED. Corpus 9270-9278,
 ##   9280, 9281, 9283-9292 FAIL (18 PROVED at base, 9277 / 9278 solver-bound and 9291 a Why3 typing error at base; REFUSED x 3 models at HEAD,
 ##   63/63); controls 9279 / 9282 / 9293-9297 PASS base + HEAD (9295 / 9297 / 9293 / 9294 = the three refusals' advice followed).
-##   Over-refusal: corpus root 3023 -> 3029 0 MOVED / 0 GONE / 0 APPEARED (+6 controls), pyref 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (the first
+##   Over-refusal: corpus root 3023 -> 3030 0 MOVED / 0 GONE / 0 APPEARED (+7 controls), pyref 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (the first
 ##   #582 rule refused the `pure_ast` mirror through `Constant.__new__` and `__new__ = _new`: made exact -- class receivers use their MRO, an
 ##   alias of a `\nothing` function is admitted -- not exempted); rt55's 208 honest controls: verdicts identical, 81 emissions byte-identical.
 ##   Final HEAD gates: fidelity (`check-self-annotate-sync.sh`, `self-annotate-mirror-check.sh`, `doc-coherency.py --check`) rc 0 x 3;

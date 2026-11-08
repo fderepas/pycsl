@@ -31,6 +31,6 @@ Exemplar witnesses-r579/gg1609_user_cslfieldaccess.py. Driver repro 2026-11-07T1
 - OVER-REFUSAL / INERTNESS: see the run #6 README entry (corpus root, pyref, mirror and rt55 controls unchanged).
 - RESIDUAL (named): the pure_ast parser's own `isinstance(x, _N("<Cls>"))` recognizer is gated on the parser's file
   signature (`_Parser._fin`), not on a resolution.
-- INERTNESS (vs the driver base scratchpad/run6/base): corpus root 3023 -> 3029 .mlw 0 MOVED / 0 GONE / 0 APPEARED (+6 new
+- INERTNESS (vs the driver base scratchpad/run6/base): corpus root 3023 -> 3030 .mlw 0 MOVED / 0 GONE / 0 APPEARED (+7 new
   controls), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed); rt55's 208 honest controls (CPython
   does not breach them): front-end verdicts identical, 81 emissions byte-identical. Fidelity / planes: run #6 README entry.

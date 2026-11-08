@@ -26,6 +26,6 @@ Exemplar witnesses-r582/hb1600_plain.py. Driver repro 2026-11-07T19:4xZ (scratch
   advice 'call the method by the name of its `def`' = `witnesses-r582/advice/a582_call_def_name.py`), 9294 (the second
   advice, an own `def n` calling `m` = `advice/a582_own_def.py`) and 9296 (an alias of a `\nothing` method admitted) PASS
   at base and HEAD.
-- INERTNESS (vs the driver base scratchpad/run6/base): corpus root 3023 -> 3029 .mlw 0 MOVED / 0 GONE / 0 APPEARED (+6 new
+- INERTNESS (vs the driver base scratchpad/run6/base): corpus root 3023 -> 3030 .mlw 0 MOVED / 0 GONE / 0 APPEARED (+7 new
   controls), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed); rt55's 208 honest controls (CPython
   does not breach them): front-end verdicts identical, 81 emissions byte-identical. Fidelity / planes: run #6 README entry.
