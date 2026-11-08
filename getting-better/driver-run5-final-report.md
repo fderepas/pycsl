@@ -35,6 +35,7 @@ commit (user policy, log 551): fast-forward only, `ghost-assign-bc6` only, never
   - u31: #569, #570, #571, #573.
   - u32: #574.
   - u34: #581 / #575 (landed).
+  - u35: #576 / #577 / #578 (launched in the wrap-up as pre-staging for run #6; it returned 8 h early, so it was gated and landed as L3).
 - **Wall cycle (skill §4) for cap-vm-unerase-irnode.**
   - Report: 1da0da1d3.
   - Independent fable review: ac1d388bf. Gate R passed, with oracle artifacts; it found two live soundness defects, which became #566 and #567.
@@ -56,6 +57,7 @@ commit (user policy, log 551): fast-forward only, `ghost-assign-bc6` only, never
   | **L1 = int51** (ec880a780) | lvD, lvF, lvG, lvI, lvJ, lvK, #565-#574, lvD2 / lvD3 / lvG2 / u29 / u33 fixes | v46 + v47 |
 
   - L2 = int52 (3861d04ca): #575 #581 (u34), v48 green (85/85).
+  - L3 = int53 (merge 7d78da793): #576 #577 #578 (u35). v49 found one RED (check-vacuous-drivers: u35's control 9269::f2 was discharged by its tail return alone). The driver fixed it on int53 (8a894ec7e, same subject) and re-ran the full --slow planes: v50 85/85 green. Mirror 53/53 byte-identical, root / pyref byte-diff 0/0/0, `\trusted` unchanged.
 - **Every landing** went through:
   - the driver battery: new corpus files vs their headers, route witnesses x hoare / typed / store, corpus root + pyref byte-diff vs main (only declared movers, M1 re-run), mirror sweep vs main, fidelity, and the --slow planes at 85/85;
   - a DRIVER whole-file proof of every mirror mover on a tree whose emission of that file is byte-identical to the landed tip's (the proof map, logs 597 / 600 / 608).
@@ -92,8 +94,9 @@ commit (user policy, log 551): fast-forward only, `ghost-assign-bc6` only, never
 
 ## 5. Routes
 - **Opened this run:** #565-#582 (18).
-- **Repaired and landed (18 incl. the #546 residual):** #546 residual, #556, #558, #560, #561, #562, #565, #566, #567, #568, #569, #570, #571, #572, #573, #574, #575, #581. All refuse-by-default, each with witnesses in all three models, corpus FAIL + control files, census / advice / annotations §7 entries and route docs.
-- **Still open for run #6:** #576 #577 #578 #579 #580 #582 (rt55, pre-existing); the documented residuals of #556-#581 (annotations §7); the #568 out-of-file-receiver residual; #497 (user decision).
+- **Repaired and landed (21 incl. the #546 residual):** #546 residual, #556, #558, #560, #561, #562, #565, #566, #567, #568, #569, #570, #571, #572, #573, #574, #575, #576, #577, #578, #581. All refuse-by-default, each with witnesses in all three models, corpus FAIL + control files, census / advice / annotations §7 entries and route docs.
+- **Wider gap closed with #578:** route #252's `assert { false }` never covered `** << >> & | ^` or integer true division, so `x & 1` / `x ** 2` on a plain `x: Any` under `no_exception` proved before u35 (corpus 9266 / 9267).
+- **Still open for run #6:** #579 #580 #582 (rt55, pre-existing); the u35 residuals (annotations §7.576-§7.578: receivers through builtin calls / subscripts / __init__-only fields, members in containers / class aliases / via calls or imports, calls on other receivers / imported callees / float true division of Any); the documented residuals of #556-#581 (annotations §7); the #568 out-of-file-receiver residual; #497 (user decision).
 - **Integration-only defects the driver caught.** Each would have landed a red plane on main:
   - writes-survival TRAP 1402 > 1399 from lvD's C2 (fixed by lvD2);
   - stale / misplaced frame-honesty ledger rows after a re-trust and a conversion (u33);
@@ -146,3 +149,4 @@ commit (user policy, log 551): fast-forward only, `ghost-assign-bc6` only, never
 ## 10. Final-main convergence (log 624)
 On main 8eb4669d6 (default model), each run #5 route's exemplar: repaired routes #565-#575 and #581 all refused by
 their named codes or NOT PROVED; the six open rt55 routes (#576-#580, #582) still prove, as recorded.
+After L3 (7d78da793), #576 / #577 / #578's witnesses are refused or NOT PROVED in all three models (v49 B: 72 R556, 57 R577, 36 R560, 12 R571, 111 proof-time NOT PROVED). #579 #580 #582 remain open.
