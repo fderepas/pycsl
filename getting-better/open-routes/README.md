@@ -1,5 +1,30 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #6 (2026-11-08): #579 / #580 / #582 REPAIRED (executor u36 off 822621340 = ghost-assign-bc6 at run #6 start, branch run6-u36, c0058a372 + the docs commit; annotations
+##   §7.579 / §7.580 / §7.582). Root causes: (#579) route #567's narrowing judge and the isinstance-on-emit_ir recognizers admitted an IR class
+##   by its SPELLING (a file `CSLFieldAccess`, `ast.<Node>` whatever `ast` was bound to, any `<ns>.Name`), so `node.kind` stayed `kind_of node`;
+##   (#580) a call through a receiver typed as the base class used the base method's stub, while an override's verified frame wrote
+##   `_pyobj_state` (a hidden attribute store) -- route #568 copied the callee's frame only, route #278 compares declared frames only;
+##   (#582) a method bound by a class-body alias (`n = m`) is unknown to the method tables, so `c.n(5)` was a receiver-less effect-free `val`.
+##   Repair (twins `\trusted`, inline, no new def, no axiom): `_run_pipeline` resolves every name of the source (all bindings, all scopes) and
+##   Module 6 admits an IR class only when its name is bound solely by the import of pycsl's real module (`frontend.pure_ast`, `Module2_Parser.
+##   FieldAccess`, `ir_schema`) or of the standard `ast`, new `PYCSL-R579-IR-CLASS-NOT-RESOLVED`; the base stub's cell is the union over the
+##   overrides' emitted frames (route #278's MRO pairs) and an override that gains the cell after a cell-less base stub is refused, new
+##   `PYCSL-R580-OVERRIDE-FRAME-AFTER-BASE-STUB`; a call `.n(...)` of a name bound in a class body by a non-`def` (or stored on a file class)
+##   whose value is not plain data nor an alias of a `\nothing`-frame function is refused, new `PYCSL-R582-CLASS-BODY-ALIAS-CALL` (`X.n` through
+##   a file class: `X`'s MRO only). Witnesses (rt55 20 + u36 probes 16) x default / typed / store: 60/60 + 48/48 REFUSED. Corpus 9270-9278,
+##   9280, 9281, 9283-9292 FAIL (18 PROVED at base, 9277 / 9278 solver-bound and 9291 a Why3 typing error at base; REFUSED x 3 models at HEAD,
+##   63/63); controls 9279 / 9282 / 9293-9297 PASS base + HEAD (9295 / 9297 / 9293 / 9294 = the three refusals' advice followed).
+##   Over-refusal: corpus root 3023 -> 3030 0 MOVED / 0 GONE / 0 APPEARED (+7 controls), pyref 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (the first
+##   #582 rule refused the `pure_ast` mirror through `Constant.__new__` and `__new__ = _new`: made exact -- class receivers use their MRO, an
+##   alias of a `\nothing` function is admitted -- not exempted); rt55's 208 honest controls: verdicts identical, 81 emissions byte-identical.
+##   Final HEAD gates: fidelity (`check-self-annotate-sync.sh`, `self-annotate-mirror-check.sh`, `doc-coherency.py --check`) rc 0 x 3;
+##   fast planes 62/62; check-vacuous-drivers / check-assigns-writes-survival / check-trusted-frame-honesty / check-getattr-erasure OK
+##   (9280-9282 registered, 0 ABSENT / 2 UNKNOWN each, the two `getattr` reads); `\trusted` unchanged, no re-trust, ledger 3.
+##   Residuals (named, §7.579 / §7.580 / §7.582): pure_ast's own `_N("<Cls>")` class-factory recognizer is keyed on the parser's file
+##   signature (`_Parser._fin`), not on a resolution; the #580 union (an override emitted BEFORE the base stub) is reached by no measured
+##   shape today (every probe takes the refusal); a receiver that is a dynamically created class falls under the name rule of #582.
+
 ## run #5 backlog (2026-11-08): #576 / #577 / #578 REPAIRED (executor u35 off 48bd28633 = main after L2, branch run5-u35, NOT landed: pre-staged for
 ##   run #6; annotations §7.576 / §7.577 / §7.578). Root causes: (#576) route #570 kinded a method receiver only as a literal / display / plainly-
 ##   annotated name, for str / list / dict / set / tuple, so `p.s.upper`, `(s + "x").upper`, `t2 = s.strip(); t2.upper`, `sa: SA` and every

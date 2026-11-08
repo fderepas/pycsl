@@ -11787,6 +11787,40 @@ class FunctionEmissionMixin:
                         f"(route #568: a recursion cycle through the method, or a caller the "
                         f"SCC order emitted first).",
                         stage="module6-whyml", code="PYCSL-R568-STUB-FRAME-ORDER")
+                # (run #6) ROUTE #580 -- the same order hazard one class up: a call through a
+                # receiver typed as an ANCESTOR class runs this override when the object is an
+                # instance of this class, and the ancestor's stub (minted earlier, cell-less)
+                # is what that caller assumed. The ancestors' methods this one overrides are
+                # route #278's MRO pairs (`ir["overrides"]`), closed transitively.
+                _anc580 = {name}
+                _chg580 = True
+                while _chg580:
+                    _chg580 = False
+                    for _o580 in ((self.ir.get("overrides") or [])
+                                  if isinstance(getattr(self, "ir", None), dict) else []):
+                        if (isinstance(_o580, dict)
+                                and whyml_ident(str(_o580.get("sub_method"))) in _anc580
+                                and whyml_ident(str(_o580.get("base_method"))) not in _anc580):
+                            _anc580.add(whyml_ident(str(_o580.get("base_method"))))
+                            _chg580 = True
+                _hit580 = sorted((_anc580 - {name}) & ((self.ir.get("__r568_cellless__") or set())
+                                                       if isinstance(getattr(self, "ir", None), dict)
+                                                       else set()))
+                if _hit580:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"PYCSL-R580-OVERRIDE-FRAME-AFTER-BASE-STUB: the method `{func['name']}` "
+                        f"writes object state (`_pyobj_state`: an attribute its class does not "
+                        f"carry as a record field, or a callee that does) and overrides "
+                        f"{', '.join('`' + _h + '`' for _h in _hit580)}, whose caller-side stub "
+                        f"was minted EARLIER with a frame that omits that write: a caller "
+                        f"holding an instance of this class through a receiver typed as the "
+                        f"base class runs this override, and would assume every attribute "
+                        f"unchanged across the call (route #580). Type the caller's receiver "
+                        f"as this class (its own frame is then used), or make the written "
+                        f"attribute a field the BASE class declares in `__init__` and list it "
+                        f"in both methods' `#@ assigns` (route #278 compares the two frames).",
+                        stage="module6-whyml", code="PYCSL-R580-OVERRIDE-FRAME-AFTER-BASE-STUB")
                 if not hasattr(self, "_pyobj_state_writers"):
                     self._pyobj_state_writers = set()
                 self._pyobj_state_writers.add(name)

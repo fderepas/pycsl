@@ -2783,6 +2783,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and isinstance(lcls.get("object"), dict)
                 and lcls["object"].get("type") == "Var"
                 and lcls["object"].get("name") == "ast"
+                # (run #6) ROUTE #579: `ast` resolved to the real module, not by its name
+                and (getattr(self, "ir_class_targets_r579", None) or {}).get("ast")
+                in ("ast", "frontend.pure_ast")
                 and lcls.get("attr") == "Constant"):
             return None
         if not self._is_emit_ir_expr(vexpr):
@@ -2844,6 +2847,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and isinstance(lcls.get("object"), dict)
                 and lcls["object"].get("type") == "Var"
                 and lcls["object"].get("name") == "ast"
+                # (run #6) ROUTE #579: `ast` resolved to the real module, not by its name
+                and (getattr(self, "ir_class_targets_r579", None) or {}).get("ast")
+                in ("ast", "frontend.pure_ast")
                 and lcls.get("attr") == "Constant"):
             return None
         if not self._is_emit_ir_expr(vexpr):
@@ -8356,6 +8362,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # order is refused where the definition is emitted (`_emit_function`).
             if whyml_ident(lookup_key) in (getattr(self, "_pyobj_state_writers", None) or set()):
                 _objstate_w = True
+            # (run #6) ROUTE #580 -- the receiver's STATIC class is not its dynamic class: a
+            # call through a `C`-typed receiver runs whichever override the object's class
+            # provides (`ir["overrides"]`, route #278's MRO pairs, closed transitively). The
+            # stub's cell is the UNION over the overrides' emitted frames; an override emitted
+            # after this stub is refused at its definition (`functions._emit_function`,
+            # PYCSL-R580-OVERRIDE-FRAME-AFTER-BASE-STUB).
+            _ovs580 = {whyml_ident(lookup_key)}
+            _chg580 = True
+            while _chg580 and not _objstate_w:
+                _chg580 = False
+                for _o580 in (self.ir.get("overrides") or [] if isinstance(
+                        getattr(self, "ir", None), dict) else []):
+                    if (isinstance(_o580, dict)
+                            and whyml_ident(str(_o580.get("base_method"))) in _ovs580
+                            and whyml_ident(str(_o580.get("sub_method"))) not in _ovs580):
+                        _ovs580.add(whyml_ident(str(_o580.get("sub_method"))))
+                        _chg580 = True
+                if _ovs580 & (getattr(self, "_pyobj_state_writers", None) or set()):
+                    _objstate_w = True
             field_ens = _fe + _foe + _fpe + _fppe
             if (field_ens or _w or _fpfe or _rfe or _objstate_w) and cls:
                 # `self.<m>()` called from a sibling method: the enclosing
@@ -8421,6 +8446,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     if whyml_ident(lookup_key) in (
                             getattr(self, "_pyobj_state_writers", None) or set()):
                         _objstate_rw = True
+                    # (run #6) ROUTE #580 -- the union over the receiver class's overrides'
+                    # emitted frames, as in the `self.` arm above.
+                    _ovs580 = {whyml_ident(lookup_key)}
+                    _chg580 = True
+                    while _chg580 and not _objstate_rw:
+                        _chg580 = False
+                        for _o580 in (self.ir.get("overrides") or [] if isinstance(
+                                getattr(self, "ir", None), dict) else []):
+                            if (isinstance(_o580, dict)
+                                    and whyml_ident(str(_o580.get("base_method"))) in _ovs580
+                                    and whyml_ident(str(_o580.get("sub_method")))
+                                    not in _ovs580):
+                                _ovs580.add(whyml_ident(str(_o580.get("sub_method"))))
+                                _chg580 = True
+                        if _ovs580 & (getattr(self, "_pyobj_state_writers", None) or set()):
+                            _objstate_rw = True
                     if field_ens or writes or frame_ens or result_frame_ens or _objstate_rw:
                         # `b.<m>()`: the receiver record `b` becomes the abstract op's leading
                         # `(self: cls)` parameter; `writes` frames the mutated self-fields.
@@ -13938,6 +13979,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # relies on for `.get("type") == "K"`).
         _a0 = args_ir[0] if args_ir else None
         _a1 = args_ir[1] if len(args_ir) > 1 else None
+        # (run #6) ROUTE #579 -- an `ast.<Node>` class argument is an IR class only when `ast`
+        # RESOLVES to the standard-library `ast` or to pycsl's real `frontend.pure_ast` (the
+        # table `pycsl.py::_run_pipeline` builds from every binding of the source,
+        # `ir_class_targets_r579`; absent: nothing resolves). A user `class ast:` or `import
+        # rt55dep_ir as ast` is some other class: its namespace is re-spelled here so that no
+        # `ast`-keyed recognizer below lowers the test to an IR discriminant; the test takes
+        # the generic (uninterpreted, receiver-carrying) arm. The bare CSL class form is
+        # gated the same way at its recognizer.
+        _rs579 = getattr(self, "ir_class_targets_r579", None) or {}
+        if (isinstance(_a1, dict) and _a1.get("type") == "Attribute"
+                and isinstance(_a1.get("object"), dict)
+                and _a1["object"].get("type") == "Var"
+                and _a1["object"].get("name") == "ast"
+                and _rs579.get("ast") not in ("ast", "frontend.pure_ast")):
+            _a1 = dict(_a1, object={"type": "Var", "name": "ast<unresolved r579>"})
         # TERM CARRIER: `isinstance(atom, Var)` on a `term`-typed local, where `Var` is an
         # ARM of this file's certified inductive, is the ADT constructor DISCRIMINANT —
         # `(match !atom with Var _ -> true | _ -> false end)`. Today it lowers to the
@@ -14151,6 +14207,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (isinstance(_a0, dict) and isinstance(_a1, dict)
                 and _a1.get("type") == "Var"
                 and _a1.get("name") in self._CSL_CLASS_TO_IR_KIND
+                # (run #6) ROUTE #579: only the class imported from pycsl's real
+                # `frontend.Module2_Parser` (`FieldAccess`), never a same-named file class
+                and _rs579.get(_a1.get("name")) == "frontend.Module2_Parser.FieldAccess"
                 and self._is_emit_ir_expr(_a0)):
             _kind = self._CSL_CLASS_TO_IR_KIND.get(_a1.get("name"))
             _pred = self._KIND_DISCRIMINANT.get(_kind) if _kind else None
@@ -19195,6 +19254,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # A projector read is misprojected only for an attribute the tested class has: an
                 # `ast.Constant` carries `value` / `kind` (its `kind` IS such a read), not `id`.
                 _nar567: Dict[str, Optional[Set[str]]] = {}
+                # (run #6) ROUTE #579: the IR-class SPELLINGS this body tests that do not
+                # resolve to pycsl's real classes (named in the refusal)
+                _sp579: Set[str] = set()
                 _asg567: List[Tuple[str, Any, bool]] = []
                 _stk567: List[Any] = [_body567]
                 _rt567 = getattr(self, "_record_types", {}) or {}
@@ -19227,11 +19289,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             # projectors read faithfully. Anything else narrows the value away.
                             _ok567 = False
                             _fs567: Optional[Set[str]] = None
+                            # (run #6) ROUTE #579: IR-class identity by RESOLUTION -- the
+                            # name must be bound in this source only by the import of the real
+                            # pycsl class (`pycsl.py::_run_pipeline`'s `ir_class_targets_r579`),
+                            # never by the spelling (a file `CSLFieldAccess`, `class ast:`,
+                            # `import rt55dep_ir as ast` named IR classes before).
+                            _rs579 = getattr(self, "ir_class_targets_r579", None) or {}
                             if isinstance(_e567, dict) and _e567.get("type") == "Var":
                                 _cn567 = _e567.get("name")
                                 _ok567 = isinstance(_cn567, str) and (
-                                    (_cn567 in _irn567 and _cn567 not in _own567)
-                                    or _cn567 in (getattr(self, "_CSL_CLASS_TO_IR_KIND", None) or {}))
+                                    (_cn567 in _irn567 and _cn567 not in _own567
+                                     and _rs579.get(_cn567) == "ir_schema." + _cn567)
+                                    or (_cn567 in (getattr(self, "_CSL_CLASS_TO_IR_KIND", None) or {})
+                                        and _rs579.get(_cn567)
+                                        == "frontend.Module2_Parser.FieldAccess"))
                                 if not _ok567 and isinstance(_cn567, str):
                                     _ri567 = _rt567.get(_cn567) or _rt567.get(_cn567.lower())
                                     if isinstance(_ri567, dict) and isinstance(
@@ -19242,11 +19313,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                         _fs567 = {str(_fd.get("name")) for _fd in _td567[_cn567]["fields"]
                                                   if isinstance(_fd, dict)}
                             elif isinstance(_e567, dict) and _e567.get("type") == "Attribute":
-                                _ok567 = (_e567.get("attr")
-                                          in (getattr(self, "_AST_CLASS_TO_IR_KIND", None) or {}))
                                 _o567 = _e567.get("object")
-                                if (not _ok567 and isinstance(_o567, dict)
-                                        and _o567.get("type") == "Var" and _o567.get("name") == "ast"):
+                                # (run #6) ROUTE #579: `<ns>.Name` is an IR class only when
+                                # `<ns>` is `ast` resolved to the standard-library `ast` or to
+                                # pycsl's `frontend.pure_ast` (any other namespace, or an `ast`
+                                # bound otherwise, names an unknown class: every attribute)
+                                _ast579 = (isinstance(_o567, dict) and _o567.get("type") == "Var"
+                                           and _o567.get("name") == "ast"
+                                           and _rs579.get("ast") in ("ast", "frontend.pure_ast"))
+                                _ok567 = _ast579 and (_e567.get("attr")
+                                                      in (getattr(self, "_AST_CLASS_TO_IR_KIND", None) or {}))
+                                if not _ok567 and _ast579:
                                     import ast as _ast567
                                     _ac567 = getattr(_ast567, str(_e567.get("attr")), None)
                                     if isinstance(_ac567, type):
@@ -19254,6 +19331,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                                   | set(getattr(_ac567, "_attributes", ()) or ()))
                             if not _ok567:
                                 _bad567 = True
+                                if (isinstance(_e567, dict) and _e567.get("type") == "Var"
+                                        and ((_e567.get("name") in _irn567
+                                              and _e567.get("name") not in _own567)
+                                             or _e567.get("name") in (getattr(
+                                                 self, "_CSL_CLASS_TO_IR_KIND", None) or {}))):
+                                    _sp579.add(str(_e567.get("name")))
+                                elif (isinstance(_e567, dict) and _e567.get("type") == "Attribute"
+                                        and _e567.get("attr") in (getattr(
+                                            self, "_AST_CLASS_TO_IR_KIND", None) or {})
+                                        and isinstance(_e567.get("object"), dict)
+                                        and _e567["object"].get("type") == "Var"):
+                                    _sp579.add(str(_e567["object"].get("name")) + "."
+                                               + str(_e567.get("attr")))
                                 if _fs567 is None or _f567 is None:
                                     _f567 = None
                                 else:
@@ -19476,6 +19566,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             _nf567 is None
                             or _k567[len(_n567) + 1:].split(".")[0] in _nf567):
                         _hit567 = True
+                if _hit567 and _sp579:
+                    from errors import PyCSLSemanticError as _R579
+                    raise _R579(
+                        "PYCSL-R579-IR-CLASS-NOT-RESOLVED: `" + str(_k567) + "." + str(attr)
+                        + "` (in `" + str(getattr(self, "_current_emitting_func", None) or "?")
+                        + "`) reads a field of a value this function tests with `isinstance` "
+                        "against " + ", ".join("`" + _q + "`" for _q in sorted(_sp579))
+                        + ", spelled like a pycsl IR node class but not RESOLVED to one: the "
+                        "name (or its `ast` namespace) is defined by this file, imported from "
+                        "another module, or bound more than once (route #579). The value is "
+                        "typed as an IR node (`emit_ir`), whose `." + str(attr) + "` the model "
+                        "reads as the node's constructor tag / name, not the field of the "
+                        "tested class. Annotate the value with the class it really has (a "
+                        "parameter or local of that record type); an IR class is admitted only "
+                        "through its one import from pycsl itself (`import ast`, `from frontend "
+                        "import pure_ast as ast`, `from frontend.Module2_Parser import "
+                        "FieldAccess as CSLFieldAccess`, `from ir_schema import <Node>`).",
+                        stage="module6-whyml", code="PYCSL-R579-IR-CLASS-NOT-RESOLVED")
                 if _hit567:
                     from errors import PyCSLSemanticError as _R567
                     raise _R567(

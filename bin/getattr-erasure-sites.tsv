@@ -41,3 +41,6 @@ test-suite/corpus/pycsl-reference/9067_u30_r568_w08_call_cycle.py	0	2
 test-suite/corpus/pycsl-reference/9068_u30_r568_c01_self_call_control.py	0	2
 test-suite/corpus/pycsl-reference/9070_u30_r568_k01_observing_pure_caller.py	0	1
 test-suite/corpus/pycsl-reference/9073_u30_r568_k04_true_claim_across_call.py	0	2
+test-suite/corpus/pycsl-reference/9280_u36_r580_gi1600_override_sub.py	0	2
+test-suite/corpus/pycsl-reference/9281_u36_r580_grandchild_override.py	0	2
+test-suite/corpus/pycsl-reference/9282_u36_r580_ctl_honest_override.py	0	2
