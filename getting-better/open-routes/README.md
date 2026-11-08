@@ -18,6 +18,9 @@
 ##   Over-refusal: corpus root 3023 -> 3029 0 MOVED / 0 GONE / 0 APPEARED (+6 controls), pyref 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (the first
 ##   #582 rule refused the `pure_ast` mirror through `Constant.__new__` and `__new__ = _new`: made exact -- class receivers use their MRO, an
 ##   alias of a `\nothing` function is admitted -- not exempted); rt55's 208 honest controls: verdicts identical, 81 emissions byte-identical.
+##   Final HEAD gates: fidelity (`check-self-annotate-sync.sh`, `self-annotate-mirror-check.sh`, `doc-coherency.py --check`) rc 0 x 3;
+##   fast planes 62/62; check-vacuous-drivers / check-assigns-writes-survival / check-trusted-frame-honesty / check-getattr-erasure OK
+##   (9280-9282 registered, 0 ABSENT / 2 UNKNOWN each, the two `getattr` reads); `\trusted` unchanged, no re-trust, ledger 3.
 ##   Residuals (named, §7.579 / §7.580 / §7.582): pure_ast's own `_N("<Cls>")` class-factory recognizer is keyed on the parser's file
 ##   signature (`_Parser._fin`), not on a resolution; the #580 union (an override emitted BEFORE the base stub) is reached by no measured
 ##   shape today (every probe takes the refusal); a receiver that is a dynamically created class falls under the name rule of #582.
