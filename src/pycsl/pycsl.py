@@ -20706,6 +20706,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         import builtins as _bi556
         import importlib as _il556
         import types as _ty556
+        import collections as _cl576
         _bnd556 = {}
         for _x556 in _ast486.walk(_tr486):
             for _q556 in ([_x556.id] if isinstance(_x556, _ast486.Name)
@@ -21841,6 +21842,111 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         and (lambda _vs: bool(_vs) and all(
                             _md == "v" and isinstance(_v, _DL570) for _md, _v in _vs))(
                                 [(_md, _v) for _m, _md, _v in _bd541 if _m == _b.id])))
+                # (u35, route #576) the builtin KINDS a method receiver is established to have
+                # (None: not established). Route #570 kinded only a literal / display, a plainly-
+                # annotated parameter / local and a local bound only to displays, so `p.s.upper`,
+                # `(s + "x").upper`, `t2 = s.strip(); t2.upper`, `sa: SA` (`SA = str`) and every
+                # int / bool / float / bytes method (`k.bit_length`, `b.decode`) stayed opaque.
+                # Established now: route #570's values (their inferred kinds, any number of
+                # them), a parameter / annotated local annotated through a module name bound
+                # once to such an annotation, a field `p.s` of a value of ONE file class kind
+                # declared `s: <plain annotation>` in its lineage (not an Enum, no property /
+                # method / plain class binding `s`, no `__getattr__` / `__getattribute__`, no
+                # subclass re-binding `s`), a BinOp / UnaryOp of established operands, a call
+                # of a method of an established receiver (`s.strip()`), an IfExp of established
+                # arms, and a local bound only to established values -- each with the kinds
+                # route #541's inference gives it, all of them builtin.
+                _BK576 = frozenset(["num", "str", "none", "list", "tuple", "dict", "set"])
+                _ok576 = lambda _k: _k if _k and _k <= _BK576 else None
+                _an576 = lambda _id: next((_z.annotation for _z in (
+                    list(getattr(_fd541.args, "posonlyargs", []))
+                    + list(_fd541.args.args) + list(_fd541.args.kwonlyargs)
+                    + [_y for _y in _ast486.walk(_fd541)
+                       if isinstance(_y, _ast486.AnnAssign)
+                       and isinstance(_y.target, _ast486.Name)])
+                    if getattr(_z, "arg", None) == _id or (
+                        isinstance(getattr(_z, "target", None), _ast486.Name)
+                        and _z.target.id == _id)), None)
+                _ak576 = lambda _an, _n: None if _an is None or _n <= 0 else (
+                    _ak576(_mal575[_an.id], _n - 1)
+                    if isinstance(_an, _ast486.Name) and _an.id in _mal575
+                    and _an.id not in _loc541 and _an.id not in _prm541 else
+                    _ok576(_ANN541(_an)[0]) if (lambda _h: (
+                        isinstance(_h, _ast486.Name) and _h.id not in _mal575) or (
+                            isinstance(_h, _ast486.Attribute)
+                            and isinstance(_h.value, _ast486.Name)
+                            and _h.value.id == "typing"))(
+                                _an.value if isinstance(_an, _ast486.Subscript) else _an)
+                    else None)
+                _fk576 = lambda _e, _n: (lambda _ks: (lambda _c: None if _c is None or (
+                    _c in _en571 or any(
+                        isinstance(_z, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                        and _z.name in (_e.attr, "__getattr__", "__getattribute__")
+                        for _a in _lin552[_c] for _z in _cls541[_a].body)
+                    or any(isinstance(_w, _ast486.Name) and _w.id == _e.attr
+                           for _a in _lin552[_c] for _z in _cls541[_a].body
+                           if isinstance(_z, (_ast486.Assign, _ast486.AugAssign))
+                           for _t in (_z.targets if isinstance(_z, _ast486.Assign)
+                                      else [_z.target]) for _w in _ast486.walk(_t))
+                    or any(_c in _lin552[_d] and (
+                        getattr(_z, "name", None) == _e.attr or any(
+                            isinstance(_w, _ast486.Name) and _w.id == _e.attr
+                            for _t in (_z.targets if isinstance(_z, _ast486.Assign) else
+                                       [_z.target] if isinstance(
+                                           _z, (_ast486.AnnAssign, _ast486.AugAssign))
+                                       else []) for _w in _ast486.walk(_t)))
+                        for _d in _cls541 if _d not in _lin552[_c]
+                        for _z in _cls541[_d].body)) else (
+                    lambda _fs: None if not _fs or any(_f is None for _f in _fs)
+                    else _ok576(frozenset().union(*_fs)))(
+                        [_ak576(_z.annotation, _n - 1) for _a in _lin552[_c]
+                         for _z in _cls541[_a].body if isinstance(_z, _ast486.AnnAssign)
+                         and isinstance(_z.target, _ast486.Name)
+                         and _z.target.id == _e.attr]))(
+                    next(iter(_ks))[2:] if len(_ks) == 1 and next(iter(_ks)).startswith("c:")
+                    and next(iter(_ks))[2:] in _cls541 else None))(
+                        _T541.get(id(_e.value), _UT541)[0])
+                _TY576 = {"num": [int, float, bool, complex], "str": [str, bytes],
+                          "none": [type(None)], "list": [list, _cl576.deque],
+                          "tuple": [tuple], "dict": [dict, _cl576.OrderedDict,
+                                                     _cl576.Counter, _cl576.defaultdict],
+                          "set": [set, frozenset]}
+                _rk576 = lambda _b, _n: None if _n <= 0 else (
+                    _ok576(_T541.get(id(_b), _UT541)[0])
+                    if _bk570(_b) and _ok576(_T541.get(id(_b), _UT541)[0]) else
+                    _ak576(_an576(_b.id), _n - 1)
+                    if isinstance(_b, _ast486.Name) and (
+                        (_b.id in _prm541 and _b.id not in _loc541) or _b.id in _dcl541) else
+                    (lambda _vs: None if not _vs or any(
+                        _md != "v" or _v is None for _md, _v in _vs) else (
+                            lambda _rs: None if any(_r is None for _r in _rs)
+                            else frozenset().union(*_rs))(
+                                [_rk576(_v, _n - 1) for _md, _v in _vs]))(
+                        [(_md, _v) for _m, _md, _v in _bd541 if _m == _b.id])
+                    if isinstance(_b, _ast486.Name) and _b.id in _loc541
+                    and _b.id not in _prm541 else
+                    _fk576(_b, _n - 1)
+                    if isinstance(_b, _ast486.Attribute) and isinstance(_b.ctx, _ast486.Load)
+                    else
+                    _ok576(_T541.get(id(_b), _UT541)[0])
+                    if (isinstance(_b, _ast486.BinOp) and _rk576(_b.left, _n - 1)
+                        and _rk576(_b.right, _n - 1))
+                    or (isinstance(_b, _ast486.UnaryOp) and _rk576(_b.operand, _n - 1))
+                    or (isinstance(_b, _ast486.Call) and isinstance(_b.func, _ast486.Attribute)
+                        and not _b.func.attr.startswith("_")
+                        and (lambda _ks: _ks is not None and all(
+                            callable(getattr(_t, _b.func.attr, None))
+                            for _k in _ks for _t in _TY576[_k]))(_rk576(_b.func.value, _n - 1)))
+                    else
+                    (lambda _a, _c: None if _a is None or _c is None else _a | _c)(
+                        _rk576(_b.body, _n - 1), _rk576(_b.orelse, _n - 1))
+                    if isinstance(_b, _ast486.IfExp) else
+                    _rk576(_b.value, _n - 1) if isinstance(_b, _ast486.NamedExpr) else None)
+                # an attribute of such a value that is not a method is a number (`k.real`,
+                # `k.denominator`, a deque's `maxlen`: an int or None) or does not exist
+                # (AttributeError): stand-ins, none of them iterable or a container
+                _NA576 = type("_na576", (), {"__repr__": lambda _s: "<no such attribute>"})()
+                _NU576 = type("_nu576", (), {"__repr__": lambda _s: "<a number>"})()
                 # the objects an operand may be (None: not established)
                 _ob556 = (lambda _e, _n: None if _n <= 0 else (
                     # (u31, route #569) `__builtins__`: the builtins module in `__main__` (a
@@ -21938,7 +22044,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                              {"str": str, "list": list, "dict": dict, "set": set,
                               "tuple": tuple}.get(next(iter(_T541.get(id(_e.value), _UT541)[0]))
                                                   if len(_T541.get(id(_e.value), _UT541)[0]) == 1
-                                                  and _bk570(_e.value) else None)))
+                                                  and _bk570(_e.value) else None))
+                     # (u35, route #576) an attribute of a receiver of established builtin
+                     # kinds (see `_rk576`), for EVERY type those kinds may be: a method, a
+                     # number, or absent -- never iterable or a container
+                     or (lambda _ks: None if _ks is None else (
+                         lambda _os: None if any(_o is None for _o in _os) else _os)(
+                             [getattr(_t, _e.attr) if callable(getattr(_t, _e.attr, None))
+                              else None if _e.attr.startswith("_")
+                              else _NA576 if not hasattr(_t, _e.attr)
+                              else _NU576 if _e.attr in ("real", "imag", "numerator",
+                                                         "denominator", "maxlen")
+                              else None for _k in sorted(_ks) for _t in _TY576[_k]]))(
+                                  _rk576(_e.value, 4)))
                     if isinstance(_e, _ast486.Attribute) else
                     ([type(_e.args[0].value)] if isinstance(_e.args[0], _ast486.Constant) else
                      [int] if (_T541.get(id(_e.args[0]), _UT541)[0]

@@ -5977,6 +5977,43 @@ verdicts identical base / HEAD. Residuals: an operand that mixes `dict` with a c
 (`{} if c else [1]`, `{} if c else 0`) or whose classes are not derivable stays unjudged by this rule (its emission
 is the same opaque int); a claim not covering TypeError is not judged (route #458's scope).
 
+### 7.576 A method of a receiver of established builtin kinds is never a container, however the receiver is reached (route #576, run #5 backlog)
+
+Red team 55 (on run5-int51; driver repro on main before L1 and on int51: PRE-EXISTING) measured 24 probes PROVED
+`no_exception \all` in the default model while CPython raises TypeError ('builtin_function_or_method' / 'method'
+object is not iterable): §7.569's method rule kinded a receiver only as a literal / display, a plainly-annotated
+parameter / local or a local bound only to displays, and only for the `str` / `list` / `dict` / `set` / `tuple`
+kinds. A record field `p.s.upper`, a computed str `(s + "x").upper`, a call-bound local `t2 = s.strip(); t2.upper`,
+a parameter annotated through a module alias `SA = str; sa: SA`, and every int / bool / float / bytes method
+(`k.bit_length`, `k.to_bytes`, `k.conjugate`, `t.bit_length`, `x.hex`, `x.is_integer`, `b.decode`) stayed an opaque
+int, so `in` / `for` / a generator / a nested comprehension over it used the total `contains_check` / `iter_length`.
+
+RULE (`_run_pipeline`, route #556's resolver; twin `\trusted`, inline lambdas / tables, no new def, no axiom; message
+`PYCSL-R556-BUILTIN-OBJECT-OPERAND`, unchanged): at the same iterating / haystack / subscript positions an attribute
+`r.a` resolves when the receiver `r` is ESTABLISHED to have builtin kinds (§7.541's `num` / `str` / `none` / `list` /
+`tuple` / `dict` / `set`, all of them builtin): §7.569's values (any number of kinds now), a parameter / annotated
+local annotated through a module name bound once to such an annotation, a field `p.s` of a value of ONE file class
+kind declared `s: <plain annotation>` in the class's lineage (not an Enum; no method / property / plain class
+binding of `s`, no `__getattr__` / `__getattribute__`, no subclass in the file re-binding `s`), a BinOp / UnaryOp
+of established operands, a call of a method of an established receiver (`s.strip()`), an IfExp of established arms,
+a local bound only to established values -- each with the kinds §7.541 infers. For EVERY Python type those kinds may
+be (`num`: int / float / bool / complex; `str`: str / bytes; `list`: list / deque; `dict`: dict / OrderedDict /
+Counter / defaultdict; `set`: set / frozenset; `tuple`; `none`), `a` must be a method, a number attribute (`real` /
+`imag` / `numerator` / `denominator`, a deque's `maxlen`) or absent (AttributeError); a `_`-name must be a method of
+every type. None of these is iterable or a container, so the operand is refused. A non-method data attribute
+(`default_factory`) or any receiver not established is not judged.
+
+Witnesses `witnesses-r576/` (24) x default / typed / store: 72/72 REFUSED R556. Corpus `9230`-`9241` FAIL (12 rt55
+witnesses: field, computed, call-bound local, int / bool / float / bytes methods, alias annotation; PROVED at base
+48bd28633, REFUSED at HEAD), controls `9242` (the method CALLS `p.s.upper()` / `t2.upper()` / `(s + "x").upper()`, and
+record str fields named `upper` / `keys` searched) and `9243` (`p.s`, `p.s.upper()`, `p.s + "x"`, a local bound to `p.s`
+searched for a str needle) PASS at base and HEAD. Byte-diff vs 48bd28633 (= v48's int52 emission, src identical; with
+#577 / #578): root 3007 -> 3023 0 MOVED / 0 GONE / 0 APPEARED (+16 new files that emit), python-reference 2185 0 / 0 / 0,
+mirror 53/53 byte-identical; rt43 / rt44 149 controls: front-end verdicts identical base / HEAD. Residuals: a receiver
+reached through a builtin FUNCTION call (`str(k).upper`), a subscript (`s[0].upper`), a field of a class without a
+class-level annotation (`self.s = s` in `__init__` only), a nested-record chain whose middle kind is not ONE class,
+a `defaultdict`'s `default_factory`; an attribute of a value of unknown kind stays unjudged (as §7.569).
+
 ### 7.578 An arbitrary slot of a call-bound tuple is an erased operand of every operation; route #252's obligation covers bitwise / power / true division (route #578, run #5 backlog)
 
 Red team 55 (PRE-EXISTING, as §7.576) measured 37 probes PROVED `no_exception \all` in the default model while
