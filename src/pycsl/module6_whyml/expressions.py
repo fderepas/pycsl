@@ -5504,8 +5504,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      "%": "pycsl_py_mod", "<": "pycsl_py_lt", "<=": "pycsl_py_le",
                      ">": "pycsl_py_gt", ">=": "pycsl_py_ge", "r251_erased?": ""}
         _r249_side_hit: List[bool] = []
+        # (u35, run #5 backlog) ROUTE #578 -- route #252's obligation stopped at the ops
+        #   route #251 re-lowers: `**`, `<<`, `>>`, `&`, `|`, `^`, `/` on an erased operand
+        #   kept their builtin lowering (`bit_and x 1`, `py_pow x 2`, `float_truediv_op x 2`)
+        #   with NO exception site, so `x & 1` / `x ** 2` / `x << 1` / `x / 2` on `x: Any`
+        #   (None in CPython: TypeError) PROVED `no_exception \all`. Their sides are now
+        #   walked too (a whole erased CONTAINER is not hit by them, as for route #251's ops:
+        #   `s | t` is the builtin set's), and the bitwise / power return and the int
+        #   true-division bridge below carry the R252 obligation; the lowering is unchanged.
+        _R578_OPS = ("**", "<<", ">>", "&", "|", "^", "/")
         if ((raw_op in ("==", "!=", "in", "not in") and not expr.get("py_is"))
-                or raw_op in _R251_OPS):
+                or raw_op in _R251_OPS or raw_op in _R578_OPS):
             _r249_sc = getattr(self, "_r249_scope", None) or {}
             _r249_er = _r249_sc.get("erased") or set()
             _r249_ct = _r249_sc.get("cont") or {}
@@ -5529,7 +5538,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     if _r249_et == "Var":
                         _r249_hit = (_r249_e.get("name") in _r249_er
                                      or (_r249_e.get("name") in _r249_ct
-                                         and raw_op not in _R251_OPS))
+                                         and raw_op not in _R251_OPS
+                                         and raw_op not in _R578_OPS))
                     elif _r249_et == "Result":
                         _r249_hit = bool(_r249_sc.get("ret_erased"))
                     elif _r249_et in ("Attribute", "FieldGet"):
@@ -5562,6 +5572,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         if (isinstance(_r249_b, dict) and _r249_b.get("type") == "Var"
                                 and "v" in _r249_ct.get(_r249_b.get("name"), "")):
                             _r249_hit = True
+                        # (u35) route #578: a read of an arbitrary (`Any` / `object`) slot of
+                        # a call-bound tuple (`t = g(k)` / `t = self.g(k)`; `g(k)[i]`) --
+                        # route #573's record, exported by `_reset_function_state`; the same
+                        # test as its walk (a constant index naming such a slot, or any
+                        # non-constant index)
+                        _r578_q = None
+                        if isinstance(_r249_b, dict) and _r249_b.get("type") == "Var":
+                            _r578_q = (_r249_sc.get("r573_slots") or {}).get(
+                                _r249_b.get("name"))
+                        elif (isinstance(_r249_b, dict) and _r249_b.get("type") == "Call"
+                              and _r249_b.get("func") in (_r249_sc.get("r573_rec") or {})):
+                            _r578_q = ((None, None) if _r249_sc["r573_rec"][_r249_b["func"]][0]
+                                       else _r249_sc["r573_rec"][_r249_b["func"]][1:3])
+                        if _r578_q is not None:
+                            _r578_x = _r249_e.get("index")
+                            _r578_c = (_r578_x.get("value") if isinstance(_r578_x, dict)
+                                       and _r578_x.get("type") == "Number"
+                                       and type(_r578_x.get("value")) is int else None)
+                            if (_r578_q[0] is None or _r578_c is None
+                                    or (_r578_c + _r578_q[1] if _r578_c < 0 else _r578_c)
+                                    in _r578_q[0]):
+                                _r249_hit = True
                         _r249_es.append(_r249_b)
                     elif _r249_et == "BinOp" and _r249_e.get("op") in (
                             "+", "-", "*", "/", "div", "//", "%", "**", "<<", ">>", "&",
@@ -7302,6 +7334,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # does not cover a raised OverflowError.
                 # Both obligations wrap the right OPERAND, so the term keeps its head.
                 _p413 = self._maybe_emit_no_exception_assert(("binop", raw_op), [left, right])
+                # (u35) route #578: an erased operand (route #252's obligation, see above)
+                if _r252_nx:
+                    _p413 = (_r252_nx[len("begin "):].strip() + " " + _p413).strip()
                 if (not self._in_spec
                         and getattr(self, "_current_no_exception_all", False)):
                     _m413 = str((2 ** 53 - 1) * 2 ** 971)
@@ -7678,6 +7713,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and getattr(self, "_current_no_exception_all", False)):
                 _inner414 = (f"begin assert {{ [@expl:no_exception: OverflowError reachable] "
                              f"{left} = 0 \\/ {right} <= 9223372036854775807 }}; {_inner414} end")
+            # (u35) route #578: an erased operand of a bitwise / power op runs a user
+            # method (CPython TypeError for None): route #252's obligation (see above)
+            if _r252_nx and raw_op in _R578_OPS:
+                _inner414 = f"{_r252_nx}{_inner414} end"
             return self._wrap_with_no_exception_assert(
                 ("binop", raw_op), [left, right], _inner414)
         if raw_op == "?":

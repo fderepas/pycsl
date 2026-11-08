@@ -5977,6 +5977,114 @@ verdicts identical base / HEAD. Residuals: an operand that mixes `dict` with a c
 (`{} if c else [1]`, `{} if c else 0`) or whose classes are not derivable stays unjudged by this rule (its emission
 is the same opaque int); a claim not covering TypeError is not judged (route #458's scope).
 
+### 7.576 A method of a receiver of established builtin kinds is never a container, however the receiver is reached (route #576, run #5 backlog)
+
+Red team 55 (on run5-int51; driver repro on main before L1 and on int51: PRE-EXISTING) measured 24 probes PROVED
+`no_exception \all` in the default model while CPython raises TypeError ('builtin_function_or_method' / 'method'
+object is not iterable): §7.569's method rule kinded a receiver only as a literal / display, a plainly-annotated
+parameter / local or a local bound only to displays, and only for the `str` / `list` / `dict` / `set` / `tuple`
+kinds. A record field `p.s.upper`, a computed str `(s + "x").upper`, a call-bound local `t2 = s.strip(); t2.upper`,
+a parameter annotated through a module alias `SA = str; sa: SA`, and every int / bool / float / bytes method
+(`k.bit_length`, `k.to_bytes`, `k.conjugate`, `t.bit_length`, `x.hex`, `x.is_integer`, `b.decode`) stayed an opaque
+int, so `in` / `for` / a generator / a nested comprehension over it used the total `contains_check` / `iter_length`.
+
+RULE (`_run_pipeline`, route #556's resolver; twin `\trusted`, inline lambdas / tables, no new def, no axiom; message
+`PYCSL-R556-BUILTIN-OBJECT-OPERAND`, unchanged): at the same iterating / haystack / subscript positions an attribute
+`r.a` resolves when the receiver `r` is ESTABLISHED to have builtin kinds (§7.541's `num` / `str` / `none` / `list` /
+`tuple` / `dict` / `set`, all of them builtin): §7.569's values (any number of kinds now), a parameter / annotated
+local annotated through a module name bound once to such an annotation, a field `p.s` of a value of ONE file class
+kind declared `s: <plain annotation>` in the class's lineage (not an Enum; no method / property / plain class
+binding of `s`, no `__getattr__` / `__getattribute__`, no subclass in the file re-binding `s`), a BinOp / UnaryOp
+of established operands, a call of a method of an established receiver (`s.strip()`), an IfExp of established arms,
+a local bound only to established values -- each with the kinds §7.541 infers. For EVERY Python type those kinds may
+be (`num`: int / float / bool / complex; `str`: str / bytes; `list`: list / deque; `dict`: dict / OrderedDict /
+Counter / defaultdict; `set`: set / frozenset; `tuple`; `none`), `a` must be a method, a number attribute (`real` /
+`imag` / `numerator` / `denominator`, a deque's `maxlen`) or absent (AttributeError); a `_`-name must be a method of
+every type. None of these is iterable or a container, so the operand is refused. A non-method data attribute
+(`default_factory`) or any receiver not established is not judged.
+
+Witnesses `witnesses-r576/` (24) x default / typed / store: 72/72 REFUSED R556. Corpus `9230`-`9241` FAIL (12 rt55
+witnesses: field, computed, call-bound local, int / bool / float / bytes methods, alias annotation; PROVED at base
+48bd28633, REFUSED at HEAD), controls `9242` (the method CALLS `p.s.upper()` / `t2.upper()` / `(s + "x").upper()`, and
+record str fields named `upper` / `keys` searched) and `9243` (`p.s`, `p.s.upper()`, `p.s + "x"`, a local bound to `p.s`
+searched for a str needle) PASS at base and HEAD. Byte-diff vs 48bd28633 (= v48's int52 emission, src identical; with
+#577 / #578): root 3007 -> 3023 0 MOVED / 0 GONE / 0 APPEARED (+16 new files that emit), python-reference 2185 0 / 0 / 0,
+mirror 53/53 byte-identical; rt43 / rt44 149 controls: front-end verdicts identical base / HEAD. Residuals: a receiver
+reached through a builtin FUNCTION call (`str(k).upper`), a subscript (`s[0].upper`), a field of a class without a
+class-level annotation (`self.s = s` in `__init__` only), a nested-record chain whose middle kind is not ONE class,
+a `defaultdict`'s `default_factory`; an attribute of a value of unknown kind stays unjudged (as §7.569).
+
+### 7.577 An Enum member's `.value` is not a container; a member reached through a module constant / class attribute / parameter is a member (route #577, run #5 backlog)
+
+Red team 55 (PRE-EXISTING, as §7.576) measured 35 probes PROVED `no_exception \all` in the default model while
+CPython raises TypeError: §7.569 judged `.value` / `.name` only of an IntEnum member spelled `IE.A` / `ie` / `q.m` /
+`IE(1)`, and `.name` read directly. Not judged: the `.value` of a plain `enum.Enum` member (`EE.A.value`, also a
+parameter `e: EE`, a field `q.e`, a local `m = EE.A`), of an `IntFlag` member (`FL.R.value`, a parameter `fl: FL`),
+of a str-valued member searched for an int needle (`k in EE.S.value`), and an IntEnum / Enum member bound to a
+module constant or a class attribute (`MA = IE.A`, `MA = IE(1)`, `MA = EE.A`, `class H: m = IE.A`) -- its `.value`,
+`._value_` and `.name` (`k in MA.name`). The model reads `.value` as the int field `get_value` whatever the member
+holds, and `in` / `for` over it is the total `contains_check` / `iter_length`.
+
+RULE (`_run_pipeline`, routes #560 / #571's judge; twin `\trusted`, inline lambdas, no new def, no axiom):
+- route #560's IntEnum member test also takes a module name bound once to a member (`MA = IE.A`, `MA = IE(1)`) and
+  a class attribute `H.m` (a file class bound once, metaclass `type`, not an Enum, whose body binds `m` exactly once
+  by a plain `m = v`, with no attribute `.m` stored anywhere in the file) bound to one;
+  `PYCSL-R560-INTENUM-MEMBER-OPERAND` (message unchanged) then refuses the member and its `.value` / `._value_`;
+- a member of ANY file Enum class (any `Enum` / `IntEnum` / `Flag` / `IntFlag` / `StrEnum` / `ReprEnum` base) is
+  `E.A`, `E(v)`, `E["A"]`, a value whose §7.541 kinds are only such classes (and None), a local / module name /
+  class attribute bound only to members, an IfExp of members; new `PYCSL-R577-ENUM-MEMBER-VALUE-OPERAND` refuses
+  its `.value` / `._value_` at every iterating / haystack / subscript position of §7.556 (refuse by default: a
+  tuple- or str-valued member iterated is refused too -- the model has no container there);
+- `PYCSL-R571-ENUM-MEMBER-NAME-KIND` (message unchanged) takes `.name` / `._name_` of such a member.
+Arithmetic / ordering on a non-int `.value` is already refused by route #325 (`_class_eE` used as an integer).
+
+Witnesses `witnesses-r577/` (35) x default / typed / store: 105/105 REFUSED (R577 57, R560 36, R571 12). Corpus
+`9244`-`9255` FAIL (12 rt55 witnesses: plain Enum, str-valued Enum, IntFlag, module constant `.value` / `.name`, `MA =
+IE(1)`, class attribute `.value` / `.name`, a parameter, a field, a local alias; PROVED at base, REFUSED at HEAD),
+controls `9256` (`.value` / `.name` compared with `==` / `!=` for a plain Enum, an IntFlag, a module constant, a class
+attribute -- also the followed advice of R577 / R571) and `9257` (record str fields named `value` / `name` searched)
+PASS at base and HEAD. R577's message carries no advice verb (as R560); its advice (`k == EE.A.value`) VERIFIES in
+9256. Byte-diff / mirror / rt43-44 as §7.576 (one sweep). Residuals: a member held in a module tuple / list / dict
+(`MS[0].value`, NOT PROVED / refused at base already), a class alias `E2 = IE` (route #443), a member reached
+through a call result or a module attribute of an imported module; a class attribute bound more than once.
+
+### 7.578 An arbitrary slot of a call-bound tuple is an erased operand of every operation; route #252's obligation covers bitwise / power / true division (route #578, run #5 backlog)
+
+Red team 55 (PRE-EXISTING, as §7.576) measured 37 probes PROVED `no_exception \all` in the default model while
+CPython raises TypeError: §7.569's route #573 erased an `Any` / `object` SLOT of a tuple returned by a module
+function (`def g(k) -> Tuple[int, Any]: return (1, None)`; `t = g(k)`) only where it FLOWS (into a local, into the
+`-> int` result), while `_handle_binop`'s erased-operand walk never saw the slot read itself: `t[1] < k`, `<=`, `>`,
+a chain, `t[1] % 2 == 0`, `t[1] + 1` (result discarded), `-`, `*`, `//`, `**`, `<<`, `&`, `~t[1]`, `k in t[1]`
+lowered to integer / total operations on the model's `pycsl_none`, for `Tuple[int, Any]`, `Tuple[Any, int]`,
+`Tuple[int, int, Any]`, `Tuple[int, object]`, and a METHOD callee `self.g(k)` (route #573 skipped methods).
+Measuring the bitwise forms showed a wider gap: route #252's exception site was placed only at the ops route #251
+re-lowers, so `x & 1`, `x ** 2`, `x << 1`, `x / 2` on a parameter `x: Any` PROVED `no_exception \all` too.
+
+RULE (Module 6; `_reset_function_state` and `_handle_binop` twins `\trusted`; inline, no new def, no axiom):
+- route #573's record (`r526_return_none_depths` per callee) also holds METHODS, keyed `self.<m>` (every method of
+  that name in the file, merged fail-closed: a slot-count disagreement makes the whole result arbitrary), and is
+  exported in `_r249_scope` (`r573_slots`, `r573_rec`);
+- `_handle_binop`'s walk (route #249 / #251 / #252) hits a read `t[i]` of a call-bound local whose constant index
+  names an arbitrary slot (or any non-constant index) and `g(k)[i]` likewise, so the operation gets route #251's
+  law-free symbol and, under `no_exception`, route #252's `assert { false }` (unary ops through the `r251_erased?`
+  probe; `in` through `pycsl_py_in`);
+- the walk also runs for `**`, `<<`, `>>`, `&`, `|`, `^`, `/` (a whole erased CONTAINER is not hit by them, as for
+  route #251's ops), and the bitwise / power return and the int true-division bridge carry route #252's obligation
+  when a side is erased; their lowering is otherwise unchanged.
+The verdict is NOT PROVED (an unprovable obligation at the site), not a front-end refusal; without a `no_exception`
+claim nothing is added.
+
+Witnesses `witnesses-r578/` (37) x default / typed / store: 111/111 NOT PROVED (Verification FAILED; the R252 `assert { false }` at the slot operation in every hoare emission). Corpus `9258`-`9265` FAIL (8 rt55 witnesses:
+`+` discarded, `<` on slot 1 / 0 / 2 of `Tuple[int, Any]` / `Tuple[Any, int]` / `Tuple[int, int, Any]` /
+`Tuple[int, object]`, a method callee, `k in t[1]`, `t[1] & 1`) and `9266` / `9267` (`x & 1` / `x ** 2` on `x: Any`,
+the wider #252 gap) FAIL (PROVED at base, NOT PROVED at HEAD); `x / 2` on `x: Any` did NOT prove at base (the
+OverflowError obligation already fails for an unbounded operand) and is closed here only for a bounded one. Controls
+`9268` (the int slots `t[0] < k` / `t[0] + 1` / `t[0] & 1`, an unpacked int slot, a method's int slot, bitwise / power
+on `int` parameters) and `9269` (the Any slot / `x & 1` without a `no_exception` claim) PASS at base and HEAD.
+Byte-diff / mirror / rt43-44 as §7.576 (no corpus / pyref / mirror emission moved). Residuals: a call on another
+receiver (`c.g(k)` of `c: C`), a callee imported from another module, a float true division `x / 2.0` of an erased
+operand, an index computed from a negative literal through a unary minus (refused fail-closed as any non-constant).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
