@@ -18,10 +18,14 @@ def f1(k: int) -> int:
     return 1
 
 
-#@ ensures \result == 0
+#@ requires k >= 0
+#@ ensures \result == k
 def f2(x: Any, k: int) -> int:
     v = x & 1
-    return 0
+    r = 0
+    if k > 0:
+        r = k
+    return r
 
 
 if __name__ == "__main__":
