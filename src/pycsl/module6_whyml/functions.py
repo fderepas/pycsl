@@ -3373,8 +3373,40 @@ class FunctionEmissionMixin:
         #   are arbitrary, its reads of those slots (a constant index naming one, any other
         #   index) are erased; an unpack target in an arbitrary slot is erased; a direct read
         #   `g(k)[i]` likewise. The walk, route #252's refusal and `_handle_binop` read them.
+        # (u35, run #5 backlog) ROUTE #578 -- the same record for a METHOD, keyed by the
+        #   receiver spelling `self.<m>` (`t = self.g(k)` with `def g(self, k) -> Tuple[int,
+        #   Any]`): every method of that name in the file (any class) contributes, merged
+        #   fail-closed (a disagreement on the slot count makes the whole result arbitrary).
+        #   The record is exported in `_r249_scope` ("r573_slots" / "r573_rec") so
+        #   `_handle_binop`'s walk sees an arbitrary slot read (`t[1] < k`, `t[1] + 1`,
+        #   `k in t[1]`, `~t[1]`), not only its flow into an `-> int` result.
         _r573_rec: Dict[str, Any] = {}
         for _r573_g in ((getattr(self, "ir", {}) or {}).get("functions") or []):
+            if (isinstance(_r573_g, dict) and isinstance(_r573_g.get("name"), str)
+                    and _r573_g.get("kind") == "method"
+                    and isinstance(_r573_g.get("r526_return_none_depths"), dict)):
+                _r578_d = _r573_g["r526_return_none_depths"]
+                _r578_sl = [_x for _x in (_r578_d.get("slots") or []) if isinstance(_x, list)]
+                _r578_w = ((isinstance(_r578_d.get("any_from"), int)
+                            and _r578_d["any_from"] >= 1)
+                           or any(isinstance(_x, list) and len(_x) > 1 and _x[1] is not None
+                                  for _x in (_r578_d.get("elt_slots") or [])))
+                _r578_ix = {_i for _i, _x in enumerate(_r578_sl)
+                            if len(_x) > 1 and _x[1] is not None}
+                # a method's IR name is `<class lower>__<method>` (`c__g`)
+                _r578_p = str(_r573_g.get("self_type") or "").lower() + "__"
+                if (_r578_w or _r578_ix) and _r573_g["name"].startswith(_r578_p):
+                    _r578_k = "self." + _r573_g["name"][len(_r578_p):]
+                    _r578_o = _r573_rec.get(_r578_k)
+                    _r573_rec[_r578_k] = (
+                        (_r578_w, _r578_ix, len(_r578_sl),
+                         "v" if _r573_g.get("return_annotation") in ("dict", "Dict") else "kv")
+                        if _r578_o is None else
+                        (_r578_o[0] or _r578_w or _r578_o[2] != len(_r578_sl),
+                         _r578_o[1] | _r578_ix, _r578_o[2],
+                         "kv" if "v" != _r578_o[3] or _r573_g.get("return_annotation")
+                         not in ("dict", "Dict") else "v"))
+                continue
             if not (isinstance(_r573_g, dict) and isinstance(_r573_g.get("name"), str)
                     and _r573_g.get("kind") != "method"
                     and isinstance(_r573_g.get("r526_return_none_depths"), dict)):
@@ -3699,7 +3731,9 @@ class FunctionEmissionMixin:
             "arg_prop": _r255_arg_prop,
             "lam": {_k: _v.get("body") for _k, _v in _r255_lam.items()},
             # route #321: this body's `defaultdict` constructions all passed the scan above.
-            "r321_dd": bool(_r321_all)}
+            "r321_dd": bool(_r321_all),
+            # route #578 (u35): the arbitrary slots of call-bound tuples (route #573's record)
+            "r573_slots": _r573_slots, "r573_rec": _r573_rec}
         # typed-ir-for-b-ceiling.md §26: `X = getattr(self, "<field>", {})` binds a
         # local aliasing a dict/set self-field (the emitter's `known_sizes =
         # getattr(self, "_known_collection_sizes", {})` / `st = getattr(self,
