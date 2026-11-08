@@ -1,5 +1,23 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #5 backlog (2026-11-08): #576 / #577 / #578 REPAIRED (executor u35 off 48bd28633 = main after L2, branch run5-u35, NOT landed: pre-staged for
+##   run #6; annotations §7.576 / §7.577 / §7.578). Root causes: (#576) route #570 kinded a method receiver only as a literal / display / plainly-
+##   annotated name, for str / list / dict / set / tuple, so `p.s.upper`, `(s + "x").upper`, `t2 = s.strip(); t2.upper`, `sa: SA` and every
+##   int / bool / float / bytes method stayed an opaque int with a total `contains_check` / `iter_length`; (#577) routes #560 / #571 judged
+##   `.value` / `.name` of IntEnum members spelled directly only, not plain Enum / IntFlag / str-valued members, nor members bound to a module
+##   constant / class attribute / parameter / field / local; (#578) route #573 erased an `Any` slot of a call-bound tuple only where it FLOWS,
+##   `_handle_binop`'s walk never saw `t[1] < k`, `t[1] + 1`, `k in t[1]`, `~t[1]`, methods were skipped, and route #252's obligation was
+##   never placed on `**` / `<<` / `>>` / `&` / `|` / `^` (so `x & 1` on `x: Any` PROVED too). Repair (twins `\trusted`, inline, no new def, no
+##   axiom): R556 resolves an attribute of a receiver established to have builtin kinds (fields, computed values, call-bound locals, alias
+##   annotations, every numeric / bytes kind) when it is a method / number / absent for every type of those kinds; R560 follows module
+##   constants / class attributes; new `PYCSL-R577-ENUM-MEMBER-VALUE-OPERAND` refuses the `.value` of a member of any file Enum at iterating /
+##   haystack / subscript positions, R571 takes `.name` of such members; route #573's slots (methods too) reach `_handle_binop`'s walk, and the
+##   bitwise / power / int true-division lowerings carry route #252's obligation. Witnesses #576 72/72 + #577 105/105 REFUSED, #578 111/111 NOT PROVED (Verification FAILED; the R252 `assert { false }` at the slot operation in every hoare emission).
+##   Corpus 9230-9241 / 9244-9255 FAIL (REFUSED), 9258-9267 FAIL (NOT PROVED), all PROVED at base; controls 9242 / 9243 / 9256 / 9257 / 9268 /
+##   9269 PASS base + HEAD. Byte-diff vs 48bd28633 (v48 int52 emission, src identical): root 3007 -> 3023 0 MOVED / 0 GONE / 0 APPEARED (+16 new
+##   files that emit), pyref 2185 0 / 0 / 0, mirror 53/53 byte-identical, rt43 / rt44 149 controls identical. Fidelity rc 0 x 3; fast planes 62/62 (claim-vacuity after control 9269 got a real claim); check-trusted-frame-honesty and check-getattr-erasure OK (run individually); \trusted 405.
+##   Residuals (named, §7.576-§7.578): receivers through builtin calls / subscripts / `__init__`-only fields; members in containers / class
+##   aliases; other-receiver / imported method callees; float true division of an erased operand.
 ## run #5 backlog (2026-11-07): #575 REPAIRED (executor u34 off ab7f6ae37, branch run5-u34; annotations §7.575). Root cause: route #556's
 ##   object resolver named a builtin / module / class object only when spelled directly; through a module name bound once (`AL = KI`,
 ##   `L = len`, `M = os`, `E = ...`, `SEP = os.sep`, `LM = lambda: 0`, `OB = object()`), a local alias, `KN.Inner`, a `class KM(type)`,

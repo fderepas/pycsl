@@ -6014,6 +6014,40 @@ reached through a builtin FUNCTION call (`str(k).upper`), a subscript (`s[0].upp
 class-level annotation (`self.s = s` in `__init__` only), a nested-record chain whose middle kind is not ONE class,
 a `defaultdict`'s `default_factory`; an attribute of a value of unknown kind stays unjudged (as §7.569).
 
+### 7.577 An Enum member's `.value` is not a container; a member reached through a module constant / class attribute / parameter is a member (route #577, run #5 backlog)
+
+Red team 55 (PRE-EXISTING, as §7.576) measured 35 probes PROVED `no_exception \all` in the default model while
+CPython raises TypeError: §7.569 judged `.value` / `.name` only of an IntEnum member spelled `IE.A` / `ie` / `q.m` /
+`IE(1)`, and `.name` read directly. Not judged: the `.value` of a plain `enum.Enum` member (`EE.A.value`, also a
+parameter `e: EE`, a field `q.e`, a local `m = EE.A`), of an `IntFlag` member (`FL.R.value`, a parameter `fl: FL`),
+of a str-valued member searched for an int needle (`k in EE.S.value`), and an IntEnum / Enum member bound to a
+module constant or a class attribute (`MA = IE.A`, `MA = IE(1)`, `MA = EE.A`, `class H: m = IE.A`) -- its `.value`,
+`._value_` and `.name` (`k in MA.name`). The model reads `.value` as the int field `get_value` whatever the member
+holds, and `in` / `for` over it is the total `contains_check` / `iter_length`.
+
+RULE (`_run_pipeline`, routes #560 / #571's judge; twin `\trusted`, inline lambdas, no new def, no axiom):
+- route #560's IntEnum member test also takes a module name bound once to a member (`MA = IE.A`, `MA = IE(1)`) and
+  a class attribute `H.m` (a file class bound once, metaclass `type`, not an Enum, whose body binds `m` exactly once
+  by a plain `m = v`, with no attribute `.m` stored anywhere in the file) bound to one;
+  `PYCSL-R560-INTENUM-MEMBER-OPERAND` (message unchanged) then refuses the member and its `.value` / `._value_`;
+- a member of ANY file Enum class (any `Enum` / `IntEnum` / `Flag` / `IntFlag` / `StrEnum` / `ReprEnum` base) is
+  `E.A`, `E(v)`, `E["A"]`, a value whose §7.541 kinds are only such classes (and None), a local / module name /
+  class attribute bound only to members, an IfExp of members; new `PYCSL-R577-ENUM-MEMBER-VALUE-OPERAND` refuses
+  its `.value` / `._value_` at every iterating / haystack / subscript position of §7.556 (refuse by default: a
+  tuple- or str-valued member iterated is refused too -- the model has no container there);
+- `PYCSL-R571-ENUM-MEMBER-NAME-KIND` (message unchanged) takes `.name` / `._name_` of such a member.
+Arithmetic / ordering on a non-int `.value` is already refused by route #325 (`_class_eE` used as an integer).
+
+Witnesses `witnesses-r577/` (35) x default / typed / store: 105/105 REFUSED (R577 57, R560 36, R571 12). Corpus
+`9244`-`9255` FAIL (12 rt55 witnesses: plain Enum, str-valued Enum, IntFlag, module constant `.value` / `.name`, `MA =
+IE(1)`, class attribute `.value` / `.name`, a parameter, a field, a local alias; PROVED at base, REFUSED at HEAD),
+controls `9256` (`.value` / `.name` compared with `==` / `!=` for a plain Enum, an IntFlag, a module constant, a class
+attribute -- also the followed advice of R577 / R571) and `9257` (record str fields named `value` / `name` searched)
+PASS at base and HEAD. R577's message carries no advice verb (as R560); its advice (`k == EE.A.value`) VERIFIES in
+9256. Byte-diff / mirror / rt43-44 as §7.576 (one sweep). Residuals: a member held in a module tuple / list / dict
+(`MS[0].value`, NOT PROVED / refused at base already), a class alias `E2 = IE` (route #443), a member reached
+through a call result or a module attribute of an imported module; a class attribute bound more than once.
+
 ### 7.578 An arbitrary slot of a call-bound tuple is an erased operand of every operation; route #252's obligation covers bitwise / power / true division (route #578, run #5 backlog)
 
 Red team 55 (PRE-EXISTING, as §7.576) measured 37 probes PROVED `no_exception \all` in the default model while

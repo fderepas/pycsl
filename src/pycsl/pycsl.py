@@ -22072,6 +22072,33 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _ob556(_e.value, _n - 1) if isinstance(_e, _ast486.NamedExpr) else None))
                 # an IntEnum member (an int at runtime)
                 _shd560 = lambda _x: _x in _loc541 or _x in _prm541 or _bnd556.get(_x, 0) != 1
+                # (u35, route #577) `H.m` of a file class object `H` bound once (metaclass
+                # `type`, not an Enum) whose body binds `m` exactly once, by a plain `m = v`,
+                # and no attribute `.m` is stored anywhere in the file: the value `v`
+                _ca577 = lambda _e: (lambda _bs: _bs[0].value if len(_bs) == 1 and not any(
+                    isinstance(_z, _ast486.Attribute) and _z.attr == _e.attr
+                    and not isinstance(_z.ctx, _ast486.Load) for _z in _ast486.walk(_tr486))
+                    else None)(
+                        [_z for _z in _cls541[_e.value.id].body
+                         if getattr(_z, "name", None) == _e.attr or (
+                             isinstance(_z, (_ast486.Assign, _ast486.AnnAssign,
+                                             _ast486.AugAssign)) and any(
+                                 isinstance(_w, _ast486.Name) and _w.id == _e.attr
+                                 for _t in (_z.targets if isinstance(_z, _ast486.Assign)
+                                            else [_z.target]) for _w in _ast486.walk(_t)))]
+                    ) if (isinstance(_e, _ast486.Attribute) and isinstance(_e.ctx, _ast486.Load)
+                          and isinstance(_e.value, _ast486.Name)
+                          and _e.value.id in _cls541 and _e.value.id not in _en571
+                          and not _shd560(_e.value.id) and _mcd575(_cls541[_e.value.id], 4)
+                          and all(isinstance(_z, _ast486.Assign) and len(_z.targets) == 1
+                                  and isinstance(_z.targets[0], _ast486.Name)
+                                  for _z in _cls541[_e.value.id].body
+                                  if getattr(_z, "name", None) == _e.attr or any(
+                                      isinstance(_w, _ast486.Name) and _w.id == _e.attr
+                                      for _t in (_z.targets if isinstance(_z, _ast486.Assign)
+                                                 else [_z.target] if isinstance(
+                                                     _z, (_ast486.AnnAssign, _ast486.AugAssign))
+                                                 else []) for _w in _ast486.walk(_t)))) else None
                 _iem560 = (lambda _e, _n: _n > 0 and (
                     (isinstance(_e, _ast486.Attribute) and isinstance(_e.value, _ast486.Name)
                      and _e.value.id in _ie560 and not _shd560(_e.value.id)
@@ -22108,7 +22135,44 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     # (u31, route #571) a member's `.value` is the int itself
                     or (isinstance(_e, _ast486.Attribute) and _e.attr in ("value", "_value_")
                         and _iem560(_e.value, _n - 1))
-                    or (isinstance(_e, _ast486.NamedExpr) and _iem560(_e.value, _n - 1))))
+                    or (isinstance(_e, _ast486.NamedExpr) and _iem560(_e.value, _n - 1))
+                    # (u35, route #577) a module name bound once to a member (`MA = IE.A`,
+                    # `MA = IE(1)`), and a class attribute bound once to one (`H.m`)
+                    or (isinstance(_e, _ast486.Name) and _e.id in _mal575
+                        and _e.id not in _loc541 and _e.id not in _prm541
+                        and _iem560(_mal575[_e.id], _n - 1))
+                    or (_ca577(_e) is not None and _iem560(_ca577(_e), _n - 1))))
+                # (u35, route #577) a member of ANY file Enum class whose name is in `_cs`
+                # (plain `Enum`, `IntFlag`, str-valued, IntEnum): `E.A`, `E(v)`, `E["A"]`, a
+                # value of member kinds only (a parameter / field / local `e: E`), a local /
+                # module name / class attribute bound only to members, an IfExp of members
+                _em577 = (lambda _e, _n, _cs: _n > 0 and (
+                    (_ie560 <= _cs and _iem560(_e, _n))
+                    or (isinstance(_e, _ast486.Attribute) and isinstance(_e.value, _ast486.Name)
+                        and _e.value.id in _cs and not _shd560(_e.value.id)
+                        and _e.attr in _en571[_e.value.id])
+                    or (isinstance(_e, (_ast486.Call, _ast486.Subscript))
+                        and isinstance(_e.func if isinstance(_e, _ast486.Call) else _e.value,
+                                       _ast486.Name)
+                        and (_e.func if isinstance(_e, _ast486.Call) else _e.value).id in _cs
+                        and not _shd560(
+                            (_e.func if isinstance(_e, _ast486.Call) else _e.value).id))
+                    or (lambda _k: any(_x.startswith("c:") and _x[2:] in _cs for _x in _k)
+                        and all((_x.startswith("c:") and _x[2:] in _cs) or _x == "none"
+                                for _x in _k))(_T541.get(id(_e), _UT541)[0])
+                    or (isinstance(_e, _ast486.Name) and _e.id in _loc541
+                        and _e.id not in _dcl541 and _e.id not in _prm541
+                        and (lambda _vs: bool(_vs) and all(
+                            _md == "v" and _v is not None and _em577(_v, _n - 1, _cs)
+                            for _md, _v in _vs))(
+                                [(_md, _v) for _m, _md, _v in _bd541 if _m == _e.id]))
+                    or (isinstance(_e, _ast486.Name) and _e.id in _mal575
+                        and _e.id not in _loc541 and _e.id not in _prm541
+                        and _em577(_mal575[_e.id], _n - 1, _cs))
+                    or (_ca577(_e) is not None and _em577(_ca577(_e), _n - 1, _cs))
+                    or (isinstance(_e, _ast486.IfExp) and _em577(_e.body, _n - 1, _cs)
+                        and _em577(_e.orelse, _n - 1, _cs))
+                    or (isinstance(_e, _ast486.NamedExpr) and _em577(_e.value, _n - 1, _cs))))
                 for _n556 in _ast486.walk(_fd541):
                     _ops556 = []
                     _nd569 = {}
@@ -22205,6 +22269,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 f"IntEnum member, an int that CPython cannot "
                                 f"{'subscript' if _sb556 else 'iterate or search'}"))
                             break
+                        # (u35, route #577) the `.value` of a member of any file Enum class:
+                        # lowered to the int field `get_value`, whatever the member's value
+                        if (isinstance(_y556, _ast486.Attribute)
+                                and _y556.attr in ("value", "_value_")
+                                and _em577(_y556.value, 4, set(_en571))):
+                            _reps541.append((
+                                "PYCSL-R577-ENUM-MEMBER-VALUE-OPERAND", _y556,
+                                f"`{_ast486.unparse(_y556).strip()[:60]}` is {_w556} and is the "
+                                f"value of an Enum member"))
+                            break
                     if _reps541:
                         break
                 # (u31, route #571) PYCSL-R571-ENUM-MEMBER-NAME-KIND: an Enum member's `.name`
@@ -22221,7 +22295,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             isinstance(_v571, _ast486.Attribute)
                             and isinstance(_v571.value, _ast486.Name)
                             and _v571.value.id in _en571 and not _shd560(_v571.value.id)
-                            and _v571.attr in _en571[_v571.value.id])):
+                            and _v571.attr in _en571[_v571.value.id])
+                            # (u35, route #577) a member of any Enum class however reached
+                            # (`MA = EE.A`, `H.m`, `e: EE`, `m = EE.A`)
+                            or _em577(_v571, 4, set(_en571))):
                         continue
                     _p571 = _par552.get(id(_n571))
                     if isinstance(_p571, _ast486.Compare) and all(
@@ -22605,6 +22682,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"member itself (`IE.A + 1`, `IE.A.value`), or compare the name only with "
                     f"`==` / `!=` (`IE.A.name == \"A\"`).",
                     stage="ir-semantic", code="PYCSL-R571-ENUM-MEMBER-NAME-KIND")
+            if _rc541 == "PYCSL-R577-ENUM-MEMBER-VALUE-OPERAND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R577-ENUM-MEMBER-VALUE-OPERAND: {_rm541}. The value "
+                    f"model reads an Enum member's `.value` as an int field of the class record "
+                    f"(`get_value`) whatever the member holds (an int, a str, a tuple), and `in` "
+                    f"/ `for` / a subscript over it is the TOTAL opaque `contains_check` / "
+                    f"`iter_length`, so the claim proved while CPython raises TypeError for an int "
+                    f"value or an int needle in a str (route #577; measured: `k in EE.A.value` of "
+                    f"a plain Enum, `k in FL.R.value` of an IntFlag, `k in SE.A.value` of a "
+                    f"str-valued Enum, `sum(1 for x in MA.value)` of `MA = IE(1)` proved "
+                    f"`no_exception \\all`). Compare the value with `==` / `!=` "
+                    f"(`k == EE.A.value`), or iterate the class itself (`for m in EE`).",
+                    stage="ir-semantic", code="PYCSL-R577-ENUM-MEMBER-VALUE-OPERAND")
             if _rc541 == "PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND":
                 raise _PyCSLSemErr541(
                     f"line {_ln541}: PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND: {_rm541}. "
