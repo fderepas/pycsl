@@ -892,3 +892,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-07T23:57Z | 618 | STATUS (run hour 80.6; 15.4 h left). v48 (int52 = main + u34): A 30/30 new corpus files as expected; B 192 witness runs (#575 / #581 x 3 models) all refused front-end (0 emitted); corpus sweep running. No OOM. |
 2026-11-07T23:57Z | 619 | v48 (int52): C corpus root 3004 -> 3007 0 MOVED / 0 GONE / 0 APPEARED (3 new controls), pyref 0/0/0; D mirror 53/53 byte-identical to main (nothing owed); E sync / mirror-check / doc rc 0; F --slow planes running. |
 2026-11-08T00:55Z | 620 | STATUS (run hour 81.6; 14.4 h left). v48 (int52) --slow planes 68 ok, no RED. No OOM. |
+2026-11-08T01:53Z | 621 | STATUS (run hour 82.6; 13.4 h left). v48 (int52) --slow planes 75 ok, no RED. No OOM. |
