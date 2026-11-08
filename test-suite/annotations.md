@@ -5977,6 +5977,43 @@ verdicts identical base / HEAD. Residuals: an operand that mixes `dict` with a c
 (`{} if c else [1]`, `{} if c else 0`) or whose classes are not derivable stays unjudged by this rule (its emission
 is the same opaque int); a claim not covering TypeError is not judged (route #458's scope).
 
+### 7.578 An arbitrary slot of a call-bound tuple is an erased operand of every operation; route #252's obligation covers bitwise / power / true division (route #578, run #5 backlog)
+
+Red team 55 (PRE-EXISTING, as §7.576) measured 37 probes PROVED `no_exception \all` in the default model while
+CPython raises TypeError: §7.569's route #573 erased an `Any` / `object` SLOT of a tuple returned by a module
+function (`def g(k) -> Tuple[int, Any]: return (1, None)`; `t = g(k)`) only where it FLOWS (into a local, into the
+`-> int` result), while `_handle_binop`'s erased-operand walk never saw the slot read itself: `t[1] < k`, `<=`, `>`,
+a chain, `t[1] % 2 == 0`, `t[1] + 1` (result discarded), `-`, `*`, `//`, `**`, `<<`, `&`, `~t[1]`, `k in t[1]`
+lowered to integer / total operations on the model's `pycsl_none`, for `Tuple[int, Any]`, `Tuple[Any, int]`,
+`Tuple[int, int, Any]`, `Tuple[int, object]`, and a METHOD callee `self.g(k)` (route #573 skipped methods).
+Measuring the bitwise forms showed a wider gap: route #252's exception site was placed only at the ops route #251
+re-lowers, so `x & 1`, `x ** 2`, `x << 1`, `x / 2` on a parameter `x: Any` PROVED `no_exception \all` too.
+
+RULE (Module 6; `_reset_function_state` and `_handle_binop` twins `\trusted`; inline, no new def, no axiom):
+- route #573's record (`r526_return_none_depths` per callee) also holds METHODS, keyed `self.<m>` (every method of
+  that name in the file, merged fail-closed: a slot-count disagreement makes the whole result arbitrary), and is
+  exported in `_r249_scope` (`r573_slots`, `r573_rec`);
+- `_handle_binop`'s walk (route #249 / #251 / #252) hits a read `t[i]` of a call-bound local whose constant index
+  names an arbitrary slot (or any non-constant index) and `g(k)[i]` likewise, so the operation gets route #251's
+  law-free symbol and, under `no_exception`, route #252's `assert { false }` (unary ops through the `r251_erased?`
+  probe; `in` through `pycsl_py_in`);
+- the walk also runs for `**`, `<<`, `>>`, `&`, `|`, `^`, `/` (a whole erased CONTAINER is not hit by them, as for
+  route #251's ops), and the bitwise / power return and the int true-division bridge carry route #252's obligation
+  when a side is erased; their lowering is otherwise unchanged.
+The verdict is NOT PROVED (an unprovable obligation at the site), not a front-end refusal; without a `no_exception`
+claim nothing is added.
+
+Witnesses `witnesses-r578/` (37) x default / typed / store: 111/111 NOT PROVED (Verification FAILED; the R252 `assert { false }` at the slot operation in every hoare emission). Corpus `9258`-`9265` FAIL (8 rt55 witnesses:
+`+` discarded, `<` on slot 1 / 0 / 2 of `Tuple[int, Any]` / `Tuple[Any, int]` / `Tuple[int, int, Any]` /
+`Tuple[int, object]`, a method callee, `k in t[1]`, `t[1] & 1`) and `9266` / `9267` (`x & 1` / `x ** 2` on `x: Any`,
+the wider #252 gap) FAIL (PROVED at base, NOT PROVED at HEAD); `x / 2` on `x: Any` did NOT prove at base (the
+OverflowError obligation already fails for an unbounded operand) and is closed here only for a bounded one. Controls
+`9268` (the int slots `t[0] < k` / `t[0] + 1` / `t[0] & 1`, an unpacked int slot, a method's int slot, bitwise / power
+on `int` parameters) and `9269` (the Any slot / `x & 1` without a `no_exception` claim) PASS at base and HEAD.
+Byte-diff / mirror / rt43-44 as §7.576 (no corpus / pyref / mirror emission moved). Residuals: a call on another
+receiver (`c.g(k)` of `c: C`), a callee imported from another module, a float true division `x / 2.0` of an erased
+operand, an index computed from a negative literal through a unary minus (refused fail-closed as any non-constant).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
