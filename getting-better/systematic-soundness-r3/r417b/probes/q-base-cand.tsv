@@ -1,0 +1,14 @@
+q01_rmul_list.py	REFUSED	REFUSED
+q02_listvar_rep.py	REFUSED	REFUSED
+q03_tuplevar_rep.py	FAIL	FAIL
+q04_sorted_range_kw.py	REFUSED	REFUSED
+q05_tuple_starred.py	FAIL	FAIL
+q06_set_starred.py	FAIL	FAIL
+q07_chain_rep.py	REFUSED	REFUSED
+q08_rmul_one.py	REFUSED	REFUSED
+q09_setattr_dyn.py	PROVED	PROVED
+q10_float_sum_float.py	REFUSED	REFUSED
+q11_contract_quote_esc.py	FAIL	PROVED
+q12_list_range_step.py	PROVED	FAIL
+q13_list_of_list_range.py	REFUSED	REFUSED
+q14_comp_float.py	PROVED	FAIL

@@ -1,0 +1,30 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt30/k16_len_inv_comprehension.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_72wjmdoe.mlw", line 14, characters 16-32:
+Sub-goal array creation size of goal d'vc.
+Prover result is: Valid (0.00s, 330 steps).
+
+File "/tmp/.pycsl_72wjmdoe.mlw", line 13, characters 16-41:
+Sub-goal type invariant of goal d'vc.
+Prover result is: Valid (0.00s, 635 steps).
+
+File "/tmp/.pycsl_72wjmdoe.mlw", line 20, characters 19-59:
+Sub-goal assertion of goal d__last'vc.
+Prover result is: Valid (0.00s, 6169 steps).
+
+File "/tmp/.pycsl_72wjmdoe.mlw", line 20, characters 63-75:
+Sub-goal index in array bounds of goal d__last'vc.
+Prover result is: Valid (0.00s, 6206 steps).
+
+File "/tmp/.pycsl_72wjmdoe.mlw", line 17, characters 15-40:
+Sub-goal postcondition of goal d__last'vc.
+Prover result is: Valid (0.00s, 558 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_72wjmdoe.mlw", line 17, characters 15-40: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

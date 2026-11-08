@@ -1,0 +1,257 @@
+# file-type-of-wall-impl.md — implementation plan to break the `_field_type_of` wall
+
+> **STATUS 2026-07-10: S-reverse-index spike EXECUTED (§8 first action). The reverse index is VALIDATED but
+> INSUFFICIENT alone — lifting the leaves needs a separate build (§8's "blocks on something else" case).**
+> Applied C1–C5 (reverse-index init + insert + field + both bodies rewritten, live+mirror) and measured:
+> - **Reverse index VALIDATED.** The reviewer's core hypothesis holds: **corpus byte-diff 0** (authoritative
+>   767-file worktree sweep) — the refactor is behavior-preserving, confirming `whyml_name` is unique across
+>   the reference corpus (no collision). The `.values()` enumeration wall is genuinely cleared: neither
+>   method blocks on `.values()` anymore.
+> - **But neither leaf converts** (both `--fun` FAIL, on gaps ORTHOGONAL to the reverse index):
+>   - `_field_type_for` — blocks at the **union early-return exception (U)** (`types.mlw:421`,
+>     `_union__field_type_for_0 but expected int`): an `Optional[str]`-returning function with multiple
+>     `return`s needs a `Return_<union>` exception, which does not exist (only `Return int`/`Return_str`/
+>     `Return_seq`/`Return_<arity>`). U is REUSABLE (also gates `_call_return_whyml_type`) and corpus-inert
+>     (0 corpus `Optional`-returns), but has a real ordering subtlety (the `_union_*` type is per-function
+>     synthesized, so `Return_<union>` must be declared after it — the piece that made U sprawl once).
+>   - `_field_type_of` — blocks EARLIER, at the **Gap-C `or-{}`** in its *unchanged* `cls`-resolution
+>     (`types.mlw:445`, `receiver = attr_ir.get("value") or attr_ir.get("object") or {}`), never reaching
+>     the reverse-index read. Needs U + Gap-C + getattr-chain.
+> - **Why the reviewer's premise was incomplete:** it assumed the `cls`-resolution and the return were
+>   "unchanged/simple," but they were TRUSTED-and-never-lowered — so their REAL lowering surfaces U (both
+>   methods) and Gap-C+getattr (`_field_type_of`). The reverse index is necessary and correct; it is not
+>   sufficient. The value read (`info.get("field_types",{}).get(f)`) also emits an opaque `map string
+>   (option int)` value (Q1 → likely needs a minimal `RecordInfoView` view), but that gate is masked behind
+>   U and was not reached cleanly.
+>
+> **U BUILD 2026-07-10 — CORE MECHANISM VALIDATED; landing cascaded (§10.4 re-port + RecordInfoView typing).**
+Implemented U per the pinned design and it WORKS: (1) needs-scan via lazy registration — `_handle_return_stmt`
+registers `self._used_union_return_excs.add(func_ret)` when it emits `raise (Return<union> val)` for a
+`_union_*` return; (2) `Module6_WhyMLTranspiler` buffers `func_lines`, then emits `exception Return<union>
+<union>` for each registered name BETWEEN the type-decls (already in `out`) and the functions — solving the
+ordering constraint; (3) `_wrap_body_with_return_catch` gets the `with Return<union> r -> r` arm. RESULT:
+`exception Return_union__field_type_for_0` emitted correctly, and `_field_type_for`'s **union early-return
+blocker (was `types.mlw:421`) is CLEARED**. The core U mechanism is proven. But LANDING `_field_type_for`
+cascaded into two residuals, so the full increment was reverted (clean):
+- **§10.4 re-port cascade.** U edits TWO already-VERIFIED emitter methods — `_handle_return_stmt`
+  (stmt_control_flow.py) and `_wrap_body_with_return_catch` (statements.py). Their mirror copies then diverge
+  ("un-trusted mirror body != live"), so per §10.4 they must be re-ported to the mirror AND re-proven in the
+  same increment. Bounded but real (2 verified methods to re-verify with the new union arms).
+- **RecordInfoView nested-value-typing gap.** Declaring `RecordInfoView(TypedDict){whyml_name:str,
+  field_types:Dict[str,str]}` + retyping `_record_types_by_whyml_name: Dict[str, RecordInfoView]` did NOT
+  propagate: the field still emitted `map string (option int)` (the `Dict[str, <TypedDict>]` VALUE-type is
+  not recognized), and `recordinfoview.field_types` emitted `map int (option int)` not `map string (option
+  string)` (a `Dict[str,str]` FIELD inside a TypedDict-view is not string-typed). So `_field_type_for`'s
+  value read `info.get("field_types",{}).get(field)` still int-collapses (`types.mlw:432`). Needs a
+  nested-TypedDict-view value-type recognizer (Dict-of-view + view-with-typed-dict-field) — a separate
+  bounded build, distinct from U.
+**Refined:** `_field_type_for` = reverse index (byte-inert, validated) + U (core validated) + §10.4 re-port
+of the 2 methods + RecordInfoView nested-value-typing. U's hard part (the ordering) is SOLVED; the residuals
+are bounded and scoped. Next dedicated increment: land U's 3 emitter edits + the §10.4 re-port first (a real
+−0 infra that unblocks every Optional-multi-return method), THEN the RecordInfoView typing, THEN convert.
+
+**U design pinned (2026-07-10, pre-build investigation).** The make-or-break for U is the *declaration
+ordering* (the piece that sprawled last time). Measured from the emitted `types.mlw` of a union-returning
+function: **`exception Return int` at line 14 → type-decls → the per-function `type _union__field_type_for_0
+= Arm_0_0 string | Arm_0_None` at line 320 → `let …field_type_for … : _union__field_type_for_0` at line
+412.** So `Return_<union>` CANNOT be declared with the other exceptions (line 14, `preamble.py:2170`) — the
+union type it carries does not exist yet there. It must be emitted AFTER the union types are declared
+(~line 320, between `_emit_type_decls` and the functions). The union-type emission point is per-function /
+non-obvious (no `_emit_union_types` method; likely emitted alongside each function or a collected pass near
+`Module6_WhyMLTranspiler` line ~513+). **U's build, once the emission point is located:** (1) a needs-scan
+collecting `{fn: union_type_name}` for union-returning functions with early/in-loop returns; (2) emit
+`exception Return_<safe_union_name> <union_type>` immediately after each such union type is declared; (3)
+`stmt_control_flow.py::_handle_return_stmt` use_raise path — when `self._func_return_type` is a `_union_*`,
+`raise (Return_<safe_union_name> {val})` (val already union-injected by the EXISTING
+`_maybe_inject_union_return`); (4) the body-catch `with Return_<safe_union_name> r -> r`. Gate: byte-diff 0
+(corpus-inert — 0 corpus `Optional`-returns, measured), whole-file proof, ledger 3. RECOMMENDATION: build U
+as a DEDICATED focused increment (it is the ~76-line feature that sprawled once via the string-local
+collector; the U machinery itself is bounded but the ordering + raise/catch wiring wants careful,
+fresh-context gating). It is REUSABLE (unblocks `_field_type_for` after the reverse index, and is one of the
+gates for `_call_return_whyml_type`).
+
+**Refined scope to actually lift the leaves:** `_field_type_for` = reverse index + **U** (+ maybe
+> RecordInfoView); `_field_type_of` = reverse index + **U** + **Gap-C or-{}** + **getattr-chain** (+ maybe
+> RecordInfoView). The reverse index (C1–C5) is validated byte-inert and re-appliable; per no-unused-facade
+> it was REVERTED (it converts no `\trusted` stub without U). Next dedicated build: **U first** (reusable,
+> gates the closer leaf `_field_type_for`), then the reverse index + RecordInfoView, then Gap-C+getattr for
+> `_field_type_of`. This is the "separate, smaller build" §8 anticipated — not part of this plan's spike.
+
+
+*Implementation plan, 2026-07-10. Derived from `file-type-of-wall.md` (the wall report) and
+`file-type-of-wall-response.md` (the reviewer's counter, which supersedes the report's §6 routes for THIS
+method pair). The reviewer is right and the report over-scoped: `_field_type_of`/`_field_type_for` do NOT
+need enumeration — they need a **reverse index** (a second keyed `map`, indexed by the value-field they
+search on), because `_record_types` is **write-once** and the search key (`whyml_name`) is computed at the
+single population site. This plan implements the reverse-index fix, spike-gated, to lift both `\trusted`
+leaves. Discipline as elsewhere: measure before claiming "cleared"; byte-diff-0; ledger stays 3.*
+
+---
+
+## 0. The reframe (why this is not the map-enumeration wall)
+
+`file-type-of-wall.md` correctly showed a Why3 `map` cannot be *enumerated* (`for v in d.values()` is
+inexpressible; §3–§5 of the report stand). But `_field_type_of`/`_field_type_for` do not actually need
+enumeration — their `for info in self._record_types.values(): if info["whyml_name"] == cls: …` is a
+**search for the entry whose `whyml_name` == cls**, i.e. a keyed lookup on a *different* key than the dict's
+own. The fix is a **second keyed map** `_record_types_by_whyml_name : Dict[str, <record-info>]`, populated at
+the same single write site, read with a plain `.get(cls)`. No enumeration, no re-representation, no `pydict`,
+no new theory. **Campaign lesson to carry forward:** a `for x in d.values(): if x.<field>==k` shape is
+"missing an index on `<field>`", NOT the map-vs-array wall — check for the index before reaching for `pydict`.
+
+## 1. Preconditions (measured, this plan's grounding)
+
+- `_record_types` is **write-once**: the ONLY mutation is `preamble.py:3586`
+  `self._record_types[td["name"]] = {…}`, inside the single-pass record-decl scan; the search key
+  `type_name = whyml_ident(td["name"].lower())` is computed at `preamble.py:3584`, immediately before, and
+  is stored as the value's `"whyml_name"`. All 21 keyed reads + both `.values()` searches run after the
+  scan. (Confirms reviewer Fact A/B against current line numbers; the reviewer cited 3160, the tree is at
+  3586 — same site, code shifted.)
+- Init site: `Module6_WhyMLTranspiler.py:65` `self._record_types: Dict[str, Any] = {}`.
+- Both walled methods live in `TypeInferenceMixin` (mirror `src/self-annotate/src/module6_whyml/types.py`,
+  already `@mutable_state @dataclass` with the M2 scaffold); `_field_type_of` is the leaf that
+  `_rhs_yields_array`/`_rhs_yields_map` call (the int-hash residual source, §6).
+
+## 2. The change (LIVE emitter + MIRROR, kept fidelity-identical)
+
+This touches the live emitter behavior (the internal lookup path), so it is a feature-class change gated by
+corpus byte-diff-0, and the mirror body must equal the live body verbatim.
+
+### 2.1 Init the reverse index (`Module6_WhyMLTranspiler.py:65`, alongside `_record_types`)
+```python
+self._record_types: Dict[str, Any] = {}
+self._record_types_by_whyml_name: Dict[str, Any] = {}   # reverse index: whyml_name -> same record_info
+```
+
+### 2.2 One extra insert at the population site (`preamble.py`, after line 3586's assignment)
+```python
+type_name = whyml_ident(td["name"].lower())
+record_info = { "whyml_name": type_name, "fields": …, "field_types": …, … }   # unchanged dict
+self._record_types[td["name"]] = record_info
+self._record_types_by_whyml_name[type_name] = record_info   # NEW — same object, not a copy
+```
+(Refactor the inline `{...}` into a named `record_info` local so both inserts share ONE object — nothing to
+keep in sync beyond the two adjacent inserts.)
+
+### 2.3 Rewrite the two method bodies (live AND mirror, identical)
+```python
+def _field_type_for(self, obj: str, field: str) -> Optional[str]:
+    if obj != "self":
+        return None
+    cls = self._current_self_type
+    if not cls:
+        return None
+    info = self._record_types_by_whyml_name.get(cls)
+    return info.get("field_types", {}).get(field) if info else None
+
+def _field_type_of(self, attr_ir: "ExprIR") -> Optional[str]:
+    ...                       # cls resolution UNCHANGED (Attribute/FieldGet + getattr chains as today)
+    if not cls:
+        return None
+    info = self._record_types_by_whyml_name.get(cls)
+    return info.get("field_types", {}).get(field_name) if info else None
+```
+Remove both `\trusted` markers; add the fixed contract (`#@ requires True / ensures True / assigns \nothing`).
+
+## 3. What the mirror must model (the spike's KEY measurement — do NOT assume)
+
+The reviewer states the reverse index is "the same `map string (option recordinfoview)` model already
+certified and used for `_record_types`, so no new theory/cert." **VERIFY this — it is the load-bearing
+assumption.** Two sub-questions the spike answers:
+
+- **Q1 — is `_record_types`'s VALUE already modeled as a typed record?** This session's earlier census
+  found `_record_types` reads collapse (the value was opaque). If the value type `recordinfoview`
+  (`{ whyml_name: string; field_types: map string (option string) }`) is NOT already declared, then the
+  reverse-index read `info.get("field_types",{}).get(field)` needs a **closed-key TypedDict view**
+  (`RecordInfoView` with `whyml_name`, `field_types`) so the mirror types
+  `_record_types_by_whyml_name : map string (option recordinfoview)` and lowers `.get("field_types").get(f)`
+  to a nested keyed `Map.get` (→ `option string`). This is bounded (keyed reads only, NO enumeration) but
+  is MORE than the reviewer's "2 lines" if the view doesn't exist yet. **Measure it; do not assume it away.**
+- **Q2 — is a `map string (option recordinfoview)` a NEW WhyML value shape needing a certificate?** A record
+  over already-certified fields (string / `map string (option string)`) is covered by the existing
+  record-value certificate (`Phase2b_RecordVal`) by construction — but CONFIRM via the ledger audit
+  (`Print Assumptions` / `#print axioms` == 3). If the RecordInfoView introduces a `pyval → record`
+  eliminator the meta-theory doesn't cover, that is a coupling-rule obligation — flag it, do not smuggle.
+
+Both `.get` operations in the rewritten bodies are **keyed** (`Map.get`); there is NO fold, NO variant, NO
+enumeration. So the proof is the same class already proven for the 21 existing keyed `_record_types` reads —
+IF the value view exists. The spike's job is to confirm exactly which of {reverse-index-only,
+reverse-index + RecordInfoView-view} is the real scope.
+
+## 4. Behavior preservation & byte-diff-0 (the correctness argument, to be RUN not asserted)
+
+The rewrite is behavior-preserving IFF `whyml_name` is **unique** across records (then reverse-index
+`.get(cls)` returns the same `record_info` the `.values()` first-match search returned). `whyml_name =
+whyml_ident(td["name"].lower())` — a collision needs two record names that lowercase-and-mangle equal (e.g.
+`Foo` vs `FOO`). **The corpus byte-diff-0 gate is the oracle:** if any reference program's emission changes,
+`whyml_name` was non-unique for it (or another assumption broke) → the reverse index must become a multimap
+(keep first-inserted) or the method reverts. Expected byte-diff-0 (the emitter's *output* for user programs
+is unchanged — only its internal lookup path changed), but **run it, do not assume it** (this session's
+history has multiple "expected inert" changes that perturbed the corpus).
+
+## 5. Gates (at the single conversion commit)
+
+- **fidelity** — `self-annotate-mirror-check.sh` 52/52; the rewritten live and mirror bodies are verbatim-equal.
+- **type-safety** — `--fun` for each of `_field_type_of`, `_field_type_for` SUCCESS, THEN the **whole-file
+  proof** of `types.py` SUCCESS (§10.10 sibling check; the 5 already-verified TypeInferenceMixin methods +
+  `_split_tuple_type` stay green).
+- **corpus byte-diff-0** — authoritative worktree-at-HEAD sweep over the reference set (the live-emitter
+  touch's oracle; §4). Any change → diagnose (uniqueness) → multimap-fix or revert.
+- **ledger 3** — `Print Assumptions` / `#print axioms` unchanged; no new `axiom`; RecordInfoView (if needed)
+  covered by `Phase2b_RecordVal` (confirm, §3-Q2).
+- **non-vacuity** — the emitted bodies do real `Map.get self._record_types_by_whyml_name` + the inner
+  `field_types` `Map.get` (no opaque `_get_N <hash>`).
+- **count** 1226 → **1224** (both leaves).
+
+## 6. Downstream follow-on (a SECOND win, separate increment)
+
+Once `_field_type_of` is verified and returns a proved `Optional[str]` (not a trusted opaque), revisit
+`_rhs_yields_array` / `_rhs_yields_map`: their Attribute/FieldGet branches currently compare
+`_field_type_of(val_ir)`'s result by an **int-hash** (`self__field_type_of_1 val_ir = 1555321514 || …`)
+because the leaf was trusted. With the leaf verified returning `option string`, those branches can route
+through `str_eq_op` on the real string — closing the faithfulness residual `file-type-of-wall.md` §6 called
+"permanent." Gate: re-port + re-prove both callers (must stay SUCCESS), byte-diff-0 (the caller change is
+mirror-side / @mutable_state-gated). Do this as its OWN commit AFTER the leaf lands (not bundled) — it is a
+faithfulness upgrade of already-converted methods, count-neutral.
+
+## 7. Reference corpus (per the new-feature discipline)
+
+Add to `test-suite/corpus/pycsl-reference/` (byte-diff-gated, mirror-independent):
+- `NNNN.py` — a write-once `Dict[str, <TypedDict>]` populated in a preamble-like pass, then a
+  `search-by-value-field` rewritten as a reverse-index `.get(k)` returning a proved `Optional[str]` (the
+  `_field_type_of` shape in miniature; positive proof + an `assigns \nothing` twin).
+- `NNNN.py` — the negative: a genuine `for x in d.values()` enumeration that MUST stay unprovable
+  (auto-trusted), pinning the distinction the reviewer's §5 category makes (search-by-field ≠ enumerate).
+
+## 8. Order & first action
+
+`S-reverse-index spike → (if RecordInfoView needed) add the view → apply the 3 edits (init + insert + 2
+bodies), live+mirror → drop both \trusted → full gate battery → single commit → THEN the §6 de-int-hash
+follow-on as a separate commit`.
+
+**First action — S-reverse-index spike (measure §3-Q1/Q2 + §4):** on a scratch branch/worktree, add the
+init + insert + the two rewritten bodies + the reverse-index field to the mirror scaffold; remove both
+`\trusted`; run `--fun` on both methods. Read the FIRST blocker (if any):
+- clears immediately → `_record_types` value already typed; scope = reviewer's minimal fix. Proceed to full
+  gates.
+- blocks on the value read (`field_types` opaque / int) → scope = + RecordInfoView view (still bounded,
+  keyed-only). Add it, re-spike.
+- blocks on something else (the `cls`-resolution getattr chains, unrelated to the reverse index) → the
+  `.values()` wall is cleared but a DIFFERENT recognizer gap remains; report it precisely (the reverse
+  index still lifts the enumeration wall; the residual is a separate, smaller build).
+Then run corpus byte-diff-0 + ledger audit before claiming cleared.
+
+## 9. Risks & non-goals
+
+- **Uniqueness of `whyml_name`** — the one correctness assumption; caught by byte-diff-0 (§4). Contingency:
+  reverse index keeps first-inserted (`setdefault`) to match `.values()` first-match semantics, if a
+  collision surfaces.
+- **RecordInfoView scope creep** (§3-Q1) — if the value view is needed, keep it MINIMAL (only
+  `whyml_name`, `field_types` — the two fields these methods read; the ~8 other `record_info` keys stay
+  unmodelled). Do not model the whole heterogeneous dict.
+- **No enumeration is introduced** — this plan does NOT make `_record_types` enumerable; the general
+  Why3-`map`-enumeration wall (`file-type-of-wall.md` §3–§5) stands untouched for any FUTURE method that
+  genuinely aggregates over all values (routes 1/2/3 of the report remain the menu there).
+- **All-or-nothing per method** — do not commit a half-rewrite; both bodies + the index land together or revert.
+- **Live-emitter touch** — the byte-diff-0 sweep is non-negotiable (a recognizer/refactor touching
+  `src/pycsl` is the corpus-perturbation risk this campaign has been burned by).

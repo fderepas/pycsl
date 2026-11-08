@@ -1,0 +1,38 @@
+[*] Parsing and Semantic Analysis for 'fp_list_as_keys.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "fp_list_as_keys.mlw", line 37, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2672 steps).
+
+File "fp_list_as_keys.mlw", line 58, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 2848 steps).
+
+File "fp_list_as_keys.mlw", line 65, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2200 steps).
+
+File "fp_list_as_keys.mlw", line 72, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.01s, 2236 steps).
+
+File "fp_list_as_keys.mlw", line 93, characters 20-32:
+Sub-goal loop invariant init of goal first_is_str'vc.
+Prover result is: Valid (0.00s, 1342 steps).
+
+File "fp_list_as_keys.mlw", line 86, characters 15-27:
+Sub-goal postcondition of goal first_is_str'vc.
+Prover result is: Valid (0.00s, 1373 steps).
+
+File "fp_list_as_keys.mlw", line 86, characters 15-27:
+Sub-goal postcondition of goal first_is_str'vc.
+Prover result is: Valid (0.00s, 1368 steps).
+
+Warnings/Errors from Why3:
+Warning, file "fp_list_as_keys.mlw", line 95, characters 12-13: unused variable x
+Warning, file "fp_list_as_keys.mlw", line 89, characters 8-9: unused variable x
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,32 @@
+CLOSED(#43): ROUTE #19 — the exemption now holds only while its own justification does
+
+The comment said the no-op was safe because "no contract here reads it". That is now a
+MACHINE CHECK: a set/dict-typed collection PARAM may be mutated in place inside a
+`@mutable_state` class only while the function's contract does not NAME it.
+
+Spelled in `_reset_function_state`, deliberately: it is the one place holding BOTH the
+contract and the body, and it is `\trusted` in the mirror — so the check adds no field, no
+fidelity divergence, and NO emission change anywhere.
+
+TWO NARROWINGS WERE NEEDED, and both were measured rather than reasoned:
+
+  1. The first spelling used every collection mutator and every formal, and broke
+     `Module5_IREmitter` and `pycsl.py`. `ir_stmts.append(...)` on a contract-named LIST
+     param is a different thing entirely — it has a FAITHFUL `Seq.snoc` lowering and never
+     reaches the no-op. Narrowed to `.add`/`.discard`/`.remove` on a SET/DICT-typed formal.
+  2. The class test compared the raw `self_type`, while `_mutable_state_classes` holds
+     `whyml_ident(name.lower())`. It therefore never fired — caught only because the
+     PROBE WENT BACK TO PROVING. A refusal that silently never fires looks exactly like a
+     refusal that works; only the probe tells them apart.
+
+MEASURED ALTERNATIVE, recorded so nobody re-derives it: removing the exemption outright
+breaks THREE mirror files (`expressions`, `statements`, `stmt_control_flow`), whose
+reflecting handlers really do mutate sibling `declared_refs`-style arguments — and never
+name one in a contract, so the contract-mention check leaves every one of them alone.
+
+GATES: `pycsl-reference` 820/820 AND `python-reference` 2144/2144 BYTE-IDENTICAL · mirror
+emission byte-identical, so NO mirror re-proof is owed · mirror L3-tc 53/53 · fidelity no
+NEW divergence · clause-survival 4 · metric UNCHANGED at 455. Witness 0988,
+NEGATIVE-TESTED (SUCCESS at 13c4860b, refused at HEAD).
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

@@ -1,0 +1,7 @@
+w00_hash_bare_tuple.py	1	[ir-semantic]: 'f' line 3: `t` is HASHED by `hash(t)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(.
+j5_usermod_callee.py	1	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership tes
+j6_usermod_from.py	1	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership tes
+pp08_protocol.py	1	[ir-semantic]: 'f' line 9: `c` (an instance of ['a list / dict / set']) is HASHED by `{c}` (a set element, a dict key, a membership test or 
+pp11_callable_obj.py	1	[ir-semantic]: 'f' line 10: `c` (an instance of ['Cc', 'a list / dict / set']) is HASHED by `{c}` (a set element, a dict key, a membership t
+s0_setattr_dyn_name.py	1	[ir-semantic]: 'f' line 8: `r.x` is HASHED by `{r.x}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(.
+DONE

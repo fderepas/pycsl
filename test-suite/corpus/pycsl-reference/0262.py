@@ -11,6 +11,7 @@ val = 0
 #@ thread_entry
 #@ \diverges
 def worker() -> int:
+    global val
     #@ acquires lock_a
     with lock_a:
         val += 1

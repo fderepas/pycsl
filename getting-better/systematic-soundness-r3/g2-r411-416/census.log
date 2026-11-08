@@ -1,0 +1,19 @@
+remeasured 10 changed 2 new 15
+CHANGED 3269_gen37_r284_percent_unsupported_format_char_false_claim.py VERIFY-FAIL REFUSAL [whyml]: `%` string formatting under `no_exception` is admitted only when it is positively
+CHANGED 4820_gen37_r359_mro_mixin_inherits_builtin.py REFUSAL REFUSAL [ir-semantic]: class 'B' at line 10: its base `float` is the standard-library / builtin cl
+NEW 6056_gen37_r412_float_div_zero.py	VERIFY-FAIL
+NEW 6057_gen37_r412_float_div_literal_zero.py	VERIFY-FAIL
+NEW 6058_gen37_r412_float_inverse_zero.py	VERIFY-FAIL
+NEW 6059_gen37_r412_int_truediv_zero.py	VERIFY-FAIL
+NEW 6061_gen37_r413_int_truediv_overflow.py	VERIFY-FAIL
+NEW 6063_gen37_r414_len_range_huge.py	VERIFY-FAIL
+NEW 6064_gen37_r414_str_repeat_huge.py	VERIFY-FAIL
+NEW 6065_gen37_r414_list_repeat_huge.py	VERIFY-FAIL
+NEW 6066_gen37_r414_lshift_huge.py	VERIFY-FAIL
+NEW 6067_gen37_r414_str_repeat_too_long.py	VERIFY-FAIL
+NEW 6069_gen37_r415_percent_d_of_str.py	REFUSAL	[whyml]: `%` string formatting under `no_exception` is admitted only when it is positively checked: the formatted va
+NEW 6070_gen37_r415_percent_mapping_missing_key.py	REFUSAL	[whyml]: `%` string formatting under `no_exception` is admitted only when it is positively checked: the f
+NEW 6073_gen37_r416_keys_view_mutate.py	REFUSAL	/home/fabrice/git/pycsl-g2/test-suite/corpus/pycsl-reference/6073_gen37_r416_keys_view_mutate.py (function 'f', for-
+NEW 6074_gen37_r416_values_view_mutate.py	REFUSAL	/home/fabrice/git/pycsl-g2/test-suite/corpus/pycsl-reference/6074_gen37_r416_values_view_mutate.py (function 'f', 
+NEW 6075_gen37_r416_items_view_mutate.py	REFUSAL	/home/fabrice/git/pycsl-g2/test-suite/corpus/pycsl-reference/6075_gen37_r416_items_view_mutate.py (function 'f', fo
+rc=0

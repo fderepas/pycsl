@@ -1,0 +1,38 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt30/c22_len_inv_alias_field_pop.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_o1hnofez.mlw", line 14, characters 42-58:
+Sub-goal array creation size of goal d'vc.
+Prover result is: Valid (0.00s, 330 steps).
+
+File "/tmp/.pycsl_o1hnofez.mlw", line 14, characters 16-32:
+Sub-goal array creation size of goal d'vc.
+Prover result is: Valid (0.00s, 627 steps).
+
+File "/tmp/.pycsl_o1hnofez.mlw", line 13, characters 16-41:
+Sub-goal type invariant of goal d'vc.
+Prover result is: Valid (0.00s, 677 steps).
+
+File "/tmp/.pycsl_o1hnofez.mlw", line 21, characters 19-59:
+Sub-goal assertion of goal d__last'vc.
+Prover result is: Valid (0.00s, 6820 steps).
+
+File "/tmp/.pycsl_o1hnofez.mlw", line 21, characters 63-75:
+Sub-goal index in array bounds of goal d__last'vc.
+Prover result is: Valid (0.01s, 6862 steps).
+
+File "/tmp/.pycsl_o1hnofez.mlw", line 17, characters 15-40:
+Sub-goal postcondition of goal d__last'vc.
+Prover result is: Valid (0.00s, 575 steps).
+
+File "/tmp/.pycsl_o1hnofez.mlw", line 18, characters 15-42:
+Sub-goal postcondition of goal d__last'vc.
+Prover result is: Valid (0.00s, 576 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_o1hnofez.mlw", line 17, characters 15-40: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

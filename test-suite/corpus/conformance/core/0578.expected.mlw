@@ -7,6 +7,8 @@ module PyCSL_Program
     invariant { (balance >= 0) }
     by { balance = 0 }
 
+  goal _check_class_inv_account : forall balance : int. balance = 0 -> ((balance >= 0))
+
   let acc : account = { balance = 0 }
 
   let account__deposit (self: account) (amount: int) : unit

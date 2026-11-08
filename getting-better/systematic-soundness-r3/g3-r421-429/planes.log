@@ -1,0 +1,154 @@
+[*] chunk LO=0 CNT=12
+[*] planes: check-self-annotate-mirror-sync.py count-trusted-directives.py check-mirror-coverage.py check-sibling-concrete-fidelity.py self-annotate-mirror-check.sh check-sibling-concrete-field-decls.py check-stable-hash-fold-injectivity.py check-assigns-underdeclaration.py check-abstract-op-clash-resolution.py check-mirror-field-parity.py check-mirror-loop-annotations.py check-mirror-signature-drift.py
+[*] soundness-planes: shared mirror emission ready (53 .mlw) — the conversion tier and the --slow emit-dir plane(s) will use it
+[*] soundness-planes: running 12 driver-run lower bound(s)
+      [22:47:19] check-self-annotate-mirror-sync.py rc=0
+    ok       check-self-annotate-mirror-sync.py        
+      [22:47:21] count-trusted-directives.py rc=0
+    ok       count-trusted-directives.py               
+      [22:47:25] check-mirror-coverage.py rc=0
+    ok       check-mirror-coverage.py                  
+      [22:47:44] check-sibling-concrete-fidelity.py rc=0
+    ok       check-sibling-concrete-fidelity.py        
+      [22:47:48] self-annotate-mirror-check.sh rc=0
+    ok       self-annotate-mirror-check.sh             
+      [22:47:49] check-sibling-concrete-field-decls.py rc=0
+    ok       check-sibling-concrete-field-decls.py     
+      [22:47:51] check-stable-hash-fold-injectivity.py rc=0
+    ok       check-stable-hash-fold-injectivity.py     
+      [22:48:07] check-assigns-underdeclaration.py rc=0
+    ok       check-assigns-underdeclaration.py         
+      [22:48:11] check-abstract-op-clash-resolution.py rc=0
+    ok       check-abstract-op-clash-resolution.py     
+      [22:48:13] check-mirror-field-parity.py rc=0
+    ok       check-mirror-field-parity.py              
+      [22:48:13] check-mirror-loop-annotations.py rc=0
+    ok       check-mirror-loop-annotations.py          
+      [22:48:14] check-mirror-signature-drift.py rc=0
+    ok       check-mirror-signature-drift.py           
+[+] soundness-planes: OK — all 12 plane(s) green (fast + the CONVERSION TIER).
+    NOT CHECKED: 23 prover/emission plane(s) — among them
+    check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival
+    and check-stdlib-modules-verify. Re-run with --slow before a GATE.
+[*] chunk LO=12 CNT=20
+[*] planes: check-refusal-reachability.py check-trigger-rows-live.py check-trusted-raises-honesty.py check-type-keyed-constant-answers.py check-emit-ir-arm-postconditions.py check-bespoke-contract-discard.py check-mirror-clause-survival.py check-singleton-constant-lowering.py check-argument-coercion.py check-trusted-reasons.py check-type-keyed-value-sentinels.py check-collapsed-option-reads.py check-constant-fallthrough.py check-dropped-mutation.py check-ir-field-coverage.py check-statement-block-coverage.py check-vacuous-drivers.py check-return-boundary-substitutions.py check-fstring-lowering.py check-coercion-exits.py
+[*] soundness-planes: shared mirror emission ready (53 .mlw) — the conversion tier and the --slow emit-dir plane(s) will use it
+[*] soundness-planes: running 20 driver-run lower bound(s)
+      [22:48:24] check-refusal-reachability.py rc=0
+    ok       check-refusal-reachability.py             
+      [22:48:25] check-trigger-rows-live.py rc=0
+    ok       check-trigger-rows-live.py                
+      [22:48:52] check-trusted-raises-honesty.py rc=0
+    ok       check-trusted-raises-honesty.py           
+      [22:48:55] check-type-keyed-constant-answers.py rc=0
+    ok       check-type-keyed-constant-answers.py      
+      [22:48:55] check-emit-ir-arm-postconditions.py rc=0
+    ok       check-emit-ir-arm-postconditions.py       
+      [22:48:55] check-bespoke-contract-discard.py rc=0
+    ok       check-bespoke-contract-discard.py         
+      [22:48:56] check-mirror-clause-survival.py rc=0
+    ok       check-mirror-clause-survival.py           
+      [22:48:59] check-singleton-constant-lowering.py rc=0
+    ok       check-singleton-constant-lowering.py      
+      [22:49:02] check-argument-coercion.py rc=0
+    ok       check-argument-coercion.py                
+      [22:49:03] check-trusted-reasons.py rc=0
+    ok       check-trusted-reasons.py                  
+      [22:49:09] check-type-keyed-value-sentinels.py rc=0
+    ok       check-type-keyed-value-sentinels.py       
+      [22:49:09] check-collapsed-option-reads.py rc=0
+    ok       check-collapsed-option-reads.py           
+      [22:49:12] check-constant-fallthrough.py rc=0
+    ok       check-constant-fallthrough.py             
+      [22:49:18] check-dropped-mutation.py rc=0
+    ok       check-dropped-mutation.py                 
+      [22:49:21] check-ir-field-coverage.py rc=0
+    ok       check-ir-field-coverage.py                
+      [22:49:22] check-statement-block-coverage.py rc=0
+    ok       check-statement-block-coverage.py         
+      [22:49:22] check-vacuous-drivers.py rc=0
+    ok       check-vacuous-drivers.py                  
+      [22:49:25] check-return-boundary-substitutions.py rc=0
+    ok       check-return-boundary-substitutions.py    
+      [22:49:28] check-fstring-lowering.py rc=0
+    ok       check-fstring-lowering.py                 
+      [22:49:30] check-coercion-exits.py rc=0
+    ok       check-coercion-exits.py                   
+[+] soundness-planes: OK — all 20 plane(s) green (fast + the CONVERSION TIER).
+    NOT CHECKED: 23 prover/emission plane(s) — among them
+    check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival
+    and check-stdlib-modules-verify. Re-run with --slow before a GATE.
+[*] chunk LO=32 CNT=24
+[*] planes: check-corpus-contract-truth.py check-class-invariant-establishment.py check-corpus-executes.py check-corpus-contract-truth-args.py check-trust-blast-radius.py check-claim-vacuity.py check-mirror-claim-strength.py check-trusted-termination-honesty.py check-happy-trust-boundaries.py os-cpython-differential.py check-refusal-witness-coverage.py check-stdlib-contract-fidelity.py check-stdlib-pinned-facades.py check-stdlib-identity-stubs.py check-stub-import-resolution.py core-only-conformance.py frontend-only-conformance.py check-stdlib-trusted-markers.py check-docstring-contract-disagreement.py check-ir-schema-refusals.py check-frontend-ir-backstop-refusals.py check-refusal-advice-audited.py check-artifact-cleanup.sh check-directive-enforcement.py
+[*] soundness-planes: shared mirror emission ready (53 .mlw) — the conversion tier and the --slow emit-dir plane(s) will use it
+[*] soundness-planes: running 24 driver-run lower bound(s)
+      [22:49:36] check-corpus-contract-truth.py rc=0
+    ok       check-corpus-contract-truth.py            
+      [22:49:37] check-class-invariant-establishment.py rc=0
+    ok       check-class-invariant-establishment.py    
+      [22:49:44] check-corpus-executes.py rc=0
+    ok       check-corpus-executes.py                  
+      [22:49:56] check-corpus-contract-truth-args.py rc=0
+    ok       check-corpus-contract-truth-args.py       
+      [22:49:57] check-trust-blast-radius.py rc=0
+    ok       check-trust-blast-radius.py               
+      [22:49:57] check-claim-vacuity.py rc=0
+    ok       check-claim-vacuity.py                    
+      [22:49:57] check-mirror-claim-strength.py rc=0
+    ok       check-mirror-claim-strength.py            
+      [22:49:59] check-trusted-termination-honesty.py rc=0
+    ok       check-trusted-termination-honesty.py      
+      [22:50:05] check-happy-trust-boundaries.py rc=0
+    ok       check-happy-trust-boundaries.py           
+      [22:50:05] os-cpython-differential.py rc=0
+    ok       os-cpython-differential.py                
+      [22:50:09] check-refusal-witness-coverage.py rc=0
+    ok       check-refusal-witness-coverage.py         
+      [22:50:09] check-stdlib-contract-fidelity.py rc=0
+    ok       check-stdlib-contract-fidelity.py         
+      [22:50:09] check-stdlib-pinned-facades.py rc=0
+    ok       check-stdlib-pinned-facades.py            
+      [22:50:09] check-stdlib-identity-stubs.py rc=0
+    ok       check-stdlib-identity-stubs.py            
+      [22:50:10] check-stub-import-resolution.py rc=0
+    ok       check-stub-import-resolution.py           
+      [22:50:10] core-only-conformance.py rc=0
+    ok       core-only-conformance.py                  
+      [22:50:13] frontend-only-conformance.py rc=0
+    ok       frontend-only-conformance.py              
+      [22:50:14] check-stdlib-trusted-markers.py rc=0
+    ok       check-stdlib-trusted-markers.py           
+      [22:50:14] check-docstring-contract-disagreement.py rc=0
+    ok       check-docstring-contract-disagreement.py  
+      [22:50:14] check-ir-schema-refusals.py rc=0
+    ok       check-ir-schema-refusals.py               
+      [22:50:14] check-frontend-ir-backstop-refusals.py rc=0
+    ok       check-frontend-ir-backstop-refusals.py    
+      [22:50:18] check-refusal-advice-audited.py rc=0
+    ok       check-refusal-advice-audited.py           
+      [22:50:18] check-artifact-cleanup.sh rc=0
+    ok       check-artifact-cleanup.sh                 
+      [22:51:53] check-directive-enforcement.py rc=0
+    ok       check-directive-enforcement.py            
+[+] soundness-planes: OK — all 24 plane(s) green (fast + the CONVERSION TIER).
+    NOT CHECKED: 23 prover/emission plane(s) — among them
+    check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival
+    and check-stdlib-modules-verify. Re-run with --slow before a GATE.
+[*] chunk LO=56 CNT=5
+[*] planes: check-untrusted-emitted.py check-yield-erasure.py check-shadowed-selfcalls.py check-emitted-vacuity.py check-cross-module-contract-parity.py
+[*] soundness-planes: shared mirror emission ready (53 .mlw) — the conversion tier and the --slow emit-dir plane(s) will use it
+[*] soundness-planes: running 5 driver-run lower bound(s)
+      [22:55:04] check-untrusted-emitted.py rc=0
+    ok       check-untrusted-emitted.py                
+      [22:55:04] check-yield-erasure.py rc=0
+    ok       check-yield-erasure.py                    
+      [22:55:04] check-shadowed-selfcalls.py rc=0
+    ok       check-shadowed-selfcalls.py               
+      [22:55:54] check-emitted-vacuity.py rc=0
+    ok       check-emitted-vacuity.py                  
+      [22:55:54] check-cross-module-contract-parity.py rc=0
+    ok       check-cross-module-contract-parity.py     
+[+] soundness-planes: OK — all 5 plane(s) green (fast + the CONVERSION TIER).
+    NOT CHECKED: 23 prover/emission plane(s) — among them
+    check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival
+    and check-stdlib-modules-verify. Re-run with --slow before a GATE.

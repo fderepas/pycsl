@@ -4,6 +4,26 @@ Practical knowledge from converting the bottom-up DAG leaves (campaign 1273 → 
 `SKILL.md`; this is the *how-to* for the individual stub conversions, and `giant-recursion.md` (repo
 root) for the DAG strategy.
 
+> ## ⚠ 2026-07-06 CALIBRATION (tier-1/2/3 campaign) — this §1 triage table is partly STALE
+> The §1 table below was built on a `--no-proof` heuristic and PRE-DATES the tier-3 ADT. Corrections
+> (full detail: `SKILL.md §10`; plan of record: `triage-ranked-tcb.md`):
+> - **`--no-proof`/typecheck triage OVER-COUNTS ~5× and cannot be trusted.** Classify a stub as
+>   convertible ONLY on a WHOLE-BODY full `--fun` proof. Type-check-clean ≠ proof-clean (recursion needs
+>   a `variant`; value-model gaps only surface under proof). The "→ trivial" costs below are optimistic.
+> - **"reflects on an IR param → annotate `ExprIR` → trivial" is NO LONGER trivial** — the annotation
+>   binds the type but the whole body usually still fails proof (value overloads, list projection,
+>   termination). It is a *precondition*, not a conversion.
+> - **"BinOp `left`/`right`/`op` → DEFER" is now RESOLVED** — the tier-3 IR-node ADT projects the expr
+>   family (BinOp/Var/Number/String/Subscript/Attribute/Call/MkTuple/FieldGet) with a `size`/`variant`
+>   termination measure. See `preamble.py::_emit_exprir_theory`, `expressions.py::_KIND_DISCRIMINANT`.
+> - **The real convertibility axis is REFLECTION STYLE, not the field read:** a *typed-node reader*
+>   (dispatch on `.get("type")`) is ADT-addressable; a *generic-`Any` walker* (`for v in obj.values()`
+>   over `Dict[str,Any]`, by-ref-set mutation) is UNMODELLABLE without a live-source rewrite → leave-trusted.
+> - **set-valued** rows: LOCAL set-add/membership works; module-const-set membership works; but a
+>   set/dict PARAM mutation or a set-VALUED return across a boundary stays DEFER/leave-trusted (WL-05).
+> - **The census, not the table, decides.** Run `getting-better/tier3/whole-body-census.md`-style
+>   port→prove→revert before committing to any family/feature build.
+
 ## 0. The two marker regimes (know which you're in)
 
 - **STUB leaf** (already a `\trusted` stub in the mirror) → converting is a real **−1**. Porting the

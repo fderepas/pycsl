@@ -1,0 +1,4 @@
+[*] computed-rhs-erasure: 0 converted method(s) with a COMPUTED RHS erased to 0; 0 with a PARAM-FIELD materialised as a fresh constant array.
+[+] computed-rhs-erasure: computed-RHS-erased 0 < ratchet 1 — lower the constant.
+[+] computed-rhs-erasure: OK — measured 0 rhs / 0 param (ratchets 1/0).
+rc=0

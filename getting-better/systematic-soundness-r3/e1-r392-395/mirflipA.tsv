@@ -1,0 +1,679 @@
+src/self-annotate/src/audit_proof_reverify.py	verify_rocq_file	290	qn	blocks.get(qn, '')	0
+src/self-annotate/src/audit_proof_reverify.py	verify_lean_file	440	qn	by_qn.get(qn, '')	0
+src/self-annotate/src/audit_proof_reverify.py	verify_lean_file	435	qn	qn in line	0
+src/self-annotate/src/audit_proof_reverify.py	verify_lean_file	436	qn	by_qn[qn]	0
+src/self-annotate/src/exception_model.py	bases_closure	158	seen	frozenset(seen)	0
+src/self-annotate/src/exception_model.py	bases_closure	154	b	b in seen	0
+src/self-annotate/src/exception_model.py	bases_closure	156	b	seen.add(b)	0
+src/self-annotate/src/exception_model.py	bases_closure	157	b	EXCEPTION_BASES.get(b, ())	0
+src/self-annotate/src/exception_model.py	subclasses_of	183	c	frozenset((c for c in candidates if handler_catches(base, c)))	0
+src/self-annotate/src/audit_proof.py	_audit_one_prover	434	src	by_file.setdefault(src, [])	0
+src/self-annotate/src/core_ir_semantic.py	_collect_call_targets	27	f	acc.add(f)	0
+src/self-annotate/src/core_ir_semantic.py	_collect_call_targets	28	f.rsplit('.', 1)[-1]	acc.add(f.rsplit('.', 1)[-1])	0
+src/self-annotate/src/core_ir_semantic.py	_check_fresh_globals	81	name	name in call_targets	0
+src/self-annotate/src/core_ir_semantic.py	_check_fresh_globals	81	short	short in call_targets	0
+src/self-annotate/src/core_ir_semantic.py	_check_no_exception	115	r.get('exc_type')	{r.get('exc_type') for r in raises}	0
+src/self-annotate/src/core_ir_semantic.py	_check_no_exception	120	name	name not in KNOWN_EXCEPTIONS	0
+src/self-annotate/src/core_ir_semantic.py	_check_no_exception	126	name	name in raised_names	0
+src/self-annotate/src/core_ir_semantic.py	_check_assigns_regions	148	base	symtab.get(base)	0
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	247	var	symtab.get(var)	0
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	258	base	symtab.get(base)	0
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	267	base	symtab.get(base)	0
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	276	bt	bt not in known	0
+src/self-annotate/src/core_ir_semantic.py	_check_contract_scope	293	_va_name	_va_name not in symtab	0
+src/self-annotate/src/core_ir_semantic.py	_check_contract_scope	294	_va_name	{**symtab, _va_name: 'tuple'}	0
+src/self-annotate/src/core_ir_semantic.py	_check_contract_scope	300	key	contracts.get(key, [])	0
+src/self-annotate/src/core_ir_semantic.py	_cs_clause	368	v	v not in symtab	0
+src/self-annotate/src/core_ir_semantic.py	_cs_clause	368	v	v not in mc	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	416	b	{b for b in base_names if b}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	394	node.get('name')	{node.get('name')}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	401	var	{var}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	409	node.get('base')	{node.get('base')}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	403	node.get('var')	{node.get('var')}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	406	node.get('coll')	{node.get('coll')}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	411	node.get('base1')	{node.get('base1'), node.get('base2')}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	411	node.get('base2')	{node.get('base1'), node.get('base2')}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	405	node.get('key')	{node.get('key'), node.get('val')}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	405	node.get('val')	{node.get('key'), node.get('val')}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	413	node.get('arr')	{node.get('arr')}	0
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	415	node.get('base')	{node.get('base')}	0
+src/self-annotate/src/core_ir_semantic.py	_sa_immutable_walk	441	arr.get('name')	symtab.get(arr.get('name'))	0
+src/self-annotate/src/core_ir_semantic.py	_sa_walk	464	name	symtab.get(name)	0
+src/self-annotate/src/core_ir_semantic.py	_gso_walk	534	target	symtab.get(target)	0
+src/self-annotate/src/core_ir_semantic.py	_collect_noreturn_names	711	nm	out.add(nm)	0
+src/self-annotate/src/core_ir_semantic.py	_collect_noreturn_names	714	nm.rsplit('__', 1)[-1]	out.add(nm.rsplit('__', 1)[-1])	0
+src/self-annotate/src/core_ir_semantic.py	_stmt_is_noreturn_call	770	fn	fn in noreturn_names	0
+src/self-annotate/src/core_ir_semantic.py	_stmt_is_noreturn_call	770	fn.rsplit('.', 1)[-1]	fn.rsplit('.', 1)[-1] in noreturn_names	0
+src/self-annotate/src/core_ir_semantic.py	_lemma_calls_trusted	813	fn	fn in trusted	0
+src/self-annotate/src/core_ir_semantic.py	_check_acts	978	name	name in defined	0
+src/self-annotate/src/core_ir_semantic.py	_check_acts	981	name	defined[name]	0
+src/self-annotate/src/core_ir_semantic.py	_check_acts	1000	nm	nm not in referenced	0
+src/self-annotate/src/core_ir_semantic.py	_check_acts	993	nm	referenced.add(nm)	0
+src/self-annotate/src/core_ir_semantic.py	_check_acts	994	nm	nm not in defined	0
+src/self-annotate/src/core_ir_semantic.py	_check_happy	1013	happy.get('method_names', [])	set(happy.get('method_names', []))	0
+src/self-annotate/src/core_ir_semantic.py	_check_happy	1042	hp.get('field')	hp.get('field') not in written	0
+src/self-annotate/src/core_ir_semantic.py	_check_happy	1024	name	name not in method_names	0
+src/self-annotate/src/core_ir_semantic.py	_check_happy	1031	exec_methods	set(exec_methods)	0
+src/self-annotate/src/core_ir_semantic.py	_check_happy	1032	m	m not in except_set	0
+src/self-annotate/src/core_ir_semantic.py	_hp_collect_written	1058	arr.get('field')	written.add(arr.get('field'))	0
+src/self-annotate/src/core_ir_semantic.py	_check_final	1072	e['name']	{e['name'] for e in registry if e.get('kind') == 'module'}	0
+src/self-annotate/src/core_ir_semantic.py	_check_final	1073	e['name']	{e['name'] for e in registry if e.get('kind') == 'class_attr'}	0
+src/self-annotate/src/core_ir_semantic.py	_final_check_stmt	1098	target	target in module_finals	0
+src/self-annotate/src/core_ir_semantic.py	_final_check_stmt	1107	s.get('field')	s.get('field') in class_attr_finals	0
+src/self-annotate/src/core_ir_semantic.py	_check_concurrency	1137	sv.get('name')	{sv.get('name'): sv.get('mutex') for sv in shared_list}	0
+src/self-annotate/src/core_ir_semantic.py	_conc_check_shared_access	1147	var_name	var_name not in shared	1
+src/self-annotate/src/core_ir_semantic.py	_conc_check_shared_access	1149	var_name	shared[var_name]	1
+src/self-annotate/src/core_ir_semantic.py	_conc_check_shared_access	1152	req_mutex	req_mutex not in held	0
+src/self-annotate/src/core_ir_semantic.py	_conc_stmt	1187	mutex	{mutex}	0
+src/self-annotate/src/core_ir_semantic.py	_conc_stmt	1195	already_held	already_held in lock_order	0
+src/self-annotate/src/core_ir_semantic.py	_conc_stmt	1196	mutex	mutex in lock_order	0
+src/self-annotate/src/core_ir_semantic.py	_check_class_invariants	1240	field_names	set(field_names)	0
+src/self-annotate/src/core_ir_semantic.py	_check_class_invariants	1247	var	var not in field_set	0
+src/self-annotate/src/core_ir_semantic.py	_check_mutex_invariants	1274	sv.get('name')	{sv.get('name'): sv.get('mutex') for sv in shared_vars}	0
+src/self-annotate/src/core_ir_semantic.py	_check_mutex_invariants	1276	v	{v for v, m in shared.items() if m == mutex or (m is not None and m.split('[')[0	0
+src/self-annotate/src/core_ir_semantic.py	_check_mutex_invariants	1279	var	var in protected	0
+src/self-annotate/src/core_ir_semantic.py	_check_typeddict_access	1297	v	{v for v, t in symtab.items() if t in td_record_names}	0
+src/self-annotate/src/core_ir_semantic.py	_check_typeddict_access	1297	t	t in td_record_names	0
+src/self-annotate/src/core_ir_semantic.py	_check_namedtuple_access	1338	v	{v for v, t in symtab.items() if t in nt_record_names}	0
+src/self-annotate/src/core_ir_semantic.py	_check_namedtuple_access	1338	t	t in nt_record_names	0
+src/self-annotate/src/core_ir_semantic.py	_check_union_narrowing	1408	v	{v for v, t in symtab.items() if t and isinstance(t, str) and t.startswith('_uni	0
+src/self-annotate/src/core_ir_semantic.py	_union_c8_test_references_union_var	1454	test.get('name')	test.get('name') in union_vars	0
+src/self-annotate/src/core_ir_semantic.py	_union_c11_check_dead_arms	1521	ctor	ctor in seen_ctors	0
+src/self-annotate/src/core_ir_semantic.py	_union_c11_check_dead_arms	1528	ctor	seen_ctors.add(ctor)	0
+src/self-annotate/src/core_ir_semantic.py	walk	813	fn	fn in trusted	0
+src/self-annotate/src/frontend/Module3_Weaver.py	_collect_protect_sites	436	p	p in protected	0
+src/self-annotate/src/frontend/ir_inline.py	__init__	155	f['name']	{f['name']: f for f in funcs}	0
+src/self-annotate/src/frontend/ir_inline.py	_touches_global	34	o.get('name')	o.get('name') in globals_set	0
+src/self-annotate/src/frontend/ir_inline.py	_touches_global	37	node.get('object')	node.get('object') in globals_set	0
+src/self-annotate/src/frontend/ir_inline.py	_global_call_target	60	recv	recv in globals_set	0
+src/self-annotate/src/frontend/ir_inline.py	_global_call_target	61	recv	g_class[recv]	0
+src/self-annotate/src/frontend/ir_inline.py	_method_edges	84	cand	cand in names	0
+src/self-annotate/src/frontend/ir_inline.py	_method_edges	85	cand	out.add(cand)	0
+src/self-annotate/src/frontend/ir_inline.py	_method_edges	81	recv	recv in globals_set	0
+src/self-annotate/src/frontend/ir_inline.py	_method_edges	81	recv	g_class[recv]	0
+src/self-annotate/src/frontend/ir_inline.py	_assigned_locals	105	node['target']	out.add(node['target'])	0
+src/self-annotate/src/frontend/ir_inline.py	_substitute	127	k	{k: _substitute(v, self_name, param_map, rename) for k, v in node.items()}	0
+src/self-annotate/src/frontend/ir_inline.py	_substitute	122	nm	nm in param_map	0
+src/self-annotate/src/frontend/ir_inline.py	_substitute	124	nm	nm in rename	0
+src/self-annotate/src/frontend/ir_inline.py	_substitute	126	node	dict(node)	0
+src/self-annotate/src/frontend/ir_inline.py	_substitute	145	new['target']	new['target'] in rename	0
+src/self-annotate/src/frontend/ir_inline.py	_substitute	123	nm	param_map[nm]	0
+src/self-annotate/src/frontend/ir_inline.py	_substitute	142	recv_part	recv_part in rename	0
+src/self-annotate/src/frontend/ir_inline.py	_check_no_aliasing	200	node['value'].get('name')	node['value'].get('name') in globals_set	0
+src/self-annotate/src/frontend/ir_inline.py	_check_no_aliasing	208	a.get('name')	a.get('name') in globals_set	0
+src/self-annotate/src/frontend/Module5_IREmitter.py	_py_stmt_assign	1587	target.value.id	target.value.id in self._cur_func_symtab	1
+src/self-annotate/src/frontend/Module5_IREmitter.py	_py_stmt_augassign	1709	stmt.target.value.id	stmt.target.value.id in self._cur_func_symtab	1
+src/self-annotate/src/frontend/Module5_IREmitter.py	_scan_2d_in_expr	2311	root.get('name')	root.get('name') in param_names	0
+src/self-annotate/src/frontend/Module5_IREmitter.py	_scan_2d_in_expr	2316	root['name']	result.add(root['name'])	0
+src/self-annotate/src/frontend/Module5_IREmitter.py	_scan_2d_in_stmt	2339	root.get('name')	root.get('name') in param_names	0
+src/self-annotate/src/frontend/Module5_IREmitter.py	_scan_2d_in_stmt	2343	root['name']	result.add(root['name'])	0
+src/self-annotate/src/frontend/Module5_IREmitter.py	_collect_type_params	2500	b.value.id	b.value.id in self._GENERIC_BASE_NAMES	1
+src/self-annotate/src/frontend/Module5_IREmitter.py	_collect_typevar_registry	2578	name	registry[name]	0
+src/self-annotate/src/frontend/Module5_IREmitter.py	_union_arm_tag	2916	elt.id	elt.id not in self._TYPING_ALIAS_ARMS	1
+src/self-annotate/src/frontend/Module5_IREmitter.py	_collect_str_decode_locals	3389	node['target']	out.add(node['target'])	0
+src/self-annotate/src/frontend/Module5_IREmitter.py	rec	3389	node['target']	out.add(node['target'])	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	__init__	119	g['name']	{g['name']: g['class'] for g in self.ir.get('module_globals', [])}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_build_callee_no_exception_summary	235	name	self._module_func_no_exception[name]	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_build_callee_no_exception_summary	235	contracts.get('no_exception', []) or []	set(contracts.get('no_exception', []) or [])	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_build_callee_no_exception_summary	236	name	self._module_func_no_exception_all[name]	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_build_callee_no_exception_summary	238	name	self._module_func_raises[name]	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_build_callee_no_exception_summary	239	name	self._module_func_param_names[name]	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_callee_implicit_exceptions	251	self._module_func_no_exception.get(callee_name, set())	set(self._module_func_no_exception.get(callee_name, set()))	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_callee_implicit_exceptions	257	r['exc_type']	{r['exc_type'] for r in self._module_func_raises.get(callee_name, [])}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_wrap_call_with_callee_raises_assert	293	self._current_no_exception	set(self._current_no_exception)	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_wrap_call_with_callee_raises_assert	307	exc	exc not in active	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_maybe_emit_no_exception_assert	402	self._current_no_exception	set(self._current_no_exception)	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_maybe_emit_no_exception_assert	407	exc_name	exc_name not in active	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	592	whyml_ident(func['name'])	{whyml_ident(func['name']) for func in functions}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	598	whyml_ident(func['name'])	{whyml_ident(func['name']) for func in functions if func.get('sibling_concrete')	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	605	self.ir.get('composed_provider_methods', [])	set(self.ir.get('composed_provider_methods', []))	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	624	f['name']	{f['name']: list(f.get('formal_params', [])) for f in funcs_for_maps}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	626	f['name']	{f['name']: dict(f.get('param_defaults', {})) for f in funcs_for_maps}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	652	f['name']	{f['name'] for f in funcs_for_maps if self._func_returns_string_seq(f)}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	558	ind['name']	{ind['name'] for ind in self.ir.get('inductive_decls', [])}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	559	m['name']	{m['name'] for ind in self.ir.get('inductive_decls', []) for m in ind.get('membe	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	609	ind['name']	{ind['name'] for ind in self.ir.get('inductive_decls', [])}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	610	m['name']	{m['name'] for ind in self.ir.get('inductive_decls', []) for m in ind.get('membe	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	627	f.get('param_defaults', {})	dict(f.get('param_defaults', {}))	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	transpile	688	pf['name']	self._module_method_return_types[pf['name']]	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_verify_module_groups	715	g	groups.setdefault(g, [])	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_compute_shared_module_maps	728	whyml_ident(func['name'])	{whyml_ident(func['name']) for func in functions}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_compute_shared_module_maps	729	whyml_ident(func['name'])	{whyml_ident(func['name']) for func in functions if func.get('sibling_concrete')	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_compute_shared_module_maps	731	self.ir.get('composed_provider_methods', [])	set(self.ir.get('composed_provider_methods', []))	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_compute_shared_module_maps	739	f['name']	{f['name']: list(f.get('formal_params', [])) for f in funcs_for_maps}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_compute_shared_module_maps	741	f['name']	{f['name']: dict(f.get('param_defaults', {})) for f in funcs_for_maps}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_compute_shared_module_maps	747	f['name']	{f['name'] for f in funcs_for_maps if self._func_returns_string_seq(f)}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_compute_shared_module_maps	733	ind['name']	{ind['name'] for ind in self.ir.get('inductive_decls', [])}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_compute_shared_module_maps	734	m['name']	{m['name'] for ind in self.ir.get('inductive_decls', []) for m in ind.get('membe	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_compute_shared_module_maps	742	f.get('param_defaults', {})	dict(f.get('param_defaults', {}))	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_compute_shared_module_maps	763	pf['name']	self._module_method_return_types[pf['name']]	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_emit_prefunctions_infra	797	ind['name']	{ind['name'] for ind in self.ir.get('inductive_decls', [])}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_emit_prefunctions_infra	798	m['name']	{m['name'] for ind in self.ir.get('inductive_decls', []) for m in ind.get('membe	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_transpile_modular	930	g	{g: [] for g in groups}	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_transpile_modular	1040	self._shared_symbol_decls	set(self._shared_symbol_decls)	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_transpile_modular	934	wn	self._verify_module_of.get(wn)	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_transpile_modular	994	g	group_funcs[g]	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_transpile_modular	1015	self._shared_symbol_decls	set(self._shared_symbol_decls)	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_transpile_modular	936	g	group_funcs[g]	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_collect_shared_symbol_decls	1075	sym	shared_syms.add(sym)	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_collect_shared_symbol_decls	1080	_symbol(d.strip())	_symbol(d.strip()) in shared_syms	0
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_collect_shared_symbol_decls	1081	d	raw.add(d)	0
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	51	decl['name']	generics[decl['name']]	0
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	58	func['name']	generics[func['name']]	0
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	65	self_type	self_type in generics	0
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	66	func	func not in generics[self_type]['methods']	0
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	65	self_type	generics[self_type]	0
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	66	self_type	generics[self_type]	0
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	67	self_type	generics[self_type]	0
+src/self-annotate/src/frontend/monomorphize.py	_scan_node_for_subscript_calls	126	gname	gname in generic_names	0
+src/self-annotate/src/frontend/monomorphize.py	_match_generic_annotation	193	gname	gname in generic_names	0
+src/self-annotate/src/frontend/monomorphize.py	_collect_instantiations_ast	202	generics	set(generics)	0
+src/self-annotate/src/frontend/monomorphize.py	_extract_ast_subscript	243	gname	gname not in generic_names	0
+src/self-annotate/src/frontend/monomorphize.py	_subst_type_in_ir	329	k	new[k]	0
+src/self-annotate/src/frontend/monomorphize.py	_subst_type_in_ir	331	k	new[k]	0
+src/self-annotate/src/frontend/monomorphize.py	_subst_type_in_ir	333	k	new[k]	0
+src/self-annotate/src/ir_schema.py	validate_ir	197	ir_version	ir_version not in ACCEPTED_IR_VERSIONS	0
+src/self-annotate/src/frontend/pure_ast.py	closed_pattern	1707	s	s in _keyword.kwlist	0
+src/self-annotate/src/frontend/pure_ast.py	closed_pattern	1706	s	{'None': None, 'True': True, 'False': False}[s]	0
+src/self-annotate/src/frontend/pure_ast.py	atom	3206	s	s in _keyword.kwlist	0
+src/self-annotate/src/frontend/pure_ast.py	atom	3208	s	s in _keyword.kwlist	0
+src/self-annotate/src/frontend/pure_ast.py	get_precedence	4419	node	self._precedences.get(node, _Precedence.TEST)	1
+src/self-annotate/src/frontend/pure_ast.py	visit_Module	4490	ignore.lineno	{ignore.lineno: f'ignore{ignore.tag}' for ignore in node.type_ignores}	1
+src/self-annotate/src/frontend/pure_ast.py	visit_AugAssign	4567	node.op.__class__.__name__	self.binop[node.op.__class__.__name__]	1
+src/self-annotate/src/frontend/pure_ast.py	visit_UnaryOp	5108	node.op.__class__.__name__	self.unop[node.op.__class__.__name__]	1
+src/self-annotate/src/frontend/pure_ast.py	visit_UnaryOp	5109	operator	self.unop_precedence[operator]	0
+src/self-annotate/src/frontend/pure_ast.py	visit_BinOp	5127	node.op.__class__.__name__	self.binop[node.op.__class__.__name__]	1
+src/self-annotate/src/frontend/pure_ast.py	visit_BinOp	5128	operator	self.binop_precedence[operator]	0
+src/self-annotate/src/frontend/pure_ast.py	visit_BinOp	5130	operator	operator in self.binop_rassoc	0
+src/self-annotate/src/frontend/pure_ast.py	visit_Compare	5153	o.__class__.__name__	self.cmpops[o.__class__.__name__]	1
+src/self-annotate/src/frontend/pure_ast.py	_new	87	cls	cls in _const_types	1
+src/self-annotate/src/frontend/pure_ast.py	_N	138	name	_g[name]	1
+src/self-annotate/src/module6_whyml/auto_trust.py	_extract_array_lengths	53	f_left	out.setdefault(f_left, n)	0
+src/self-annotate/src/module6_whyml/auto_trust.py	_extract_array_lengths	58	f_right	out.setdefault(f_right, n)	0
+src/self-annotate/src/module6_whyml/auto_trust.py	_collect_map_typed_locals	188	tgt	result.add(tgt)	0
+src/self-annotate/src/module6_whyml/auto_trust.py	_test_contains_map	225	expr.get('name')	expr.get('name') in map_locals	0
+src/self-annotate/src/module6_whyml/auto_trust.py	_has_set_op_on_map	264	node.get('name')	node.get('name') in map_locals	0
+src/self-annotate/src/module6_whyml/auto_trust.py	walk	188	tgt	result.add(tgt)	0
+src/self-annotate/src/module6_whyml/auto_trust.py	yields_map	264	node.get('name')	node.get('name') in map_locals	0
+src/self-annotate/src/module6_whyml/expr_ghost_spec_ops.py	_handle_ctor_test_expr	65	ctor	getattr(self, '_constructors', {}).get(ctor, {})	0
+src/self-annotate/src/frontend/ir_resolve.py	_collect_calls	27	obj['func']	calls.add(obj['func'])	0
+src/self-annotate/src/frontend/ir_resolve.py	_contract_referenced_var_names	96	node['name']	referenced.add(node['name'])	0
+src/self-annotate/src/frontend/ir_resolve.py	_contract_referenced_var_names	99	obj	referenced.add(obj)	0
+src/self-annotate/src/frontend/ir_resolve.py	_contract_referenced_names	133	node['func']	referenced.add(node['func'])	0
+src/self-annotate/src/frontend/ir_resolve.py	_contract_referenced_var_names	163	node['name']	referenced.add(node['name'])	0
+src/self-annotate/src/frontend/ir_resolve.py	_contract_referenced_var_names	168	obj['name']	referenced.add(obj['name'])	0
+src/self-annotate/src/frontend/ir_resolve.py	_walk	96	node['name']	referenced.add(node['name'])	0
+src/self-annotate/src/frontend/ir_resolve.py	_walk	99	obj	referenced.add(obj)	0
+src/self-annotate/src/frontend/ir_resolve.py	_walk	133	node['func']	referenced.add(node['func'])	0
+src/self-annotate/src/frontend/ir_resolve.py	_walk	163	node['name']	referenced.add(node['name'])	0
+src/self-annotate/src/frontend/ir_resolve.py	_walk	168	obj['name']	referenced.add(obj['name'])	0
+src/self-annotate/src/module6_whyml/functions.py	_collect_record_fields	64	flds[j]['name']	fields.add(flds[j]['name'])	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_scope_sets	98	func.get('formal_params', []) or []	set(func.get('formal_params', []) or [])	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_scope_sets	101	params	set(params)	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_scope_sets	105	st.get('stmt')	st.get('stmt') in control	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_scope_sets	108	st['target']	must.add(st['target'])	0
+src/self-annotate/src/module6_whyml/expressions.py	_materialize_if_seq	188	arg_ir.get('name')	arg_ir.get('name') in getattr(self, '_seq_locals', set())	0
+src/self-annotate/src/module6_whyml/functions.py	_collect_assign_targets	120	node['target']	acc.add(node['target'])	0
+src/self-annotate/src/module6_whyml/functions.py	_build_param_list	152	v	{v for v in symbol_table if v in local_refs and v.startswith('obj_')}	0
+src/self-annotate/src/module6_whyml/functions.py	_build_param_list	144	arg	arg in ghost_vars	0
+src/self-annotate/src/module6_whyml/functions.py	_build_param_list	155	arg	arg in ghost_vars	0
+src/self-annotate/src/module6_whyml/functions.py	_build_param_list	152	v	v in local_refs	0
+src/self-annotate/src/module6_whyml/functions.py	_returns_string_seq	222	v.get('name')	svt.get(v.get('name'))	0
+src/self-annotate/src/module6_whyml/expressions.py	_is_float_expr	506	ir.get('name', '')	getattr(self, '_current_symbol_table', {}).get(ir.get('name', ''))	0
+src/self-annotate/src/module6_whyml/functions.py	_refine_tuple_return_type	369	symtab	dict(symtab)	0
+src/self-annotate/src/module6_whyml/functions.py	_refine_tuple_return_type	371	_k	_st.get(_k)	0
+src/self-annotate/src/module6_whyml/functions.py	_refine_tuple_return_type	372	_k	_st[_k]	0
+src/self-annotate/src/module6_whyml/functions.py	_refine_tuple_return_type	415	n	_slot_role.get(n, 'int')	0
+src/self-annotate/src/module6_whyml/expressions.py	_iter_elem_class	786	iter_ir.get('name')	getattr(self, '_array_elem_types', {}).get(iter_ir.get('name'))	0
+src/self-annotate/src/module6_whyml/expressions.py	_iter_elem_class	787	iter_ir.get('name')	getattr(self, '_seq_value_types', {}).get(iter_ir.get('name'))	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_return_type	461	getattr(self, '_current_self_type', None)	getattr(self, '_current_self_type', None) in getattr(self, '_mutable_state_class	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_return_type	474	getattr(self, '_current_self_type', None)	getattr(self, '_current_self_type', None) in getattr(self, '_mutable_state_class	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_return_type	535	func.get('return_value_type')	func.get('return_value_type') in self._record_types	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_return_type	556	_rv	getattr(self, '_dict_key_types', {}).get(_rv)	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_return_type	557	_rv	getattr(self, '_dict_value_types', {}).get(_rv)	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_return_type	621	ann	ann in getattr(self, '_variant_types', {})	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_return_type	624	ann	self._variant_types[ann]	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_return_type	625	ann	ann in getattr(self, '_record_types', {})	0
+src/self-annotate/src/module6_whyml/functions.py	_compute_return_type	626	ann	self._record_types[ann]	0
+src/self-annotate/src/module6_whyml/expressions.py	_tag_of_value	887	name	getattr(self, '_current_symbol_table', {}).get(name)	0
+src/self-annotate/src/module6_whyml/expressions.py	_union_none_ctor_for	938	name	getattr(self, '_current_symbol_table', {}).get(name)	0
+src/self-annotate/src/module6_whyml/expressions.py	_union_none_ctor_for	941	symtype	getattr(self, '_variant_types', {}).get(symtype)	0
+src/self-annotate/src/module6_whyml/expressions.py	_union_none_ctor_for	928	frt	getattr(self, '_variant_types', {}).get(frt)	0
+src/self-annotate/src/module6_whyml/expressions.py	_subst_params	962	k	{k: self._subst_params(v, arg_nodes) for k, v in ir.items()}	0
+src/self-annotate/src/module6_whyml/expressions.py	_subst_params	960	ir.get('name')	ir.get('name') in arg_nodes	0
+src/self-annotate/src/module6_whyml/expressions.py	_subst_params	961	ir['name']	arg_nodes[ir['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_return_type_map	834	func['name']	result[func['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_return_type_map	710	func['name']	result[func['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_return_type_map	715	func['name']	result[func['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_return_type_map	733	whyml_ident(str(func.get('name', '')))	whyml_ident(str(func.get('name', ''))) in getattr(self, '_sibling_concrete_metho	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_return_type_map	808	ann	ann in getattr(self, '_record_types', {})	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_return_type_map	820	ann	self._record_types[ann]	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_field_access	1003	rec_name	self._record_types[rec_name]	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_field_access	1004	field_name	field_name not in rec_info['fields']	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_field_access	992	value.get('name', '')	getattr(self, '_current_symbol_table', {}).get(value.get('name', ''))	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_field_access	993	sym	sym in getattr(self, '_record_types', {})	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_field_access	998	ft	ft in getattr(self, '_record_types', {})	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_field_access	994	sym	self._record_types[sym]	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_field_access	999	ft	self._record_types[ft]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_ensures_map	955	func['name']	out[func['name']]	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_record_literal	1024	rec_name	self._record_types[rec_name]	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_record_literal	1032	rec_info['fields']	set(rec_info['fields'])	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_record_literal	1051	fname	kv.get(fname)	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_record_literal	1031	k.get('value', '')	kv[k.get('value', '')]	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_record_literal	1034	f	f not in present	0
+src/self-annotate/src/module6_whyml/expressions.py	_typeddict_record_literal	1035	k	k not in declared	0
+src/self-annotate/src/module6_whyml/expressions.py	_namedtuple_positional_access	1098	rec_name	self._record_types[rec_name]	0
+src/self-annotate/src/module6_whyml/expressions.py	_namedtuple_positional_access	1102	idx_val	fields[idx_val]	0
+src/self-annotate/src/module6_whyml/expressions.py	_namedtuple_positional_access	1067	value.get('name', '')	getattr(self, '_current_symbol_table', {}).get(value.get('name', ''))	0
+src/self-annotate/src/module6_whyml/expressions.py	_namedtuple_positional_access	1068	sym	sym in getattr(self, '_record_types', {})	0
+src/self-annotate/src/module6_whyml/expressions.py	_namedtuple_positional_access	1073	ft	ft in getattr(self, '_record_types', {})	0
+src/self-annotate/src/module6_whyml/expressions.py	_namedtuple_positional_access	1087	_nm	getattr(self, '_record_array_params', {}).get(_nm)	0
+src/self-annotate/src/module6_whyml/expressions.py	_namedtuple_positional_access	1088	_nm	getattr(self, '_record_array_locals', {}).get(_nm)	0
+src/self-annotate/src/module6_whyml/expressions.py	_namedtuple_positional_access	1069	sym	self._record_types[sym]	0
+src/self-annotate/src/module6_whyml/expressions.py	_namedtuple_positional_access	1074	ft	self._record_types[ft]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1038	params	set(params)	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1039	p	{p: f'x{i}' for i, p in enumerate(params)}	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1006	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1008	node.get('var')	node.get('var') in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1019	node.get('name')	node.get('name') in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1044	func['name']	out[func['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	985	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	992	v	v in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1020	node['name']	pmap[node['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1023	v	v in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1024	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1026	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1028	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_result_ensures_map	1030	k	new[k]	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1168	name	name in getattr(self, '_quant_scalar_binders', ())	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1170	name	name in self._array_locals	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1172	name	name in self._lambda_locals	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1174	name	name in self._record_locals	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1176	name	name in getattr(self, '_iropt_ir_local_vars', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1186	name	name in getattr(self, '_optional_union_locals', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1201	name	name in getattr(self, '_pyval_locals', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1203	name	name in local_refs	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1211	name	name in getattr(self, '_mutated_collection_params', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1215	name	name in self._shared_var_names	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1221	name	name in self._module_constants	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1231	name	name in getattr(self, '_module_global_classes', {})	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1156	name	name in subst	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1157	name	subst[name]	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1213	name	name in self._current_params	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1222	name	self._module_constants[name]	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1234	name	name in self._constructors	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1240	name	name in self._record_types	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1240	name	name in getattr(self, '_variant_types', {})	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_var_expr	1234	name	self._constructors[name]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_result_ensures_map	1125	func.get('formal_params', []) or []	set(func.get('formal_params', []) or [])	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_result_ensures_map	1130	func['name']	out[func['name']]	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_field_get_expr	1362	field	field in self._all_record_fields	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_field_get_expr	1321	(getattr(self, '_current_self_type', None), field)	_pg2.get((getattr(self, '_current_self_type', None), field))	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_field_get_expr	1360	field	field in self._class_constants.get(self_type, {})	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_field_get_expr	1361	field	self._class_constants[self_type][field]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1226	params	set(params)	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1227	p	{p: f'x{i}' for i, p in enumerate(params)}	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1194	node.get('name')	node.get('name') in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1211	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1213	node.get('var')	node.get('var') in params	0
+src/self-annotate/src/module6_whyml/expressions.py	_cf5_arr	1485	d.get('name')	getattr(self, '_seq_value_types', {}).get(d.get('name'))	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1240	func['name']	out[func['name']]	0
+src/self-annotate/src/module6_whyml/expressions.py	_cf5_arr	1486	d.get('name')	getattr(self, '_array_elem_types', {}).get(d.get('name'))	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1166	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1195	node['name']	pmap[node['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1198	v	v in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1199	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1169	v	v in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1201	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1203	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_result_ensures_map	1205	k	new[k]	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_named_expr_expr	1532	target	target in local_refs	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_named_expr_expr	1534	target	local_refs.add(target)	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_writes_map	1295	func['name']	out[func['name']]	0
+src/self-annotate/src/module6_whyml/expressions.py	_slice_array_or_opaque	1567	vn	vn in getattr(self, '_array_locals', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_slice_array_or_opaque	1568	vn	vn in getattr(self, '_current_array1d_params', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_slice_array_or_opaque	1570	vn	vn in getattr(self, '_array_elem_types', {})	0
+src/self-annotate/src/module6_whyml/expressions.py	_slice_array_or_opaque	1569	vn	self._current_symbol_table.get(vn)	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_old_ensures_map	1349	func['name']	out[func['name']]	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_slice_access_expr	1613	_bv.get('name')	_bv.get('name') in getattr(self, '_seq_locals', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_arraylen_expr	1694	var	var in getattr(self, '_seq_locals', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_arraylen_expr	1696	var	var in local_refs	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_arraylen_expr	1720	var	var in local_refs	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_arraylen_expr	1721	var	var not in getattr(self, '_array_locals', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_module_binding_names	1735	f.get('name')	{f.get('name') for f in ir.get('functions', [])}	0
+src/self-annotate/src/module6_whyml/expressions.py	_module_binding_names	1736	getattr(self, '_module_global_classes', {})	set(getattr(self, '_module_global_classes', {}))	0
+src/self-annotate/src/module6_whyml/expressions.py	_module_binding_names	1737	getattr(self, '_module_constants', {})	set(getattr(self, '_module_constants', {}))	0
+src/self-annotate/src/module6_whyml/expressions.py	_module_binding_names	1738	c.get('name')	{c.get('name') for c in ir.get('classes', []) if isinstance(c, dict)}	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_in_globals_expr	1752	name	name in self._module_binding_names()	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_in_scope_expr	1768	name	name in getattr(self, '_scope_must', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_in_scope_expr	1771	name	name not in getattr(self, '_scope_all', set())	0
+src/self-annotate/src/module6_whyml/expressions.py	_handle_in_scope_expr	1772	name	name not in getattr(self, '_scope_params', set())	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1440	params	set(params)	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1441	p	{p: f'x{i}' for i, p in enumerate(params)}	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1415	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1423	node.get('name')	node.get('name') in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1447	func['name']	out[func['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1390	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1424	node['name']	pmap[node['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1428	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1395	v	v in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1430	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_post_ensures_map	1432	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1550	params	set(params)	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1551	p	{p: f'x{i}' for i, p in enumerate(params)}	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1519	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1521	node.get('var')	node.get('var') in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1529	node.get('name')	node.get('name') in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1561	func['name']	out[func['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1530	node['name']	pmap[node['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1533	v	v in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1534	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1483	n	n in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1483	n	n in bound	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1488	v	v in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1488	v	v in bound	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1492	bv	{bv}	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1536	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1538	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_field_param_frame_ensures_map	1540	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1662	params	set(params)	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1663	p	{p: f'x{i}' for i, p in enumerate(params)}	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1643	node.get('name')	node.get('name') in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1670	func['name']	out[func['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1644	node['name']	pmap[node['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1647	v	v in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1648	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1607	n	n in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1607	n	n in bound	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1612	v	v in params	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1612	v	v in bound	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1616	bv	{bv}	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1650	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1652	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_result_frame_ensures_map	1654	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1746	func.get('formal_params', [])	set(func.get('formal_params', []))	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1836	func['name']	result[func['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1750	name	name in local_assignees	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1750	name	name not in _formal	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1778	name	name in _formal	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1778	name	name in _pann	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1780	name	_pann[name]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1770	name	_plet.get(name)	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1804	name	name in _kt	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1804	name	name in _vt	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_types_map	1811	symtype	_rt.get(symtype)	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_whyml_types_by_name	1885	func['name']	result[func['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_whyml_types_by_name	1880	pname	symtable.get(pname)	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_whyml_types_by_name	1882	pname	by_name[pname]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_whyml_types_by_name	1884	pname	by_name[pname]	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_whyml_types_by_name	1881	pname	pname in _kt	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_param_whyml_types_by_name	1881	pname	pname in _vt	0
+src/self-annotate/src/module6_whyml/functions.py	_build_method_return_annotation_map	1897	func['name']	result[func['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	rec	222	v.get('name')	svt.get(v.get('name'))	0
+src/self-annotate/src/module6_whyml/functions.py	classify	985	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	classify	992	v	v in params	0
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1006	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1008	node.get('var')	node.get('var') in params	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1019	node.get('name')	node.get('name') in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1020	node['name']	pmap[node['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1023	v	v in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1024	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1026	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1028	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1030	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1166	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1169	v	v in params	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1194	node.get('name')	node.get('name') in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1195	node['name']	pmap[node['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1198	v	v in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1199	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1201	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1203	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1205	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1211	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1213	node.get('var')	node.get('var') in params	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1390	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1395	v	v in params	0
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1415	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1423	node.get('name')	node.get('name') in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1424	node['name']	pmap[node['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1428	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1430	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1432	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1483	n	n in params	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1483	n	n in bound	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1488	v	v in params	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1488	v	v in bound	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1492	bv	{bv}	0
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1519	node.get('name')	node.get('name') in params	0
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1521	node.get('var')	node.get('var') in params	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1529	node.get('name')	node.get('name') in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1530	node['name']	pmap[node['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1533	v	v in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1534	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1536	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1538	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1540	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1607	n	n in params	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1607	n	n in bound	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1612	v	v in params	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1612	v	v in bound	0
+src/self-annotate/src/module6_whyml/functions.py	classify	1616	bv	{bv}	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1643	node.get('name')	node.get('name') in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1644	node['name']	pmap[node['name']]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1647	v	v in pmap	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1648	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1650	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1652	k	new[k]	0
+src/self-annotate/src/module6_whyml/functions.py	rename	1654	k	new[k]	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_assigned_vars	43	stmt['target']	assigned.add(stmt['target'])	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_assigned_vars	54	tgt	assigned.add(tgt)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_named_expr_targets	73	obj['target']	targets.add(obj['target'])	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_ghost_vars	90	stmt['target']	ghosts.add(stmt['target'])	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	uses_ghost_type	107	stmt.get('ghost_type')	stmt.get('ghost_type') in types	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	collection_binder_kinds	129	bt	found.add(bt)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	152	target	array_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	155	target	array_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	157	target	array_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	159	target	array_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	161	target	dict_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	164	target	dict_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	169	target	array_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	174	target	array_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	178	target	array_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	182	target	array_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	184	target	dict_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	188	target	dict_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	190	target	array_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_array_and_dict_vars	194	target	array_vars.add(target)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_lambda_vars	261	stmt.get('target', '')	lambda_vars.add(stmt.get('target', ''))	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_record_vars	284	val.get('func', '')	val.get('func', '') in record_types	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_record_vars	285	stmt.get('target', '')	record_vars.add(stmt.get('target', ''))	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_record_var_classes	312	val.get('func', '')	val.get('func', '') in record_types	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_record_var_classes	315	tgt	out[tgt]	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	collect_user_exceptions	374	stmt['exc_type']	result.add(stmt['exc_type'])	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	collect_user_exceptions	382	ep	result.add(ep)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	collect_escaping_exceptions	398	stmt['exc_type']	raised.add(stmt['exc_type'])	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	collect_escaping_exceptions	414	e	{e for e in inner_raised if not any((handler_catches(b, e) for b in handler_base	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	collect_escaping_exceptions	408	ep	handler_bases.add(ep)	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	find_append_targets	659	arr_name.replace('.', '_')	result.add(arr_name.replace('.', '_'))	0
+src/self-annotate/src/module6_whyml/ir_scanner.py	_collect_mutations	686	method	method in IRScanner._MUTATING_METHODS	0
+src/self-annotate/src/module6_whyml/scc.py	find_calls_in_ir	23	obj.get('func')	obj.get('func') in func_names_set	0
+src/self-annotate/src/module6_whyml/scc.py	find_calls_in_ir	24	obj['func']	calls.add(obj['func'])	0
+src/self-annotate/src/module6_whyml/scc.py	find_self_method_calls	54	resolved	resolved in func_names_set	0
+src/self-annotate/src/module6_whyml/scc.py	find_self_method_calls	54	resolved	resolved in concrete_set	0
+src/self-annotate/src/module6_whyml/scc.py	find_self_method_calls	55	resolved	out.add(resolved)	0
+src/self-annotate/src/module6_whyml/preamble.py	_func_returns_string_seq	30	v.get('name')	svt.get(v.get('name'))	0
+src/self-annotate/src/module6_whyml/preamble.py	_inductive_refs_global_or_axiom_func	167	g['name']	{g['name'] for g in ir.get('module_globals', [])}	0
+src/self-annotate/src/module6_whyml/preamble.py	_inductive_refs_global_or_axiom_func	178	node.get('func')	node.get('func') in axiom_fns	0
+src/self-annotate/src/module6_whyml/preamble.py	_inductive_refs_global_or_axiom_func	181	node.get('name')	node.get('name') in globals_names	0
+src/self-annotate/src/module6_whyml/preamble.py	_inductive_refs_global_or_axiom_func	184	node['object']	node['object'] in globals_names	0
+src/self-annotate/src/module6_whyml/preamble.py	_class_inv_refs_axiom_func	214	node.get('func')	node.get('func') in axiom_fns	0
+src/self-annotate/src/module6_whyml/preamble.py	_collect_critical_mutexes	288	s['mutex']	mutexes.add(s['mutex'])	0
+src/self-annotate/src/module6_whyml/preamble.py	rec	30	v.get('name')	svt.get(v.get('name'))	0
+src/self-annotate/src/module6_whyml/preamble.py	_walk	178	node.get('func')	node.get('func') in axiom_fns	0
+src/self-annotate/src/module6_whyml/preamble.py	_walk	181	node.get('name')	node.get('name') in globals_names	0
+src/self-annotate/src/module6_whyml/preamble.py	_walk	184	node['object']	node['object'] in globals_names	0
+src/self-annotate/src/module6_whyml/preamble.py	_walk	214	node.get('func')	node.get('func') in axiom_fns	0
+src/self-annotate/src/module6_whyml/preamble.py	walk	288	s['mutex']	mutexes.add(s['mutex'])	0
+src/self-annotate/src/module6_whyml/types.py	_val_is_bool	87	val_ir.get('op')	val_ir.get('op') in _BOOL_BINOPS	0
+src/self-annotate/src/module6_whyml/types.py	_first_assign_kind	99	val_ir.get('func', '')	val_ir.get('func', '') in self._record_types	0
+src/self-annotate/src/module6_whyml/types.py	_first_assign_kind	125	lookup	self._module_method_return_types.get(lookup)	0
+src/self-annotate/src/module6_whyml/types.py	_rhs_yields_array	173	name	name in self._array_locals	0
+src/self-annotate/src/module6_whyml/types.py	_rhs_yields_array	173	name	name in self._current_array1d_params	0
+src/self-annotate/src/module6_whyml/types.py	_rhs_yields_array	177	name	self._current_symbol_table.get(name)	0
+src/self-annotate/src/module6_whyml/types.py	_rhs_yields_array	192	key	self._module_method_return_types.get(key)	0
+src/self-annotate/src/module6_whyml/types.py	_rhs_yields_map	220	name	name in self._dict_locals	0
+src/self-annotate/src/module6_whyml/types.py	_rhs_yields_map	222	name	self._current_symbol_table.get(name)	0
+src/self-annotate/src/module6_whyml/types.py	_rhs_yields_map	261	key	self._module_method_return_types.get(key)	0
+src/self-annotate/src/proof2why3/canonical.py	_flip_comparisons	54	t.op	t.op in _FLIP_COMPARISON	1
+src/self-annotate/src/proof2why3/canonical.py	_flip_comparisons	56	t.op	_FLIP_COMPARISON[t.op]	1
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	333	receiver_name	getattr(self, '_module_global_classes', {}).get(receiver_name)	0
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	334	gcls	gcls in self._record_types	0
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	337	receiver_name	getattr(self, '_current_record_var_classes', {}).get(receiver_name)	0
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	366	field_name	info.get('field_types', {}).get(field_name)	0
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	338	rvcls	rvcls in self._record_types	0
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	341	receiver_name	getattr(self, '_record_param_classes', {}).get(receiver_name)	0
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	335	gcls	self._record_types[gcls]	0
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	358	receiver_name	getattr(self, '_record_field_elem_locals', {}).get(receiver_name)	0
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	339	rvcls	self._record_types[rvcls]	0
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	360	ecls	ecls in self._record_types	0
+src/self-annotate/src/module6_whyml/types.py	_field_type_of	361	ecls	self._record_types[ecls]	0
+src/self-annotate/src/module6_whyml/types.py	_collect_tuple_array_locals	410	tgt	found[tgt]	0
+src/self-annotate/src/module6_whyml/types.py	_collect_tuple_var_assigns	433	_fn	rets.get(_fn)	0
+src/self-annotate/src/module6_whyml/types.py	_collect_tuple_var_assigns	436	f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn	rets.get(f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn)	0
+src/self-annotate/src/module6_whyml/types.py	_collect_tuple_var_assigns	438	tgt	found[tgt]	0
+src/self-annotate/src/module6_whyml/types.py	_collect_tuple_var_assigns	441	tgt	self._tuple_var_slot_types[tgt]	0
+src/self-annotate/src/module6_whyml/types.py	_collect_struct_unpack_array_targets	524	tgt	found.add(tgt)	0
+src/self-annotate/src/module6_whyml/types.py	_collect_struct_unpack_array_targets	518	tgt	found.add(tgt)	0
+src/self-annotate/src/module6_whyml/types.py	_collect_struct_pack_assign_targets	561	tgt	found.add(tgt)	0
+src/self-annotate/src/module6_whyml/types.py	_collect_variant_var_assigns	591	val.get('func')	val.get('func') in ctors	0
+src/self-annotate/src/module6_whyml/types.py	_collect_variant_var_assigns	592	val.get('name')	val.get('name') in ctors	0
+src/self-annotate/src/module6_whyml/types.py	_collect_variant_var_assigns	596	tgt	found.add(tgt)	0
+src/self-annotate/src/module6_whyml/types.py	_collect_dict_var_assigns	621	tgt	found.add(tgt)	0
+src/self-annotate/src/module6_whyml/types.py	_scan	524	tgt	found.add(tgt)	0
+src/self-annotate/src/module6_whyml/types.py	_scan	518	tgt	found.add(tgt)	0
+src/self-annotate/src/module6_whyml/types.py	_scan	561	tgt	found.add(tgt)	0
+src/self-annotate/src/proof2why3/emit_why3.py	_pp	46	t.op	_BINOP_PREC.get(t.op, _PREC_CMP)	1
+src/self-annotate/src/proof2why3/ir.py	free_vars	151	t.name	{t.name}	1
+src/self-annotate/src/proof2why3/ir.py	free_vars	164	t.binders	set(t.binders)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_for_stmt	376	getattr(self, '_current_self_type', None)	getattr(self, '_current_self_type', None) in getattr(self, '_mutable_state_class	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_for_stmt	361	target	{target}	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_for_stmt	362	target	{target}	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_for_stmt	380	target	{target: idx}	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_try_local_decl_kind	493	val_ir.get('func', '')	val_ir.get('func', '') in self._record_types	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_callee_raised_direct	516	fn	registry.get(fn, [])	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_callee_raised_direct	519	exc	out.add(exc)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_try_stmt	626	safe_var	safe_var not in declared_refs	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_try_stmt	703	IRScanner.collect_escaping_exceptions(body_stmts)	set(IRScanner.collect_escaping_exceptions(body_stmts))	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_try_stmt	639	safe_var	declared_refs.add(safe_var)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_try_stmt	757	tag	seen_local.add(tag)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_try_stmt	643	safe_var	declared_refs.add(safe_var)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_try_stmt	646	safe_var	declared_refs.add(safe_var)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_try_stmt	755	tag	tag in already_matched	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_try_stmt	755	tag	tag in seen_local	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_try_union_is_none_match	851	var_name	getattr(self, '_current_symbol_table', {}).get(var_name)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_try_union_is_none_match	861	var_name	var_name in getattr(self, '_optional_union_locals', set())	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_try_union_is_none_match	863	symtype	getattr(self, '_variant_types', {}).get(symtype)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_try_union_is_none_match	912	ctor_name	vinfo['constructors'][ctor_name]	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_match_subject_union_info	1064	var_name	getattr(self, '_current_symbol_table', {}).get(var_name)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_match_subject_union_info	1067	symtype	getattr(self, '_variant_types', {}).get(symtype)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_maybe_inject_union_return	1232	func_ret	getattr(self, '_variant_types', {}).get(func_ret)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_infer_return_value_type	1304	name	symtab.get(name)	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_return_stmt	1392	val_ir.get('name')	val_ir.get('name') in getattr(self, '_pyval_seq_locals', set())	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_return_stmt	1648	val_ir.get('name')	val_ir.get('name') in self._array_locals	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_return_stmt	1400	val_ir.get('name')	val_ir.get('name') in getattr(self, '_seq_locals', set())	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_return_stmt	1441	val_ir.get('name')	val_ir.get('name') in self._array_locals	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_return_stmt	1544	val_ir.get('name')	val_ir.get('name') in getattr(self, '_seq_locals', set())	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_return_stmt	1557	val_ir.get('name')	val_ir.get('name') in getattr(self, '_seq_locals', set())	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_return_stmt	1586	val_ir.get('name')	val_ir.get('name') in getattr(self, '_seq_locals', set())	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	_handle_return_stmt	1473	_elts[_k].get('name')	_elts[_k].get('name') in getattr(self, '_seq_locals', set())	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	walk	516	fn	registry.get(fn, [])	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	walk	519	exc	out.add(exc)	0
+src/self-annotate/src/proof2why3/parser.py	parse_atom_application	424	atom.name	atom.name in _KNOWN_FN_HEADS	1
+src/self-annotate/src/module6_whyml/statements.py	_first_assign_kind	480	val_ir.get('func', '')	val_ir.get('func', '') in self._record_types	0
+src/self-annotate/src/module6_whyml/statements.py	_first_assign_kind	506	lookup	self._module_method_return_types.get(lookup)	0
+src/self-annotate/src/module6_whyml/statements.py	_rhs_yields_array	554	name	name in self._array_locals	0
+src/self-annotate/src/module6_whyml/statements.py	_rhs_yields_array	554	name	name in self._current_array1d_params	0
+src/self-annotate/src/module6_whyml/statements.py	_rhs_yields_array	558	name	self._current_symbol_table.get(name)	0
+src/self-annotate/src/module6_whyml/statements.py	_rhs_yields_array	573	key	self._module_method_return_types.get(key)	0
+src/self-annotate/src/module6_whyml/statements.py	_rhs_yields_map	601	name	name in self._dict_locals	0
+src/self-annotate/src/module6_whyml/statements.py	_rhs_yields_map	603	name	self._current_symbol_table.get(name)	0
+src/self-annotate/src/module6_whyml/statements.py	_rhs_yields_map	642	key	self._module_method_return_types.get(key)	0
+src/self-annotate/src/module6_whyml/statements.py	_val_is_bool	663	val_ir.get('op')	val_ir.get('op') in _BOOL_BINOPS	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	733	receiver_name	getattr(self, '_module_global_classes', {}).get(receiver_name)	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	734	gcls	gcls in self._record_types	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	743	receiver_name	getattr(self, '_current_record_var_classes', {}).get(receiver_name)	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	778	field_name	info.get('field_types', {}).get(field_name)	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	744	rvcls	rvcls in self._record_types	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	753	receiver_name	getattr(self, '_record_param_classes', {}).get(receiver_name)	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	735	gcls	self._record_types[gcls]	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	770	receiver_name	getattr(self, '_record_field_elem_locals', {}).get(receiver_name)	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	745	rvcls	self._record_types[rvcls]	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	772	ecls	ecls in self._record_types	0
+src/self-annotate/src/module6_whyml/statements.py	_field_type_of	773	ecls	self._record_types[ecls]	0
+src/self-annotate/src/module6_whyml/statements.py	_seq_operand	951	val_ir.get('name')	val_ir.get('name') in self._seq_locals	0
+src/self-annotate/src/module6_whyml/statements.py	_seq_operand	958	val_ir['value'].get('name')	val_ir['value'].get('name') in self._seq_locals	0
+src/self-annotate/src/module6_whyml/statements.py	_handle_seq_assign	1019	target	target not in declared_refs	0
+src/self-annotate/src/module6_whyml/statements.py	_handle_seq_assign	1020	target	declared_refs.add(target)	0
+src/self-annotate/src/module6_whyml/statements.py	_handle_seq_assign	1021	target	local_refs.add(target)	0
+src/self-annotate/src/module6_whyml/statements.py	_handle_fieldassign_stmt	1297	field	field in self._all_record_fields	0
+src/self-annotate/src/module6_whyml/statements.py	_handle_fieldassign_stmt	1272	obj	getattr(self, '_current_symbol_table', {}).get(obj)	0
+src/self-annotate/src/module6_whyml/statements.py	_handle_fieldassign_stmt	1273	_obj_cls	_obj_cls in getattr(self, '_list_element_record_types', set())	0
+src/self-annotate/src/module6_whyml/statements.py	_handle_fieldassign_stmt	1367	obj.lstrip('!')	obj.lstrip('!') in getattr(self, '_emit_ir_local_vars', set())	0
+src/self-annotate/src/module6_whyml/statements.py	_handle_fieldassign_stmt	1295	obj	getattr(self, '_current_record_var_classes', {}).get(obj, '')	0
+src/self-annotate/src/module6_whyml/statements.py	_handle_fieldaugassign_stmt	1413	field	field in self._all_record_fields	0
+src/self-annotate/src/module6_whyml/statements.py	_handle_fieldaugassign_stmt	1411	obj	getattr(self, '_current_record_var_classes', {}).get(obj, '')	0
+src/self-annotate/src/module6_whyml/statements.py	_collect_string_elem_read_locals	1789	v	st.get(v)	0
+src/self-annotate/src/module6_whyml/statements.py	_collect_string_elem_read_locals	1790	v	st[v]	0
+src/self-annotate/src/module6_whyml/statements.py	_collect_string_elem_read_locals	1766	whyml_ident(v['func'])	whyml_ident(v['func']) in ssf	0
+src/self-annotate/src/module6_whyml/statements.py	_collect_string_elem_read_locals	1767	node['target']	str_arrays.add(node['target'])	0
+src/self-annotate/src/module6_whyml/statements.py	_collect_string_elem_read_locals	1771	v['value'].get('name')	v['value'].get('name') in str_arrays	0
+src/self-annotate/src/module6_whyml/statements.py	_collect_string_elem_read_locals	1772	node['target']	elem_reads.add(node['target'])	0
+src/self-annotate/src/module6_whyml/statements.py	_collect_field_decode_str_locals	1846	v	st.get(v)	0
+src/self-annotate/src/module6_whyml/statements.py	_collect_field_decode_str_locals	1847	v	st[v]	0
+src/self-annotate/src/module6_whyml/statements.py	_collect_field_decode_str_locals	1832	node['target']	out.add(node['target'])	0
+src/self-annotate/src/module6_whyml/statements.py	_typed_local_vars	1889	array_vars	set(array_vars)	0
+src/self-annotate/src/module6_whyml/statements.py	_typed_local_vars	1895	name	{name for name, ty in getattr(self, '_current_symbol_table', {}).items() if ty i	0
+src/self-annotate/src/module6_whyml/statements.py	_typed_local_vars	1920	self._formal_params	set(self._formal_params)	0
+src/self-annotate/src/module6_whyml/statements.py	_typed_local_vars	1897	name	name not in set(self._formal_params)	0
+src/self-annotate/src/module6_whyml/statements.py	_typed_local_vars	1922	tuple_vars	set(tuple_vars)	0
+src/self-annotate/src/module6_whyml/statements.py	_typed_local_vars	1897	self._formal_params	set(self._formal_params)	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	1979	v	{v for v in local_refs if v not in ghost_vars and v not in ref_params and (v not	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	2007	t	{t for t in append_targets if t in self._seq_locals and t in self._formal_params	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	1989	whyml_ident(v)	{whyml_ident(v) for v in pre_decl_vars}	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	1991	whyml_ident(v)	{whyml_ident(v) for v in pre_decl_vars}	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	2017	whyml_ident(v)	{whyml_ident(v) for v in struct_pack_targets}	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	2069	tgt	tgt in self._seq_locals	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	2069	tgt	tgt in self._formal_params	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	2077	tgt	tgt not in local_refs	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	2077	tgt	tgt not in ref_params	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	2079	tgt	self._array_locals.add(tgt)	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	1981	v	v not in ghost_vars	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	1982	v	v not in ref_params	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	1983	v	v not in typed_local_vars	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	1984	v	v not in struct_array_targets	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	1985	v	v not in struct_pack_targets	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	2009	t	t in self._seq_locals	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	2009	t	t in self._formal_params	0
+src/self-annotate/src/module6_whyml/statements.py	_emit_body_code	2016	whyml_ident(v)	{whyml_ident(v) for v in struct_array_targets}	0
+src/self-annotate/src/module6_whyml/statements.py	rec	1766	whyml_ident(v['func'])	whyml_ident(v['func']) in ssf	0
+src/self-annotate/src/module6_whyml/statements.py	rec	1767	node['target']	str_arrays.add(node['target'])	0
+src/self-annotate/src/module6_whyml/statements.py	rec	1771	v['value'].get('name')	v['value'].get('name') in str_arrays	0
+src/self-annotate/src/module6_whyml/statements.py	rec	1772	node['target']	elem_reads.add(node['target'])	0
+src/self-annotate/src/module6_whyml/statements.py	rec	1832	node['target']	out.add(node['target'])	0
+src/self-annotate/src/pycsl.py	_build_soundness_report	393	f['name']	{f['name'] for f in funcs if f.get('trusted') or f.get('abstract')}	0
+src/self-annotate/src/pycsl.py	_build_soundness_report	406	name	{name}	0
+src/self-annotate/src/pycsl.py	_run_pipeline	547	f['name']	{f['name'] for f in ir_data['functions']}	0
+src/self-annotate/src/pycsl.py	_run_pipeline	548	args.fun	set(args.fun)	0
+src/self-annotate/src/pycsl.py	_run_pipeline	554	f['name']	{f['name']: _collect_calls(f['body']) & all_func_names for f in ir_data['functio	0
+src/self-annotate/src/pycsl.py	_run_pipeline	556	fun_names	set(fun_names)	0
+src/self-annotate/src/pycsl.py	_run_pipeline	560	fname	call_graph.get(fname, set())	0
+src/self-annotate/src/pycsl.py	_run_pipeline	565	f['name']	f['name'] not in reachable	0
+src/self-annotate/src/pycsl.py	_run_pipeline	561	callee	callee not in reachable	0
+src/self-annotate/src/pycsl.py	_run_pipeline	562	callee	reachable.add(callee)	0
+src/self-annotate/src/pycsl.py	_run_vacuity_gate	991	fname	fname in skip	0
+src/self-annotate/src/pycsl.py	_run_vacuity_gate	1030	probe_path	os.remove(probe_path)	0
+src/self-annotate/src/pycsl.py	_run_proofs	1294	whyml_ident(_f.get('name', ''))	_nr_names.add(whyml_ident(_f.get('name', '')))	0
+src/self-annotate/src/pycsl.py	_probe_one	1030	probe_path	os.remove(probe_path)	0
+src/self-annotate/src/pycsl.py	_gate_vacuity_then_succeed	1294	whyml_ident(_f.get('name', ''))	_nr_names.add(whyml_ident(_f.get('name', '')))	0

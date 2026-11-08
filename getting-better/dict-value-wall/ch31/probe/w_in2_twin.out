@@ -1,0 +1,33 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-g37ch31/getting-better/dict-value-wall/ch31/probe/w_in2_twin.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl__rp2k0av.mlw", line 31, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.01s, 2672 steps).
+
+File "/tmp/.pycsl__rp2k0av.mlw", line 52, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 2848 steps).
+
+File "/tmp/.pycsl__rp2k0av.mlw", line 59, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.01s, 2200 steps).
+
+File "/tmp/.pycsl__rp2k0av.mlw", line 66, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.01s, 2236 steps).
+
+File "/tmp/.pycsl__rp2k0av.mlw", line 80, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Timeout (30.00s, 21045757 steps).
+
+File "/tmp/.pycsl__rp2k0av.mlw", line 80, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 1483 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 21045757 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

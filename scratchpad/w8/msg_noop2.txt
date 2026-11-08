@@ -1,0 +1,29 @@
+audit(#43): the last two no-op candidates are REFUTED at the value model — the census is closed
+
+Both were checked against the emitted model rather than against their comments.
+
+  (c) `statements.py:2252`, the four ASDL location-attribute stamps. REFUTED. The emitted
+      `emit_ir` ADT carries NO location fields at all — 140-odd constructors and not one
+      with a `lineno` / `col_offset` payload; the string "lineno" occurs ONCE in the whole
+      emitted `pure_ast.mlw` and in no constructor. So `n.lineno = t.start[0]` writes an
+      attribute the model does not have: nothing can reference it, and the "identity-faithful
+      because `_fin` is modelled as identity" argument is CORRECT rather than merely
+      plausible. ELEVEN converted mirror methods carry that shape and all eleven are safe
+      for this one reason.
+
+  (b) `statements.py:1634`, an `<emit_ir>[k] = v` store inside a `@mutable_state` class.
+      REFUTED on its stated ground — "`cases` is a local copy" — which I checked rather than
+      accepted. Enumerated all five subscript-store sites across the three mirror emitter
+      files: `_handle_match_stmt`'s `c`, `_collect_string_elem_read_locals` and
+      `_collect_field_decode_str_locals`'s `st`, `_typeddict_record_literal`'s `kv`
+      (declared `kv: Dict[str, Dict[str, Any]] = {}`) and `_try_union_is_none_match`'s
+      `non_none_arms`. Every receiver is a function-local. None is a parameter, and none is
+      a loop-variable ALIAS into a caller's collection — which is the shape that would have
+      made it route #13 one layer over.
+
+NET FOR THE 13-SITE NO-OP CENSUS: routes #17 and #18 (plus #19 from the adjacent
+expr-statement handler), one refutation at the memory model (`_handle_sum_node_expr`), and
+these two at the value model. Only `yield-erasure`'s 2 remain, and they need a genuine
+mirror-internal probe — `pycsl.py --fun NAME` exists and is the mechanism.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

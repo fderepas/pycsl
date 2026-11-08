@@ -1,0 +1,41 @@
+WIP(#43): UNSOUNDNESS ROUTE #12 — a `#@` inside a statement's CONTINUATION LINES is silently discarded
+
+The twelfth route on which `[+] Verification SUCCESS! All contracts formally proven.` was
+printed over a directive that is FALSE OF THE PROGRAM. It is the residue the #34 handoff
+named as its item 3 (`_assign`'s `elif nxt is None: pass`) and could not measure.
+
+MEASURED FIRST, five probes, every one printing SUCCESS before the change:
+
+    #@ ensures \result == 2
+    def f() -> int:
+        return (
+    #@ assert 1 == 2                  <-- FALSE, AND NEVER CHECKED
+            2)
+    [+] Verification SUCCESS! All contracts formally proven.
+
+The indented form of the same file, a module-level `y: int = (` form of both, and a
+`#@ ghost x = 99` + `#@ assert x == 99` PAIR in that position, all proved too.
+
+MECHANISM. `_Harvester._assign` associates a comment with a target by `bisect` over the
+targets' START lines. A comment sitting between a leaf statement's first and last line
+bisects PAST that statement. When the statement is the last in the file there is no `nxt`
+at all, so the comment takes `elif nxt is None: pass` (module-level trailing comment ->
+ignored, as libcst) or, if indented, `prev.footer`, which has no lowering for it here.
+#33's and #34's end-of-file guards in `Module3_Weaver.process` cannot see this: the block
+does NOT run to end-of-file — the statement's own continuation lines follow it.
+
+CENSUS 0, and the census is the interesting part. A LINE-BASED scan of the 3663 annotated
+files under `src/`, `test-suite/`, `bin/` and `tests/` reports 95 hits. Every one of them
+is `#@` text inside a DOCSTRING — including the doc-comments of the previous routes' own
+witness tests. Tokenizing and keeping only real COMMENT tokens gives 0. A refusal built on
+the line-based number would have rejected 95 innocent files.
+
+The refusal is spelled INLINE in `Module1_Ingestor.process` — the one place that holds both
+the tree and the real comment tokens, and `\trusted` in the mirror so no marker moves and
+no mirror emission changes. Inline rather than a helper for the reason recorded beside
+`Module3_Weaver.process`'s dangling-block guard: a new method becomes a new abstract `val`
+in every mirror that imports the ingestor.
+
+Gates still owed: corpus byte-diff, mirror L3-tc, witness test.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

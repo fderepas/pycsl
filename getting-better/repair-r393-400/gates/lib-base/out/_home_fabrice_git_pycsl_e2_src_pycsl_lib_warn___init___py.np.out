@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/warn/__init__.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[module6-whyml]: `_warnings_log.append(...)` appends to a list whose length this lowering cannot track: the local is not a growable sequence (it was bound from a call result, a `*` repetition, a loop target, an object field, ...), so the append would be modelled as a store at a length counter that starts at 0 WHATEVER the list holds — overwriting element 0, freezing `len`, and losing the alias when the value is another list (route #283; measured: `b = ident([5]); b.append(9); return len(b)` proved `\result == 1` while Python returns 2). Annotate the local as a list built in this function (`b: List[int] = [...]`), or build the new list with a literal or a comprehension.

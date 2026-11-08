@@ -1,0 +1,4 @@
+L3TC-FAIL            <module>.run_ir_semantic_checks  ["This expression has type int, but is expected to have type 'mu -> option."]
+L3TC-FAIL            <module>._typeddict_check_subscript  ['but is expected to have type int']
+L3TC-FAIL            <module>._namedtuple_check_call  ['but is expected to have type int']
+L3TC-FAIL            <module>._namedtuple_check_subscript  ['but is expected to have type int']

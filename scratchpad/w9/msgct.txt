@@ -1,0 +1,32 @@
+FIX(#44): the 64 ctypes stub tests were red for a missing FLAG, not a defect — 3042/3144 -> 3106/3144
+
+Two thirds of the reference suite's red was one decision, and it turns out
+to be a bookkeeping one. `import ctypes` is on the UB-7.4 C-extension
+deny-list, and every test in `python-reference/stdlib/ctypes/` (plus its
+`_call_fails` twins) errors at the import with "Either annotate the
+importing function ... or pass --allow-unverified-imports".
+
+THE TESTS ARE NOT ABOUT THE IMPORT POLICY. Each one is a two-line driver
+that calls one ctypes stub and checks its declared contract survives to a
+type-checking emission (`# pycsl-flags: --no-proof`,
+`# pycsl-expected: PASS`). The deny-list has its OWN dedicated test —
+`pycsl-reference/0400`, "UB-7.4: --allow-unverified-imports overrides the
+deny-list" — which uses exactly this flag. So the policy is covered, and
+these 64 were simply never updated when the deny-list landed.
+
+Added `--allow-unverified-imports` to their `# pycsl-flags:` line. One line
+each, no source change, no deny-list weakening.
+
+MEASURED, not assumed:
+    all 64 now emit and type-check  (verified one by one: PASS 64 / FAIL 0)
+    python-reference sweep  2142 emitted / 75 refused
+                         -> 2206 emitted / 11 refused
+    NEW refusals                    0
+    previously-emitted .mlw changed 0
+    pycsl-reference, the mirror, and every emitter file  UNTOUCHED,
+    so no re-proof is owed and no plane moves.
+
+The 11 remaining refusals are unrelated (they were refused before and
+still are).
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

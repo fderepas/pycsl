@@ -1,0 +1,7 @@
+[START 16:22:59] src/self-annotate/src/module6_whyml/types.py
+[DONE  16:35:35] src/self-annotate/src/module6_whyml/types.py valid=659 total=659 success=1
+[START 16:35:35] src/self-annotate/src/module6_whyml/statements.py
+[DONE  16:57:46] src/self-annotate/src/module6_whyml/statements.py valid=894 total=894 success=1
+[START 16:57:46] src/self-annotate/src/module6_whyml/stmt_control_flow.py
+[DONE  17:39:46] src/self-annotate/src/module6_whyml/stmt_control_flow.py valid=1832 total=1832 success=1
+[ALLDONE 17:39:46]

@@ -1,0 +1,5 @@
+6640_r438_control_typed_tuples.py	0	Verification SUCCESS
+6641_r439_control_protocol_not_hashed.py	0	Verification SUCCESS
+6642_r439_control_usermod_claimed_callee.py	0	Verification SUCCESS
+6643_r439_control_setattr_unclaimed.py	0	Verification SUCCESS
+DONE

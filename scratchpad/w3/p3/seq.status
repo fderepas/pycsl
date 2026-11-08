@@ -1,0 +1,5 @@
+[START 08:00:50] src/self-annotate/src/module6_whyml/functions.py
+[DONE  08:33:50] src/self-annotate/src/module6_whyml/functions.py valid=1185 total=1185 success=1
+[START 08:33:50] src/self-annotate/src/frontend/pure_ast.py
+[DONE  09:16:03] src/self-annotate/src/frontend/pure_ast.py valid=2348 total=2348 success=1
+[ALLDONE 09:16:03]

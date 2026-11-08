@@ -1,0 +1,15 @@
+# screen.sh np mode: "PROVED" = rc 0 (emitted and type-checked, NO proof run); "REFUSED" = R-gate refusal
+# --no-proof on the candidate BEFORE the list(x) element derivation
+v1.py	1	REFUSED
+v3.py	1	REFUSED
+v5.py	0	PROVED
+v4.py	0	PROVED
+v2.py	0	PROVED
+6336_r427_ctl_snapshot_iteration.py	1	REFUSED
+# AFTER
+v1.py	0	PROVED
+v4.py	0	PROVED
+v5.py	0	PROVED
+v2.py	0	PROVED
+v3.py	0	PROVED
+6336_r427_ctl_snapshot_iteration.py	0	PROVED

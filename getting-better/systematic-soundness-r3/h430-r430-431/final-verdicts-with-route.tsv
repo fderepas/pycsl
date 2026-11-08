@@ -1,0 +1,56 @@
+3341_gen37_r287_sorted_key_dict_subscript_py	REFUSED/FAIL	-
+3342_gen37_r287_sorted_key_list_subscript_py	REFUSED/FAIL	-
+5069_gen37_r375_star_set_erased_py	REFUSED/FAIL	-
+6336_r427_ctl_snapshot_iteration_py	PROVED	-
+6450_r431_finally_return_swallows_hash_py	REFUSED/FAIL	ROUTE #431
+6451_r431_finally_return_swallows_keyerror_py	REFUSED/FAIL	ROUTE #431
+6452_r431_caller_finally_swallows_callee_hash_py	REFUSED/FAIL	ROUTE #431
+6453_r431_finally_continue_swallows_py	REFUSED/FAIL	ROUTE #431
+6454_r431_finally_break_swallows_py	REFUSED/FAIL	ROUTE #431
+6455_r431_ctl_finally_without_jump_py	PROVED	-
+6456_r431_ctl_finally_then_return_value_py	PROVED	-
+6457_r431_nested_def_finally_return_py	REFUSED/FAIL	ROUTE #431
+6460_r430_claimed_caller_unclaimed_hash_callee_py	REFUSED/FAIL	route #430
+6461_r430_claimed_caller_transitive_py	REFUSED/FAIL	route #430
+6462_r430_claimed_caller_membership_callee_py	REFUSED/FAIL	route #430
+6463_r430_ctl_claimed_caller_derivable_hash_callee_py	PROVED	-
+6464_r430_ctl_unclaimed_caller_und_hash_callee_py	PROVED	-
+6470_rgate_set_display_get_under_claim_py	REFUSED/FAIL	-
+6471_rgate_set_add_get_under_claim_py	REFUSED/FAIL	-
+6472_rgate_local_from_get_under_claim_py	REFUSED/FAIL	-
+6473_rgate_loop_set_add_under_claim_py	REFUSED/FAIL	-
+6474_rgate_values_in_set_under_claim_py	REFUSED/FAIL	-
+6475_rgate_dict_key_get_under_claim_py	REFUSED/FAIL	-
+6480_rgate_ctl_unclaimed_und_hash_py	PROVED	-
+6481_rgate_ctl_claimed_derivable_hash_py	PROVED	-
+c01_exit_true_py	REFUSED/FAIL	ROUTE #38/#39
+c02_except_baseexception_py	REFUSED/FAIL	route #174
+c03_except_star_py	REFUSED/FAIL	-
+c04_nested_handler_py	REFUSED/FAIL	route #174
+c05_nested_caller_catch_py	REFUSED/FAIL	route #174
+c06_nested_finally_return_py	REFUSED/FAIL	ROUTE #431
+c07_gen_close_py	REFUSED/FAIL	ROUTE #271
+c08_gen_finally_return_py	REFUSED/FAIL	ROUTE #271
+c09_except_typeerror_named_baseexc_caller_py	REFUSED/FAIL	route #174
+c10_while_finally_continue_py	REFUSED/FAIL	ROUTE #431
+l3a_catch_local_py	REFUSED/FAIL	route #174
+l3b_catch_caller_py	REFUSED/FAIL	route #174
+l3c_catch_caller_keyerr_py	REFUSED/FAIL	route #178
+l3d_claim_calls_unclaimed_py	REFUSED/FAIL	route #430
+l3e_named_typeerror_py	REFUSED/FAIL	-
+l3f_catch_exception_py	REFUSED/FAIL	route #174
+l3g_finally_return_py	REFUSED/FAIL	ROUTE #431
+l3h_suppress_py	REFUSED/FAIL	ROUTE #257
+l3i_bare_except_py	REFUSED/FAIL	route #174
+l3j_finally_hash_py	REFUSED/FAIL	ROUTE #431
+l3k_finally_add_py	REFUSED/FAIL	ROUTE #431
+l3l_finally_noreturn_py	PROVED	-
+l3m_finally_return_none_py	REFUSED/FAIL	ROUTE #431
+l3n_finally_return_none_keyerr_py	REFUSED/FAIL	ROUTE #431
+l3o_finally_return_none_hash_py	REFUSED/FAIL	ROUTE #431
+l3p_caller_finally_swallows_callee_hash_py	REFUSED/FAIL	ROUTE #431
+l3q_finally_break_hash_py	REFUSED/FAIL	ROUTE #431
+route430_carrier_claimed_caller_unclaimed_hash_callee_py	REFUSED/FAIL	route #430
+route431_carrier_caller_finally_swallows_callee_hash_py	REFUSED/FAIL	ROUTE #431
+route431_carrier_finally_return_swallows_hash_py	REFUSED/FAIL	ROUTE #431
+route431_carrier_finally_return_swallows_keyerror_py	REFUSED/FAIL	ROUTE #431

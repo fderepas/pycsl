@@ -1,0 +1,24 @@
+[*] soundness-planes: running 19 driver-run lower bound(s)
+    ok       check-self-annotate-mirror-sync.py        
+    ok       count-trusted-directives.py               
+    ok       check-mirror-coverage.py                  
+    ok       check-mirror-field-parity.py              
+    ok       check-mirror-loop-annotations.py          
+    ok       check-mirror-signature-drift.py           
+    ok       check-refusal-reachability.py             
+    ok       check-trigger-rows-live.py                
+    RED      check-trusted-raises-honesty.py            rc=1
+                   SILENT          proof2why3/sertop.py                         _sexp_parse                            live: src/pycsl/proof2why3/sertop.py
+                   SILENT          pycsl.py                                     _run_pipeline                          live: src/pycsl/pycsl.py
+               [-] trusted-raises-honesty: SILENT RATCHET BROKEN — 71 > 70. A `\trusted` stub with no `#@ raises` asserts that its call has ONE exit path; nothing will ever contradict it, because a `\trusted` body is never lowered.
+    ok       check-type-keyed-constant-answers.py      
+    ok       check-emit-ir-arm-postconditions.py       
+    ok       check-singleton-constant-lowering.py      
+    ok       check-type-keyed-value-sentinels.py       
+    ok       check-collapsed-option-reads.py           
+    ok       check-constant-fallthrough.py             
+    ok       check-dropped-mutation.py                 
+    ok       check-ir-field-coverage.py                
+    ok       check-statement-block-coverage.py         
+    ok       check-vacuous-drivers.py                  
+[!] soundness-planes: 1 of 19 RED — check-trusted-raises-honesty.py(rc=1)

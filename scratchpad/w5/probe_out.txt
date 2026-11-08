@@ -1,0 +1,60 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl/src/self-annotate/src/pycsl.py'...
+[*] Memory model: hoare
+[*] Imported class from 'frontend.Module1_Ingestor': Module1_Ingestor (record + 1 method stub(s) + 13 helper(s))
+[*] Imported class from 'frontend.Module3_Weaver': Module3_Weaver (record + 20 method stub(s) + 17 helper(s))
+[*] Imported class from 'errors': PyCSLError (record + 2 method stub(s) + 0 helper(s))
+[*] Imported class from 'errors': PyCSLParseError (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'errors': _PyCSLSemanticError (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module5_IREmitter': Module5_IREmitter (record + 1 method stub(s) + 180 helper(s))
+[*] Imported class from 'frontend.ConcurrencyChecker': ConcurrencyChecker (record + 6 method stub(s) + 0 helper(s))
+[*] Imported class from 'Module6_WhyMLTranspiler': Module6_WhyMLTranspiler (record + 20 method stub(s) + 0 helper(s))
+[*] Imported class from 'audit_proof': AuditReport (record + 2 method stub(s) + 14 helper(s))
+[*] Imported class from 'audit_proof': _Directive (record + 0 method stub(s) + 0 helper(s))
+[*] Imported from 'frontend.Module1_Ingestor': ['Module1_Ingestor'] (trusted stubs)
+[*] Imported from 'frontend.Module2_Parser': ['Module2_Parser'] (trusted stubs)
+[*] Imported from 'frontend.Module3_Weaver': ['Module3_Weaver'] (trusted stubs)
+[*] Imported from 'frontend.Module5_IREmitter': ['Module5_IREmitter'] (trusted stubs)
+[*] Imported from 'ir_schema': ['validate_ir'] (trusted stubs)
+[*] Imported from 'core_ir_semantic': ['run_ir_semantic_checks'] (trusted stubs)
+[*] Imported from 'frontend.ConcurrencyChecker': ['ConcurrencyChecker'] (trusted stubs)
+[*] Imported from 'frontend.ir_resolve': ['_ir_resolve', '_collect_calls'] (trusted stubs)
+[*] Imported from 'frontend.exec_splice': ['splice_constant_exec'] (trusted stubs)
+[*] Imported from 'frontend.import_classifier': ['check_imports'] (trusted stubs)
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Imported from 'Module6_WhyMLTranspiler': ['Module6_WhyMLTranspiler'] (trusted stubs)
+[*] Imported from 'audit_proof': ['audit_rocq', 'audit_lean', 'AuditReport', 'print_report'] (trusted stubs)
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident'] (trusted stubs)
+[*] Import 'argparse.ArgumentParser': external module, no local source found — skipping
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+[*] Imported from 'json': ['load', 'loads', 'JSONDecoder', 'dumps'] (trusted stubs, module-qualified)
+[*] Import 'os.path.basename': external module, no local source found — skipping
+[*] Import 'os.path.expanduser': external module, no local source found — skipping
+[*] Import 'os.close': external module, no local source found — skipping
+[*] Import 'os.path.dirname': external module, no local source found — skipping
+[*] Import 'os.path.isfile': external module, no local source found — skipping
+[*] Import 'os.listdir': external module, no local source found — skipping
+[*] Import 'os.remove': external module, no local source found — skipping
+[*] Import 'os.access': external module, no local source found — skipping
+[*] Import 'os.path.exists': external module, no local source found — skipping
+[*] Import 'os.path.join': external module, no local source found — skipping
+[*] Import 'os.cpu_count': external module, no local source found — skipping
+[*] Import 'os.path.abspath': external module, no local source found — skipping
+[*] Import 'os.path.isdir': external module, no local source found — skipping
+[*] Import 'os.makedirs': external module, no local source found — skipping
+[*] Import 'os.path.splitext': external module, no local source found — skipping
+[*] Import 'sys.exit': external module, no local source found — skipping
+[*] Import 'subprocess.run': external module, no local source found — skipping
+[*] Import 'tempfile.mkstemp': external module, no local source found — skipping
+[*] Import 'shutil.copy2': external module, no local source found — skipping
+[*] Import 'shutil.which': external module, no local source found — skipping
+[*] Import 'tempfile.mkstemp': external module, no local source found — skipping
+
+[!] PIPELINE ERROR:
+heterogeneous list literal (contains a str element mixed with other element types) has no faithful WhyML `array` element type: a Python list is heterogeneous but a WhyML `array` is homogeneous. Coercing the non-int element to an int would be unsound (a str hashes to a well-typed int; a float/record ill-types). Use a homogeneous list, a Tuple (fixed-arity heterogeneous slots), or a record/@dataclass for heterogeneous fields.
+
+=== STDERR ===
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1630: UserWarning: Function '_function_body_eqs': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("orelse", []) or [], union_vars, fname)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1630: UserWarning: Function '_dispatch_provers': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("orelse", []) or [], union_vars, fname)

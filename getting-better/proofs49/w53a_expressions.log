@@ -1,0 +1,204 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/expressions.py'...
+[*] Memory model: hoare
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1686: UserWarning: Function 'expressionemissionmixin___dv_store_value': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:100: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union__dotted_ensures_suffix_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+[*] Imported class from 'ir_schema': AtExpr (record + 0 method stub(s) + 18 helper(s))
+[*] Imported class from 'ir_schema': IfExprExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': NamedExprExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': OldExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': UnaryOpExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['op_translate', 'whyml_ident', 'stable_hash'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 669, characters 17-19: unused variable x0
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 670, characters 17-19: unused variable x0
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 724, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 724, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 734, characters 27-30: unused variable sep
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 734, characters 41-42: unused variable i
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 784, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 784, characters 81-85: unused variable decl
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 789, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 836, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 906, characters 52-56: unused variable self
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 906, characters 84-88: unused variable args
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 906, characters 105-114: unused variable func_name
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 908, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 910, characters 85-89: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 910, characters 97-101: unused variable args
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 910, characters 118-127: unused variable func_name
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 910, characters 138-148: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 910, characters 156-169: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 910, characters 177-182: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 912, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 915, characters 89-93: unused variable args
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 915, characters 110-119: unused variable func_name
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 915, characters 130-140: unused variable kwargs_map
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 915, characters 148-157: unused variable kwargs_ir
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 917, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 922, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 985, characters 52-56: unused variable self
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 985, characters 84-88: unused variable args
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 985, characters 105-116: unused variable param_types
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 987, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 993, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1087, characters 8-14: unused variable prefix
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1044, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1126, characters 87-91: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1126, characters 99-103: unused variable args
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1126, characters 120-129: unused variable func_name
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1126, characters 140-150: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1126, characters 158-171: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1126, characters 179-184: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1128, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1133, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1176, characters 87-101: unused variable result_ensures
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1176, characters 115-116: unused variable n
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1176, characters 124-135: unused variable param_types
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1176, characters 152-162: unused variable field_spec
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1178, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1183, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1252, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1309, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1376, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1434, characters 67-69: unused variable ir
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1434, characters 77-79: unused variable lr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1436, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1439, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1439, characters 87-94: unused variable op_char
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1439, characters 105-109: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1439, characters 117-121: unused variable left
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1439, characters 132-137: unused variable right
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1441, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1443, characters 60-64: unused variable self
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1443, characters 92-101: unused variable func_name
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1443, characters 112-116: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1443, characters 124-128: unused variable args
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1445, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1447, characters 81-83: unused variable op
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1447, characters 94-98: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1447, characters 106-110: unused variable left
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1447, characters 121-126: unused variable right
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1447, characters 137-147: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1447, characters 155-168: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1447, characters 176-181: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1449, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1452, characters 52-56: unused variable self
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1456, characters 79-83: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1456, characters 95-105: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1456, characters 130-143: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1456, characters 151-156: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1458, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1461, characters 90-92: unused variable ir
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1461, characters 104-114: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1463, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1470, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1581, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1572, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1556, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1590, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1641, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1697, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1789, characters 8-14: unused variable py_ref
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1744, characters 158-163: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1746, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1859, characters 8-9: unused variable d
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1855, characters 8-16: unused variable py_label
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1818, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1877, characters 87-91: unused variable node
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1877, characters 99-109: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1877, characters 117-130: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1877, characters 138-143: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1879, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1882, characters 78-82: unused variable node
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1882, characters 90-100: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1882, characters 108-121: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1882, characters 129-134: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1884, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1887, characters 82-86: unused variable node
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1887, characters 94-104: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1887, characters 112-125: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1887, characters 133-138: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1889, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1892, characters 84-93: unused variable func_name
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1892, characters 104-108: unused variable args
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1892, characters 125-132: unused variable arg_irs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1894, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1946, characters 8-12: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 1899, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2012, characters 85-89: unused variable node
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2012, characters 101-111: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2012, characters 136-149: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2012, characters 157-162: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2014, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2017, characters 84-88: unused variable node
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2017, characters 103-113: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2017, characters 138-151: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2017, characters 159-164: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2019, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2042, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2048, characters 104-114: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2048, characters 139-152: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2048, characters 160-165: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2050, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2102, characters 102-112: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2102, characters 137-150: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2102, characters 158-163: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2104, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2160, characters 83-87: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2160, characters 95-105: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2162, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2167, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2216, characters 82-86: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2216, characters 94-98: unused variable args
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2216, characters 115-125: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2216, characters 133-146: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2216, characters 154-159: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2218, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2223, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2266, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2266, characters 81-85: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2266, characters 93-97: unused variable args
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2268, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2272, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2323, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2413, characters 8-9: unused variable d
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2373, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2427, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2477, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2568, characters 8-11: unused variable elt
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2566, characters 8-17: unused variable py_result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2530, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2628, characters 8-14: unused variable py_val
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2591, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2697, characters 8-10: unused variable sl
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2659, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2735, characters 52-56: unused variable self
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2735, characters 84-88: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2735, characters 96-100: unused variable args
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2735, characters 117-126: unused variable func_name
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2737, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2739, characters 82-86: unused variable node
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2739, characters 94-104: unused variable local_refs
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2739, characters 112-125: unused variable invariant_ctx
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2739, characters 133-138: unused variable subst
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2741, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2744, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2744, characters 81-85: unused variable expr
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2746, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2750, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2803, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2859, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2910, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 2959, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_83uusq8r.mlw", line 3018, characters 15-19: unused variable result
+File "/tmp/.pycsl_83uusq8r.mlw", line 3132, characters 38-44:
+This expression has type int, but is expected to have type string
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

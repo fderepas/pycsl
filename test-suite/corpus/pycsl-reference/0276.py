@@ -14,6 +14,7 @@ response_count = 0
 # the negative driver 0695. This driver exercises the ConcurrencyChecker unprotected-shared
 # WARNING path, which still fires, and the emitted WhyML type-checks honestly.
 def handle() -> int:
+    global request_count, response_count
     request_count += 1
     response_count += 1
     return 0

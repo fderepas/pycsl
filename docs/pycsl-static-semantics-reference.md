@@ -117,12 +117,42 @@ collected:
 | `_mutex_invariants` | `#@ mutex_invariant` declarations | `Dict[str, CSLNode]` — mutex_name → invariant expression |
 | `_lock_order` | `#@ lock_order` declaration | `Optional[List[str]]` — ordered list of mutex names |
 | `_module_constants` | top-level `NAME = <int literal>` | `Dict[str, int]` — single-assignment module int constants |
+| `_module_const_dicts` | top-level `NAME = {"k":"v", …}` (str→str) | `Dict[str, Dict[str, str]]` — single-assignment module constant str→str dict literals; recognized at a `NAME.get(k, default)` site as a chained `string` if-then-else |
 
 **Module-level constants in contracts.** A module-level name bound **exactly once** to an
 integer literal (`K_IHDR = 0`, `LIMIT = 8`; `collect_module_constants`) is a *constant*: it is
 admitted in `requires`/`ensures`/loop invariants and **resolved to its literal** in both body and
 spec emission (`expressions.py::_handle_var_expr`), exactly like a class-body constant
 (`self.CAP` → `(64)`, §1.2). So `#@ ensures kinds[0] == K_IHDR` discharges with `K_IHDR ↦ 0`.
+
+A module-level name bound **exactly once** to a **str→str dict literal** (`OP_MAP = {"==":"=", …}`,
+all keys AND values plain string literals; `collect_module_const_dicts`) is likewise a *constant
+mapping*: a `NAME.get(k, default)` read folds to a faithful chained `string` if-then-else
+(`if k = "==" then "=" else … else default`; `expressions.py::_lower_dict_get_call`), the module-level
+analog of a class-body scalar constant fold. It requires an EXPLICIT default (2 args); a non-str→str
+dict, `.get(k)` without a default, an empty/reassigned dict, or a same-named local (which shadows the
+constant) all keep the opaque behavior (fail-closed — never a false value). Drivers: reference locks
+`0872` (POSITIVE hit + default), `0873` (NEGATIVE wrong-value twin).
+
+**String-valued `or` / `and` (`_is_string_expr` / `_handle_binop`).** When **BOTH** operands of a
+Python `a or b` / `a and b` are `string`-typed, the whole expression is itself `string`-typed —
+Python's `or`/`and` return one of the *operands* (not a bool), and a string's truthiness is
+non-emptiness. `_is_string_expr` therefore types a both-string `or`/`and` (the `or` right arm may
+also be `None`, the `<get> or ""` idiom modeled as `""`) as `string`, so it flows as a `string`
+local / return and routes `+`, `.lower()`, etc. through the string ops. In **body** context
+`_handle_binop` lowers `s or t` to `(if str_length_op s > 0 then s else t)` and `s and t` to
+`(if str_length_op s > 0 then t else s)` (`str_length_op ⊨ String.length`; `String.length` is a
+logic symbol, illegal in a program body). The result is `string`-typed: used where a bool/int is
+expected it fails closed at Why3 type-check (WL-02 — never a silent coercion). Bool/int operands are
+UNCHANGED (the `&&`/`||` connective, `if … then 1 else 0`), and in **spec** context `and`/`or` stay
+the boolean connectives. This unblocks self-TCB free functions such as `identifiers.safe_exc_name`
+(`return name.lstrip("_") or name`, both operands `string`), whose `or` previously LEAKED to an int
+truthiness. Reference locks `0874` (POSITIVE — `or`/`and`, non-empty & empty first operand),
+`0875` (NEGATIVE wrong-branch twin); Gate-B spike
+`test-suite/corpus/conformance/spikes/string_or_and_spike.mlw` (Z3 discharges every hit + default
+and refutes both false twins; Alt-Ergo, lacking a string theory, decides only the empty-operand
+duals — best-of-N pipeline is sound either way). No new axiom (`str_length_op` is the pre-existing
+length bridge); no `\trusted`.
 
 A module-level name that is **reassigned** (more than one module-level binding, or written via a
 `global` statement) is **mutable global state** and is *excluded* — it is neither inlined nor
@@ -159,12 +189,31 @@ specification logic's type universe:
                                  Unifies the old dual model: the \str_length / \str_sub / ^
                                  operators now apply to runtime str, not only ghost strings.
                                  NB no char type: s[i] is a length-1 string, so no ord / code
-                                 points / lexicographic char ordering — see the limitations *)
-τ(float)          = real      (* Why3 real.RealInfix — was the unsound τ(float)=int. Float
-                                 literals are real constants; +/-/*//​ and </<=/>/>= lower to the
-                                 RealInfix `+.`/`-.`/`*.`/`/.`/`<.`… (arithmetic in a body bridges
-                                 through `val float_*_op : real`). Mixed float/int arithmetic is
-                                 out of scope; transcendentals stay opaque ops over real *)
+                                 points / lexicographic char ordering — see the limitations.
+                                 `ord`/`chr` bridge through Why3 `string.Char`, whose codes
+                                 are 0..255: that every str value consists of code points
+                                 0..255 is the DECLARED MODEL ASSUMPTION LATIN1-STR
+                                 (Appendix C.1), dropped by `--strict-latin1` *)
+τ(float)          = real      (* Why3 real — was the unsound τ(float)=int. Float literals
+                                 are real constants and </<=/>/>= lower to RealInfix `<.`… BUT
+                                 ARITHMETIC IS UNINTERPRETED (route #53): +/-/*// go through ONE
+                                 DETERMINISTIC ABSTRACT symbol `val function float_*_op (a b:
+                                 real) : real`, in the SPEC path and the BODY path alike — NOT
+                                 through RealInfix `+.`/`-.`/`*.`/`/.`.
+                                 WHY: a Python float is IEEE 754 binary64 and Why3's `real` is the
+                                 EXACT real, so lowering `+` to `+.` DECIDED `0.1 + 0.2 == 0.3`,
+                                 which is FALSE of the program — and decided the ordering too
+                                 (`<= 0.3` proved). Uninterpreted means no exact-real value, sign
+                                 or ordering is decidable; DETERMINISTIC means `\result == x + x`
+                                 still proves by congruence. The cost is COMPLETENESS in one
+                                 direction (a bound like `\result >= 0.0` no longer proves; see
+                                 corpus 0517) and it is NOT repairable by a sign clause, whose
+                                 antecedent ranges over the `real` and cannot see NaN. Witnesses
+                                 1117-1120. Mixed float/int arithmetic is out of scope;
+                                 transcendentals stay opaque ops over real.
+                                 `real` has NO NaN and NO ±inf: that every float value is finite
+                                 and non-NaN is the DECLARED MODEL ASSUMPTION FLOAT-FINITE
+                                 (Appendix C.1), dropped by `--strict-float-finite` *)
 τ(list)           = list
 τ(List)           = list      (* typing.List alias *)
 τ(List[T])        = list      (* parametric list — element type opaque *)
@@ -174,29 +223,43 @@ specification logic's type universe:
                                  stay `array int`. The mark propagates across `b = a`; a list that
                                  must be BOTH grown and 2-D is a representation conflict, rejected
                                  (no silent mis-model). Translational §T.2 list rows. *)
-τ(bytes)          = int †     (* byte buffer *)
-τ(bytearray)      = int †     (* mutable byte buffer *)
+τ(bytes)          = int †     (* IMMUTABLE byte buffer; a LITERAL carries its REAL byte content
+                                 (array int built from the exact bytes) so `b"abc"[0]==97` PROVES
+                                 and `0<=b[i]<256` is derivable (WL-06b, translational §T.15.7); an
+                                 element write `b[i]=v` is REJECTED (Python TypeError). An unknown
+                                 PARAMETER carries an IMPLICIT byte-RANGE precondition
+                                 `forall i. 0<=b[i]<256` (a type-level guarantee — every real bytes
+                                 element is in [0,256); WL-06c, translational §T.15.8), so a range
+                                 read PROVES without a user requires; its EXACT byte content still
+                                 stays opaque (user `requires` only). *)
+τ(bytearray)      = int †     (* MUTABLE byte buffer (element write = sound array mutation); an
+                                 unknown PARAMETER carries the same implicit byte-RANGE precondition
+                                 (WL-06c). A caller-visible `bytearray` PARAMETER element write is
+                                 rejected (frame boundary, §WL-05). *)
 τ(dict)           = dict
 τ(Dict[K, V])     = dict      (* κ=string ⇒ map string (option ν), native String.(=); else map int *)
 τ(set)            = dict      (* sets share the dict model; see translational §T.14.2 *)
 τ(Set[T])         = dict
 τ(frozenset)      = dict      (* frozensets share the set/dict model *)
 τ(FrozenSet[T])   = dict
-τ(Tuple[T1, ..., Tn]) = record   (* WL-03: a RECOGNIZED fixed-length Tuple with known
-                                 scalar slots (int/bool→int, str→string) is a synthesized
-                                 per-slot record `type pytuple_<tags> = { field0: τ(T1);
-                                 …; field{n-1}: τ(Tn) }`, for a PARAMETER and a record FIELD
-                                 (not just a locally-constructed/returned tuple). `t[i]`
-                                 lowers to the i-th record field (`t[1] : string` for
-                                 Tuple[int, str]) via the NamedTuple positional-access model —
-                                 faithfully typed, not the opaque `int` collapse. A float/
-                                 container/class slot, or a variable-length `Tuple[T, ...]`
-                                 (Ellipsis), is NOT recognized → the bare-tuple `int †` row. *)
+τ(Tuple[T1, ..., Tn]) = record   (* WL-03/WL-03b: a RECOGNIZED fixed-length Tuple with known
+                                 scalar slots (int/bool→int, str→string, float→real — WL-03b)
+                                 is a synthesized per-slot record `type pytuple_<tags> =
+                                 { field0: τ(T1); …; field{n-1}: τ(Tn) }`, for a PARAMETER and
+                                 a record FIELD (not just a locally-constructed/returned tuple).
+                                 `t[i]` lowers to the i-th record field (`t[1] : string` for
+                                 Tuple[int, str]; `t[1] : real` for Tuple[int, float]) via the
+                                 NamedTuple positional-access model — faithfully typed, not the
+                                 opaque `int` collapse. A container/class slot, or a
+                                 variable-length `Tuple[T, ...]` (Ellipsis), is NOT recognized →
+                                 the bare-tuple `int †` row. *)
 τ(tuple)          = int †     (* bare tuple — unlike the recognized Tuple[T1, ..., Tn] above *)
 τ(C)              = record    (* user-defined class C → a WhyML record of its fields, for
                                  `self`, locally-constructed instances, AND a bare C-typed
-                                 parameter whose class is registered — read-only field access
-                                 `p.field`; mutation of a record parameter is out of scope (‡).
+                                 parameter whose class is registered — field READ `p.field`, and
+                                 a field STORE `p.field = v` on a MUTABLE record is caller-visible
+                                 (§WL-05d: `p.field <- v`, inferred `writes`); a PURE (list-element)
+                                 record's field store fails closed (‡).
                                  A `#@ mixin` C with shared/owned fields is the same `record`;
                                  a `#@ compose_from` class flattens its mixins' provided methods +
                                  fields into this record (§2.6, Tier 1) *)
@@ -214,8 +277,12 @@ specification logic's type universe:
                                    IS Union[X, None]; synthesizes a per-site
                                    variant with arm τ(T) + nullary Arm_None *)
 τ(Union[T, None]) = _union_<scope>_<idx>   (* C1b: equivalent to Optional[T] *)
-τ(Union[T1, T2,…])= _union_<scope>_<idx>   (* one arm per T_i; Any dropped (GT1);
-                                   de-duplicated (C1a); None → nullary ctor *)
+τ(Union[T1, T2,…])= _union_<scope>_<idx>   (* one arm per T_i; de-duplicated (C1a);
+                                   None → nullary ctor. If ANY T_i is untypable
+                                   (Any/object/unknown/nested union/unmodelled
+                                   generic) the whole annotation is "Any"
+                                   (erased), never a variant with T_i dropped
+                                   (route #258) *)
 τ(A | B)          = _union_<scope>_<idx>   (* PEP 604: same as Union[A, B] (C1) *)
 τ(Literal[v1,…,vn]) = base(v_i)            (* typing-engagement ty1: Literal lowers to a
                                    ground `requires { x = v1 \/ … \/ x = vn }`
@@ -325,8 +392,162 @@ parameter as `array string` / `array real` (`_param_type_str`, right after the n
 (drivers `wl04_list_{str,float}_elem_COLLAPSED.py`; locks 0817/0818, NEGATIVE 0819). A flat
 `List[int]`/`List[bool]` has NO entry → byte-identical `array int` (int-leaf is the τ-blessed default).
 This is the one-level-up analog of the nested `array (seq τ)` model below. A `List[str]`/`List[float]`
-LOCAL/RETURN built by a LIST LITERAL is a distinct pre-existing surface (its literal construction
-collapses the elements), not part of §WL-04.
+LOCAL/RETURN built by a LIST LITERAL is the CONSTRUCTION analog, now covered by **§WL-04a (FIXED)**:
+the list-literal lowering (`module6_whyml/expressions.py`, `ArrayLitExpr`) detects an all-string
+(resp. all-float) literal and builds `array string`/`array real` with the faithful element values (not
+`_coerce_to_int` hashing/truncation); a `-> List[float]` return resolves to `array real` and a
+contract `\result[i]` on any `array τ` return lowers to a native `Array.get` (drivers
+`wl04a_list_literal_*.py`; locks 0826/0827, NEGATIVE 0828). A MIXED-element literal is REJECTED
+fail-closed (**§WL-04g** below); a `List[<record>]` literal is covered by §WL-04c.
+
+**§ MIXED-element list literal — REJECTED (wrong-lowering-to-fix.md §WL-04g, DOCUMENTED SOUND
+BOUNDARY).** A HETEROGENEOUS list literal (`[1, "x"]`, `[1, 2.5]`, `[1, Point(2, 3)]`) has NO faithful
+`array τ` element type: a Python list is heterogeneous, but a WhyML `array` is HOMOGENEOUS. Every
+UNIFORM element shape is already handled by an earlier rule (all-int/bool `array int`; all-str/all-float
+§WL-04a; all-equal-arity-tuple `array (t0,…)`; all-record §WL-04c), so a NON-int-faithful element (a
+`str` literal, a `float` `Number`, a `Tuple`, or a known-record constructor `Call`) surviving to the
+int-coercion FALLBACK proves the literal is MIXED. The int-coercion default is UNSOUND there — a `str`
+element hashes to a WELL-TYPED int, so `[1, "x"]` used to build `array int` with `a[1] = 976090257`
+(under `PYTHONHASHSEED=0`) and a contract `\result == 976090257` on `a[1]` PROVED, a claim FALSE of
+real Python where `a[1]` is the STRING `"x"` (a SEVERITY-1 UNSOUNDNESS, now fixed); a `float`/record
+element ill-typed the `array int` (silent Why3 TYPEERR). The static rule (`module6_whyml/
+expressions.py::_mixed_literal_reject_kind`, called from the `ArrayLitExpr` fallback) FAILS CLOSED with
+a clear `PyCSLSemanticError` naming the offending element kind and directing the user to a homogeneous
+list, a `Tuple` (fixed-arity heterogeneous slots), or a record/`@dataclass` (heterogeneous fields). A
+homogeneous all-int/bool/expression literal is NOT flagged (byte-identical `array int`). Drivers
+`wl04g_mixed_int_{str,float,record}_falsetwin.py` (REJECTED — no false content claim proves),
+`wl04g_mixed_int_str_UNSOUND.py` (PROVEN pre-fix → now REJECTED), `wl04g_homogeneous_int_POSITIVE.py`
+(PROVEN — no over-rejection); boundary spike `wl04g_mixed_literal_boundary_spike.mlw`; locks 0850
+(POSITIVE), NEGATIVE 0851/0852/0853.
+
+**§ Flat RECORD-element list param (wrong-lowering-to-fix.md §WL-04b).** A parameter (and
+pass-through return) annotated with a FLAT `List[R]` whose element `R` is a KNOWN record — a user
+`@dataclass`/`NamedTuple`, or a recognized `Tuple[T1, …, Tn]` (WL-03's synthesized `pytuple_<tags>`) —
+does NOT collapse its element to `int`. Module5 (`_m5_get_list_record_elem`, using the pre-collected
+`_m5_record_class_names` + `_m5_tuple_slot_tags`) records the element RECORD class name in
+`param_list_flat_elem` and subtracts a record-list param from the 2-D `matrix int` detection; the
+emitter resolves it (`_param_type_str` → `array <record>`, registering `_record_array_params`) so
+`a[i]` reads a REAL record and `a[i].field` / `a[i][k]` projects the faithful field
+(`_handle_attribute_expr` → `(let _rec_ = a[i] in _rec_.<label>)`; `_namedtuple_positional_access` →
+the k-th slot). The record leaf is the record-typed analog of the str/float flat leaf. Because Why3
+FORBIDS a MUTABLE element inside `array`, a record used as a `List[<record>]` element is emitted PURE
+(immutable fields — Module5 `list_element_record_types` drives the preamble `mutable`-drop;
+byte-identical for records NOT so used); tuples are immutable, and a field-mutated
+dataclass-in-a-list fails CLOSED at Why3 type-check (never a silent unsound update). The projection
+comprehension `[p.x for p in a]` over a record source is lowered natively too. Drivers
+`wl04b_list_{record,tuple}_elem_COLLAPSED.py` (PROVEN), false-twin `wl04b_list_record_falsetwin.py`
+(UNPROVEN); locks 0829/0830 (POSITIVE), NEGATIVE 0831. Residuals (int-collapse / opaque kept): a
+record slot of container type. (A `float` slot is now the faithful `real` — §WL-03b below; the
+`List[<record>]` LITERAL is now covered by §WL-04c below; a FILTERED record-projection comprehension
+by §WL-04d; a `List[<plain-class-with-__init__>]` element by §WL-04e.)
+
+**§ Flat RECORD-element list LITERAL (wrong-lowering-to-fix.md §WL-04c).** The CONSTRUCTION analog of
+§WL-04b. A list LITERAL whose elements are ALL full-arity positional constructor CALLS to the SAME
+CONTENT-FAITHFUL record (`a = [Point(1, 2), Point(3, 4)]`, `return [Point(1, 2), Point(3, 4)]`) builds
+`array <record>` with each element the FAITHFUL record literal (`{ x = 1; y = 2 }`, the constructor
+args threaded via `_call_record_constructor`) — NOT the int-coercion collapse. The emitter
+(`expressions.py::_expr_to_whyml` `ArrayLitExpr` arm, gated by `_record_ctor_list_elem`) registers the
+local as a record-array local (`_track_collection_metadata` → `_record_array_locals`), so `a[i].field`
+(local) and `\result[i].field` (on a `-> List[R]` return) project the real field via the same
+`(let _rec_ = … in _rec_.<label>)` path as §WL-04b. The SELF-FIELD base `self.<f>[i].<sub>`
+(concrete syntax §3.1.4d) joins the same path through `_record_array_fields` — the
+`List[<record>]` instance-field register — which is now populated in a PRE-PASS ahead of class-invariant
+lowering, so a CLASS INVARIANT (not only a body) can project an element field. The projection is
+well-typed only where the field really is a `List[<record>]` on a `@mutable_state`/IR-node class;
+anywhere else the register is empty and the read falls back unchanged. The element record is emitted PURE (Module5
+`_m5_list_literal_record_elem` adds it to `list_element_record_types` after `generic_visit`). FAITHFUL
+CONSTRUCTION IS REQUIRED: only a record whose constructor sets EVERY field from a positional param (a
+`NamedTuple`, a recognized `Tuple`, an explicit-`__init__` positional class, and — **since §WL-07** — a
+`@dataclass`) is threaded. **UPDATE (§WL-07 — a fixed severity-1 unsoundness):** the `@dataclass`-ctor
+arg-drop is FIXED — a `@dataclass` now synthesizes its `init_params`/`init_body`, so its literal element
+is content-faithful (`[Point(1, 2)][0].x == 1` PROVES; driver `wl07_dataclass_literal_TRUE.py`). Drivers
+`wl04c_list_record_literal_COLLAPSED.py` (PROVEN), false-twin
+`wl04c_list_record_literal_falsetwin.py` (UNPROVEN); Gate-B spike
+`spikes/wl04c_list_record_literal_spike.mlw` (Alt-Ergo AND Z3, no cited lemma); locks 0839 (POSITIVE),
+NEGATIVE 0840. Residual (kept fail-closed): a MIXED-record literal.
+
+**§ `@dataclass` / record constructor argument binding (wrong-lowering-to-fix.md §WL-07 — a fixed
+severity-1 unsoundness).** A `@dataclass` with no explicit `__init__` has its constructor synthesized by
+Python (`__init__(self, f1, …, fn)` binds each field positionally, in declaration order). PyCSL formerly
+DROPPED these args (`_collect_init_construction` only walked an explicit `__init__`), so `Point(1, 2)`
+built `{ x = 0; y = 0 }` and `Point(1, 2).x == 0` PROVED — FALSE of real Python (fail-OPEN). PyCSL now
+synthesizes the dataclass ctor's `init_params`/`init_body` and binds args by POSITIONAL PREFIX (a partial
+call keeps trailing defaults). EXPLICIT KEYWORD args (`Point(x=1, y=2)`) — formerly dropped from the Call
+IR for EVERY record constructor (plain classes too) — are captured in `CallExpr.keywords` and bound by
+name. A `**kwargs` splat stays a documented fail-open residual (unknown runtime values → field default).
+SMT spike `spikes/wl07_dataclass_ctor_spike.mlw` (Alt-Ergo AND Z3, no cited lemma); drivers
+`wl07_dataclass_{ctor_UNSOUND,ctor_TRUE,kw_UNSOUND,literal_TRUE}.py`; locks 0869 (POSITIVE), 0870 /
+0871 (NEGATIVE — the positional / keyword false-`== 0` twins).
+
+**§ FILTERED RECORD-projection comprehension (wrong-lowering-to-fix.md §WL-04d).** A FILTERED
+projection comprehension `[p.x for p in a if <cond(p)>]` over a flat `List[<record>]` source `a`
+(`array <record>`, §WL-04b) previously fell through `_content_comp`'s record branch to the opaque
+`val list_comp (x:int):int`, so a `-> List[int]` return (`array int`) was returned an int → ill-typed
+WhyML (TYPEERR — fail-closed but unusable). The RESULT LENGTH is data-dependent
+(`0 <= len(result) <= len(a)`), so NO exact length / per-index content law is provable; the sound
+faithful law (`expressions.py::_filter_record_proj_law`, a per-instance `list_content_comp_<n>` val) is
+the length BOUND `Array.length result <= Array.length src` plus a membership+predicate+projection
+existential — for each result index `i` there EXISTS a source index `j` with the record `src[j]`
+passing the predicate AND `result[i]` equal to its projected field. Every output came from some
+retained input (Python semantics), an honest under-approximation (the source index is lost to
+compaction). From it the FILTER CONSEQUENCE transfers to the projected result whenever the predicate
+constrains the projected field (`[p.x for p in a if p.x > 0]` yields only positive elements). The
+element and predicate are lowered NATIVELY over the record binder (`(src[j]).field`, via
+`_push_quant_binder`), the SAME projection a driver's `\result[i]` / `a[j].x` lowers to. A predicate
+that does NOT lift to a pure-bool term over the target keeps the SOUND length-bound-only law (still
+`array int` — never the prior TYPEERR). Driver `wl04d_filtered_record_proj_COLLAPSED.py` (PROVEN),
+false-twin `wl04d_filtered_record_proj_falsetwin.py` (UNPROVEN); Gate-B spike
+`spikes/wl04d_filtered_record_proj_spike.mlw` (Alt-Ergo AND Z3, no cited lemma; the length-equality /
+per-index false twins NOT entailed); locks 0841 (POSITIVE), NEGATIVE 0842. Residuals (kept opaque /
+length-bound-only): a FILTERED TUPLE-SLOT projection (`[t[0] for t in a if …]`, the element is a
+subscript not an attribute), and a projection whose element is not a pure-int field term.
+
+**§ Flat PLAIN-CLASS-element list param (wrong-lowering-to-fix.md §WL-04e).** Extends §WL-04b's
+recognized-element set to a PLAIN class with an explicit positional `__init__`
+(`class Point: def __init__(self, x, y): self.x = x; self.y = y`) — NOT a `@dataclass`/`NamedTuple`/
+recognized `Tuple`. Such a class is already emitted as a record `type_decl` by `visit_ClassDef` and
+its constructor is CONTENT-FAITHFUL (`Point(1, 2).x` proves `== 1`, not `== 0`), so a flat `List[Point]`
+PARAMETER/RETURN resolves to `array <record>` exactly like §WL-04b: `a[i]` reads a REAL record,
+`a[i].field` projects the faithful field, and a constructed record STORED into the array element
+(`a[0] = Point(5, 6)` → the faithful `{ x = 5; y = 6 }`) reads its written field back. The class is
+recognized by `_m5_is_plain_positional_record_class` (pre-`generic_visit` scan of `node.body`,
+mirroring the dataclass/NamedTuple pre-scan) — it is added to `_m5_record_class_names`, so the
+UNCHANGED `_m5_get_list_record_elem` / `_param_type_str` / `_handle_attribute_expr` §WL-04b threading
+applies. Recognition is FAITHFUL-ONLY: a plain `__init__` whose ANY `self.<attr>` is set from a
+non-positional-param expression (constant / computation / keyword-only param) is REJECTED (kept at the
+`array int` collapse — fail-closed). The element record is emitted PURE (added to
+`list_element_record_types`); a field-mutated plain-class-in-a-list has the SAME fail-closed posture as
+§WL-04b (the element write is dropped, the post-mutation claim UNPROVEN — byte-identical to the
+`@dataclass` path). Additive: a plain class NOT used as a flat `List[R]` element never reaches
+`_m5_get_list_record_elem`, so a bigger recognition set changes NOTHING unless a `List[<plain-class>]`
+annotation exists (full-corpus byte-diff = 0). Drivers `wl04e_list_plainclass_elem_COLLAPSED.py`
+(PROVEN — read law + store-read-back), false-twin `wl04e_list_plainclass_elem_falsetwin.py` (UNPROVEN);
+Gate-B spike `spikes/wl04e_list_plainclass_elem_spike.mlw` (Alt-Ergo AND Z3, no cited lemma); locks
+0843 (POSITIVE), NEGATIVE 0844. Residual (kept fail-closed): a plain-`__init__` class whose ctor is
+NOT purely positional; a record slot of container type (a `float` slot is now the faithful `real` —
+§WL-03b below).
+
+**§ Float record/tuple FIELD SLOT (wrong-lowering-to-fix.md §WL-03b).** The WL-03 synthesized per-slot
+record and the §WL-04b `List[<record>]` element/record models recognized slot/field types int/bool/str
+ONLY, so a `float` field slot collapsed to `int` — an UNSOUND leak that truncated a fractional read
+(`t[1]` of a `Tuple[int, float]`, `q.f` / `a[i].f` of a `@dataclass`/`self.f: float` record, holding
+`2.5`, read `2`). WL-03b realizes a `float` field slot as the faithful Why3 `real` (τ(float)=real,
+no-more-int Stage D): Module5 `_M5_TUPLE_SLOT_TAGS` maps `float`→`real` (so `Tuple[int, float]`
+synthesizes `pytuple_int_real = { field0: int; field1: real }`) and `_field_type_from_annotation`
+maps a `float`-annotated field to the `real` tag; the preamble record emitter maps that tag to a `real`
+field (`_build_witness_str` gets a `0.0` real witness). The projection `t[1]` / `q.f` / `a[i].f` then
+reads a `real`; the float comparison routes through Why3 `real` equality (a `2.5` literal on either
+side drives the real `=`). Because `real` is a PURE type, a record with a `real` field is legal at an
+`array` element position — the §WL-04b PURE-element constraint is preserved. A float field read used
+where an int is expected remains a fail-closed real-vs-int TYPEERR (never a silent truncation). Drivers
+`wl03b_float_record_slot_COLLAPSED.py` (PROVEN — tuple slot + plain record field + `List[R]` element),
+false-twin `wl03b_float_record_slot_falsetwin.py` (UNPROVEN — the int-truncation `== 2.0` claim); Gate-B
+spike `spikes/wl03b_float_record_slot_spike.mlw` (7 goals Valid on Alt-Ergo AND Z3, no cited lemma);
+locks 0845 (POSITIVE), NEGATIVE 0846. Additive: the corpus has no `float` record/tuple field, so the
+full-corpus byte-diff is 0. Residual (kept int-collapse / opaque): a record slot of CONTAINER type
+(`Point` with a `List[int]` field) — a mutable container nested in a record nested in an `array` hits
+the Why3 mutable-element and `array (array τ)` type-rejection (the nested-list boundary); a sound
+pure-`seq`/`map` field representation is future work.
 
 **§ Nested containers (nested-list.md).** A parameter annotated with a container whose ELEMENT
 is itself a container — `List[List[τ]]`, `List[Dict[K,V]]`, `List[Set[τ]]`, recursively — does NOT
@@ -358,28 +579,38 @@ type/verification failure, never silently accepted); `a[i].append(..)` (shape-ch
 ragged in-place mutation is out of the rectangular `matrix` model. `\length2d`-contract rectangular
 params likewise use `matrix int`.
 
-**§ In-place mutation of a dict/set PARAMETER (wrong-lowering-to-fix.md §WL-05; UB catalog §7.9).**
+**§ In-place mutation of a dict/set PARAMETER (wrong-lowering-to-fix.md §WL-05b; UB catalog §7.9).**
 An item-mutation `d[k] = v` of a `Dict[...]` parameter — and the set twin `s.add(x)`/`s.discard(x)`/
-`s.remove(x)` of a `Set[...]`/`frozenset` parameter — is **out of scope** and **REJECTED** with a clear
-diagnostic (`module6_whyml/statements.py::_reject_param_collection_mutation`, code
-`PYCSL-WHYML-PARAM-COLLECTION-MUT`). Python passes dicts/sets BY REFERENCE, so the write must be VISIBLE
-to the caller — a faithful model needs a caller-visible mutation frame (`writes {d}`) on a mutable-map
-parameter, the SAME aliasing/frame problem as record-param mutation (‡ below) and nested-list inner
-mutation (above). Modelling the by-value `map` param as a local `ref` would be UNFAITHFUL (the caller
-would not see the change). The rejection is gated to a formal-param dict/set that is NOT a `ref`-bound
-LOCAL (`_dict_locals`), NOT a self-field (which HAS a frame), and NOT the deliberate `@mutable_state`
-param no-op — so LOCAL dict/set mutation and self-field writes are unaffected. The faithful rework is to
-RETURN the updated collection or mutate a LOCAL copy (a local write-read-back proves; drivers 0820/0821
-negative, 0822/0823 positive).
+`s.remove(x)` of a `Set[...]`/`frozenset` parameter — of a **STANDALONE function** is **FAITHFULLY
+SUPPORTED**: Python passes dicts/sets BY REFERENCE, so an inner-mutated dict/set param is modelled as a
+caller-visible **mutable `ref (map κ (option ν))`** with a sound **`writes {d}`** frame. `d[k]=v` lowers
+to `d := map_update_some !d k v`, reads to `!d` / `Map.get !d k` UNIFORMLY, and the mutation ESCAPES to
+the caller (the call site passes the bare ref). USAGE-DRIVEN: only an inner-mutated param is promoted; a
+READ-ONLY dict/set param keeps the by-value `map …` type (byte-identical). Promotion is decided by a
+module-level FIXPOINT (direct item-mutation + transitive param forwarding). A mutating callee should
+carry a postcondition on the param post-state (`#@ ensures d["a"] == 5`) for a caller to rely on the
+escape. **Still out of scope (REJECTED, code `PYCSL-WHYML-PARAM-COLLECTION-MUT`):** a mutated dict/set
+**METHOD** param (its types feed the cross-method call-contract map, which the ref promotion would
+desync), the `@mutable_state` param no-op, a PURE-record (list-element) field store and a
+subscript/nested-base field store `a[i].f=v` (‡ below, §WL-05d) and nested-list inner mutation
+(above). (A MUTABLE-record param field store `p.f=v` and a LIST param element store `a[i]=v` are
+SUPPORTED — ‡ below, §WL-05d.) Drivers: 0820/0821/0832/0833 positive (write-read-back + caller-visibility), 0822/0823 positive
+(LOCAL), 0834 negative (false post-mutation claim FAILS).
 
 **‡ Classes / records.** A class introduces a record type in `Γ_c` (§1.2): `self`, the
 result of a constructor call `C()`, **and** a bare `C`-typed *parameter* whose class is registered
 in `_record_types` are all typed as the class's WhyML record (field defaults per `τ`). A record
-parameter gives **read-only** field access — `p.field` is a direct record read in both body and
+parameter gives a direct record read `p.field` in both body and
 contract (`functions.py::_param_type_str` + the method loop; the old coarsen-to-`int` +
-opaque `getattr_<cls>` path is gone for record params). **Out of scope:** *mutating* a record
-parameter (Why3 records are by-value, so a write does not flow back to the caller — needs the
-frame/`writes` machinery). A **method call** on a record param (`p.m(args)`) now resolves the
+opaque `getattr_<cls>` path is gone for record params). A field STORE `p.field = v` on a MUTABLE
+record param is **caller-visible** (wrong-lowering-to-fix.md §WL-05d): it lowers to the native
+`p.field <- v` and Why3 infers the `writes {p.field}` frame on the concrete `let`, so the mutation
+flows back to the caller (Python objects are by-reference). **Fail-closed:** a record pinned PURE
+because it is a `List[<record>]` element is field-immutable (Why3 forbids a mutable element inside
+`array`), so its field store is REJECTED (`PYCSL-WHYML-PARAM-COLLECTION-MUT`); likewise a store
+through a subscript/nested base (`a[i].f = v`). Before §WL-05d these were silent-drop no-ops — a
+severity-1 fail-OPEN (a caller could prove the field UNCHANGED after a real mutation). A **method
+call** on a record param (`p.m(args)`) now resolves the
 callee contract exactly like a record local (no-more-int-3 A2a): `statements.py::_emit_body_code`
 unions the param→record map into `_current_record_var_classes`, so result-only and
 param-referencing `ensures` propagate to the call site. A *field-referencing* callee ensure
@@ -547,6 +778,16 @@ method has no checkable body, so it must opt into the trust boundary with `#@ \p
 checks in `Module4._validate_happy`; the trust-boundary requirement in
 `Module3_Weaver._expand_happy_properties`.
 
+**Rule (whole-field rebinding, route #91).** The per-site obligation of clause 1 is injected
+at each write of `self.f[i]`, which is an *indexed* store. A **whole-field rebinding**
+`self.f = e` in a non-exempt function is therefore **a hard error**, not a checked site: it
+replaces the entire array — protected region included — and no per-index predicate can
+constrain a whole-array store. `__init__` is exempt (it *creates* the field, so there is no
+prior region for a preservation property to range over). Realised by clause (A2) of
+`Module3_Weaver._weave_happy`'s region-write branch. Before this rule the store matched no
+site and received no obligation, so the property was provable while a non-exempt method
+overwrote the whole region (witnesses `1247`–`1249`).
+
 **Rule (`footprint` / parametric & protects forms, 07-1143).** A `#@ footprint <name>(arg)`
 must name a parametric HAPPY `<name>` declared in the module (`#@ happy <name>(p): protects
 <path>[LO:HI]`); the meta-pass binds `p := arg` and injects a per-site containment check
@@ -555,12 +796,40 @@ non-exempt method with no `footprint` writing the path, and any non-exempt direc
 `protects <paths>` (subsystem-ownership) field, get `#@ check False`. Aliasing a protected base
 into a non-exempt local is a hard error (`Module3_Weaver._check_protect_aliasing`).
 
-**Soundness (composition theorem, `meta.md`).** If every body-verified method discharges a
+**Rule (whole-array and slice stores to a parametric path, route #92).** A `footprint`
+obligation is *per index*, so it can only constrain an indexed store. In the parametric form a
+non-exempt function performing a **whole-array store** (`<path> = e`) or a **slice store**
+(`<path>[LO:HI] = e`) is therefore **a hard error** — neither can be confined to one object's
+region by a per-index containment check. `__init__` is exempt. Realised by clause (R3b) of the
+R3 branch of `Module3_Weaver._weave_happy`. Before this rule both stores matched no site (the
+site collector returns only point writes) and were reached by no reject, so the per-object
+property was provable while a footprint-less function overwrote a protected region
+(witnesses `1250`–`1253`).
+
+**Soundness (composition theorem, `meta.md`).** *Read "universal coverage" strictly: it is a
+claim about the site collector, and routes #91/#92 were exactly the collector failing to be
+universal. Coverage is now split — an **indexed** store is CHECKED, and a **whole-path or
+slice** store is REJECTED (the two rules above), because a per-index predicate cannot express
+an obligation about a store that replaces the whole array. A future store shape that is
+neither checked nor rejected re-opens both routes.* If every body-verified method discharges a
 `#@ check φ(ℓ)` at each write site of `self.f` (universal coverage, clause 1) and every other
 mutator is exempt or carries the `\preserves` region-preservation `ensures` (clause 2), then
 no execution writes the protected region. No alias analysis is needed (the obligation is at
-the location written; value-semantic arrays bar local-alias escape) and no caller reasoning
-(an indirect write is caught at the callee's own site).
+the location written) and no caller reasoning (an indirect write is caught at the callee's own
+site) — **provided the location is only ever written under the spelling the collector checks**.
+Route #266 measured that it was not: a list is passed BY REFERENCE, so a helper writing its own
+parameter `a[i] = 9`, a getter returning `self.f`, `poke(self)` writing `s.f[i]`, `o.f[i]` on
+another instance, a module function writing `s.f[i]`, and (for `protects d.f`) a method of the
+owning class writing `self.f[i]` all reached the region unchecked (witnesses `2810`–`2819`). So
+the collector's premise is now ENFORCED by rejection, keyed on the protected FIELD NAME, in
+every non-exempt body-verified function: **(E)** a non-scalar protected field may appear only as
+a subscript base `X.f[...]` or as `len(X.f)` (passing, aliasing, returning, containing or
+calling a method on it is refused; an exempt owner may still pass it as a call argument);
+**(W)** a write/`del`/destructuring store reaching `.f` through any spelling other than the
+canonical checked one is refused (`__init__` may still create `self.f`); **(R)** for the read
+form, a read `X.f[i]` with `X` ≠ `self` is refused. A field is scalar (exempt from (E)) iff some
+store types it `int`/`bool`/`float`/`str` (annotation or constant initialiser) and none gives
+it a container/object.
 
 The field-subscript atom `self.f[i]` is well-formed where `self.f` is an instance array field
 in scope (Γ_f), with `i : int`; it is the term used in `\preserves` postconditions.
@@ -664,6 +933,19 @@ AND `#@ \diverges` (the IR `diverges` flag — a diverging function satisfies an
 postcondition). The exempt-set is computed where the IR is in scope
 (`_run_pipeline`) and passed on `args._vacuity_exempt` to the gate in
 `_run_proofs`.
+
+**Call-site probe for body-less callees (route #267).** The ALL-exits criterion
+cannot see a branch killed by an `\abstract`/`\trusted` callee whose `ensures`
+is unsatisfiable at one point (witness `2821`: `ensures x != 5` called under
+`if x == 5:`). A body-less callee with no `raises`/`diverges` and no
+`ensures false` must return, so its `ensures` must be satisfiable wherever it is
+called. For each call to such a `val` in a probed body, the gate wraps the call
+as `(check {false}; let r = CALL in check {false}; r)` (`check` adds no
+hypothesis) and flags the function iff the AFTER check proves while the BEFORE
+check does not — i.e. the callee's contract, not the program's own guards,
+made the continuation unreachable. A branch already dead before the call (the
+dead-by-design consequence-test case, control `2824`) is not flagged. Cost:
+one extra goal per such call site, plus one per site whose AFTER check proves.
 
 #### §2.5c `TypedDict` literal-key access (typing-engagement ty2 / PEP 589)
 
@@ -783,7 +1065,8 @@ requires(P.m)` (weaker-or-equal pre), `ensures(P.m) ⟹ ensures(C.m)` (stronger-
 equal post), `assigns(C.m) ⊆ assigns(P.m)` (narrower frame). Conformance is
 declared via the class-level directive `#@ conforms_to P`; for each member `m` of
 `P` that `C` provides, `_populate_protocol_conformance` records an `(C__m, P__m)`
-override pair in the EXISTING `overrides` IR list. `--check-behavioral-subtyping`
+override pair in the EXISTING `overrides` IR list. The override check (on by default since
+route #277; formerly `--check-behavioral-subtyping`, which `#@ conforms_to` never needed)
 emits the per-method refinement goal `forall self: C, .... ((pre_P -> pre_C) /\\
 (post_C -> post_P))` — the per-method contract-refinement VC. This is a per-method
 VC (NOT a presence check): it is discharged by Why3/SMT from the two contracts.
@@ -1058,6 +1341,33 @@ an entry for reviewer-related violations.
 
 _Corresponds to `annotations.md` §2.1.7._
 
+#### §2.1.30 Declared in (`declared_in <relpath>.py::<Class>.<method>`)
+
+```
+   file(f) ∈ src/self-annotate/src/
+   ────────────────────────────────────────────────────────────
+    Γ_f ⊢ declared_in(T) : ok     (node = Trusted(reviewer = "declared_in:" ^ T))
+
+   file(f) ∉ src/self-annotate/src/
+   ────────────────────────────────────────────────────────────
+    Γ_f ⊢ declared_in(T) : REFUSED (PyCSLSemanticError)
+```
+
+**Rule.** The target must match `<relpath>.py::<Class>.<method>` (else a parse error). The
+directive yields the SAME function flags as `\trusted` (`csl_trusted = True`,
+`csl_reviewer = "declared_in:<T>"`), so every downstream static check treats the method as a
+trusted, bodyless stub. `_run_pipeline` refuses it in any file outside the self-annotation mirror
+(witness `7827`, control `7828`): there no plane certifies it, and it would be an anonymous
+`\trusted`. Inside the mirror its well-formedness beyond the grammar is the REPO plane
+`bin/check-declaration-conformance.py`: the stub's class must lack a live `def` of the method;
+`T` must EQUAL the live-MRO resolution; the declaration's frame ⊇ the definition's (projected on
+the reachable records), raises ⊇, requires / ensures trivial, every other clause also on the
+definition, the signature a refinement; no `\trusted` marker beside it; not a ledgered
+non-conforming or base-override declaration. Any violation is RED. The near-miss spelling
+`# @declared_in` is refused by the ingestor (`7830`, control `7831`).
+
+_Corresponds to `annotations.md` §2.1.30._
+
 #### §2.1.14 Abstract (`\abstract`)
 
 ```
@@ -1257,7 +1567,33 @@ dom(TRIGGERS)` must discharge each `trigger(op, E)` for which
 
 where `active(f) = no_exception_set(f) ∪ (no_exception_all(f) ?
 KNOWN_EXCEPTIONS : ∅)` and `TRIGGERS` is the table in
-`exception_model.py`.
+`exception_model.py`. (Route #304: an EXPLICIT `raise E` of the body that
+escapes `f` is covered when `no_exception_all(f)` — any class — or when
+`E` or an ancestor of `E` is in `no_exception_set(f)`; a covered raise
+owes `Γ, P ⊢ false` at its site, i.e. it must be unreachable, and is not
+added to the inferred `raises` of `f`.) (Route #305: `E` is identified by NAME
+— a program binding a name of `exception_model.EXCEPTION_BASES ∪
+KNOWN_EXCEPTIONS ∪ {EnvironmentError, IOError}` by a `class` statement at
+any depth, or by a def / import / assignment / parameter / `except ... as`
+in a module or function scope, of the main file or an imported module, is
+ill-formed: refusal `PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED`; `from
+builtins import E` is accepted.) (Route #281: the row `("call", "int_str")`
+gives every int -> decimal-string conversion — `str`/`repr`/`format`
+of an int, a non-string `print` argument, an int f-string part
+rendered in decimal, an int `%` operand — the `ValueError` trigger
+`-10**4300 < x < 10**4300`, CPython 3.11+'s 4300-digit limit.
+Route #284: an f-string part with a literal spec owes it when the spec
+renders in decimal — presentation type none/`d`/`n`, e.g. `:5`, `:05d`,
+`:,`, `:>10` — or a conversion is present; and the row `("call",
+"format_spec")` gives a format spec / `%` format that is INVALID for the
+formatted type (decided at emit time by CPython's own `format()` / `%`),
+COMPUTED (`f"{x:{w}}"`) or non-literal the `ValueError` trigger `false`.
+Route #285: an operation inside a comprehension / generator expression
+carries no per-element obligation, so a comprehension containing an
+expression shape that `exception_model.TRIGGER_EXPR_SHAPES` maps to a
+`TRIGGERS` row whose exception is in `active(f)` is REJECTED; a row
+with no census entry rejects every comprehension under its
+exceptions.)
 
 **Rule (conflict rejection).** `no_exception(E) ∧ raises(E, _) ∈ Γ_f`
 is rejected by `Module4_SemanticAnalyzer._validate_no_exception` with a
@@ -1284,6 +1620,19 @@ known set.
 
 The CLI flag is off by default and treated as opt-in; ambient mode is
 the default per workplan §11.3.
+
+"Unannotated" means IMPLICIT exceptions only. An EXPLICIT escaping
+`raise` in an in-unit callee is not ambient (route #272): a function
+claiming `no_exception` over `E` is rejected
+(`PYCSL-SEM-UNDECLARED-CALLEE-RAISE`) when a call it makes, outside a
+handler catching `E`, may raise `E` where the call site cannot see it —
+an undeclared raise of a METHOD callee (whose call lowers to a stub
+carrying declared `raises` only), a declared one when the receiver form
+(`C.m(...)`, `C().m(...)`) does not resolve the callee's `raises`, or
+either reaching the callee through such a call further down (`self.`,
+typed/constructor-bound/global receivers and module functions,
+transitively). A module function's own `raise` is seen by Why3's effect
+typing at a concrete call.
 
 _Corresponds to `annotations.md` §2.1.13._
 
@@ -1606,6 +1955,22 @@ A function may carry a narrow **interface** contract alongside its rich **defini
    `requires`) in the owning unit; an over-claiming interface yields an unprovable goal and is rejected.
    So a caller relying on the interface relies only on a fact the definition established — opacity adds
    nothing to the trusted base.
+2b. **The `assigns` direction is the OPPOSITE one, and it is a separate check**
+   (`PYCSL-SEM-IFACE-FRAME`, gen #30 route #204). For `ensures` and `requires`, "weaker"
+   means *claims less*, and the narrowing VC of (2) enforces it. For a **frame** it means
+   *claims MORE writes*: a caller frames the call with the INTERFACE, so every location the
+   interface omits is carried across the call UNCHANGED. An `#@ interface assigns` that
+   omits a target the definition's `#@ assigns` lists therefore lets an importer prove the
+   omitted location is preserved while the body changes it — a false contract that PROVES.
+   The narrowing VC of (2) does not cover this: it relates ensures/requires predicates, not
+   frames, and a frame is not a predicate in that goal. So the check is **syntactic and
+   total**, run over the resolved IR before emission: if the interface frame omits any
+   non-`\nothing` target the definition frame lists, the compile is REFUSED. Two cases are
+   deliberately allowed through — an **absent** interface frame (it inherits the definition's,
+   per (4)) and a definition that `assigns \nothing` (any interface frame is then a
+   widening of nothing). The repair is to list every `#@ assigns` target in the
+   `#@ interface assigns` clause, or to drop the interface frame entirely.
+
 3. **`#@ reveal <fn>`** names a function in scope; it opts the enclosing call site into `<fn>`'s
    definition contract. Within `<fn>`'s owning unit it is a no-op (the definition is the visible `let`).
 4. **Absence is transparent.** With no `#@ interface`, the interface *is* the definition — existing code
@@ -2020,6 +2385,54 @@ _Corresponds to `annotations.md` §3.4._
 
 **Error (E3, E4):** See §2.1.3.
 
+### 3.5 IR-node ADT recognition (the `emit_ir` sum — tier3-p1 expr family)
+
+_Realizes the Phase-0 spike `tier3_ir_node_adt_spike.mlw` in the emitter
+(`triage-ranked-tcb-tier3.md` T3.1). This is a Module-6 WhyML-emission typing
+rule, not an IR-schema change: `IR_VERSION` stays `1.4`, the goldens are
+unchanged._
+
+A parameter or local whose static type is an IR-node base name
+(`τ(x) ∈ {ExprIR, StmtIR, IRNode, ContractExprIR}`) has WhyML type `emit_ir`,
+the pure algebraic sum declared in the preamble ADT theory. Its reflection is
+typed by the fixed projection classes:
+
+| reflection | result type | note |
+|---|---|---|
+| `x.get("type")` | `string` (via `kind_of`) — OR the bool `(is_binop x)` when compared `== "BinOp"` | the equality against a constructor-kind literal is the DISCRIMINANT (§T.16); it is a well-typed `bool`. |
+| `x.get("op")` | `string` (via `op_of`) | a LEAF projection. |
+| `x.get("left")` / `x.get("right")` | `emit_ir` (via `left_of` / `right_of`) | a SUB-NODE projection — distinct result type-class from a leaf. A sub-node result feeds a recursive call (which expects `emit_ir`); a leaf result feeds a `string` context. A type mismatch (e.g. using `left_of x` where an `int` is expected) fail-closes at Why3 L3-type-check — never a silent coercion. |
+
+**Termination (T3.1.4).** A function that is recursive over its `emit_ir`
+parameter, and carries no explicit `#@ \variant`, is well-formed only if it
+terminates; the emitter supplies the obligation by injecting
+`variant { size x }` on the ADT subtree measure. The guarded size-decrease
+lemmas (`is_binop e → size (left_of e) < size e`) and `size e ≥ 1` discharge it
+with no axiom. An unrecognized node kind / an `Opaque` node is fail-closed (no
+faithful projection is fabricated).
+
+**Gate.** The ADT theory is emitted only when the module uses an IR-node type
+(or has a `@mutable_state` class); every other program is unaffected
+(byte-identical emission).
+
+**Completed EXPR family (increment 3).** The discriminant rule generalizes beyond
+`BinOp` to the whole fixed-arity expr family: `x.get("type") == "K"` types as the
+`bool` `(is_K x)` for `K ∈ {Var, Number, String, Subscript, Attribute, Call,
+MkTuple, FieldGet, BinOp}`, each `is_K` a match-based constructor test satisfying
+`is_K x ↔ kind_of x = "K"` on every real node. A sub-node projection
+(`x.get("value")`/`.get("index")`/`.get("object")`/`.get("left")`/`.get("right")`)
+types as `emit_ir` and may feed a recursive call; a leaf projection
+(`x.get("name")`/`.get("attr")`/`.get("func")`/`.get("op")`/`.get("field")`) types
+as `string`. The `FieldGet` object read is a LEAF `string` (`fgobject_of`), in
+contrast to the `Attribute` object read which is a SUB-node (`object_of`) — the
+type-class distinction (`string` vs `emit_ir`) is enforced at Why3 L3-type-check,
+never a silent coercion. Termination for a recursion guarded by any of these
+discriminants is discharged by the corresponding guarded size-decrease lemma
+(`is_sub e → size (svalue_of e) < size e`, etc.). The list-shaped kinds
+(`ArrayLit`/`SetLit`/`Tuple`/`DictLit`) remain on the `kind_of` string path
+(no structural `list emit_ir` projection yet); `Tuple` additionally cannot use
+`is_tuple` because the ADT's tuple ctor reports `kind_of = "MkTuple"`.
+
 ---
 
 ## 4. Unsupported Constructs
@@ -2029,6 +2442,56 @@ _Corresponds to `annotations.md` §4._
 Constructs listed in `annotations.md` §4 are **rejected at parse time**
 (Module2, not Module4). No static semantics rules are needed for them
 since they never produce an AST node.
+
+### 4.0 Constructs REFUSED at IR emission (relaunches #33, #34, #43)
+
+Fourteen Python shapes are now **rejected with a diagnostic** rather than lowered, because
+the lowering that existed for them silently dropped part of the construct. Each refusal
+replaced a fail-OPEN with a fail-CLOSED, and each was CENSUSED over the reference corpus,
+the self-annotation mirror, `src/pycsl_lib` and the live emitter before it landed. Four of
+the six were measured at ZERO everywhere. The `except*` refusal has two `python-reference`
+users (0111, 0187, both `pycsl-expected: FAIL`). The `nonlocal` refusal has two users in
+the mirror, and they are deliberately NOT refused: both are claimed by a certified bespoke
+lowering before the generic path is reached (see the row for the reason). They are enforced in `frontend/desugar.reject_unmodelled` (run from
+`Module5_IREmitter.generate_json`), `Module3_Weaver.process` /
+`._reject_misplaced_directives`, and `module6_whyml/functions._emit_function_block`. Relaunch #43 adds six more, enforced in
+`Module1_Ingestor.process`, `frontend/desugar.reject_unmodelled`,
+`module6_whyml/expressions._handle_dotted_call`,
+`module6_whyml/statements.{_emit_array_local_reassign,_handle_del_subscript_stmt}` and
+`module6_whyml/functions._reset_function_state`. **Every one of the six was censused over
+BOTH corpora** — `pycsl-reference` (820 emissions) and `python-reference` (2144), the second
+of which `bin/byte-diff-sweep.sh` does not cover; use `scratchpad/w8/pyref_sweep.sh` — and
+every one is byte-inert on both.
+
+| construct | why it is refused | mechanism that would reopen it |
+|---|---|---|
+| `for ... else:` / `while ... else:` | `_process_for` reads `target`/`iter`/`body` and `_process_while` reads `test`/`body`; neither reads `orelse`. The clause runs exactly when the loop finished WITHOUT `break`, so dropping it removes a whole reachable path from the model. | a break-flag lowering |
+| `x[lo:hi:step]` (extended slice) | the lowering is `Array.sub x lo (hi - lo)`, which ignores the step, so the model carries a sequence of a DIFFERENT length with DIFFERENT elements. Measured: `ys = xs[1:4:2]` let `\result == xs[1] + xs[2]` be proved, while the program returns `xs[1] + xs[3]`. | a strided-copy value model |
+| a `#@` contract block with nothing after it to attach to | an annotation block binds to the node that FOLLOWS it. A block with no follower was silently discarded while the run still printed *All contracts formally proven* — a contract the author wrote that was never checked, under a message asserting the opposite. Statement-level directives (`assert`, `assume`, `ghost`, `loop ...`, `label`, `reveal`, `unfold`, `havoc`) are exempt ONLY WHEN THE BLOCK IS INDENTED: a trailing `#@ assert` IS the last statement of a body, but at COLUMN 0 there is no enclosing body and Module 1 discards it (`_assign`'s `elif nxt is None: pass`). Measured: a column-0 trailing `#@ assert 1 == 2` proved SUCCESS. | — (move the block above its `def`/`class`) |
+| `try ... except*` (an exception GROUP handler) | `_PY_STMT_HANDLERS` has no `TryStar` entry and `_py_stmts_to_ir` dispatches with no `else`, so the WHOLE statement — body, handlers, `else` and `finally` — vanished. Measured: `try: x = 2 except* ValueError: x = 3` let `ensures \result == 1` be proved SUCCESS while the program returns 2 (emitted body: `x := 1; !x`). | an ExceptionGroup splitting model |
+| a `#@` contract on an `async def` | Module 1 extracts an `AsyncFunctionDef` under the SAME `FunctionDef` anchor as a plain `def`, so the contract IS parsed into `contracts_map` — but `PyCSLWeaver` defines only `visit_FunctionDef` and `PyCSLToJSONEmitter` has no `AsyncFunctionDef` visitor, so the clauses were never attached and the coroutine never reached the IR. Measured: `async def m(self) -> int: return 2` under `ensures \result == 1` printed *All contracts formally proven* over a module that contained no `m` at all. Only CONTRACT-CARRYING coroutines are refused — an uncontracted one claims nothing (11 such definitions in `python-reference`, all nested, all still accepted). | a coroutine (suspension/resumption) model |
+| a closure that WRITES an enclosing local (`nonlocal`) | `ast.Nonlocal` has no `_PY_STMT_HANDLERS` entry and the nested `def` is lifted to a sibling function, so the write lands on a FRESH LOCAL of the sibling and is invisible to the enclosing function. Measured: `nonlocal x; x = 2` under `ensures \result == 1` proved SUCCESS while the program returns 2. Refused in **Module 6's GENERIC emission**, not in `reject_unmodelled` — `generic_fold.py` already models this shape faithfully for two converted mirror methods by pairing the wrapper with its lifted `_walk`, and the front end cannot tell the two paths apart. Module 5 carries the fact as the additive IR field `nonlocal_writes`. `\trusted`/`\abstract` functions are exempt (bodyless `val`). | a closure/captured-cell value model |
+| a `#@` directive inside a statement's CONTINUATION LINES (#43, route 12) | `_Harvester._assign` associates a comment with a target by `bisect` over the targets' START lines, so a comment between a leaf statement's first and last line bisects PAST it; when that statement is the file's last there is no `nxt` at all and the comment is dropped. The end-of-file guards cannot see it — the block does not run to end-of-file, the statement's own continuation lines follow it. Measured: `return (` / `#@ assert 1 == 2` / `2)` proved SUCCESS. Census 0 — **and the census must TOKENIZE**: a line scan reports 95 hits, every one `#@` text inside a docstring. | — (move the directive above the statement) |
+| a MUTATING METHOD CALL on a collection (`xs.reverse()`, `xs.sort()`, `xs.insert()`, `d.clear()`, `s.add()`, …) whose lowering is the generic abstract-op fallback (#43, routes 13/14) | the call becomes an abstract `val` that takes NEITHER the receiver NOR a `writes` clause, so the mutation is not under-claimed — it is ABSENT. The method then satisfies `#@ assigns \nothing`, satisfies the #34 frame-preservation `ensures` (which is checked against the EMITTED body), and re-establishes the class invariant. **This defeats the routes 8/9/10 fix.** Measured on a self field, a local AND a parameter; the parameter form emitted `let function driver`, i.e. Why3 was told the function is PURE. `.append` is untouched — it has a faithful array-local lowering. | a length-carrying, rebindable sequence value model |
+| `self.<field>.append(v)` reaching the array-local SHADOW arm (#43, route 13b) | the append is emitted against a FRESH `Array.make 1024 0` with no write-back, so the field is unchanged in the model. Measured: `#@ ensures \length(self.xs) == 2` proved over a body that appends. The faithful `Seq.snoc` self-field arms sit above it and are untouched. | the same |
+| a Python `assert` reaching a handler that can catch `AssertionError` (#43, route 16) | `assert P` is lowered to `()`. OUTSIDE a handler that is CONSERVATIVE and sound — the model must discharge the postcondition on the path Python aborts. INSIDE a `try` the handler branch is DEAD in the model and is the branch Python takes. Measured lexically and INTERPROCEDURALLY, with `except AssertionError`, a bare `except:` and `except Exception`. Callee exception propagation itself is fine — `raise ValueError` under `except ValueError`/`except Exception` and `1 // 0` under `except ZeroDivisionError` all correctly FAIL. Census 0 over 3565 files / 454 `try` / 1450 `assert`. | `AssertionError` given an explicit trigger in the exception model |
+| `del <list>[i]` and `del` on any non-dict/set receiver (#43, route 17) | the LIST half of WL-05c, left open when the dict half was fixed. Python's list `del` SHIFTS every later element left and SHRINKS the sequence, so the no-op model is wrong about EVERY index, not just the deleted one. Measured: `xs = [1,2,3]; del xs[0]; return xs[0]` proved `\result == 1` while the program returns 2. The DICT half correctly FAILS the analogous probe. | a length-carrying sequence value model with a shift |
+| reassigning an array LOCAL from a non-literal RHS (#43, route 18) | the local is a fixed `Array.make N 0` plus a separate `<name>_len` counter, not a rebindable reference, so the assignment was a NO-OP and every later read was answered from the OLD value. Measured both from a call (`xs = g()`) and as an ALIAS of a parameter (`xs = ys`), the latter proving a specific value for an unconstrained input. | the local promoted to `ref (array int)` |
+| a collection PARAMETER that the function's own contract NAMES, mutated in place inside a `@mutable_state` class (#43, route 19) | the mutation is lowered to a no-op on the grounds that "no contract here reads it" — a claim about the corpus, not a property of the lowering. Measured: `#@ requires 1 not in s` / `#@ ensures 1 not in s` over a body `s.add(1)` proved SUCCESS. The IDENTICAL class without `@mutable_state` is REJECTED outright, so the decorator converted a hard refusal into a silent no-op. The exemption now holds only while its own justification does. **ROUTE #62 (relaunch #55) — THE CONTAINMENT WAS KEYED ONE FRAME TOO NARROWLY.** That guard asks whether *this function's own contract* names the mutated parameter, and a caller steps around it: put the mutation in a helper whose contract names nothing, observe it from a caller whose contract names the parameter it passed in, and the helper is still a NO-OP while the caller's `ensures` proves. Measured — `helper` with body `s.add(1)` called from a `caller` declaring `#@ requires 1 not in s` / `#@ ensures 1 not in s` reported *All contracts formally proven* while CPython answers False, the true twin not proving. A SECOND check now runs in the CALLER's frame: a contract-named dict/set formal PASSED AS AN ARGUMENT to any call is refused. It deliberately does NOT resolve the callee and ask whether it mutates — that needs a unit-wide map (a new field and a new declared mirror frame), and a callee that does not mutate today may tomorrow, so keying on the callee's current body would re-create the same defect one level down. Negative witness `1145`; positive control `1146` pins the exemption's legitimate shape, which the mirror's reflecting handlers rely on. | caller-visible collection-parameter frames |
+
+| `with ... as v:` (#43, route 20) | `_py_stmt_with` reads the `with` BODY and the critical-section markers and NEVER reads `stmt.items`, so the context-manager expression AND the binding both vanish and the body runs against the PRE-`with` value of the name. Measured: `v = 0; with CM() as v: return v` proved `\result == 0` while the program returns 7 (emitted body: `let v = ref 0 in v := 0; !v`). This was the `CTXBIND` residue `check-dropped-mutation.py` had reported green for windows. A BARE `with <lock>:` has no binding and IS modelled, as a critical section — the refusal keys on the `as` clause alone. Carried as the additive IR field `with_bindings` and refused in Module 6's generic emission, so `\trusted`/`\abstract` stays exempt. | a context-manager protocol model (`__enter__`/`__exit__`) |
+| `try ... except ... finally:` (#43, route 21) | `_handle_try_stmt` reads `stmt.body` and `stmt.handlers` and neither `finalbody` nor `orelse`. #33 emits the `finally` in the ONE expressible case — no handlers, no jump out of the lowered body — and the rest was counted as the `TRYFINAL` ratchet. Measured: `try: x = 2 / except ValueError: x = 9 / finally: x = 3 / return x` proved `\result == 2` while the program returns 3. The CONTROLS localise it: the same file without handlers correctly FAILS (that is #33's case working) and `try/except/else` correctly FAILS. A `try ... finally:` with no handlers is still accepted. | a `finally`-on-every-exit-path lowering |
+
+
+`bin/check-dropped-mutation.py` measures the residue of this family and ratchets it.
+
+**Note — two shapes that are NOT refused but NORMALIZED**, because a faithful rewrite
+exists: a chained comparison `a <= b <= c` becomes the conjunction Python means by it (the
+middle operand bound by a walrus when it may not be evaluated twice), and a multi-target
+assignment `a = b = v` becomes one assignment per target. Both were silently dropping their
+tail; see `frontend/desugar.py`.
+
+---
 
 ### 4.1 Pure Function Eligibility
 
@@ -2327,6 +2790,73 @@ Complete catalogue of errors raised during static analysis.
 
 **Total:** 15 error sites (1 in Module3, 14 in Module4).
 
+### Lowering refusals added by routes #308 / #309 / #310 / #311-#314 (raised in Module 6 when a body is lowered; #310's `raise` scan in `_run_pipeline`)
+
+| Code | Condition | Witnesses |
+|------|-----------|-----------|
+| `PYCSL-SEM-AUGASSIGN-R308` | `c[k] op= v` / `p.f op= v` whose container or index has an effect (a call other than `len`/`abs`, walrus, `await`, `yield`, lambda, comprehension), or — when `v` has an effect — reads anything but locals/parameters/`self`, literals and `+ - *`, or names a local a walrus in `v` rebinds. Recorded by Module 5 as `aug_target_refused` (the route #301 pattern); a `\trusted`/abstract body is never lowered, so never refused. Rule: the `c[k] = c[k] op v` desugar evaluates `c`, `k` twice and after `v`; Python evaluates them once, then the load, then `v`. | `3930`-`3936` (controls `3937`-`3939`) |
+| `PYCSL-SEM-GETATTR-DEFAULT-R309` | `getattr(o, name, D)` with `D` not a literal / name / negative number / empty collection / argument-less builtin constructor, when `o`'s class is unknown or `name` is not a literal; a walrus in `D`. For a known class `D` is sequenced before the field read (declared literal name) or IS the answer (undeclared name). | `3940`-`3946`, `3950` (controls `3947`-`3949`) |
+| `PYCSL-SEM-ERASED-EFFECT-R310` (source scan, `_run_pipeline`) and the uncoded route #310 lowering refusals (`_expr_to_whyml`, `_stmts_to_whyml`: "an effectful expression is erased here (route #310)") | A `raise` whose second / keyword argument, `from` cause or dotted / computed exception expression contains a call outside `str repr len int float bool type format hex oct bin abs isinstance chr ord`, a walrus, `await` or `yield` (Module 5 keeps only the class and first argument). An effectful tuple/list/set/dict display (route #307's verdict) whose value the lowering erases, when it cannot be evaluated at its Python position: a conditional-expression arm, or a display after a non-inert unbound operand of the same node / call statement. Every other erased effectful display is evaluated (`let _ = <display> in ...`). | `3970`, `3978` (evaluated: `3960`-`3969`, `3971`-`3977`, `3979`-`3980`; controls `3981`-`3989`) |
+| (uncoded, `_reset_function_state`: "`.<m>(..., <kw>=...)` is not modelled ... (route #314)") | A call of a method named like a `str`/`bytes`/`bytearray`/`list`/`dict`/`set`/`frozenset`/`tuple`/`int`/`float` method that no user definition shadows, with a keyword argument — except `sort` (its own in-place lowering) and a string-literal `encoding=`/`errors=` of `encode`/`decode` with at most one positional argument (rewritten to its positional slot). | `4009`-`4014` |
+| (uncoded, `_expr_to_whyml`: "an effectful expression is erased here (route #310)", extended by routes #311-#313) | Any effectful operand (route #307's predicate) — not only a display — that the lowering erases (`_coerce_to_int`, `(any_map ())`, a dropped receiver/argument) and that cannot be evaluated at its Python position (a conditional arm, after a non-inert unbound operand, or one whose call the lowering re-derived from its shape). Every other erased effectful operand is evaluated first. | (evaluated: `3990`-`4008`; controls `4015`-`4020`) |
+
+### Source refusal added by route #315 (`_run_pipeline` source scan)
+
+| Code | Condition | Witnesses |
+|------|-----------|-----------|
+| `PYCSL-R315-UNMODELLED-CONSTRUCTOR` | A non-trusted function of the main file (or a `#@ fresh_globals` module body) calls `K(...)` / `m.K(...)` where class `K` (declared in the main file or a dependency module it imports) has a constructor that is not a field initialiser (annotations.md §7.9): a call outside the total builtins / builtin exceptions / `setattr(self, ...)` / `super().__init__` / modelled constructors, a subscript read, a subscript or non-`self` attribute store, an in-place augmented store, a division/shift by a non-literal, or a `while`/`try`/`with`/`assert`/`global`/`nonlocal`/`del` of a non-`self` target. Transitive over constructors constructed in the body and over bases of a class without its own `__init__`. A base not declared in the parsed sources is assumed modelled. | `4040`-`4058`, `4063` (controls `4059`-`4062`) |
+
+### Lowering refusals added by routes #319 / #320 (`_handle_assign_stmt`)
+
+| Code | Condition | Witnesses |
+|------|-----------|-----------|
+| `PYCSL-M6-PARAM-REBIND-NESTED-BLOCK` | A formal parameter (not `self`) whose first `Assign` in source order is not a top-level statement of the body (inside `if`/`for`/`while`/`try`/`with`/`match`), and which the lowering binds with a block-scoped `let` (not a pre-declared `ref`). | `4117`-`4120` (control `4121`) |
+| `PYCSL-M6-LIST-LITERAL-REBIND-ALIASED` | A list literal assigned to an existing array local (in-place lowering) when, anywhere in the function, the local is used as a value other than an element read/store, slice, comparison, plain `return`, `for` iterable or argument of `len sum min max sorted any all list tuple set str repr print bool`; or is bound from anything but a list literal/comprehension, a tuple unpack or a `for` target; or the rebind is inside a `for` whose iterable mentions it. | `4122`-`4125` (controls `4126`, `4127`) |
+
+Route #318 (`range` stop captured once) adds no refusal; witnesses `4110`-`4114` now FAIL
+to verify, controls `4115`, `4116` PASS.
+### Frame refusals and default frames added by routes #316 / #317 (Module 6, `_emit_function_block` / `_handle_dotted_call`)
+
+`transpile` computes, for every function and method of the module, the set $W(F)$ of formal
+parameters its body may write: the root of every store target (`a[i] = v`, `a[i] op= v`,
+slice store, `del a[i]`, `a.f = v`, `a += ...` on a list) and every in-place mutator receiver
+(`append extend insert remove pop clear sort reverse add discard update setdefault popitem
+*_update __setitem__ __delitem__ __iadd__ __imul__`), mapped back through local aliasing
+(any binding whose value mentions the name: assignment, `for`, tuple unpack, walrus) to the
+parameter(s), `self` or `<global>` (a module-level object, or a store through a computed
+object) it may alias; closed by a fixpoint over calls (a tainted argument at a position the
+callee writes; a tainted receiver of a method that writes `self`; a callee that writes a
+global; a `heapq`/`random.shuffle`/`bisect.insort*`/`operator.i*`... argument mutator). A
+dotted call takes the union over every method of that name. A `\trusted` callee with an
+`#@ assigns` is taken at its declared frame.
+
+| Code | Condition | Witnesses |
+|------|-----------|-----------|
+| `PYCSL-METHOD-FRAME` | A verified method declares `#@ assigns` (including `\nothing` / only `self.<f>`) and $W$ contains a parameter the frame does not name. | `4070`, `4078` |
+| `PYCSL-METHOD-GLOBAL-WRITE` | A verified method may write a module-level object (directly or through a callee). | `4083` |
+| `PYCSL-OVERRIDE-FRAME` | An override writes a parameter position its overridden base method does not write (route #277 pairs). | `4082` |
+| `PYCSL-METHOD-ARG-UNFRAMED` | A call resolved exactly to a method that writes a parameter whose stub type is not an `array`. | `4084` |
+| `PYCSL-VAL-ARG-UNFRAMED` | A `\trusted` / imported function emitted as a bodyless `val` with no `#@ assigns` writes a non-list parameter. | `4085` |
+
+Default frames (no refusal): a method with no `#@ assigns` — its call stub carries
+`writes { x_i }` for each written list position (witnesses `4071`-`4077`, `4079`, `4081`);
+a `\trusted` / imported function with no `#@ assigns` — its `val` carries `writes { p }` for
+each written list parameter (witness `4080`; controls `4088`-`4091`).
+
+### Source refusal and fold domain added by routes #322 / #324 (`_run_pipeline` IR scan; Module 6 folds)
+
+| Code | Condition | Witnesses |
+|------|-----------|-----------|
+| `PYCSL-R322-FLOAT-MODULE-CONSTANT` | The program reads a float constant of `math` / `cmath` (`pi e tau inf nan infj nanj`, via `import m [as a]` + `a.c`, `from m import c [as n]`, `from m import *` + `c`, or `getattr(a, "c")` / `getattr(a, <non-literal>)`) or `sys.float_info`, anywhere in the IR (bodies, contracts) or in a module/class-level `=` / `: T =` / `op=` binding. | `4194`-`4198` |
+| `PYCSL-R325-OPAQUE-INT-FALLBACK` | A value with no model (a module-level name, a module / class attribute, a subscript of one, a call of an imported or builtin callable) lowered to an opaque `int`, or a value derived from one (local, component, container, return, parameter, method receiver), is used as an integer: an int operator or ordering, an argument of a modelled function, a contract term, or a reflexive comparison (route #325, annotations.md §7.15; decided on the emitted WhyML in `_run_pipeline`). Known-int values (int module/class bindings, `sys.maxsize`, `len`/`id`/`random.randint`, a user `-> int` function) are exempt. Routes #328 / #330 / #331 (annotations.md §7.18): every module/class-level binding form at any nesting, tuple unpacking, arm/loop-scoped emitter binders, instance fields shown non-int (a None / Optional field keeps `==`), string-encoding model results (`repr`, `f"{n}"`; `==` kept), a `complex` annotation (refused outright), and under `--strict-bare-containers` the elements of a bare-container parameter. | `4230`-`4263`, `4330`-`4353` |
+
+Fold domain (no refusal): the emission-time folds of `abs(<lit>)`, `sum([<lits>])`, `sum(<known
+local>)`, the known-element maps of list/dict literals, and NamedTuple / `__init__` annotated /
+dataclass int defaults apply to INT literals only (a non-integral float default is no default:
+NamedTuple -> required argument, dataclass -> UNKNOWN field). Witnesses `4190`-`4193`, `4199`;
+controls `4203`-`4207`. Contract-side string slices (route #324) are a translation rule, not
+a refusal (§T.6.25; witnesses `4200`-`4202`, controls `4208`-`4211`).
+
 ---
 
 ## 10. Gap Analysis
@@ -2514,6 +3044,169 @@ trusted computing base reduces to:
 
 This is a strictly smaller TCB than blanket trust in hand-curated contracts. See
 `config/skills/pycsl-stdlib-coverage/SKILL.md` for the model-building discipline.
+
+**MEASURED (#49, gen #30), because the sentence above is a checkable claim.**
+`bin/check-stdlib-modules-verify.py` compiles every module under `src/pycsl_lib/` with
+`--import-path src` and records the verdict: **84 of 104 verify; 20 do not.** Thirteen are
+REFUSED outright — the whole `json` package, which is a near-verbatim CPython transcription
+(four of its files carry ZERO `#@` annotations) and trips route #119's constant-rebinding
+guard — five leave a goal unproven, and two exceed a seven-minute budget. **The `os`
+filesystem model this appendix names as its example is among them**: `os/path.py` leaves
+`basename`'s postcondition unproven, and `os/__init__.py` does not finish in ten minutes.
+The set is baselined by name in that plane, so it can only shrink.
+
+**AND "84 VERIFY" IS ITSELF WORTH LESS THAN IT READS.** Nine of the 84 carry NO
+`#@ ensures` at all, and seven carry no `#@` annotation whatever — they return
+"Verification SUCCESS" because the emitter produced no goal for the prover to discharge.
+`htm.escape(s) -> s` under `#@ assigns \nothing` is the shape: real `html.escape('<')` is
+`'&lt;'`, the model returns the string unchanged, and it promises nothing about it, so it
+verifies truthfully and the verification is worth nothing. **The honest figure for "the
+library's own machine-checked proofs" is 76 modules with a postcondition to discharge, not
+84** — measured after the three-way split, and after `htm` was given a true length law. That count is DERIVED from the source on every run of the plane (not a name list) and
+ratcheted downward, so a module that gains a postcondition leaves the class by itself.
+
+The nine split in THREE, and the split took two attempts — the first was made from a static
+scan and put two innocent modules in the informative class, because `fut` and `world` have
+a `def` whose only member is `__init__`, which returns None and can carry no `\result`
+claim. The discriminator is a VALUE-RETURNING function. **Eight have none** —
+`kw` is a constant keyword list, `re` a re-export shim, `types_stub` three empty classes,
+`fut` a `_Feature` constant, `world` an aggregate with only a constructor — so they verify
+with no postcondition because there is nothing to claim, which is innocent. **Two had
+value-returning functions and promised nothing**: `htm`
+(`escape`/`unescape`, each `return s` under `#@ assigns \nothing`) and `udata` (`lookup`
+returns the NAME its docstring says it converts to a character). `htm` was given a true
+length law — `\str_length(\result) >= \str_length(s)` for `escape` and `<=` for
+`unescape`, both measured against CPython over 4000 random strings with zero
+counterexamples — and `udata.lookup` has no honest claim available (`\str_length(\result)
+== 1` is true of CPython and false of the model), so its divergence is named in the module.
+The ratchet is on the INFORMATIVE half.
+
+**AND THE CONSUMER'S SIDE OF IT IS AN ASSUMPTION, NOT A CHECK.** An importing program
+believes every contract of an imported module — frames, postconditions, class invariants —
+and nothing verifies that the module was ever verified (route #212: an owner declaring
+`assigns \nothing` over a body that writes `a[0]` FAILS compiled alone while its importer
+PROVES `x - a[0] == 0`, where CPython answers -4). `--verify-imports` (OFF by default)
+discharges that assumption the only way it can be discharged — by verifying each resolved
+import, transitively, with a cycle-safe seen-set — and refuses with
+`PYCSL-SEM-IMPORT-UNVERIFIED` naming the module that failed. It is opt-in because "verify
+the dependency standalone" is not always well-defined: measured over the corpus's own 30
+local dependencies, two fail for CONTEXT reasons while their importers pass, one of them
+because a contract names a constant that only resolves inside the importing compilation.
+
+**THE RESOLVED FILE MUST BE THE MODULE CPython RUNS (route #326).** Resolution is static:
+roots script-dir, cwd, `src/`, `--import-path`; package before module in each root. A local
+file shadowing a standard-library/built-in module name is refused unless byte-identical to
+the interpreter's own source (`PYCSL-SEM-IMPORT-SHADOWS-STDLIB`); a program (or the top level
+of a resolved dependency) that edits `sys.path` / `sys.modules` / `sys.meta_path` /
+`sys.path_hooks` / `sys.path_importer_cache` other than by a pure read or the idempotent
+script-directory insert, or that uses dynamic-import machinery beside a locally-resolved
+import, is refused (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`). annotations.md §7.16, §T.6.27.
+
+### C.1 Declared model assumptions (routes #250, #253, #256, #276, #282, #298)
+
+Five facts the proofs over builtin-typed values, strings, mutable fields and mutable parameters rest on are **assumed, not proved**, and no
+VC states them and no emitted `assume`/`axiom` carries them — they are properties of the type
+mapping $\tau$ itself. They are the same class as the reviewed HASH-EQ-CONSISTENCY assumption
+(`bin/check-assumed-facts.py`), but with no emitted text a plane could classify, so they are
+SURFACED instead: `pycsl --soundness-report` lists each one under "declared model assumptions"
+(JSON key `model_assumptions`) whenever the program relies on it, with the function, operator and
+values involved. The listing is conservative (over-, never under-reported).
+
+| Assumption | Statement | Reported when | Counterexample (corpus) | Strict mode |
+|---|---|---|---|---|
+| **FLOAT-FINITE** | every `float` value is finite and non-NaN | a comparison (`< <= > >= == !=`) or `min`/`max` whose operand mentions a float literal or a float-typed variable, field or `\result` | `x: float` with `ensures x == x` / `x <= x` / (`requires x != y`, `ensures x < y or y < x`) PROVE (2500-2502); CPython refutes all three for `x = float("nan")` | `--strict-float-finite` (2503-2505 FAIL; controls 2507 PASS) |
+| **BUILTIN-EXACT** | a value whose static type is a builtin (`int`/`float`/`str`/`bool`/`bytes`/`tuple`/`list`/`dict`/`set`/`frozenset`) is an EXACT instance of it — not a subclass overriding a dunder | any operator (an IR node with an `op`: arithmetic, comparison, unary, augmented assignment) reading a builtin-typed variable, field or `\result` | `def f(x: int): return x - x` PROVES `\result == 0` (2506); CPython returns 7 for `f(I(5))`, `class I(int): __sub__ -> 7` | none — dropping it would leave no builtin arithmetic at all |
+| **LATIN1-STR** | every `str` value consists of code points 0..255: `ord(c) < 256`, and `chr(n)` is modelled only for `0 <= n < 256` (τ(str) is the Why3 `string` of `string.Char`, whose `axiom code` bounds every code by 256) | every `ord`/`chr` call, body or contract (they rely on it DIRECTLY: the `< 256` bound, the `chr` round trip below 256, every cited codec lemma over `Char.code`), and every function reading a str value at all (a str-typed variable, field or `\result`, or a string literal), since the str sort itself is the 8-bit string | `requires len(s) == 1 ensures \result < 256` over `return ord(s)` (3020), `ensures \result != 300` over `return ord(chr(300))` (3021), the contract form `ensures ord(s) < 256` (3022) and `ord(s[0]) < 256` (3023) PROVE; CPython gives 8364 for `"€"` and 300 | `--strict-latin1` (3024-3027 FAIL; controls 3028 default / 3029 strict PASS) |
+| **BARE-CONTAINER-INT** | an element of a parameter annotated with a BARE container (`list`, `List`, `tuple`, `Tuple`, `set`, `Set`, `dict`, `Dict` — no element type; since route #336 a bare `Sequence` / `Iterable` / `Mapping` parameter is erased instead, §7.23), or a VALUE of a bare `dict` / `Dict` / `Mapping` (route #334, 4443 / strict 4427), is an `int`: τ(`list`) = `array int`, τ(`List`) = an `int` read by `subscript_get` | every function with such a parameter | `def g(xs: List): return xs[0] % 1 == 0` (4363) and `def g(xs: list): return xs[0] * 0 == 0` (4364) PROVE `\result == True`; CPython gives False for `[0.5]` / `["a"]` | `--strict-bare-containers` (4348-4349 REFUSED, PYCSL-R325-OPAQUE-INT-FALLBACK; control 4359 PASS) |
+| **HVAL-STR-KEYS** | every dict NESTED inside a `PyVal` value (`Dict[str, PyVal]`, the `hval` model) has `str` keys: the annotation constrains only the top-level keys, but τ keys every nested dict by `string` (`HMap` over `hpairs`), so a key read off a nested dict — the `.items()` key (`hval_keys_get`, symbol-typed `str`) and the bare-loop `HMap` arm (`HStr (hval_keys_get ..)`) — is a `str` | every loop (statement or comprehension) of a function holding an `Any`/`PyVal`-typed value whose iterable is an `.items()`/`.keys()` view or a bare iteration of a value that is not a declared parameter/field (a local, a subscript, a `.get` read); a list carrier is reported too | `xs = d["xs"]; for k, v in xs.items(): return isinstance(k, str)` (3550), `not isinstance(k, int)` (3551), `d.get("xs", {}).items()` (3552) and a nested loop target `for row in d["rows"]: for k, v in row.items()` (3553) PROVE `\result == True`; CPython gives False for `{"xs": {1: 2}}` | `--strict-hval-keys` (3554-3557 FAIL; controls 3558 strict PASS) |
+| **CLASS-EXACT** | a value whose static type is a USER class is an exact instance of it: a method call is verified against that class's method contract and no subclass override's refinement of it is checked | ONLY under `--assume-class-exact` (the default CHECKS the refinement, route #277): every override pair of the unit, and every method call whose method name is a method of a class of the unit | `use(a: A)` claims `\result == 1` over `a.m()` with `B(A).m` returning 2 (3100; across modules 3101): PROVED before route #277, FAILS by default now; 3102 PROVES under the flag | the DEFAULT (drop `--assume-class-exact`) |
+| **FIELD-DISJOINT** | two distinct mutable fields (`list`/`dict`/`set`/record-valued — of one record, or the same field of two record values) hold distinct objects, so a mutation through one is invisible through the other: the ownership discipline's rule R1 (`docs/pycsl-ownership-discipline.md` §2), stated for the residue no check sees | a function that mutates a mutable field in place (subscript store/`del`, a mutator method call, an augmented assignment, a nested field store) and also reads or mutates ANOTHER mutable field (field types matched by name) | `T.poke` (`assigns self.xs`) writes `self.xs[0] = 7` and returns `self.ys[0]` under `requires self.ys[0] == 0`; `ensures \result == 0` PROVES (2570); CPython returns 7 for `L = [0]; T(L, L).poke()`. A VERIFIED caller that builds the alias is refused (R167, routes #243/#244/#254); the residue is an alias built in unverified code | none — every list/dict/set field frame rests on it |
+| **PARAM-DISJOINT** | two distinct mutable HANDLES — parameters (`list`/`dict`/`set`/record-valued, or unannotated), the receiver `self`, and module-level names a function reads — hold distinct objects, and distinct ELEMENTS of a container parameter (`List[List[int]]`) hold distinct objects, so a mutation through one is invisible through the other: rule R1 (`docs/pycsl-ownership-discipline.md` §2) for parameters and elements, FIELD-DISJOINT's twin (route #282) | a function that WRITES through one handle (subscript store/`del`, field store, augmented assignment, any method call on it, passing it to a non-builtin call, an `assigns` location rooted at it) and also reads or writes ANOTHER handle; and a function that writes an ELEMENT of a container handle (`xss[i][j] = ...`). Handle types are not matched; a parameter is a handle unless its annotation names only `int`/`float`/`str`/`bool`/`bytes`/`complex`/`None` (and `tuple`/`frozenset`/`Optional` of those) | `f(xs, ys)` with `assigns xs[0]` proves `ys[0] == \old(ys[0])` (3180; CPython `a = [1]; f(a, a)`), two record params (3181), `xss[0][0] = 9` keeps `xss[1][0]` (3182; `[r, r]`), two dicts (3183), `self` and a param (3184), a param and `self.ys` (3185), a param and a `List[List[int]]` (3186), forwarded through `h(p, q)` (3188). A VERIFIED caller that builds the alias is refused (route #254) or fails closed (Why3 "illegal alias", the matrix/array split, an ill-typed self-call) — controls 3189-3196 | none — every list/dict/set/record parameter frame rests on it |
+
+**What `--strict-float-finite` covers.** A NaN SENTINEL is modelled as the non-dyadic real
+`1/3` (`let constant pycsl_float_nan : real = 1.0 /. 3.0`, a definition — no axiom): every
+finite binary64 value is dyadic and every PyCSL float literal a finite decimal, so neither is
+the sentinel, while a parameter, field, element, call result or uninterpreted float-op result
+MAY be. Every float comparison and `==` becomes the real comparison CONJOINED with "neither
+operand is the sentinel" (`!=` its negation), in the spec path and the body path alike. Float-ness
+is read widely under the flag: a float literal/variable, `\result` of a `-> float` function, a
+`List[float]` element, a `float` field, a `-> float` call, `/`, and arithmetic over those.
+**Cost** (measured over the 36 pre-existing root corpus files that mention `float`): five PASS files FAIL under
+the flag — 0818 (`\result == a[i]`), 0847, 1120 (`\result == x + x`), which are FALSE in
+CPython for a NaN input, and 0517 (`requires x >= 0.0 ensures \result == x + x`) and 1124
+(`\result == a / b`), which are TRUE but lost because the uninterpreted float op might be the
+sentinel. Hence opt-in. **Not covered** (residuals of the strict mode): ±inf (`inf - inf` is
+NaN; `inf == inf` holds, so it only matters through arithmetic, which is uninterpreted
+anyway); signed zero (`0.0 == -0.0` then `math.copysign`); comparisons that do not go
+through the binary-operator lowering (a future float `min`/`max` lowering must be guarded too —
+`max(nan, 1.0)` is `nan`; today `max(x, y)` on floats lowers to the INT `MinMax.max` and fails
+closed with a type error in both modes); there is no spec-level `math.isnan`/`math.isfinite`, so the only non-NaN
+precondition a user can write is a comparison such as `x == x` or `x >= 0.0`.
+
+**What the default override check covers (routes #277/#278).** Override PAIRS are computed over
+the C3 MRO of every class S: the provider P of a method name t is the first class of S's MRO that
+defines or binds t, and every later class X of that MRO which defines t is overridden by P — so
+a mixin-supplied method (`class B(M, A): pass`), a provider two bases away, and a fieldless chain
+(`C(B(A))` with `B` empty) are paired like a method defined in S (constructors excluded). A
+CLASS-BODY binding provider (`m = lambda self: 2`) has no contract and is refused
+(`PYCSL-SUBTYPING-PAIR`). For each pair Module 6 emits `goal p__t_refines_x : forall … .
+((pre_X -> pre_P) /\ (post_P -> post_X)) /\ ⋀ ((pre_X /\ cond_P(E)) -> ⋁ cond_X(E'))` — the last
+conjunct over P's declared `raises E when cond_P(E)` and X's clauses for E or an ancestor E' —
+and `_run_pipeline` refuses (`PYCSL-SEM-OVERRIDE-REFINEMENT`) an override that: (R1) may let
+escape (an undeclared escaping `raise`, a declared one, or route #272's hidden set) an exception
+X does not declare, or X's `no_exception` excludes, or raises one undeclared where X declares it
+only under a condition; (R2) drops X's `no_exception` claim; (R3) assigns a location X's
+declared `assigns` does not name — except a location rooted at a `self` field class X does not
+have, which no X-typed receiver can observe; (R4) takes fewer positional parameters than X, or
+moves one X's contract mentions; (R5, route #338) has a return annotation that is not a
+subtype of X's (`bool` <: `int`, a class <: its ancestors, members of `Union`/`Optional` each
+covered, `Any`/`object` cover all, `int` NOT <: `float`, absent = `Any`) or a parameter annotation
+that is not a supertype of X's at the same position. `--assume-class-exact` turns all of this off (CLASS-EXACT);
+`#@ conforms_to` pairs are checked in both modes (route #224). Cost of the default (measured,
+gen #37): 11 of 1792 + 2186 corpus files gain goals; 0445 (the negative case, now expected FAIL),
+1348 and python-reference 0206 (each a genuine Liskov violation of its program, now run with
+`--assume-class-exact`) flip PASS -> FAIL; 1343/1344 (expected FAIL) are refused; in the 53
+mirror files 25 goals (all `true -> true`) and one cross-mixin stub frame
+(`statements.py::_expr_to_whyml`, missing four fields its provider writes) widened.
+
+**What `--strict-hval-keys` covers.** The key of a NESTED dict binds the UNINTERPRETED
+`val function hval_keys_hget (m: map string (option hval)) (i: int) : hval` (no spec, no axiom):
+the `.items()` key over an `hval` local/param read is a pyval local bound to `hval_keys_hget
+(hval_as_map xs) !i` (never symbol-typed `str`), and the bare loop's `HMap` arm binds the same
+term instead of `HStr (hval_keys_get ..)`. Every key-typed observation then reads an unknown
+carrier: `isinstance(k, str)` is the `HStr` discriminant of an unknown `hval`, a comparison
+with an int is the `HInt` arm, and a string operation (`k + "x"`, `type(k)`, an f-string of
+`k`) does not type-check (fail-closed). A `.items()` over a declared `Dict[str, PyVal]`
+self-field keeps its `str` key (its keys are the annotated top level); a read by a `str`
+needle (`m.get("a")`, `"a" in m`) is unchanged in both modes (a `str` needle matches only a
+`str` key). Measured cost (route #298): the faithful key cannot flow into a `str` sink
+without a new pyval-to-str coercion, so 3 self-annotation mirrors (`expressions`,
+`stmt_control_flow`, `functions`: 7 loops, 13 key sinks in 5 methods) fail L3-tc under the
+flag; the corpus loses the r296 control 3497 (literal holder `{"m": {"a": 1}}`, PASS ->
+FAIL). The default is byte-identical.
+
+**What `--strict-latin1` covers.** `ord` reads an UNINTERPRETED code point instead of
+`Char.code`: `function pycsl_cp (s: string) (i: int) : int = let r = pycsl_cp_raw s i in if 0 <=
+r <= 1114111 then r else 0` (`pycsl_cp_raw` uninterpreted; a definition, no axiom), so its range is
+exactly [0, 0x10FFFF] and nothing ties it to the 8-bit `Char.code`. `ord(s[i])` is `pycsl_cp s i`,
+`ord(x)` is `pycsl_cp x 0`, in the contract path (the logic function) and the body path (vals
+`pycsl_vord_at`/`pycsl_vord_op` whose `ensures` is the same atom) alike; `chr(n)` is the
+uninterpreted `pycsl_chr n` in a contract and, in a body, a val `pycsl_vchr_op` ensuring length 1,
+`result = pycsl_chr n` and `0 <= n < 0x110000 -> pycsl_cp result 0 = n` (its ValueError row is
+unchanged). A one-character ASCII string LITERAL's `ord` folds to its code point. Under the flag
+3024-3027 FAIL and the controls 3029 (range, congruence, body/contract agreement, `len(chr(65)) ==
+1`, `ord("a") == 97`, and the full-range round trip `ord(chr(n)) == n`, which the default model
+cannot prove) PROVE. **Cost** (measured over the 22 pre-existing root corpus files mentioning
+`ord`/`chr`): see route #276's resolution — the codec proofs that feed `ord(name[i])` into a cited
+lemma stated over `Char.code` (0708, 0712, ...) stop proving. Hence opt-in. **Not covered**
+(residuals of the strict mode): the str SORT stays the 8-bit Why3 string, so string `==`, `len`,
+slicing and concatenation are still those of a string of 8-bit chars — a pigeonhole argument over
+more than 256 distinct one-character values (each with a distinct code point) is derivable in
+principle (not by the provers in practice); a non-ASCII string LITERAL is emitted as its UTF-8
+bytes in both modes (its `ord` is refused by route #69); only a sequence-of-code-points str sort
+closes these. Under `no_exception`, `ord(s)` with `len(s) != 1` raises `TypeError`, which is
+OUTSIDE the `no_exception` universe (`KNOWN_EXCEPTIONS`: ZeroDivisionError, IndexError, KeyError,
+ValueError, StopIteration) — by scope, in both modes, no `len(s) == 1` obligation is owed.
 
 ---
 

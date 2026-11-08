@@ -1,0 +1,3 @@
+[*] getattr-erasure: 56 fall-through site(s) over 144 file(s) — DECLARED 0 · ABSENT 13 · UNKNOWN 43
+[-] getattr-erasure: test-suite/corpus/pycsl-reference/5681_gen37_r396_ctl_gd_absent_in_subclass_closure.py has 1 ABSENT / 0 UNKNOWN site(s) and NO row in bin/getattr-erasure-sites.tsv. Register it deliberately (--emit-baseline, then read the diff) — a new witness is a decision, not a number to bump.
+rc=1

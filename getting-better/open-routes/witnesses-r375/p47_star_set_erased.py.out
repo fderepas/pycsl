@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt28/p47_star_set_erased.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_j94dfeiy.mlw", line 22, characters 8-9: unused variable s
+Warning, file "/tmp/.pycsl_j94dfeiy.mlw", line 20, characters 12-16: unused variable self
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

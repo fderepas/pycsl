@@ -43,6 +43,62 @@ to its own skill makes the contract auditable.
 | `1 << n`, `1 >> n` | `BinOp("<<"\|">>", a, n)` | `ValueError` | `non_neg_shift n` (i.e. `n >= 0`) |
 | `s.index(x)` | `AttrCall(s, "index", [x])` | `ValueError` | placeholder `true` (deferred: `mem x s`) |
 | `next(it)` | `Call("next", [it])` | `StopIteration` | placeholder `true` (deferred: iterator model) |
+| `str(x)` / `repr(x)` / `print(x)` / `f"{x}"` / `"%d" % x`, `x` an int | `("call", "int_str")` at each decimal conversion site | `ValueError` | `-10**4300 < x < 10**4300` (CPython 3.11+ 4300-digit limit, route #281; asserted on the operand). An f-string part with a literal spec owes it when the spec's presentation type is none/`d`/`n` (`:d`, `:5`, `:05d`, `:n`, `:,`, `:>10`) or a `!s`/`!r`/`!a` conversion is present (route #284) |
+| `f"{v:spec}"` with a spec INVALID for `v`'s type (`f"{x:s}"`, `f"{x:.2}"` on an int, `f"{s:d}"` on a str), a COMPUTED spec `f"{x:{w}}"`, `"%q" % x` (any `%` format CPython's `%` rejects, or a non-literal format) | `("call", "format_spec")` | `ValueError` | `false` — validity of a literal spec/format is decided at emit time by CPython's own `format()` / `%` on a sample of the operand's type (value-independent for int and str; an operand not shown to be an int must satisfy both int and str); invalid or undecidable owes `false` (route #284) |
+
+**Comprehension census (route #285).** A comprehension / generator expression is lowered as an
+opaque value, so none of the rows above is injected for its element, key, value, condition or
+iterable. `exception_model.TRIGGER_EXPR_SHAPES` records, for EVERY `TRIGGERS` row, the expression
+shapes that reach it (`("BinOp", op)`, `("Subscript", "")`, `("Call", name)`, `("Method", name)`,
+`("FString", "")`, `("FormattedValue", "")`; an empty list = statement-only: element store,
+`del`). Under an active `no_exception`, `_reset_function_state` refuses a comprehension containing
+a shape of a row whose exception is active, and a `TRIGGERS` row with NO census entry refuses every
+comprehension under its exceptions — so a row added later is fail-closed until it is censused.
+**Adding a row therefore also means adding its `TRIGGER_EXPR_SHAPES` entry.**
+
+**Site census (route #506).** The rows are injected by the operation's expression HANDLER
+(`_handle_binop` / `_handle_subscript` / `_handle_call_expr` / `_handle_fstring_expr`), so an
+enclosing expression the emitter models by size or truth only (a set / tuple / starred display,
+`len(<display>)`, `isinstance(...)`, an `assert` test under a named claim) silently dropped them —
+and, in an un-claimed body, dropped the raising `pycsl_div` / bounds VC a caller's handler relies on.
+`pycsl._run_pipeline` observes those handlers during `transpile()` and refuses
+(`PYCSL-R506-TRIGGER-SITE-UNLOWERED`) any `TRIGGER_EXPR_SHAPES` site of a verified body whose
+exception is claimed (declared / reached) or catchable in the file (a handler that catches it, a
+bare / unknown handler, `finally`, `with`) and whose lowered text is absent from the def's emitted
+block. The same table drives it: **a new row's shapes are censused there too.**
+
+**OverflowError sites of `\all` (routes #507 / #508 / #509).** The OverflowError obligations that
+`no_exception \all` alone carries are NOT `TRIGGERS` rows: route #414 (`s * n`, `[x] * n`,
+`len(range(..))`) and route #417 (`list` / `sorted(range(..))`, `float(<int>)`) are inline asserts
+in `_handle_binop` / `_handle_call_expr`. Right after #506's census, `_run_pipeline` reads every
+operand of a `\all` body (declared or reached) at a numeric kind (small int literal / int / float /
+non-number / unknown: IR symbol table + SOURCE annotations + comprehension targets + single-kind
+locals) and refuses: an arithmetic op mixing a float with an int / unknown operand, anywhere
+(`PYCSL-R508-INT-FLOAT-PROMOTION-UNMODELLED`: the int -> float conversion owes |n| <= DBL_MAX and
+has no lowering); such a site inside a comprehension / generator / lambda
+(`PYCSL-R509-COMPREHENSION-OVERFLOW-SITE`); elsewhere, a site whose handler text (or #417 tag) is
+absent from the def's block (`PYCSL-R507-OVERFLOW-SITE-UNLOWERED`). **A new `\all`-only obligation
+attached inline by a handler needs its site shape added to that table too.**
+
+**Refuse by default (routes #512-#516).** That table reads values, not spellings: a
+`len` / `list` / `sorted` / `bytes` of ANY value that may be a range (bound to a name, through a walrus /
+if-expression / container element, a `Sequence` / `Iterable` / undeclared parameter) and a `*`
+unpacking of one are sites; `bytes(x)` / `bytearray(x)` (count or list) are sites; a repetition /
+range-length / byte-count site is credited only by a lowering that STATES the Py_ssize_t bound. Kinds
+come from the TOP-LEVEL type arguments (a mapping iterates its keys), the receiver's class (method
+results, fields) and imported user modules; an operand of unknown kind that is OPAQUE (a call / field /
+loop-target / unpacked value) beside an int or another unknown is refused like a float (R508); an
+immediately-invoked lambda under `\all` is `PYCSL-R515-IMMEDIATELY-INVOKED-LAMBDA`; route #315 no longer
+counts `bytes(x)` / `len(range(<non-literal>))` as total in a constructor. annotations §7.512.
+
+**Split pieces and None operands (routes #527 / #528, run #4).** `<str>.split(sep)[i]` never
+materialises its list, so `_handle_subscript`'s split arm asserts the index itself in EVERY body (the
+polarity of a Why3 array read): `i = 0 \/ i = -1` for a non-empty literal separator, plus `(i = 1 \/
+i = -2) /\ <sep occurs in s>` (no maxsplit or a literal one >= 1), `false` for any other separator; a
+literal `[0]` / `[-1]` keeps its lowering. Under a TypeError claim, a value-read operand whose derived
+classes hold `None` (an `Optional[str]` field read as a plain string) of an arithmetic / ordering / `in`
+haystack / subscript / iteration site is judged by route #432's flow narrowing
+(`PYCSL-R527-OPTIONAL-OPERAND`). annotations §7.527 / §7.528.
 
 The authoritative encoding lives in `src/pycsl/exception_model.py` —
 `KNOWN_EXCEPTIONS`, `TRIGGERS`, `PREDICATE_LIBRARY`. **Do not duplicate
@@ -118,6 +174,30 @@ callees flow as follows:
 
 The strict flag is **off by default** — preserving backward
 compatibility for unannotated corpora.
+
+"Ambient" covers IMPLICIT exceptions only. An EXPLICIT `raise` the
+callee does not declare is refused at a `no_exception` caller when the
+call cannot see it (route #272, `PYCSL-SEM-UNDECLARED-CALLEE-RAISE`,
+inline in `pycsl._run_pipeline`): method calls lower to a stub carrying
+declared `raises` only (and only for `self.`/class-bound variable
+receivers — not `C.m()` / `C().m()`), and the hidden set propagates
+transitively through methods and module functions.
+
+The function's OWN explicit `raise` is not ambient either (route #304):
+an escaping `raise E` covered by the function's declared `no_exception`
+(`\all`: any class; named: the class or an ancestor, user class bases
+included) is a reachability obligation at the raise (`try ... with E ->
+assert false; absurd`), never an inferred `raises { E }` on its own `let`.
+Corpus 3720-3732 (FAIL), 3733 (controls).
+
+Exception classes are identified by NAME (the WhyML tag is the bare name and
+`handler_catches` reads `EXCEPTION_BASES` by name), so a program may not BIND
+a builtin exception name itself (route #305): a user `class KeyError(Exception)`
+(any depth), or a def / import / assignment / parameter / `except ... as`
+binding of a name in `EXCEPTION_BASES ∪ KNOWN_EXCEPTIONS ∪ {EnvironmentError,
+IOError}`, in the main file or an imported module, is refused
+(`PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED`). Corpus 3780-3786 (refused),
+3787-3789 (controls).
 
 ## Test-corpus cross-references
 

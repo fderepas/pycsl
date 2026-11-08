@@ -1,0 +1,6 @@
+[!]   MOVED frontend__Module3_Weaver.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend__Module3_Weaver.
+[!]   MOVED frontend__pure_ast.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend__pure_ast.
+[!]   MOVED pycsl.mlw — if that is an intended SOURCE repair, pass --expect-moved pycsl.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 3 MOVED (3 unexpected), 0 GONE (0 unexpected), 0 APPEARED.
+rc=1

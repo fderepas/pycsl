@@ -1,0 +1,24 @@
+NO-LIVE-SOURCE       StatementEmissionMixin._add_abstract_op  
+NO-LIVE-SOURCE       StatementEmissionMixin._resolve_dotted_signature  
+NO-LIVE-SOURCE       StatementEmissionMixin._is_emit_ir_expr  
+NO-LIVE-SOURCE       StatementEmissionMixin._coerce_to_int  
+NO-LIVE-SOURCE       StatementEmissionMixin._expr_to_whyml  
+NO-LIVE-SOURCE       StatementEmissionMixin._expr_to_whyml_string_ctx  
+NO-LIVE-SOURCE       StatementEmissionMixin._is_string_expr  
+NO-LIVE-SOURCE       StatementEmissionMixin._track_collection_metadata  
+NO-LIVE-SOURCE       StatementEmissionMixin._e  
+NO-LIVE-SOURCE       StatementEmissionMixin._maybe_emit_no_exception_assert  
+NO-LIVE-SOURCE       StatementEmissionMixin._mutex_inv_application  
+NO-LIVE-SOURCE       StatementEmissionMixin._handle_return_stmt  
+L3TC-FAIL            StatementEmissionMixin._emit_first_assign  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            StatementEmissionMixin._handle_assign_stmt  ["`_stack81.pop(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause, so the mutation would be SILENTLY ABSENT from the model while the run still reported 'All contracts formally proven' — the method would satisfy `#@ assigns \\nothing`, satisfy its emitted frame-preservation `ensures`, and re-establish the class invariant. Rewrite the mutation as an indexed store (`_stack81[i] = v`), or mark the enclosing function `#@ \\trusted`."]
+L3TC-FAIL            StatementEmissionMixin._seq_init_expr  ['This expression has type int -> option.Option.option int, but is expected to have type int']
+L3TC-FAIL            StatementEmissionMixin._handle_ghost_assign_stmt  ['This expression has type array.Array.array PyCSL_Program.emit_ir @rho, but is expected to have type int']
+L3TC-FAIL            StatementEmissionMixin._handle_tuple_unpack_stmt  ['This expression has type PyCSL_Program.emit_ir, but is expected to have type int']
+L3TC-FAIL            StatementEmissionMixin._handle_array_set_stmt  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            StatementEmissionMixin._handle_augassign_stmt  ['This expression has type array.Array.array int @rho, but is expected to have type int']
+L3TC-FAIL            StatementEmissionMixin._handle_expr_stmt  ["call to 'to_dict' passes 0 positional argument(s) but parameter 'node' has no default (arity 1)."]
+L3TC-FAIL            StatementEmissionMixin._stmts_to_whyml  ["`_a84_stack.pop(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause, so the mutation would be SILENTLY ABSENT from the model while the run still reported 'All contracts formally proven' — the method would satisfy `#@ assigns \\nothing`, satisfy its emitted frame-preservation `ensures`, and re-establish the class invariant. Rewrite the mutation as an indexed store (`_a84_stack[i] = v`), or mark the enclosing function `#@ \\trusted`."]
+L3TC-FAIL            StatementEmissionMixin._emit_frame_condition  ["This expression has type seq.Seq.seq 'mu, but is expected to have type int"]
+L3TC-FAIL            StatementEmissionMixin._typed_local_vars  ["nested function 'statementemissionmixin___acnt' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads _acounts, _firstv from an enclosing function. A lifted body reads a captured name as ONE global opaque constant shared by every call, and two lifted helpers with the same name collapse to one. Pass the captured values as parameters and give the helper a unique name, or move it to module level."]
+L3TC-FAIL            StatementEmissionMixin._emit_body_code  ["`_lrb_stack.pop(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause, so the mutation would be SILENTLY ABSENT from the model while the run still reported 'All contracts formally proven' — the method would satisfy `#@ assigns \\nothing`, satisfy its emitted frame-preservation `ensures`, and re-establish the class invariant. Rewrite the mutation as an indexed store (`_lrb_stack[i] = v`), or mark the enclosing function `#@ \\trusted`."]

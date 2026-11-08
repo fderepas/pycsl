@@ -1,0 +1,974 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use seq.Seq
+  use map.Map
+  use map.Const
+  use option.Option
+  use array.Array
+  use list.List
+  use bool.Bool
+
+  exception PyCSL_Continue
+
+  exception Return int
+
+  exception Return_opttuple_int_int (option (int, int))
+  exception PyCSLSemanticError
+
+  (* ==== wall-plan v2: concrete-map universal-value theory (inert unless routed) ==== *)
+  (* D2 / R-B — interned IR keys: key (dis)equality is constructor reasoning, *)
+  (* zero string theory in any walker VC. `K_dyn s` is the computed-key fallback. *)
+  type irkey =
+    | K_type | K_left | K_right | K_op | K_z
+    | K_value | K_target | K_body | K_orelse | K_func | K_name
+    | K_dyn string
+
+  (* D1 / R-A — the strictly-positive concrete universal value (no arrow / no map *)
+  (* in any constructor); `pydict` is a bespoke assoc-list keyed by irkey. *)
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict pydict
+  with pydict =
+    | DNil
+    | DCons irkey pyval pydict
+
+  let function is_pdict (v: pyval) : bool = match v with PDict _ -> true | _ -> false end
+  let function is_plist (v: pyval) : bool = match v with PList _ -> true | _ -> false end
+  let function is_pstr  (v: pyval) : bool = match v with PStr  _ -> true | _ -> false end
+
+  (* get / mem_key : structural over the dict; key test is constructor (dis)equality. *)
+  function get (d: pydict) (k: irkey) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons k' v rest -> if k = k' then Some v else get rest k
+    end
+
+  predicate mem_key (d: pydict) (k: irkey)
+  = match d with
+    | DNil -> false
+    | DCons k' _ rest -> k = k' \/ mem_key rest k
+    end
+
+  function values (d: pydict) : list pyval
+  = match d with
+    | DNil -> Nil
+    | DCons _ v rest -> Cons v (values rest)
+    end
+
+  (* D3 — size measure: +1 per cons cell (list AND dict), so the HEAD recursion *)
+  (* strictly decreases even for a singleton (the spike's crux fix). *)
+  function pv_size (v: pyval) : int
+  = match v with
+    | PInt _ | PStr _ | PBool _ | PNone -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict d  -> 1 + size_dict d
+    end
+  with size_list (l: list pyval) : int
+  = match l with Nil -> 0 | Cons h t -> 1 + pv_size h + size_list t end
+  with size_dict (d: pydict) : int
+  = match d with DNil -> 0 | DCons _ v rest -> 1 + pv_size v + size_dict rest end
+
+  (* R-C — the PROVEN lemma pack (`let rec lemma`: the recursion IS the induction). *)
+  let rec lemma size_pos (v: pyval) : unit
+    ensures { pv_size v > 0 } variant { v }
+  = match v with
+    | PList xs -> size_list_nonneg xs
+    | PDict d  -> size_dict_nonneg d
+    | _ -> () end
+  with lemma size_list_nonneg (l: list pyval) : unit
+    ensures { size_list l >= 0 } variant { l }
+  = match l with Nil -> () | Cons h t -> size_pos h; size_list_nonneg t end
+  with lemma size_dict_nonneg (d: pydict) : unit
+    ensures { size_dict d >= 0 } variant { d }
+  = match d with DNil -> () | DCons _ v rest -> size_pos v; size_dict_nonneg rest end
+
+  let rec lemma size_dict_mem (k: irkey) (d: pydict) : unit
+    ensures { mem_key d k -> match get d k with
+                             | Some w -> pv_size w < pv_size (PDict d)
+                             | None   -> true end }
+    variant { d }
+  = match d with DNil -> () | DCons _ _ rest -> size_dict_mem k rest end
+
+  (* E4 — wf_ir well-formedness + the compositionality lemma the unguarded read *)
+  (* discharges from. `wf_val` is the per-key expected-shape table (representative *)
+  (* here; `wf_ir_gen.py` emits the full per-(shape,key) predicate from ir_schema.py). *)
+  predicate wf_val (k: irkey) (v: pyval)
+  = match k with
+    | K_op | K_type | K_target | K_func | K_name ->
+        (match v with PStr _ -> true | _ -> false end)
+    | _ -> true
+    end
+
+  predicate wf_dict (d: pydict)
+  = match d with
+    | DNil -> true
+    | DCons k v rest -> wf_val k v /\ wf_dict rest
+    end
+
+  predicate wf_ir (v: pyval)
+  = match v with PDict d -> wf_dict d | _ -> true end
+
+  let rec lemma wf_ir_binds (k: irkey) (d: pydict) : unit
+    requires { wf_dict d }
+    ensures  { forall v: pyval. get d k = Some v -> wf_val k v }
+    variant  { d }
+  = match d with
+    | DNil -> ()
+    | DCons _ _ rest -> wf_ir_binds k rest
+    end
+
+  (* F4 — the document ADT + render skeleton; only render touches strings, and no *)
+  (* walker VC ever carries a string term (projections flow PStr into DText opaquely). *)
+  type doc = DText string | DInt int | DCat doc doc | DDoc_nil
+  function int_to_str int : string   (* abstract (uninterpreted) — no axiom *)
+  function render (d: doc) : string
+  = match d with
+    | DText s -> s
+    | DInt n  -> int_to_str n
+    | DCat a b -> String.concat (render a) (render b)
+    | DDoc_nil -> String.empty
+    end
+
+  (* A-unit accumulator model (WL-05b): a Set[str] is `ref (map string bool)`; *)
+  (* `.add e` sets the membership bit. `pystr_eq` is the string-guard test *)
+  (* (payload equality; the walk contract is `ensures True`, so it need not *)
+  (* interpret the string — only type-check the guard). *)
+  val set_add (m: map string bool) (e: string) : map string bool
+    ensures { result = Map.set m e true }
+  val pystr_eq (a b: string) : bool
+
+  (* A-set result algebra (phase3.md §3.1): a RETURNED set is the same *)
+  (* `map string bool`; the `|=` union fold combinator is pointwise or. *)
+  (* PURELY DEFINED (map = string -> bool) — no axiom, certified by *)
+  (* construction, so the returned-set model needs no new certificate *)
+  (* beyond the already-certified L1 set repr. *)
+  let function set_union (a b: map string bool) : map string bool
+    = fun (k: string) -> orb (Map.get a k) (Map.get b k)
+
+
+  (* ==== ir-traversal-residual T3: string-keyed symbol table `sdict` ==== *)
+  (* keys are RUNTIME strings (not interned irkey); slookup is option-valued *)
+  (* (defensive totalization) + `pystr_eq`-tested (result no VC constrains). *)
+  type sdict = SNil | SCons string pyval sdict
+
+  let rec slookup (k: string) (s: sdict) : option pyval
+    variant { s }
+  = match s with
+    | SNil -> None
+    | SCons k' v rest -> if pystr_eq k k' then Some v else slookup k rest
+    end
+
+  (* census §3: the returned-`sdict` dict-fold `.update`-merge combinator. *)
+  (* Purely DEFINED list-concat over the certified `sdict`; totality is *)
+  (* discharged by Why3 (structural `variant`), no axiom — the returned-dict *)
+  (* model needs no new certificate beyond the already-certified `sdict`. *)
+  let rec sappend (a b: sdict) : sdict
+    variant { a }
+  = match a with
+    | SNil -> b
+    | SCons k v rest -> SCons k v (sappend rest b)
+    end
+
+  (* ==== pdict-to-sdict-impl.md: pydict -> sdict extraction bridge ==== *)
+  (* dynamic-string-key readers (constructor `K_dyn` match, never irkey `=`) *)
+  let rec pget_dyn (name: string) (d: pydict) : option pyval
+    variant { d }
+    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }
+  = match d with
+    | DNil -> None
+    | DCons (K_dyn s) v rest -> if pystr_eq name s then Some v else pget_dyn name rest
+    | DCons _ _ rest -> pget_dyn name rest
+    end
+
+  let pget_list (name: string) (d: pydict) : list pyval
+    ensures { size_list result <= size_dict d }
+  = match pget_dyn name d with Some (PList xs) -> xs | _ -> Nil end
+
+  (* irkey -> string: TOTAL pure literal map (K_dyn carries its runtime string; *)
+  (* interned keys are totalised to their literal — never appear in a symbol_table). *)
+  let function irkey_to_string (k: irkey) : string
+  = match k with
+    | K_type   -> "type"   | K_left  -> "left"  | K_right  -> "right"
+    | K_op     -> "op"     | K_z     -> "z"     | K_value  -> "value"
+    | K_target -> "target" | K_body  -> "body"  | K_orelse -> "orelse"
+    | K_func   -> "func"   | K_name  -> "name"
+    | K_dyn s  -> s
+    end
+
+  (* total, structurally-terminating pydict -> sdict conversion (no axiom). *)
+  let rec function pdict_to_sdict (d: pydict) : sdict
+    variant { d }
+  = match d with
+    | DNil -> SNil
+    | DCons k v rest -> SCons (irkey_to_string k) v (pdict_to_sdict rest)
+    end
+
+  (* hval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall): the faithful value carrier for a heterogeneous Python `Dict[str, Any]` — HStr/HInt/HArr/HMap/HNode. Proven axiom-free by the fable oracle (getting-better/pyval-oracle.mlw, Z3 Valid); co-landed with the Rocq/Lean Phase2f_PyVal cert. The `h*` names are DISJOINT from the older D1/R-A generic-fold `pyval`/`PStr` family (_pydict_theory_lines) so both value models can coexist in one scope. HArr recurses through the BESPOKE `hval_list` (HNil/HCons), NOT `seq hval` (Why3 rejects `seq` recursion as non-strictly-positive). R3: HMap's carrier is the BESPOKE assoc list `hpairs` (PNil/PCons), NOT a `map string (option hval)` — the map was non-iterable so `.values()` could not fold; the assoc list keeps the recursion structural and makes the read a terminating lookup fold (`pairs_get`). Structural mutual recursion, NO `variant` clause. Gated on `_uses_pyval` -> corpus byte-identical. The abstract-val insert point (`_find_abstract_val_insert_idx`, which skips `with`/`invariant`/`by` but NOT `|` arm lines) lands AFTER the whole mutual group + `pairs_get`. *)
+  type hval = HStr string | HInt int | HArr hval_list | HMap hpairs | HNode hval
+  with hval_list = HNil | HCons hval hval_list
+  with hpairs = PNil | PCons string hval hpairs
+  (* R3 carrier read: `.values()`-foldable lookup over the assoc list (the map carrier was non-iterable). Build PREPENDS a binding (PCons). A `let rec function` (usable in program `let` bindings — where the reads occur); `variant { p }` gives structural termination over the assoc-list cons. The key test is `hpairs_key_eq` (disjoint from the str-set `pystr_eq`). ch27: a `val FUNCTION`, not a program `val`: a `let function` whose body calls a program `val` gets NO logic definition, so `pairs_get` / `hval_truthy` / `hval_list_str_mem` were logic-OPAQUE and `pairs_get PNil k = None` was unprovable (witness 3140 timed out). dict-value-wall R2a: its spec `result <-> a = b` is a realizable Why3 `val` specification (Why3 encodes it as a task axiom of this file, NOT a kernel axiom: ledger unchanged), same form as `str_eq_op` / `str_replace_op` / `map_nonempty` and the stdlib `String.(=)` (a program `val`, so not callable from a `let function`); it is realized by `string_dec` in the cert's `pairs_get` (Phase2f_PyVal.v). Without it a PRESENT key could never be read. *)
+  val function hpairs_key_eq (a b: string) : bool ensures { result <-> a = b }
+  let rec function pairs_get (p: hpairs) (k: string) : option hval
+    variant { p }
+    = match p with
+      | PNil -> None
+      | PCons k' v t -> if hpairs_key_eq k k' then Some v else pairs_get t k
+      end
+  (* hval-retype (self-tcb-reduction Tier-5): project the string carrier out of an `hval` — the `HStr s` payload, else the empty string. A `let function` (usable in program `let`/guard positions, where the record-registry scan's `info.get("whyml_name") == cls` compare + the Optional[str] return occur). Descends the REAL hval structure (non-vacuous), NOT an abstract reader. dict-value-wall (red-team round 7 R6): a NON-`HStr` carrier is NOT a Python string, so it projects to the UNINTERPRETED `hval_opaque_str h` (a `val function`, no spec, no axiom -- the `hval_len_other` precedent), never to "" (`5 or ""` PROVED `\result == ""`, CPython 5). *)
+  val function hval_opaque_str (h: hval) : string
+  let function hstr_of (h: hval) : string = match h with HStr s -> s | _ -> hval_opaque_str h end
+  (* self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): project the INT carrier out of an `hval` — the `HInt i` payload, else 0. The int twin of `hstr_of`, for the `ctor.get("arity") == 0` read in `_union_none_ctor_for` (`.get` on an hval local produces an `hval`; compared against an int literal it projects via `hint_of`). Total definitional `let function` over the certified hval ADT (`HInt` already exists), descends the REAL structure (non-vacuous), NO axiom -> ledger stays 3. *)
+  let function hint_of (h: hval) : int = match h with HInt i -> i | _ -> 0 end
+  (* self-tcb-reduction _typeddict_field_access (a): Python truthiness of an `hval` projected from a DOUBLED `.get` read used in a bool/if context (`if self._record_types[sym].get("is_typeddict"):`). Total definitional `let function` over the hval ADT — HStr non-empty / HInt non-zero / HArr,HMap non-empty / HNode present. The string-emptiness test reuses the specified key equality `hpairs_key_eq` (a `let function` cannot call the stdlib program `String.(=)`, same reason `pairs_get` uses it). Descends the REAL structure (non-vacuous), NO axiom -> ledger stays 3. *)
+  let function hval_truthy (h: hval) : bool =
+    match h with
+    | HStr s -> not (hpairs_key_eq s "")
+    | HInt i -> i <> 0
+    | HArr l -> (match l with HNil -> false | _ -> true end)
+    | HMap p -> (match p with PNil -> false | _ -> true end)
+    | HNode _ -> true
+    end
+  (* self-tcb-reduction _typeddict_field_access (d): faithful membership of a string in an hval collection (`field_name not in rec_info["fields"]`, an `HArr` of `HStr` field names). Total definitional recursion over the bespoke `hval_list` carrier via the certified `hpairs_key_eq` element test — descends the REAL structure (non-vacuous), NO axiom. *)
+  let rec function hval_list_str_mem (l: hval_list) (x: string) : bool
+    variant { l }
+    = match l with
+      | HNil -> false
+      | HCons h t -> if (match h with HStr s -> hpairs_key_eq s x | _ -> false end) then true else hval_list_str_mem t x
+      end
+  let function hval_str_mem (h: hval) (x: string) : bool =
+    match h with HArr l -> hval_list_str_mem l x | _ -> false end
+  (* self-tcb-reduction _namedtuple_positional_access: an hval collection (`rec_info["fields"]`, an `HArr` of `HStr`) viewed as an ordered SEQUENCE — its LENGTH (`len(fields)`) and its i-th element as a `string` (`fields[idx]`). Total definitional recursion over the bespoke `hval_list` carrier, descends the REAL structure (non-vacuous), NO axiom. *)
+  let rec function hval_list_len (l: hval_list) : int
+    variant { l }
+    = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end
+  let function hval_len (h: hval) : int =
+    match h with HArr l -> hval_list_len l | _ -> 0 end
+  let rec function hval_list_nth (l: hval_list) (i: int) : hval
+    variant { l }
+    = match l with
+      | HNil -> HInt 0
+      | HCons x t -> if i <= 0 then x else hval_list_nth t (i - 1)
+      end
+  let function hval_nth_str (h: hval) (i: int) : string =
+    match h with HArr l -> hstr_of (hval_list_nth l i) | _ -> "" end
+  (* hval-retype (self-tcb-reduction Tier-5): the abstract `.values()` iterator over a `map string (option hval)` field — a native Why3 `map` is not finitely iterable, so the ENUMERATION is over-approximated (arbitrary length, arbitrary element), but each element is a REAL `hval` whose `.get` reads descend the actual structure via `pairs_get` (non-vacuous). Declared in the theory (not late via `_add_abstract_op`) so the decl is always in scope before the loop use, across the proof + vacuity re-emission paths. *)
+  (* LOGIC `function`s (not program `val`s) so `hval_values_len` is usable in the loop `variant` term (a logic context) — exactly like the psl-loop `psl_len`. Uninterpreted + total + effect-free, so also usable in the program while-condition + element `let`. NO axiom (the variant's `0 <=` bound falls out of the loop condition `idx < len`) -> ledger stays 3. *)
+  val function hval_values_len (m: map string (option hval)) : int
+  val function hval_values_get (m: map string (option hval)) (i: int) : hval
+  (* self-tcb-reduction _namedtuple_positional_access: the `.items()` twin of the `.values()` walk — a `for k, v in <hval-field>.items()` loop binds the KEY `k` to an arbitrary `string` (over-approx enumeration, same length as the values) alongside the real `hval` value. Uninterpreted + total + effect-free; NO axiom. *)
+  val function hval_keys_get (m: map string (option hval)) (i: int) : string
+  (* self-tcb-reduction Tier-5 (union/match cluster C3): a NESTED `hval` viewed as its `map string (option hval)` carrier — the `.items()` twin over an hval LOCAL (`vinfo.get("constructors", {}).items()`), not a self-field. Total + uninterpreted (an `HMap` IS a `map string (option hval)`; a non-map hval views as the empty map), so `hval_values_len/get`/`hval_keys_get` apply to the view. NO axiom -> ledger stays 3. *)
+  val function hval_as_map (h: hval) : map string (option hval)
+  let rec function pairs_set (p: hpairs) (k: string) (v: hval) : hpairs
+    variant { p }
+    = match p with
+      | PNil -> PCons k v PNil
+      | PCons k' w t -> if hpairs_key_eq k k' then PCons k' v t else PCons k' w (pairs_set t k v)
+      end
+  let rec function hval_list_snoc (l: hval_list) (x: hval) : hval_list
+    variant { l }
+    = match l with HNil -> HCons x HNil | HCons h t -> HCons h (hval_list_snoc t x) end
+
+  type pytuple_str_str = { field0: string; field1: string }
+
+  type _union__type_str_0 = Arm_0_0 string | Arm_0_None
+
+  type _union__sanitize_type_name_1 = Arm_1_0 string | Arm_1_None
+
+  type _union__match_generic_annotation_2 = Arm_2_0 int | Arm_2_None
+
+  type _union__extract_ast_subscript_3 = Arm_3_0 int | Arm_3_None
+
+  type _union__specialize_function_4 = Arm_4_0 string | Arm_4_None
+
+  type pycslsemanticerror = {  }
+
+
+  exception Return__union__sanitize_type_name_1 _union__sanitize_type_name_1
+
+  exception Return__union__type_str_0 _union__type_str_0
+  type pycslerror = int
+
+
+  (* Abstract operations for unsupported Python patterns *)
+  val any_map (_u: unit) : map 'k (option 'v)
+  val function hval_iter_get_other (h: hval) (i: int) : hval
+  val function hval_iter_len_other (h: hval) : int
+  val function hval_mem_opaque (x: hval) (h: hval) : bool
+  val m_group_1 (x0: int) : int
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+  val function pycsl_none : int
+  val re_match_2 (x0: int) (x1: int) : int
+  val function re_sub_op (pat rep s: string) : string
+  val constant str : int
+  val str_concat_op (a: string) (b: string) : string
+    ensures { result = (concat a b) }
+    ensures { String.length result = String.length a + String.length b }
+  val str_eq_op (a: string) (b: string) : bool
+    ensures { result <-> (a = b) }
+  val str_length_op (s: string) : int
+    ensures { result = (String.length s) }
+  predicate subtag (a b: int) = a = b \/ b = 99
+  function tag_dict : int = 4
+  function tag_float : int = 2
+  function tag_int : int = 0
+  function tag_list : int = 3
+  function tag_object : int = 99
+  function tag_record : int = 5
+  function tag_str : int = 1
+  function tag_variant : int = 6
+  val function typeof_op (x: 'a) : int
+
+  val _check_bounds__anystr () : string
+  let rec _check_bounds__tps (ct: string) (tps: list pyval) : unit
+    requires { true } ensures { true } raises { PyCSLSemanticError }
+    variant { tps }
+  = match tps with
+    | Nil -> ()
+    | Cons tp rest ->
+        (match tp with
+         | PDict d -> (match pget_dyn "bound" d with
+                      | Some (PStr bound) -> if pystr_eq ct bound then () else raise PyCSLSemanticError
+                      | _ -> () end)
+         | _ -> () end);
+        _check_bounds__tps ct rest
+    end
+  let _check_bounds (generics: pyval) (instantiations: pyval) : unit
+    requires { true } ensures { true } raises { PyCSLSemanticError }
+  = let gname = _check_bounds__anystr () in
+    let ct = _check_bounds__anystr () in
+    let _ = instantiations in
+    match generics with
+    | PDict g -> (match pget_dyn gname g with
+                  | Some (PDict info) -> _check_bounds__tps ct (pget_list "type_params" info)
+                  | _ -> () end)
+    | _ -> () end
+  let rec _check_gt3_schema_only__tps (tps: list pyval) : unit
+    requires { true } ensures { true } raises { PyCSLSemanticError }
+    variant { tps }
+  = match tps with
+    | Nil -> ()
+    | Cons tp rest ->
+        (match tp with
+         | PDict d -> (match pget_dyn "kind" d with
+                      | Some (PStr k) -> if pystr_eq k "TypeVar" then () else raise PyCSLSemanticError
+                      | None -> ()
+                      | Some _ -> raise PyCSLSemanticError end)
+         | _ -> () end);
+        _check_gt3_schema_only__tps rest
+    end
+  let rec _check_gt3_schema_only__outer (g: pydict) : unit
+    requires { true } ensures { true } raises { PyCSLSemanticError }
+    variant { g }
+  = match g with
+    | DNil -> ()
+    | DCons _ v rest ->
+        (match v with PDict info -> _check_gt3_schema_only__tps (pget_list "type_params" info) | _ -> () end);
+        _check_gt3_schema_only__outer rest
+    end
+  let _check_gt3_schema_only (generics: pyval) : unit
+    requires { true } ensures { true } raises { PyCSLSemanticError }
+  = match generics with PDict g -> _check_gt3_schema_only__outer g | _ -> () end
+  val _check_gt4_polymorphic_recursion (ir_data: int) (generics: int) (instantiations: int) (validated_ast: int) : unit
+    requires { true }
+    ensures  { true }
+
+  let _collect_generic_decls (ir_data: map string (option hval)) : map string (option hval)
+    requires { true }
+    ensures  { true }
+  =
+    let generics = ref (const (None: option hval)) in
+    let _hv_idx_decl = (match Map.get ir_data "type_decls" with | Some v_ -> v_ | None -> (HArr HNil) end) in
+    let _idx_decl = ref 0 in
+    while !_idx_decl < (match _hv_idx_decl with HArr _hl -> hval_list_len _hl | _ -> hval_iter_len_other _hv_idx_decl end) do
+      invariant { 0 <= !_idx_decl }
+      variant { (match _hv_idx_decl with HArr _hl -> hval_list_len _hl | _ -> hval_iter_len_other _hv_idx_decl end) - !_idx_decl }
+      try
+        let decl = ((match _hv_idx_decl with HArr _hl -> hval_list_nth _hl !_idx_decl | _ -> hval_iter_get_other _hv_idx_decl !_idx_decl end)) in
+      if (match (match decl with HMap m_k7 -> (match pairs_get m_k7 "kind" with Some v_ -> v_ | None -> (HInt pycsl_none) end) | _ -> (HInt pycsl_none) end) with HStr _s_eq -> (hpairs_key_eq _s_eq "variant") | _ -> false end) then begin
+        raise PyCSL_Continue
+      end;
+      let tparams = (match decl with HMap m_k7 -> (match pairs_get m_k7 "type_params" with Some v_ -> v_ | None -> (HInt pycsl_none) end) | _ -> (HInt pycsl_none) end) in
+      if (hval_truthy tparams) then begin
+        generics := map_update_some !generics (match decl with HMap m_pvs -> (match pairs_get m_pvs "name" with Some (HStr _s) -> _s | _ -> "" end) | _ -> "" end) (HMap (PCons "kind" (HStr "class") (PCons "methods" (HArr HNil) (PCons "decl" decl (PCons "type_params" tparams PNil)))))
+      end
+      with PyCSL_Continue -> () end;
+      _idx_decl := !_idx_decl + 1
+    done;
+    let _hv_idx_func = (match Map.get ir_data "functions" with | Some v_ -> v_ | None -> (HArr HNil) end) in
+    let _idx_func = ref 0 in
+    while !_idx_func < (match _hv_idx_func with HArr _hl -> hval_list_len _hl | _ -> hval_iter_len_other _hv_idx_func end) do
+      invariant { 0 <= !_idx_func }
+      variant { (match _hv_idx_func with HArr _hl -> hval_list_len _hl | _ -> hval_iter_len_other _hv_idx_func end) - !_idx_func }
+      let func = ((match _hv_idx_func with HArr _hl -> hval_list_nth _hl !_idx_func | _ -> hval_iter_get_other _hv_idx_func !_idx_func end)) in
+      let tparams = (match func with HMap m_k7 -> (match pairs_get m_k7 "type_params" with Some v_ -> v_ | None -> (HInt pycsl_none) end) | _ -> (HInt pycsl_none) end) in
+      if (hval_truthy tparams) then begin
+        generics := map_update_some !generics (match func with HMap m_pvs -> (match pairs_get m_pvs "name" with Some (HStr _s) -> _s | _ -> "" end) | _ -> "" end) (HMap (PCons "kind" (HStr "function") (PCons "methods" (HArr (HCons func HNil)) (PCons "decl" (HInt pycsl_none) (PCons "type_params" tparams PNil)))))
+      end;
+      _idx_func := !_idx_func + 1
+    done;
+    let _hv_idx_func = (match Map.get ir_data "functions" with | Some v_ -> v_ | None -> (HArr HNil) end) in
+    let _idx_func = ref 0 in
+    while !_idx_func < (match _hv_idx_func with HArr _hl -> hval_list_len _hl | _ -> hval_iter_len_other _hv_idx_func end) do
+      invariant { 0 <= !_idx_func }
+      variant { (match _hv_idx_func with HArr _hl -> hval_list_len _hl | _ -> hval_iter_len_other _hv_idx_func end) - !_idx_func }
+      let func = ((match _hv_idx_func with HArr _hl -> hval_list_nth _hl !_idx_func | _ -> hval_iter_get_other _hv_idx_func !_idx_func end)) in
+      let self_type = ref (let v_or = (match func with HMap m_k7 -> (match pairs_get m_k7 "self_type" with Some v_ -> v_ | None -> (HInt pycsl_none) end) | _ -> (HInt pycsl_none) end) in match v_or with | HStr s_or -> if hval_truthy v_or then s_or else "" | _ -> if hval_truthy v_or then hval_opaque_str v_or else "" end) in
+      if ((if (match Map.get (!generics) (!self_type) with | Some _ -> true | None -> false end) && (match (match (match Map.get !generics !self_type with | Some v_ -> v_ | None -> (HInt 0) end) with HMap m_pcii -> (match pairs_get m_pcii "kind" with Some v_ -> v_ | None -> (HMap PNil) end) | _ -> (HMap PNil) end) with HStr _s_eq -> (hpairs_key_eq _s_eq "class") | _ -> false end) then 1 else 0) <> 0) then begin
+        if (not (hval_mem_opaque func (match (match Map.get !generics !self_type with | Some v_ -> v_ | None -> (HInt 0) end) with HMap m_pcii -> (match pairs_get m_pcii "methods" with Some v_ -> v_ | None -> (HMap PNil) end) | _ -> (HMap PNil) end))) then begin
+          (let r2c_k = !self_type in let r2c_e = func in generics := (match Map.get !generics r2c_k with Some r2c_h1 -> map_update_some !generics r2c_k (match r2c_h1 with HMap r2c_p1 -> (match pairs_get r2c_p1 "methods" with Some r2c_h2 -> HMap (pairs_set r2c_p1 "methods" (match r2c_h2 with HArr r2c_l -> HArr (hval_list_snoc r2c_l r2c_e) | _ -> r2c_h2 end)) | None -> r2c_h1 end) | _ -> r2c_h1 end) | None -> !generics end))
+        end
+      end;
+      _idx_func := !_idx_func + 1
+    done;
+    !generics
+
+  val _collect_instantiations (ir_data: int) (generics: int) : int
+    requires { true }
+    ensures  { true }
+
+  let function _sanitize_type_name (name: string) : _union__sanitize_type_name_1
+    requires { true }
+    ensures  { true }
+  =
+    try
+    if (not (str_length_op name <> 0)) then begin
+      raise (Return__union__sanitize_type_name_1 Arm_1_None)
+    end else begin
+      if (str_eq_op name "Any") then begin
+        raise (Return__union__sanitize_type_name_1 (Arm_1_0 "Any"))
+      end else begin
+        if ((str_eq_op name "int") || (str_eq_op name "bool") || (str_eq_op name "str") || (str_eq_op name "bytes") || (str_eq_op name "float") || (str_eq_op name "list") || (str_eq_op name "dict") || (str_eq_op name "set")) then begin
+          raise (Return__union__sanitize_type_name_1 (Arm_1_0 name))
+        end else begin
+          raise (Return__union__sanitize_type_name_1 (Arm_1_0 name))
+        end
+      end
+    end
+    with Return__union__sanitize_type_name_1 r -> r end
+
+  let _extract_ast_subscript (node: pyval) (generic_names: map string bool) : option (string, string)
+    requires { true } ensures { true }
+  = match node with
+    | PDict d ->
+        (match pget_dyn "_type" d with
+         | Some (PStr t0) -> if pystr_eq t0 "Subscript" then
+             (match pget_dyn "value" d with
+              | Some (PDict vd) ->
+                  (match pget_dyn "_type" vd with
+                   | Some (PStr t1) -> if pystr_eq t1 "Name" then
+                       (match pget_dyn "id" vd with
+                        | Some (PStr gname) ->
+                            if not (Map.get generic_names gname) then None
+                            else
+                              (match pget_dyn "slice" d with
+                               | Some (PDict sd) ->
+                                   (match pget_dyn "_type" sd with
+                                    | Some (PStr t2) -> if pystr_eq t2 "Name" then
+                                        (match pget_dyn "id" sd with
+                                         | Some (PStr sid) ->
+                                             (match _sanitize_type_name sid with
+                                              | Arm_1_0 ct -> Some (gname, ct)
+                                              | Arm_1_None -> None end)
+                                         | _ -> None end)
+                                        else None
+                                    | _ -> None end)
+                               | _ -> None end)
+                        | _ -> None end)
+                       else None
+                   | _ -> None end)
+              | _ -> None end)
+           else None
+         | _ -> None end)
+    | _ -> None
+    end
+  val pair_set_add (m: map (string, string) bool) (e: (string, string)) : map (string, string) bool
+    ensures { result = Map.set m e true }
+
+  let _collect_instantiations_ast__ext (node: pyval) (generic_names: map string bool) : option (string, string)
+    requires { true } ensures { true }
+  = match node with
+    | PDict d ->
+        (match pget_dyn "_type" d with
+         | Some (PStr t0) -> if pystr_eq t0 "Subscript" then
+             (match pget_dyn "value" d with
+              | Some (PDict vd) ->
+                  (match pget_dyn "_type" vd with
+                   | Some (PStr t1) -> if pystr_eq t1 "Name" then
+                       (match pget_dyn "id" vd with
+                        | Some (PStr gname) ->
+                            if not (Map.get generic_names gname) then None
+                            else
+                              (match pget_dyn "slice" d with
+                               | Some (PDict sd) ->
+                                   (match pget_dyn "_type" sd with
+                                    | Some (PStr t2) -> if pystr_eq t2 "Name" then
+                                        (match pget_dyn "id" sd with
+                                         | Some (PStr sid) ->
+                                             (match _sanitize_type_name sid with
+                                              | Arm_1_0 ct -> Some (gname, ct)
+                                              | Arm_1_None -> None end)
+                                         | _ -> None end)
+                                        else None
+                                    | _ -> None end)
+                               | _ -> None end)
+                        | _ -> None end)
+                       else None
+                   | _ -> None end)
+              | _ -> None end)
+           else None
+         | _ -> None end)
+    | _ -> None
+    end
+  let rec _collect_instantiations_ast__keys (d: pydict) (acc: map string bool) : map string bool
+    variant { d }
+  = match d with
+    | DNil -> acc
+    | DCons (K_dyn s) _ rest -> _collect_instantiations_ast__keys rest (set_add acc s)
+    | DCons _ _ rest -> _collect_instantiations_ast__keys rest acc
+    end
+  let rec _collect_instantiations_ast__args (xs: list pyval) (gn: map string bool) (acc: map (string, string) bool) : map (string, string) bool
+    requires { true } ensures { true } variant { xs }
+  = match xs with
+    | Nil -> acc
+    | Cons a rest ->
+        let acc = (match a with
+                   | PDict ad -> (match pget_dyn "annotation" ad with
+                                  | Some an -> (match _collect_instantiations_ast__ext an gn with Some pr -> pair_set_add acc pr | None -> acc end)
+                                  | None -> acc end)
+                   | _ -> acc end) in
+        _collect_instantiations_ast__args rest gn acc
+    end
+  let _collect_instantiations_ast__node (nd: pyval) (gn: map string bool) (acc0: map (string, string) bool) : map (string, string) bool
+    requires { true } ensures { true }
+  = match nd with
+    | PDict d ->
+        let acc1 = (match pget_dyn "_type" d with
+                    | Some (PStr t) -> if pystr_eq t "Call" then
+                        (match pget_dyn "func" d with
+                         | Some fn -> (match _collect_instantiations_ast__ext fn gn with Some pr -> pair_set_add acc0 pr | None -> acc0 end)
+                         | None -> acc0 end)
+                        else acc0
+                    | _ -> acc0 end) in
+        let acc2 = (match pget_dyn "_type" d with
+                    | Some (PStr t) -> if pystr_eq t "AnnAssign" then
+                        (match pget_dyn "annotation" d with
+                         | Some an -> (match _collect_instantiations_ast__ext an gn with Some pr -> pair_set_add acc1 pr | None -> acc1 end)
+                         | None -> acc1 end)
+                        else acc1
+                    | _ -> acc1 end) in
+        (match pget_dyn "_type" d with
+         | Some (PStr t) -> if (pystr_eq t "FunctionDef") || (pystr_eq t "AsyncFunctionDef") then
+             let acc3 = (match pget_dyn "args" d with
+                         | Some (PDict ad) ->
+                             let acc = _collect_instantiations_ast__args (pget_list "args" ad) gn acc2 in
+                             let acc = _collect_instantiations_ast__args (pget_list "posonlyargs" ad) gn acc in
+                             let acc = _collect_instantiations_ast__args (pget_list "kwonlyargs" ad) gn acc in
+                             acc
+                         | _ -> acc2 end) in
+             (match pget_dyn "returns" d with
+              | Some ret -> (match ret with PNone -> acc3 | _ -> (match _collect_instantiations_ast__ext ret gn with Some pr -> pair_set_add acc3 pr | None -> acc3 end) end)
+              | None -> acc3 end)
+           else acc2
+         | _ -> acc2 end)
+    | _ -> acc0
+    end
+  let rec _collect_instantiations_ast__walk (nd: pyval) (gn: map string bool) (acc: map (string, string) bool) : map (string, string) bool
+    requires { true } ensures { true } variant { pv_size nd }
+  = let acc = _collect_instantiations_ast__node nd gn acc in
+    match nd with
+    | PDict d -> _collect_instantiations_ast__walkd d gn acc
+    | PList xs -> _collect_instantiations_ast__walkl xs gn acc
+    | _ -> acc
+    end
+  with _collect_instantiations_ast__walkd (d: pydict) (gn: map string bool) (acc: map (string, string) bool) : map (string, string) bool
+    requires { true } ensures { true } variant { size_dict d }
+  = match d with
+    | DNil -> acc
+    | DCons _ v rest -> _collect_instantiations_ast__walkd rest gn (_collect_instantiations_ast__walk v gn acc)
+    end
+  with _collect_instantiations_ast__walkl (xs: list pyval) (gn: map string bool) (acc: map (string, string) bool) : map (string, string) bool
+    requires { true } ensures { true } variant { size_list xs }
+  = match xs with
+    | Nil -> acc
+    | Cons h t -> _collect_instantiations_ast__walkl t gn (_collect_instantiations_ast__walk h gn acc)
+    end
+  let _collect_instantiations_ast (tree: pyval) (generics: pyval) : map (string, string) bool
+    requires { true } ensures { true }
+  = let gn : map string bool = (match generics with PDict d -> _collect_instantiations_ast__keys d (const false) | _ -> const false end) in
+    _collect_instantiations_ast__walk tree gn (const false)
+  val _emit_specializations (ir_data: int) (generics: int) (instantiations: int) : unit
+    requires { true }
+    ensures  { true }
+
+  let rec _type_str__gtype (d: pydict) : option string
+    variant { d }
+  = match d with
+    | DNil -> None
+    | DCons K_type (PStr s) _ -> Some s
+    | DCons _ _ rest -> _type_str__gtype rest
+    end
+  let rec _type_str__gname (d: pydict) : option string
+    variant { d }
+  = match d with
+    | DNil -> None
+    | DCons K_name (PStr s) _ -> Some s
+    | DCons _ _ rest -> _type_str__gname rest
+    end
+  let _type_str (v_node: pyval) : _union__type_str_0
+    requires { true } ensures { true }
+  = match v_node with
+    | PNone -> Arm_0_None
+    | PStr s -> (match _sanitize_type_name s with Arm_1_0 x -> Arm_0_0 x | Arm_1_None -> Arm_0_None end)
+    | PDict d ->
+        (match _type_str__gtype d with
+         | Some t -> if pystr_eq t "Var" then
+                       (let nm = (match _type_str__gname d with Some nn -> nn | None -> "" end) in
+                        (match _sanitize_type_name nm with Arm_1_0 x -> Arm_0_0 x | Arm_1_None -> Arm_0_None end))
+                     else if pystr_eq t "Subscript" then Arm_0_None
+                     else Arm_0_None
+         | None -> Arm_0_None end)
+    | _ -> Arm_0_None
+    end
+  val _scan_node_for_subscript_calls__type_str (node: pyval) : option string
+    ensures { true }
+
+  let _scan_node_for_subscript_calls__self (nd: pyval) (gn: map string bool) (acc: list (string, string)) : list (string, string)
+    requires { true } ensures { true }
+  = match nd with
+    | PDict d ->
+        let is_sub = (match pget_dyn "type" d with Some (PStr t) -> pystr_eq t "Subscript" | _ -> false end)
+                     || (match pget_dyn "stmt" d with Some (PStr s) -> pystr_eq s "Subscript" | _ -> false end) in
+        if is_sub then
+          (match pget_dyn "value" d with
+           | Some (PDict vd) ->
+               (match pget_dyn "type" vd with
+                | Some (PStr vt) -> if pystr_eq vt "Var" then
+                    (match pget_dyn "name" vd with
+                     | Some (PStr gname) ->
+                         if Map.get gn gname then
+                           (let sn = (match pget_dyn "slice" d with Some s -> s | None -> PNone end) in
+                            match _scan_node_for_subscript_calls__type_str sn with
+                            | Some ct -> Cons (gname, ct) acc
+                            | None -> acc end)
+                         else acc
+                     | _ -> acc end)
+                  else acc
+                | _ -> acc end)
+           | _ -> acc end)
+        else acc
+    | _ -> acc
+    end
+  let rec _scan_node_for_subscript_calls__walk (nd: pyval) (gn: map string bool) (acc: list (string, string)) : list (string, string)
+    requires { true } ensures { true } variant { pv_size nd }
+  = let acc = _scan_node_for_subscript_calls__self nd gn acc in
+    let acc = (match nd with
+               | PDict d ->
+                   let is_call = (match pget_dyn "stmt" d with Some (PStr t) -> pystr_eq t "Call" | _ -> false end)
+                                || (match pget_dyn "type" d with Some (PStr s) -> pystr_eq s "Call" | _ -> false end) in
+                   if is_call then
+                     (match pget_dyn "func" d with Some fn -> _scan_node_for_subscript_calls__walk fn gn acc | None -> acc end)
+                   else acc
+               | _ -> acc end) in
+    match nd with
+    | PDict d -> _scan_node_for_subscript_calls__walkd d gn acc
+    | PList xs -> _scan_node_for_subscript_calls__walkl xs gn acc
+    | _ -> acc
+    end
+  with _scan_node_for_subscript_calls__walkd (d: pydict) (gn: map string bool) (acc: list (string, string)) : list (string, string)
+    requires { true } ensures { true } variant { size_dict d }
+  = match d with
+    | DNil -> acc
+    | DCons _ v rest -> _scan_node_for_subscript_calls__walkd rest gn (_scan_node_for_subscript_calls__walk v gn acc)
+    end
+  with _scan_node_for_subscript_calls__walkl (xs: list pyval) (gn: map string bool) (acc: list (string, string)) : list (string, string)
+    requires { true } ensures { true } variant { size_list xs }
+  = match xs with
+    | Nil -> acc
+    | Cons h t -> _scan_node_for_subscript_calls__walkl t gn (_scan_node_for_subscript_calls__walk h gn acc)
+    end
+  let _scan_node_for_subscript_calls (node: pyval) (generic_names: map string bool) : list (string, string)
+    requires { true } ensures { true }
+  = _scan_node_for_subscript_calls__walk node generic_names Nil
+  val _find_subscript_calls__scan__type_str (node: pyval) : option string
+    ensures { true }
+
+  let _find_subscript_calls__scan__self (nd: pyval) (gn: map string bool) (acc: list (string, string)) : list (string, string)
+    requires { true } ensures { true }
+  = match nd with
+    | PDict d ->
+        let is_sub = (match pget_dyn "type" d with Some (PStr t) -> pystr_eq t "Subscript" | _ -> false end)
+                     || (match pget_dyn "stmt" d with Some (PStr s) -> pystr_eq s "Subscript" | _ -> false end) in
+        if is_sub then
+          (match pget_dyn "value" d with
+           | Some (PDict vd) ->
+               (match pget_dyn "type" vd with
+                | Some (PStr vt) -> if pystr_eq vt "Var" then
+                    (match pget_dyn "name" vd with
+                     | Some (PStr gname) ->
+                         if Map.get gn gname then
+                           (let sn = (match pget_dyn "slice" d with Some s -> s | None -> PNone end) in
+                            match _find_subscript_calls__scan__type_str sn with
+                            | Some ct -> Cons (gname, ct) acc
+                            | None -> acc end)
+                         else acc
+                     | _ -> acc end)
+                  else acc
+                | _ -> acc end)
+           | _ -> acc end)
+        else acc
+    | _ -> acc
+    end
+  let rec _find_subscript_calls__scan__walk (nd: pyval) (gn: map string bool) (acc: list (string, string)) : list (string, string)
+    requires { true } ensures { true } variant { pv_size nd }
+  = let acc = _find_subscript_calls__scan__self nd gn acc in
+    let acc = (match nd with
+               | PDict d ->
+                   let is_call = (match pget_dyn "stmt" d with Some (PStr t) -> pystr_eq t "Call" | _ -> false end)
+                                || (match pget_dyn "type" d with Some (PStr s) -> pystr_eq s "Call" | _ -> false end) in
+                   if is_call then
+                     (match pget_dyn "func" d with Some fn -> _find_subscript_calls__scan__walk fn gn acc | None -> acc end)
+                   else acc
+               | _ -> acc end) in
+    match nd with
+    | PDict d -> _find_subscript_calls__scan__walkd d gn acc
+    | PList xs -> _find_subscript_calls__scan__walkl xs gn acc
+    | _ -> acc
+    end
+  with _find_subscript_calls__scan__walkd (d: pydict) (gn: map string bool) (acc: list (string, string)) : list (string, string)
+    requires { true } ensures { true } variant { size_dict d }
+  = match d with
+    | DNil -> acc
+    | DCons _ v rest -> _find_subscript_calls__scan__walkd rest gn (_find_subscript_calls__scan__walk v gn acc)
+    end
+  with _find_subscript_calls__scan__walkl (xs: list pyval) (gn: map string bool) (acc: list (string, string)) : list (string, string)
+    requires { true } ensures { true } variant { size_list xs }
+  = match xs with
+    | Nil -> acc
+    | Cons h t -> _find_subscript_calls__scan__walkl t gn (_find_subscript_calls__scan__walk h gn acc)
+    end
+  let rec _find_subscript_calls__fold (xs: list pyval) (gn: map string bool) (acc: list (string, string)) : list (string, string)
+    requires { true } ensures { true } variant { xs }
+  = match xs with
+    | Nil -> acc
+    | Cons stmt rest -> _find_subscript_calls__fold rest gn (_find_subscript_calls__scan__walk stmt gn acc)
+    end
+  let _find_subscript_calls (body: list pyval) (generic_names: map string bool) : list (string, string)
+    requires { true } ensures { true }
+  = _find_subscript_calls__fold body generic_names Nil
+  let _mangled_name (generic_name: string) (concrete_type: string) : string
+    requires { true }
+    ensures  { true }
+  =
+    let safe = ref (re_sub_op "[^A-Za-z0-9_]" "_" concrete_type) in
+    (str_concat_op (str_concat_op generic_name "_") !safe)
+
+  let _match_generic_annotation (type_str: int) (generic_names: map int (option int)) : option (int, int)
+    requires { true }
+    ensures  { true }
+  =
+    try
+    let m = ref 0 in
+    let gname = ref 0 in
+    let ct = ref 0 in
+    if (not ((typeof_op "pycsl_param_tag:_match_generic_annotation:type_str") = 1)) then begin
+      raise (Return_opttuple_int_int None)
+    end else begin
+      m := (re_match_2 113888892 type_str);
+      if (!m <> 0) then begin
+        let (_tu_gname, _tu_ct) = ((m_group_1 1), (m_group_1 2)) in
+        gname := _tu_gname;
+        ct := _tu_ct;
+        if (match Map.get (generic_names) (!gname) with | Some _ -> true | None -> false end) then begin
+          raise (Return_opttuple_int_int (Some (!gname, !ct)))
+        end
+      end;
+      raise (Return_opttuple_int_int None)
+    end
+    with Return_opttuple_int_int r -> r end
+
+  val _record_classification (ir_data: int) (generics: int) (instantiations: int) : unit
+    requires { true }
+    ensures  { true }
+
+  val _rewrite_annotation_str (type_str: int) (rename_map: int) : int
+    requires { true }
+    ensures  { true }
+
+  val _rewrite_annotations (ir_data: int) (rename_map: int) : unit
+    requires { true }
+    ensures  { true }
+
+  val _rewrite_subscript_calls_in_stmt (stmt: int) (rename_map: int) : int
+    requires { true }
+    ensures  { true }
+
+  val _rewrite_call_sites (ir_data: int) (rename_map: int) : unit
+    requires { true }
+    ensures  { true }
+
+  val _rewrite_subscript_to_name (node: int) (rename_map: int) : int
+    requires { true }
+    ensures  { true }
+
+  val _specialize_decl (decl: int) (tvar: string) (concrete: string) (new_name: string) : int
+    requires { true }
+    ensures  { true }
+
+  val _specialize_function (func: int) (tvar: string) (concrete: string) (new_class_name: string) (new_self_type: _union__specialize_function_4) : int
+    requires { true }
+    ensures  { true }
+
+  let _subst_type_in_ir__triggers (k: irkey) : bool
+  = match k with
+    | K_name -> true
+    | K_type -> true
+    | K_dyn s -> pystr_eq s "return_annotation"
+    | _ -> false end
+
+  (* richer-contracts-bridge P2.1 (C2): DEEP well-formedness — the INDUCTIVE
+     invariant of the recursive substitution (recurses into list elements AND
+     dict values). Strengthens the certified shallow wf_ir; pure definition,
+     NO axiom. The two lemmas prove it implies the certified wf_ir. *)
+  predicate wf_ir_deep (v: pyval)
+  = match v with
+    | PDict d  -> wf_dict_deep d
+    | PList xs -> wf_list_deep xs
+    | _ -> true
+    end
+  with wf_dict_deep (d: pydict)
+  = match d with
+    | DNil -> true
+    | DCons k v rest -> wf_val k v /\ wf_ir_deep v /\ wf_dict_deep rest
+    end
+  with wf_list_deep (xs: list pyval)
+  = match xs with
+    | Nil -> true
+    | Cons h t -> wf_ir_deep h /\ wf_list_deep t
+    end
+  (* Bridge tie: the deep predicate strengthens the certified shallow wf_ir
+     (Phase2c_PyValDict.v), so `ensures wf_ir_deep result` entails the audited
+     wf_ir. Proved by structural induction — NO axiom. *)
+  let rec lemma wf_dict_deep_shallow (d: pydict) : unit
+    requires { wf_dict_deep d } ensures { wf_dict d } variant { d }
+  = match d with DNil -> () | DCons _ _ rest -> wf_dict_deep_shallow rest end
+  let lemma wf_ir_deep_shallow (v: pyval) : unit
+    requires { wf_ir_deep v } ensures { wf_ir v }
+  = match v with PDict d -> wf_dict_deep_shallow d | _ -> () end
+  (* Lemma-pack fact for the string-key case: a value that stays a PStr
+     whenever it was a PStr keeps wf_val for its key. `let lemma` (CALLED by
+     the fold body => split-robust exact instantiation).
+     PROOF-HARDENING (context-independent): under `split_vc` the ensures
+     `wf_val k v2` splits into per-named-key sub-goals whose NEGATION
+     skolemises v2 into PInt/PList/PDict witnesses; those constructor terms
+     seed the recursive wf_dict / wf_ir_binds / size_dict E-matching in any
+     polluted pyval context and the VC floods (370M+ steps => timeout).  The
+     fix keeps the STATEMENT byte-identical and only makes the body explicit:
+     (i) split each key so k is concrete; (ii) for the named keys case v2 on
+     EVERY pyval constructor so each split sub-goal is discharged by a
+     concrete-constructor branch (no free-var skolem, no seed) — the non-PStr
+     v2 branches are `absurd` (req1 forces v PStr for a named key, then req2
+     forces v2 PStr, so v2 non-PStr is genuinely unreachable: the requires are
+     jointly satisfiable, e.g. k=K_left, so the lemma stays NON-VACUOUS);
+     (iii) an arm-level `assert { wf_val k v2 }` (concrete k, surviving v2=PStr
+     path) hands the merged generic-k postcondition goal its per-key fact so
+     BOTH Alt-Ergo and Z3 close it in bounded steps.  Discharges << 1s / < 1M
+     steps context-independently, versus the pre-hardening flood. *)
+  let lemma wf_val_str_stable (k: irkey) (v v2: pyval) : unit
+    requires { wf_val k v }
+    requires { match v with PStr _ -> (match v2 with PStr _ -> true | _ -> false end) | _ -> true end }
+    ensures  { wf_val k v2 }
+  = match k with
+    | K_op | K_type | K_target | K_func | K_name ->
+        (match v2 with
+         | PStr _ -> ()
+         | _ -> (match v with PStr _ -> absurd | _ -> absurd end)
+         end);
+        assert { wf_val k v2 }
+    | K_left | K_right | K_z | K_value | K_body | K_orelse | K_dyn _ -> ()
+    end
+
+  (* richer-contracts-bridge P2.3 (C2): emitted-fragment grammar membership
+     (structural scope: no bare PNone sentinel). Bridge-audit predicate tying
+     the method to evaluator-axiom-audit.md's boundary BY CONTRACT. NO axiom. *)
+  predicate in_emitted_fragment (v: pyval)
+  = match v with
+    | PNone -> false
+    | PInt _ | PStr _ | PBool _ -> true
+    | PList xs -> frag_list xs
+    | PDict d  -> frag_dict d
+    end
+  with frag_dict (d: pydict)
+  = match d with
+    | DNil -> true
+    | DCons _ v rest -> in_emitted_fragment v /\ frag_dict rest
+    end
+  with frag_list (xs: list pyval)
+  = match xs with
+    | Nil -> true
+    | Cons h t -> in_emitted_fragment h /\ frag_list t
+    end
+
+  (* proof-scale step-lemma (gated on BOTH wf_ir_deep + in_emitted_fragment
+     families): one unfold of wf_dict_deep/frag_dict on a DCons with ABSTRACT
+     k/v2/rest2; non-recursive `= ()`, so its own VC touches no
+     size_dict/recursive pool.  CALLED in the __dict fold body to hand the
+     prover the exact postcondition ground fact WITHOUT unfolding the
+     recursive result — kills the polluted-pool E-matching flood.  NO axiom. *)
+  let lemma dcons_wf_frag_step (k: irkey) (v2: pyval) (rest2: pydict) : unit
+    requires { wf_val k v2 /\ wf_ir_deep v2 /\ in_emitted_fragment v2 }
+    requires { wf_dict_deep rest2 /\ frag_dict rest2 }
+    ensures  { wf_dict_deep (DCons k v2 rest2) /\ frag_dict (DCons k v2 rest2) }
+  = ()
+  let rec _subst_type_in_ir (node: pyval) (tvar: string) (concrete: string) : pyval
+    requires { (wf_ir_deep node) } requires { (in_emitted_fragment node) } ensures { ((pv_size result) > 0) } ensures { (wf_ir_deep result) } ensures { (in_emitted_fragment result) } ensures { match node with PStr _ -> (match result with PStr _ -> true | _ -> false end) | _ -> true end }
+    variant { pv_size node }
+  = match node with
+    | PList xs -> PList (_subst_type_in_ir__list xs tvar concrete)
+    | PDict d  -> PDict (_subst_type_in_ir__dict d tvar concrete)
+    | _ -> node end
+  with _subst_type_in_ir__dict (d: pydict) (tvar: string) (concrete: string) : pydict
+    requires { wf_dict_deep d /\ frag_dict d } ensures { wf_dict_deep result /\ frag_dict result }
+    variant { size_dict d }
+  = match d with
+    | DNil -> DNil
+    | DCons k v rest ->
+        let v2 =
+          match v with
+          | PStr s -> if _subst_type_in_ir__triggers k && pystr_eq s tvar then PStr concrete
+                      else _subst_type_in_ir v tvar concrete
+          | _ -> _subst_type_in_ir v tvar concrete end
+        in
+        assert { match v with PStr _ -> (match v2 with PStr _ -> true | _ -> false end) | _ -> true end };
+        wf_val_str_stable k v v2;
+        assert { wf_ir_deep v2 };
+        assert { in_emitted_fragment v2 };
+        let rest2 = _subst_type_in_ir__dict rest tvar concrete in
+        dcons_wf_frag_step k v2 rest2;
+        DCons k v2 rest2
+    end
+  with _subst_type_in_ir__list (xs: list pyval) (tvar: string) (concrete: string) : list pyval
+    requires { wf_list_deep xs /\ frag_list xs } ensures { wf_list_deep result /\ frag_list result }
+    variant { size_list xs }
+  = match xs with Nil -> Nil
+    | Cons h t -> Cons (_subst_type_in_ir h tvar concrete) (_subst_type_in_ir__list t tvar concrete) end
+  val apply_monomorphization (ir_data: int) (validated_ast: int) : unit
+    requires { true }
+    ensures  { true }
+
+  val pycslerror____str__ (self: pycslerror) : string
+
+  val pycslerror__as_dict (self: pycslerror) : map string (option hval)
+
+  val pycslerror__message (self: pycslerror) : string
+
+end

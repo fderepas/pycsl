@@ -1,0 +1,1799 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/parser.py'...
+[*] Memory model: hoare
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1604: UserWarning: Function '_parser__expect': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+[*] Imported class from 'proof2why3.ir': App (record + 1 method stub(s) + 11 helper(s))
+[*] Imported class from 'proof2why3.ir': BinOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': BoolLit (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': Exists (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': Forall (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': IntLit (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': UnaryOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': Var (record + 0 method stub(s) + 0 helper(s))
+[*] Imported from 'proof2why3.ir': ['App', 'BinOp', 'BoolLit', 'Exists', 'Forall', 'IntLit', 'UnaryOp', 'Var'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 178, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23358 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 178, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23380 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 179, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23374 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 179, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23396 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 180, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23346 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 180, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23368 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 181, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23350 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 181, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23372 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 182, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23306 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 183, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23340 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 184, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23386 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 184, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23408 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 184, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23430 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 185, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23376 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 186, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23380 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 187, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23398 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 188, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23416 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 188, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23438 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 189, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23416 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 189, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23438 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 190, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 190, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 191, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23424 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 191, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23446 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 192, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23424 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 192, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23446 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 193, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23428 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 193, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23450 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 194, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23436 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 194, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23458 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 195, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23440 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 195, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23462 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 196, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 197, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23450 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 197, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23472 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 198, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23462 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 198, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23484 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 198, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23506 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 199, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23458 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 199, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23480 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 200, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23462 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 200, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23484 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 201, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23466 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 201, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 202, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 202, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23498 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 203, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23480 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 203, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23502 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 204, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23484 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 204, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23506 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 205, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 205, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23510 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 206, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23492 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 206, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23514 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 207, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23496 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 207, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23518 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 208, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23508 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 208, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23530 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 208, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23552 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 209, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23504 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 209, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23526 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 210, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23508 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 210, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23530 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 211, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23518 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 211, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23540 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 212, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23512 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 213, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23516 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 214, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23520 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 215, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23534 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 215, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23556 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 216, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23538 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 216, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23560 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 217, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23542 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 217, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23564 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 218, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23536 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 219, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23540 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 220, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23564 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 220, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23586 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 221, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23558 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 222, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23580 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 222, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23602 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 222, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23624 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 223, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23586 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 223, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23608 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 224, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23586 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 224, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23608 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 225, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23590 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 225, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23612 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 226, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23594 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 226, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23616 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 227, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23602 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 228, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23610 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 229, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23640 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 230, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23644 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 231, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23642 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 175, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.01s, 116956 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 236, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.01s, 27353 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 237, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.01s, 28170 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 240, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.01s, 28993 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 241, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.01s, 29810 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 244, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.01s, 30706 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 245, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.01s, 31508 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 246, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.01s, 32336 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 295, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.01s, 32998 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 296, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.01s, 33815 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 297, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.01s, 34563 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 298, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.01s, 35486 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 299, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.01s, 36473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 300, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.01s, 37290 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 306, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.00s, 11442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 304, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.01s, 39801 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 310, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.01s, 11478 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 320, characters 16-68:
+Sub-goal array creation size of goal _parser'vc.
+Prover result is: Valid (0.00s, 4514 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 318, characters 16-26:
+Sub-goal type invariant of goal _parser'vc.
+Prover result is: Valid (0.00s, 4866 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 319, characters 16-44:
+Sub-goal type invariant of goal _parser'vc.
+Prover result is: Valid (0.00s, 6677 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 357, characters 28-58:
+Sub-goal variant decrease of goal seq_to_list_string'vc.
+Prover result is: Valid (0.01s, 41517 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 361, characters 28-56:
+Sub-goal variant decrease of goal seq_to_list_term'vc.
+Prover result is: Valid (0.01s, 57445 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 382, characters 43-58:
+Sub-goal index in array bounds of goal _parser__peek'vc.
+Prover result is: Valid (0.01s, 61686 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 374, characters 15-19:
+Sub-goal postcondition of goal _parser__peek'vc.
+Prover result is: Valid (0.00s, 6502 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 375, characters 47-95:
+Sub-goal postcondition of goal _parser__peek'vc.
+Prover result is: Valid (0.01s, 17560 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 374, characters 15-19:
+Sub-goal postcondition of goal _parser__peek'vc.
+Prover result is: Valid (0.00s, 6506 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 375, characters 47-95:
+Sub-goal postcondition of goal _parser__peek'vc.
+Prover result is: Valid (0.00s, 3747 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 395, characters 9-28:
+Sub-goal index in array bounds of goal _parser__take'vc.
+Prover result is: Valid (0.01s, 61509 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 394, characters 4-6:
+Sub-goal type invariant of goal _parser__take'vc.
+Prover result is: Valid (0.01s, 62502 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 394, characters 4-6:
+Sub-goal type invariant of goal _parser__take'vc.
+Prover result is: Valid (0.01s, 62152 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 390, characters 15-19:
+Sub-goal postcondition of goal _parser__take'vc.
+Prover result is: Valid (0.01s, 6608 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 391, characters 15-48:
+Sub-goal postcondition of goal _parser__take'vc.
+Prover result is: Valid (0.01s, 29676 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 407, characters 16-56:
+Sub-goal precondition of goal _parser__expect'vc.
+Prover result is: Valid (0.00s, 6324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 411, characters 4-24:
+Sub-goal precondition of goal _parser__expect'vc.
+Prover result is: Valid (0.01s, 12083 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 401, characters 15-19:
+Sub-goal postcondition of goal _parser__expect'vc.
+Prover result is: Valid (0.01s, 6834 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 402, characters 15-43:
+Sub-goal postcondition of goal _parser__expect'vc.
+Prover result is: Valid (0.01s, 46449 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 403, characters 15-53:
+Sub-goal postcondition of goal _parser__expect'vc.
+Prover result is: Valid (0.01s, 82825 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 413, characters 22-62:
+Sub-goal goal of goal _parser__expect__union_arm_Arm_1_0_inj.
+Prover result is: Valid (0.01s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 415, characters 59-64:
+Sub-goal goal of goal _parser__expect__union_arm_Arm_1_0_proj.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 417, characters 21-59:
+Sub-goal goal of goal _parser__expect__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.00s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 419, characters 57-62:
+Sub-goal goal of goal _parser__expect__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 436, characters 16-36:
+Sub-goal precondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 6494 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 440, characters 18-45:
+Sub-goal loop invariant init of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 29176 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 441, characters 18-77:
+Sub-goal loop invariant init of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 65134 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 443, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 6552 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 443, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 6559 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 443, characters 18-58:
+Sub-goal precondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 6571 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 427, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6618 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 457, characters 12-73:
+Sub-goal precondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6684 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 461, characters 18-45:
+Sub-goal loop invariant init of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 69052 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 462, characters 18-77:
+Sub-goal loop invariant init of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.02s, 69272 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 464, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6751 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 464, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6756 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 464, characters 18-58:
+Sub-goal precondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6770 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 427, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6817 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 479, characters 12-73:
+Sub-goal precondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 480, characters 12-38:
+Sub-goal variant decrease of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 78010 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 480, characters 12-38:
+Sub-goal precondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6926 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 423, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6973 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 424, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 77794 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 425, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 6985 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 423, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6977 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 424, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 77864 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 425, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 6989 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 427, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 6945 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 427, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6907 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 472, characters 52-72:
+Sub-goal precondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 12307 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 463, characters 16-53:
+Sub-goal loop variant decrease of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.02s, 84257 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 461, characters 18-45:
+Sub-goal loop invariant preservation of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.02s, 84070 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 462, characters 18-77:
+Sub-goal loop invariant preservation of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.02s, 86119 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 427, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 427, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 6703 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 451, characters 50-70:
+Sub-goal precondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.01s, 11948 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 442, characters 16-53:
+Sub-goal loop variant decrease of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.02s, 82248 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 440, characters 18-45:
+Sub-goal loop invariant preservation of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.02s, 82000 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 441, characters 18-77:
+Sub-goal loop invariant preservation of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.02s, 83909 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 427, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_quant'vc.
+Prover result is: Valid (0.00s, 6707 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 502, characters 11-42:
+Sub-goal variant decrease of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 61476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 502, characters 11-42:
+Sub-goal precondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.00s, 6320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 503, characters 16-56:
+Sub-goal precondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.00s, 6513 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 505, characters 25-45:
+Sub-goal precondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.00s, 11908 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 506, characters 13-44:
+Sub-goal variant decrease of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 72076 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 506, characters 13-44:
+Sub-goal precondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 6723 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 507, characters 19-59:
+Sub-goal precondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.00s, 6767 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 509, characters 28-48:
+Sub-goal precondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.00s, 12454 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 510, characters 15-46:
+Sub-goal variant decrease of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 74306 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 510, characters 15-46:
+Sub-goal precondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 6977 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 489, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.00s, 7017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 490, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 73717 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 491, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 7029 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 493, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 6998 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 489, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.00s, 6935 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 490, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 72782 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 491, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 6945 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 493, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 6744 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 489, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.00s, 6681 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 490, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.00s, 6686 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 491, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.01s, 6691 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 493, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_comparison'vc.
+Prover result is: Valid (0.00s, 6341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 531, characters 11-43:
+Sub-goal variant decrease of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 61476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 531, characters 11-43:
+Sub-goal precondition of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.00s, 6320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 534, characters 18-46:
+Sub-goal loop invariant init of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.00s, 6513 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 535, characters 18-77:
+Sub-goal loop invariant init of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.02s, 64842 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 537, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 6530 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 537, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 6535 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 537, characters 18-58:
+Sub-goal precondition of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 6549 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 521, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 6749 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 522, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 23615 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 523, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 40780 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 541, characters 25-45:
+Sub-goal precondition of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 11995 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 542, characters 13-45:
+Sub-goal variant decrease of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 72788 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 542, characters 13-45:
+Sub-goal precondition of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.00s, 6787 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 536, characters 16-53:
+Sub-goal loop variant decrease of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 72371 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 534, characters 18-46:
+Sub-goal loop invariant preservation of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.02s, 72210 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 535, characters 18-77:
+Sub-goal loop invariant preservation of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.01s, 72073 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 525, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.00s, 6808 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 525, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_conjunction'vc.
+Prover result is: Valid (0.00s, 6341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 559, characters 11-44:
+Sub-goal variant decrease of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 61476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 559, characters 11-44:
+Sub-goal precondition of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 6320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 562, characters 18-46:
+Sub-goal loop invariant init of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 6513 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 563, characters 18-77:
+Sub-goal loop invariant init of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.02s, 64842 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 565, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 6530 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 565, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.00s, 6535 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 565, characters 18-58:
+Sub-goal precondition of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.00s, 6549 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 549, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 6749 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 550, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 23615 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 551, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 40780 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 569, characters 25-45:
+Sub-goal precondition of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 11995 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 570, characters 13-46:
+Sub-goal variant decrease of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.02s, 72788 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 570, characters 13-46:
+Sub-goal precondition of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 6787 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 564, characters 16-53:
+Sub-goal loop variant decrease of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.02s, 72371 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 562, characters 18-46:
+Sub-goal loop invariant preservation of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 72210 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 563, characters 18-77:
+Sub-goal loop invariant preservation of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 72073 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 553, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.00s, 6808 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 553, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_disjunction'vc.
+Prover result is: Valid (0.01s, 6341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 587, characters 11-44:
+Sub-goal variant decrease of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.01s, 61476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 587, characters 11-44:
+Sub-goal precondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.00s, 6320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 588, characters 16-56:
+Sub-goal precondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.00s, 6513 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 590, characters 14-34:
+Sub-goal precondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.01s, 11968 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 591, characters 13-46:
+Sub-goal variant decrease of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.02s, 78200 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 591, characters 13-46:
+Sub-goal precondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.00s, 6752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 577, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.01s, 6792 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 578, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.02s, 77685 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 579, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.00s, 6804 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 581, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.00s, 6773 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 577, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.00s, 6719 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 578, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.01s, 6724 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 579, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.00s, 6729 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 581, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_implication'vc.
+Prover result is: Valid (0.00s, 6341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 607, characters 16-56:
+Sub-goal precondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.00s, 6324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 609, characters 25-52:
+Sub-goal variant decrease of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.02s, 83431 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 609, characters 25-52:
+Sub-goal precondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.01s, 11966 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 599, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.01s, 6757 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 600, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.00s, 6762 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 601, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.00s, 6769 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 603, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.00s, 6738 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 611, characters 25-58:
+Sub-goal variant decrease of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.01s, 72537 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 611, characters 25-58:
+Sub-goal precondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.00s, 6717 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 599, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.01s, 6755 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 600, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.01s, 6760 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 601, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.00s, 6767 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 603, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_expr'vc.
+Prover result is: Valid (0.00s, 6736 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 629, characters 16-56:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 6324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 634, characters 14-34:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.00s, 11700 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 616, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 6616 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 617, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 32108 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 618, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 68311 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 619, characters 15-42:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 32208 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 638, characters 16-36:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.00s, 11780 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 639, characters 17-43:
+Sub-goal variant decrease of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 69021 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 639, characters 17-43:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.00s, 6653 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 640, characters 28-50:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 6697 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 640, characters 128-150:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.00s, 6753 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 643, characters 24-51:
+Sub-goal loop invariant init of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 84068 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 644, characters 24-83:
+Sub-goal loop invariant init of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 85008 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 642, characters 33-55:
+Sub-goal type invariant of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 7733 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 642, characters 33-55:
+Sub-goal type invariant of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 7738 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 642, characters 33-55:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 7752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 642, characters 133-155:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 7814 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 646, characters 20-40:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 16284 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 647, characters 35-61:
+Sub-goal variant decrease of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 87778 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 647, characters 35-61:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 7945 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 645, characters 22-59:
+Sub-goal loop variant decrease of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 93916 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 643, characters 24-51:
+Sub-goal loop invariant preservation of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 93469 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 644, characters 24-83:
+Sub-goal loop invariant preservation of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 93674 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 649, characters 18-80:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 7912 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 616, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 7950 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 617, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 93062 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 618, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 7962 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 619, characters 15-42:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 93107 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 652, characters 18-80:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.00s, 6851 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 616, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 6889 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 617, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 76361 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 618, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.00s, 6901 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 619, characters 15-42:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 76406 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 657, characters 32-52:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 11834 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 616, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 6693 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 617, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 40312 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 618, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 76984 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 619, characters 15-42:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 40428 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 616, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.00s, 6702 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 617, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 40369 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 618, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 77112 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 619, characters 15-42:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 40485 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 665, characters 23-49:
+Sub-goal variant decrease of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 77270 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 665, characters 23-49:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 6711 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 616, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 6764 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 617, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 77015 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 618, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 6776 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 619, characters 15-42:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 77059 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 616, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.00s, 6715 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 617, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 37917 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 618, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 75168 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 619, characters 15-42:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 38029 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 674, characters 20-40:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 12053 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 675, characters 19-45:
+Sub-goal variant decrease of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 72180 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 675, characters 19-45:
+Sub-goal precondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 6768 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 616, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.01s, 6821 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 617, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 71958 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 618, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.00s, 6833 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 619, characters 15-42:
+Sub-goal postcondition of goal _parser__parse_atom'vc.
+Prover result is: Valid (0.02s, 72002 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 696, characters 12-38:
+Sub-goal variant decrease of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 61476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 696, characters 12-38:
+Sub-goal precondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 6320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 701, characters 20-48:
+Sub-goal loop invariant init of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 6760 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 702, characters 20-79:
+Sub-goal loop invariant init of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 72155 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 705, characters 20-60:
+Sub-goal type invariant of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 6777 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 705, characters 20-60:
+Sub-goal type invariant of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 6782 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 705, characters 20-60:
+Sub-goal precondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 6796 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 686, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 7072 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 687, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 25025 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 688, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 37500 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 710, characters 33-59:
+Sub-goal variant decrease of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.02s, 74249 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 710, characters 33-59:
+Sub-goal precondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 6911 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 703, characters 18-55:
+Sub-goal loop variant decrease of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.02s, 83587 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 701, characters 20-48:
+Sub-goal loop invariant preservation of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.02s, 84110 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 702, characters 20-79:
+Sub-goal loop invariant preservation of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 84057 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 690, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 6930 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 714, characters 33-59:
+Sub-goal variant decrease of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.02s, 74173 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 714, characters 33-59:
+Sub-goal precondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 6935 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 703, characters 18-55:
+Sub-goal loop variant decrease of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.02s, 83645 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 701, characters 20-48:
+Sub-goal loop invariant preservation of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.02s, 84080 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 702, characters 20-79:
+Sub-goal loop invariant preservation of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.02s, 84029 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 690, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 6954 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 718, characters 33-59:
+Sub-goal variant decrease of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.02s, 74550 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 718, characters 33-59:
+Sub-goal precondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 6977 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 703, characters 18-55:
+Sub-goal loop variant decrease of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 83899 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 701, characters 20-48:
+Sub-goal loop invariant preservation of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.02s, 84445 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 702, characters 20-79:
+Sub-goal loop invariant preservation of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.02s, 84394 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 690, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 6996 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 686, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 7191 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 687, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 25618 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 688, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.01s, 38367 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 686, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 6754 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 687, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 6759 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 688, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 6766 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 690, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_atom_application'vc.
+Prover result is: Valid (0.00s, 6341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 742, characters 11-49:
+Sub-goal variant decrease of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.02s, 61476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 742, characters 11-49:
+Sub-goal precondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 6320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 745, characters 18-46:
+Sub-goal loop invariant init of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 6513 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 746, characters 18-77:
+Sub-goal loop invariant init of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 64842 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 749, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.00s, 6530 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 749, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.00s, 6535 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 749, characters 18-58:
+Sub-goal precondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 6549 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 732, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.00s, 6596 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 733, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 17891 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 734, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.00s, 29620 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 754, characters 27-47:
+Sub-goal precondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.00s, 11923 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 755, characters 15-53:
+Sub-goal variant decrease of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.02s, 72701 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 755, characters 15-53:
+Sub-goal precondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 6723 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 747, characters 16-53:
+Sub-goal loop variant decrease of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.02s, 72294 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 745, characters 18-46:
+Sub-goal loop invariant preservation of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.02s, 72119 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 746, characters 18-77:
+Sub-goal loop invariant preservation of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.02s, 71984 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 736, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 6744 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 760, characters 16-36:
+Sub-goal precondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 12125 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 761, characters 15-53:
+Sub-goal variant decrease of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.02s, 73658 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 761, characters 15-53:
+Sub-goal precondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 6816 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 747, characters 16-53:
+Sub-goal loop variant decrease of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.02s, 72460 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 745, characters 18-46:
+Sub-goal loop invariant preservation of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 72285 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 746, characters 18-77:
+Sub-goal loop invariant preservation of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.02s, 72150 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 736, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.00s, 6837 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 732, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.00s, 6783 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 733, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.00s, 26708 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 734, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.01s, 38730 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 736, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_arith_mul'vc.
+Prover result is: Valid (0.00s, 6341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 782, characters 11-42:
+Sub-goal variant decrease of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.01s, 61476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 782, characters 11-42:
+Sub-goal precondition of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.00s, 6320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 785, characters 18-46:
+Sub-goal loop invariant init of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.00s, 6513 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 786, characters 18-77:
+Sub-goal loop invariant init of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.01s, 64842 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 788, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.00s, 6530 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 788, characters 18-58:
+Sub-goal type invariant of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.00s, 6535 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 788, characters 18-58:
+Sub-goal precondition of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.00s, 6549 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 772, characters 15-19:
+Sub-goal postcondition of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.00s, 6749 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 773, characters 15-43:
+Sub-goal postcondition of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.01s, 23615 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 774, characters 15-53:
+Sub-goal postcondition of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.01s, 40780 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 792, characters 25-45:
+Sub-goal precondition of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.01s, 11995 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 793, characters 13-44:
+Sub-goal variant decrease of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.02s, 72788 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 793, characters 13-44:
+Sub-goal precondition of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.01s, 6787 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 787, characters 16-53:
+Sub-goal loop variant decrease of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.02s, 72371 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 785, characters 18-46:
+Sub-goal loop invariant preservation of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.01s, 72210 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 786, characters 18-77:
+Sub-goal loop invariant preservation of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.01s, 72073 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 776, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.00s, 6808 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 776, characters 28-32:
+Sub-goal exceptional postcondition of goal _parser__parse_arith_add'vc.
+Prover result is: Valid (0.01s, 6341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 799, characters 21-59:
+Sub-goal goal of goal _parser__parse_arith_add__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.00s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 801, characters 57-62:
+Sub-goal goal of goal _parser__parse_arith_add__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 803, characters 21-59:
+Sub-goal goal of goal _parser__parse_quant__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.01s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 805, characters 57-62:
+Sub-goal goal of goal _parser__parse_quant__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 807, characters 21-59:
+Sub-goal goal of goal _parser__parse_comparison__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.01s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 809, characters 57-62:
+Sub-goal goal of goal _parser__parse_comparison__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 811, characters 21-59:
+Sub-goal goal of goal _parser__parse_conjunction__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.01s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 813, characters 57-62:
+Sub-goal goal of goal _parser__parse_conjunction__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 815, characters 21-59:
+Sub-goal goal of goal _parser__parse_disjunction__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.01s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 817, characters 57-62:
+Sub-goal goal of goal _parser__parse_disjunction__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.01s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 819, characters 21-59:
+Sub-goal goal of goal _parser__parse_implication__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.00s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 821, characters 57-62:
+Sub-goal goal of goal _parser__parse_implication__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.01s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 823, characters 21-59:
+Sub-goal goal of goal _parser__parse_expr__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.01s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 825, characters 57-62:
+Sub-goal goal of goal _parser__parse_expr__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 827, characters 21-59:
+Sub-goal goal of goal _parser__parse_atom__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.00s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 829, characters 57-62:
+Sub-goal goal of goal _parser__parse_atom__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 831, characters 21-59:
+Sub-goal goal of goal _parser__parse_atom_application__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.00s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 833, characters 57-62:
+Sub-goal goal of goal _parser__parse_atom_application__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 835, characters 21-59:
+Sub-goal goal of goal _parser__parse_arith_mul__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.01s, 6315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 837, characters 57-62:
+Sub-goal goal of goal _parser__parse_arith_mul__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.01s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 849, characters 47-77:
+Sub-goal variant decrease of goal flatten_arrow_chain__app'vc.
+Prover result is: Valid (0.00s, 16518 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 856, characters 13-111:
+Sub-goal variant decrease of goal flatten_arrow_chain__go'vc.
+Prover result is: Valid (0.01s, 67922 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 861, characters 32-36:
+Sub-goal postcondition of goal flatten_arrow_chain'vc.
+Prover result is: Valid (0.00s, 6301 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 872, characters 85-107:
+Sub-goal variant decrease of goal free_vars__binders'vc.
+Prover result is: Valid (0.00s, 16518 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 877, characters 22-44:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 67733 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 878, characters 68-85:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 67922 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 878, characters 68-85:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.01s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 878, characters 50-67:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.02s, 68124 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 878, characters 50-67:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 6319 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 880, characters 55-73:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 68091 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 880, characters 55-73:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.01s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 881, characters 55-73:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 67951 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 881, characters 55-73:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 883, characters 25-40:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 68192 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 883, characters 25-40:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 6310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 874, characters 32-36:
+Sub-goal postcondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 6301 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 889, characters 101-120:
+Sub-goal variant decrease of goal free_vars__list'vc.
+Prover result is: Valid (0.01s, 16518 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 889, characters 87-100:
+Sub-goal variant decrease of goal free_vars__list'vc.
+Prover result is: Valid (0.01s, 16556 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 889, characters 87-100:
+Sub-goal precondition of goal free_vars__list'vc.
+Prover result is: Valid (0.00s, 6252 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 900, characters 38-76:
+Sub-goal variant decrease of goal mk_arrow_chain__go'vc.
+Prover result is: Valid (0.01s, 16518 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 903, characters 32-36:
+Sub-goal postcondition of goal mk_arrow_chain'vc.
+Prover result is: Valid (0.00s, 6301 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 365, characters 20-23: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 365, characters 34-36: unused variable xs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 390, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 401, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 772, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 732, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 694, characters 8-16: unused variable args_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 686, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 625, characters 8-16: unused variable elts_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 616, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 599, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 577, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 549, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 521, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 489, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 432, characters 8-19: unused variable binders_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 431, characters 8-20: unused variable ty_parts_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 423, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 861, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 874, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 892, characters 11-12: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 894, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 903, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 909, characters 25-26: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 911, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 913, characters 23-24: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_v0kuk3ig.mlw", line 915, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,29 @@
+audit(#43): the Module-5 -> Module-6 IR-KEY boundary is SWEPT — 111 node tags, ZERO unread keys
+
+The bug class this campaign has been mining is "a lowering reads some of a node's fields
+and silently drops the rest". Twelve instances have been found. Every single one of them
+sits at the PYTHON-AST boundary — Module 1's `#@` anchoring, Module 3's attachment,
+Module 5's statement handlers. Nobody had asked the same question one layer down, at the
+IR-dict boundary between Module 5 and Module 6, which is where a dropped key would be
+just as invisible.
+
+Asked and answered, mechanically, two ways:
+
+`scratchpad/w8/census_irkeys.py` collects every key Module 5 writes into an IR node dict
+literal, grouped by that literal's `type` / `stmt` tag — 111 tags — and checks each key
+against every string constant and attribute name appearing anywhere in Module 6 and the
+IR-resolution passes (`module6_whyml/`, `Module6_WhyMLTranspiler`, `core_ir_semantic`,
+`ir_schema`, `frontend/{ir_resolve,desugar,ir_inline,monomorphize}` — 25 files, 12614
+distinct names). ZERO unmentioned keys.
+
+That form is too generous — "mentioned somewhere in Module 6" is not "read by the handler
+for THIS node". `census_irkeys2.py` sharpens it: for each tag, seed on the functions that
+actually mention that tag literal, take their callee closure to depth 2, and look for
+emitted keys absent from that closure. Still ZERO, and every one of the 111 tags has at
+least one Module-6 function that mentions it (no orphan tags either).
+
+A negative result, recorded so it is not re-derived: the IR boundary is not where this bug
+class lives. The AST boundary is, which is consistent with where all twelve routes were
+found and with why route #12 was the last one there.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

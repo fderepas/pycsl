@@ -61,7 +61,6 @@ class ReverifyReport:
     qualname_results: List[tuple[str, bool, List[str]]] = field(default_factory=list)
     cached: bool = False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -301,7 +300,6 @@ def verify_rocq_file(proof_file: Path, qualnames: List[str],
     if use_cache:
         _cache_store(project_root, "rocq", key, _to_cache_payload(report))
     return report
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -324,8 +322,11 @@ def _split_rocq_print_assumptions(stdout: str, qualnames: List[str]) -> dict[str
                "Axioms:", "Section Variables:",
                "Parameters:", "Constants:")
     pos = 0
+    #@ loop invariant 0 <= pos
+    #@ loop variant len(stdout) - pos
     while pos < len(stdout):
         next_start = -1
+        #@ loop invariant next_start == -1 or next_start >= pos
         for marker in markers:
             idx = stdout.find(marker, pos)
             if idx != -1 and (next_start == -1 or idx < next_start):

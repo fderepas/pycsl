@@ -1,0 +1,38 @@
+CLOSED(#43): ROUTE #15 — a constructor's `#@ requires` / `#@ ensures` is now CHECKED
+
+Module 6 emits a CHECKING-ONLY `let <class>__init (<params>) : <class>` carrying the
+declared clauses over the SAME record literal every allocation site already builds. The
+inlining is untouched, so no call site moves and the caller-side faithfulness that made this
+a dishonesty rather than an unsoundness is preserved.
+
+The exploit probe flips: `#@ ensures self.x == 99` over a body `self.x = 0` used to print
+`[+] Verification SUCCESS! All contracts formally proven.` and now fails at `c__init'vc`.
+`#@ requires 1 == 2` on `__init__` is now caught by the NON-VACUITY gate — an unsatisfiable
+constructor precondition is a real defect and is finally visible as one.
+
+THREE GATES WERE NEEDED, AND ALL THREE CAME FROM MEASUREMENT RATHER THAN DESIGN:
+
+  1. Emit only for a NON-TRIVIAL clause. That is what keeps the mirror's 24 `ensures True`
+     constructors — and with them the entire 53-file mirror re-proof battery — out of this
+     change. MIRROR EMISSIONS MOVED: **ZERO**.
+  2. Emit only when `_call_record_constructor` produced the REAL constructor. For corpus
+     0661/0662 (`Inode.__init__(self, initial: list)`, nineteen preconditions) it defaults
+     a param-dependent LIST field to `Array.make 0 0`, so a check there would report the
+     MODELLING GAP and not the contract. Detected structurally — parameters exist and none
+     of them appears in the emitted literal — rather than by re-deriving the fallback rule.
+  3. Emit only when every constructor parameter carries a RECOGNIZED annotation. An
+     unannotated one defaults to `int`, and a string or sequence read then lowers through
+     the opaque `subscript_get`, which is registered too late to be declared and leaves
+     `unbound function or predicate symbol`. Measured on `pycsl_lib/os.DirEntry` and on the
+     `world` module that imports it.
+
+GATES: clause-survival **4 -> 2**, its own acceptance test · mirror emissions moved ZERO ·
+10 corpus emissions changed and **12/12 of the affected files PROVE** ·
+`python-reference` 2142/2142 byte-identical, no new refusals · `pycsl_lib` L3-tc back to 90 ·
+BOTH conformance golden sets 38 OK / 0 MISMATCH · metric UNCHANGED at 456.
+
+The two remaining clause-survival deficits are 0661/0662 and they remain HONESTLY: they go
+to 0 when a param-dependent non-scalar field is threaded faithfully — the same value-model
+capability routes #13, #17 and #18 all name.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

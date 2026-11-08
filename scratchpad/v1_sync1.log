@@ -1,0 +1,234 @@
+DIVERGED: module6_whyml/expressions.py::ExpressionEmissionMixin._handle_var_expr — un-trusted mirror body != live emitter body:
+  --- live
+  +++ mirror
+  @@ -7,7 +7,6 @@
+   if name in self._array_locals:
+    return whyml_ident(name)
+   if name in self._lambda_locals:
+    return whyml_ident(name)
+   if name in self._record_locals:
+    return whyml_ident(name)
+  -if name in getattr(self, '_optional_union_locals', set()):
+    _proj = self._union_local_read_projection(name)
+    if _proj is not None:
+        return _proj
+   if name in getattr(self, '_pyval_locals', set()):
+    return whyml_ident(name)
+   if name in local_refs:
+    return f'!{whyml_ident(name)}'
+   if name in getattr(self, '_mutated_collection_params', set()):
+    return f'!{whyml_ident(name)}'
+  ---
+DIVERGED: module6_whyml/functions.py::FunctionEmissionMixin._refine_tuple_return_type — un-trusted mirror body != live emitter body:
+  --- live
+  +++ mirror
+  @@ -1,5 +1,4 @@
+   if not (return_type.startswith('(') and ',' in return_type):
+    return return_type
+  -if func.get('name', '').endswith('_classify_literal_value'):
+    return '(string, pyconst_val, emit_ir)'
+   elts = self._first_tuple_return_elts(body_stmts)
+   if not elts:
+    return return_type
+   array_vars, dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
+  ---
+DIVERGED: module6_whyml/stmt_control_flow.py::ControlFlowStmtMixin._handle_for_stmt — un-trusted mirror body != live emitter body:
+  --- live
+  +++ mirror
+  @@ -6,62 +6,14 @@
+   has_direct_ret = IRScanner.has_direct_return(_body_d)
+   loop_indent = indent + '  ' if has_direct_ret else indent
+   inner_indent = loop_indent + '  '
+  -tuple_targets = getattr(stmt, 'tuple_targets', None)
+  -str_ci = self._string_char_iter(iter_ir, target, tuple_targets, local_refs) if self._value_semantic else None
+  -enum_seq = self._enumerate_seq_recv(iter_ir, tuple_targets)
+  -extra_locals = set()
+  -saved_str_locals = None
+  -if str_ci is not None:
+    _op, _idx_name, _ch_name, _is_tuple = str_ci
+    extra_locals = {n for n in (_idx_name, _ch_name) if n and n != '_'}
+    saved_str_locals = getattr(self, '_string_local_vars', set())
+    self._string_local_vars = set(saved_str_locals) | {_ch_name}
+elif enum_seq is not None:
+    _en_extra = {t for t in tuple_targets or [] if t and t != '_'}
+    extra_locals = _en_extra
+    if enum_seq[1]:
+        saved_str_locals = getattr(self, '_string_local_vars', set())
+        _en_elem = tuple_targets[1] if tuple_targets and len(tuple_targets) == 2 else None
+        self._string_local_vars = set(saved_str_locals) | ({_en_elem} if _en_elem and _en_elem != '_' else set())
+  -body_local = local_refs | {target} | extra_locals
+  -body_declared = declared_refs.copy() | {target} | extra_locals
+  -_saved_symtype = _MISSING = object()
+  -_is_classbody = self._classbody_psl_recv(iter_ir) is not None or self._pyast_walk_recv(iter_ir) is not None
+  -_is_kwbody = self._keyword_iter_recv(iter_ir, local_refs) is not None
+  -_is_tparambody = self._tparam_iter_recv(iter_ir) is not None
+  -_is_splitbody = self._value_semantic and self._split_call_recv_sep(iter_ir) is not None
+  -_is_pyval_keys = self._value_semantic and iter_ir.get('type') == 'Var' and (not tuple_targets) and (iter_ir.get('name') not in getattr(self, '_pyval_coll_locals', set())) and self._expr_is_pyval(iter_ir)
+  -_is_pyval_values = self._value_semantic and iter_ir.get('type') == 'Call' and isinstance(iter_ir.get('func'), str) and iter_ir.get('func').endswith('.values') and (self._self_field_dict_nu(iter_ir.get('func')[:-len('.values')]) == 'hval')
+  -_is_pyval_items = (self._hval_items_recv(iter_ir) is not None or self._hval_items_local_recv(iter_ir) is not None) and tuple_targets and (len(tuple_targets) == 2)
+  -_items_val_target = tuple_targets[1] if _is_pyval_items else None
+  -_items_val_str = bool(_is_pyval_items and self._emitting_refine_tuple_return_type())
+  -_saved_items_val_symtype = _MISSING
+  -if _is_pyval_items:
+    _items_extra = {t for t in tuple_targets if t and t != '_'}
+    body_local = body_local | _items_extra
+    body_declared = body_declared | _items_extra
+  -_is_zip_irlists = self._zip_irlist_recv(iter_ir) is not None and tuple_targets and (len(tuple_targets) == 2)
+  -_saved_zip_symtypes = {}
+  -if _is_zip_irlists:
+    _zip_extra = {t for t in tuple_targets if t and t != '_'}
+    body_local = body_local | _zip_extra
+    body_declared = body_declared | _zip_extra
+    _st = getattr(self, '_current_symbol_table', None)
+    if _st is not None:
+        for _zt in _zip_extra:
+            _saved_zip_symtypes[_zt] = _st.get(_zt, _MISSING)
+            _st[_zt] = 'ExprIR'
+  -_saved_pyval_member = None
+  ---
+DIVERGED: module6_whyml/stmt_control_flow.py::ControlFlowStmtMixin._handle_return_stmt — un-trusted mirror body != live emitter body:
+  --- live
+  +++ mirror
+  @@ -4,7 +4,7 @@
+   if val_ir is None:
+    val = '()'
+elif val_ir.get('type') == 'Var' and val_ir.get('name') in getattr(self, '_pyval_seq_locals', set()):
+    val = f"!{whyml_ident(val_ir['name'])}"
+elif val_ir.get('type') == 'Var' and val_ir.get('name') in getattr(self, '_seq_locals', set()):
+    if self._func_return_type == 'array string':
+        self._materialize_str_bridge()
+        val = f"(materialize_str !{whyml_ident(val_ir['name'])})"
+    else:
+        self._materialize_bridge()
+        val = f"(materialize !{whyml_ident(val_ir['name'])})"
+elif val_ir.get('type') == 'Var' and val_ir.get('name') in self._array_locals:
+    if use_raise and func_ret_peek != 'array int':
+        val = '0'
+    else:
+        val = whyml_ident(val_ir['name'])
+else:
+    val = self._expr_to_whyml(val_ir, local_refs)
+   _threaded = self._thread_optional_return(val_ir, local_refs)
+   if _threaded is not None:
+    val = _threaded
+else:
+    val = self._maybe_inject_union_return(val, val_ir)
+  -if use_raise:
+    func_ret = self._func_return_type
+    if func_ret.startswith('option ('):
+        suffix = func_ret[len('option '):].replace('(', '').replace(')', '').replace(' ', '').replace(',', '_')
+        if val_ir is not None and val_ir.get('type') == 'Tuple':
+            tup = self._expr_to_whyml(val_ir, local_refs)
+            return f'{indent}raise (Return_opttuple_{suffix} (Some {tup}))'
+        return f'{indent}raise (Return_opttuple_{suffix} None)'
+    if func_ret == 'unit':
+        return f'{indent}raise Return_void'
+    arity = self._current_tuple_arity
+    if arity > 0:
+        _texc = self._refined_tuple_exc_name(func_ret)
+        if _texc is not None:
+            return f'{indent}raise ({_texc} {val})'
+        return f'{indent}raise (Return_{arity} {val})'
+    if func_ret == 'array int':
+        self._materialize_bridge()
+        if val_ir is None:
+            seq_val = 'Seq.empty'
+        elif val_ir.get('type') == 'Var' and val_ir.get('name') in getattr(self, '_seq_locals', set()):
+            seq_val = f"!{whyml_ident(val_ir['name'])}"
+        else:
+            seq_val = self._seq_init_expr(val_ir, local_refs)
+        return f'{indent}raise (Return_seq {seq_val})'
+    if func_ret == 'array string':
+        self._materialize_str_bridge()
+        if val_ir is None:
+            seq_val = 'Seq.empty'
+        elif val_ir.get('type') == 'Var' and val_ir.get('name') in getattr(self, '_seq_locals', set()):
+            seq_val = f"!{whyml_ident(val_ir['name'])}"
+        else:
+            seq_val = self._seq_init_expr(val_ir, local_refs)
+        return f'{indent}raise (Return_seq_str {seq_val})'
+    if func_ret == 'string':
+        if val_ir is None or (isinstance(val_ir, dict) and val_ir.get('type') == 'None'):
+            return f'{indent}raise (Return_str "")'
+        return f'{indent}raise (Return_str {val})'
+    if func_ret == 'emit_ir':
+        return f'{indent}raise (Return_emit_ir {val})'
+    if func_ret.startswith('_union_'):
+        return f'{indent}raise (Return_{func_ret} {val})'
+    if val_ir and val_ir.get('type') == 'Var' and (val_ir.get('name') in self._array_locals):
+        val = '0'
+    elif val == '()':
+        val = '0'
+    elif val == 'true':
+        val = '1'
+    elif val == 'false':
+        val = '0'
+    else:
+        val = self._bool_ir_to_int_wrap(val, val_ir)
+    val = self._coerce_to_int(val)
+    return f'{indent}raise (Return {val})'
+  +if use_raise:
+    func_ret = self._func_return_type
+    if func_ret.startswith('option ('):
+        suffix = func_ret[len('option '):].replace('(', '').replace(')', '').replace(' ', '').replace(',', '_')
+        if val_ir is not None and val_ir.get('type') == 'Tuple':
+            tup = self._expr_to_whyml(val_ir, local_refs)
+            return f'{indent}raise (Return_opttuple_{suffix} (Some {tup}))'
+        return f'{indent}raise (Return_opttuple_{suffix} None)'
+    if func_ret == 'unit':
+        return f'{indent}raise Return_void'
+    arity = self._current_tuple_arity
+    if arity > 0:
+        return f'{indent}raise (Return_{arity} {val})'
+    if func_ret == 'array int':
+        self._materialize_bridge()
+        if val_ir is None:
+            seq_val = 'Seq.empty'
+        elif val_ir.get('type') == 'Var' and val_ir.get('name') in getattr(self, '_seq_locals', set()):
+            seq_val = f"!{whyml_ident(val_ir['name'])}"
+        else:
+            seq_val = self._seq_init_expr(val_ir, local_refs)
+        return f'{indent}raise (Return_seq {seq_val})'
+    if func_ret == 'array string':
+        self._materialize_str_bridge()
+        if val_ir is None:
+            seq_val = 'Seq.empty'
+        elif val_ir.get('type') == 'Var' and val_ir.get('name') in getattr(self, '_seq_locals', set()):
+            seq_val = f"!{whyml_ident(val_ir['name'])}"
+        else:
+            seq_val = self._seq_init_expr(val_ir, local_refs)
+        return f'{indent}raise (Return_seq_str {seq_val})'
+    if func_ret == 'string':
+        if val_ir is None or (isinstance(val_ir, dict) and val_ir.get('type') == 'None'):
+            return f'{indent}raise (Return_str "")'
+        return f'{indent}raise (Return_str {val})'
+    if func_ret == 'emit_ir':
+        return f'{indent}raise (Return_emit_ir {val})'
+    if func_ret.startswith('_union_'):
+        return f'{indent}raise (Return_{func_ret} {val})'
+    if val_ir and val_ir.get('type') == 'Var' and (val_ir.get('name') in self._array_locals):
+        val = '0'
+    elif val == '()':
+        val = '0'
+    elif val == 'true':
+        val = '1'
+    elif val == 'false':
+        val = '0'
+    else:
+        val = self._bool_ir_to_int_wrap(val, val_ir)
+    val = self._coerce_to_int(val)
+    return f'{indent}raise (Return {val})'
+   if self._func_return_type.startswith('option ('):
+    if val_ir is not None and val_ir.get('type') == 'Tuple':
+        return f'{indent}(Some {self._expr_to_whyml(val_ir, local_refs)})'
+    if val_ir is None or val_ir.get('type') == 'None':
+        return f'{indent}None'
+   if self._func_return_type == 'int' and (not (val.startswith('(if ') and val.endswith(' then 1 else 0)'))):
+    if val == 'true':
+        val = '1'
+    elif val == 'false':
+        val = '0'
+    else:
+        val = self._bool_ir_to_int_wrap(val, val_ir)
+   return f'{indent}{val}'
+  ---

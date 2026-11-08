@@ -1,0 +1,2 @@
+[*] getattr-erasure: 58 fall-through site(s) over 161 file(s) — DECLARED 0 · ABSENT 15 · UNKNOWN 43
+[-] getattr-erasure: test-suite/corpus/pycsl-reference/6337_r428_ctl_stdlib_function_on_self.py has 1 ABSENT / 0 UNKNOWN site(s) and NO row in bin/getattr-erasure-sites.tsv. Register it deliberately (--emit-baseline, then read the diff) — a new witness is a decision, not a number to bump.

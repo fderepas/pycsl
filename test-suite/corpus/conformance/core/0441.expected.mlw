@@ -10,6 +10,8 @@ module PyCSL_Program
     invariant { (start >= 0) }
     by { start = 7 }
 
+  goal _check_class_inv_counter : forall start : int. start = 7 -> ((start >= 0))
+
   val counter__get (self: counter) : int
     ensures  { (result = self.start) }
 

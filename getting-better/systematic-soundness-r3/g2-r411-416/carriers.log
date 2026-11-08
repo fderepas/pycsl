@@ -1,0 +1,3 @@
+[*] open-route-carriers: 10 carrier(s) checked.
+[+] open-route-carriers: OK — every open route's carrier still reproduces exactly as its ledger row says.
+rc=0

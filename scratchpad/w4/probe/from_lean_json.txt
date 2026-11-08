@@ -1,0 +1,3 @@
+L3TC-FAIL            <module>._linearize_app  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>._is_ofnat_lit  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>.project_to_ir  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]

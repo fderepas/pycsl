@@ -22,6 +22,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PYCSL_DIR="$PROJECT_ROOT/test-suite/corpus/pycsl-reference"
 PYTHON_DIR="$PROJECT_ROOT/test-suite/corpus/python-reference"
+# (#49) gen #30: THE THIRD SUITE. `test-suite/corpus/negative/` existed from early on and
+# was in NO RUNNER — three witnesses, never executed by anything, so "the negative corpus
+# passes" had never been a true sentence about this repo. It is in the default run now.
+# The witnesses carry `# pycsl-expected:` markers (two FAIL, one PASS — the PASS one is a
+# DYNAMIC-oracle witness whose contracts are true of its body and whose violation is a
+# call in `__main__`, which the static verifier does not model), so the XPASS rule below
+# applies to them exactly as it does to a numbered reference test.
+NEGATIVE_DIR="$PROJECT_ROOT/test-suite/corpus/negative"
 
 # Prefer the project venv's python so workers need no `activate` (why3 is a system tool).
 if [ -x "$PROJECT_ROOT/.venv/bin/python3" ]; then
@@ -57,8 +65,25 @@ if [ "${1:-}" = "--worker" ]; then
     expect_fail=$(grep -m1 '^# pycsl-expected: FAIL' "$py_file" 2>/dev/null)
 
     output=$($PYCSL $extra_flags "$py_file" 2>&1)
+    # (#44) XPASS IS A FAILURE. This branch used to read `if SUCCESS -> PASS` FIRST, so a
+    # `# pycsl-expected: FAIL` test that started PROVING was reported as a PASS and the
+    # suite got GREENER. That makes the corpus's 241 NEGATIVE WITNESSES unenforceable:
+    # every route witness in this campaign (0980-1001 and the eighteen before them) is an
+    # expected-FAIL file whose whole purpose is to prove that a false contract no longer
+    # verifies — and if the unsoundness came back, the suite would have said PASS.
+    # A negative witness that cannot fail is not a test.
+    # MEASURED at the time of the fix: exactly THREE expected-FAIL tests prove today
+    # (python-reference 0177/0178/0211), and all three are CAPABILITY GAINS whose contracts
+    # are TRUE of their programs — break, continue and generic classes became supported
+    # after they were written. They are re-marked `pycsl-expected: PASS` in the same
+    # increment. Scanned with BOTH prover sets (the config asks for an Alt-Ergo that is not
+    # installed) and the set is the same three, so no soundness witness proves.
     if echo "$output" | grep -q "Verification SUCCESS"; then
-        status=PASS
+        if [ -n "$expect_fail" ]; then
+            status=XPASS
+        else
+            status=PASS
+        fi
     elif [ -n "$expect_fail" ]; then
         status=XFAIL
     elif [ -z "$output" ]; then
@@ -71,14 +96,15 @@ if [ "${1:-}" = "--worker" ]; then
 fi
 
 # ── Main mode ──────────────────────────────────────────────────────────────────────────────
-TEST_DIRS=("$PYCSL_DIR" "$PYTHON_DIR")
+TEST_DIRS=("$PYCSL_DIR" "$PYTHON_DIR" "$NEGATIVE_DIR")
 
 usage() {
-    echo "Usage: $0 [--python] [--pycsl] [--start-at N] [--stop-at N] [--jobs K]"
+    echo "Usage: $0 [--python] [--pycsl] [--negative] [--start-at N] [--stop-at N] [--jobs K]"
     echo ""
-    echo "  (no flags)      run both pycsl-reference and python-reference suites"
+    echo "  (no flags)      run all three suites (pycsl-reference, python-reference, negative)"
     echo "  --python        run only test-suite/corpus/python-reference"
     echo "  --pycsl         run only test-suite/corpus/pycsl-reference"
+    echo "  --negative      run only test-suite/corpus/negative"
     echo "  --start-at N    skip tests numbered below N"
     echo "  --stop-at N     stop after test number N"
     echo "  --jobs K        run K tests concurrently (default: half the cores; 1 = serial)"
@@ -91,6 +117,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --python) TEST_DIRS=("$PYTHON_DIR"); shift ;;
         --pycsl)  TEST_DIRS=("$PYCSL_DIR"); shift ;;
+        --negative) TEST_DIRS=("$NEGATIVE_DIR"); shift ;;
         --start-at)
             if [[ -z "${2:-}" ]]; then echo "ERROR: --start-at requires a number"; usage; exit 1; fi
             START_AT="$2"; shift 2 ;;
@@ -162,7 +189,15 @@ RESET='\033[0m'
 entries=()   # parallel arrays: entry i = file path; suite/name derived on read
 for dir in "${TEST_DIRS[@]}"; do
     py_files=()
-    for f in "$dir"/0*.py; do
+    # (#45) THE GLOB USED TO BE `0*.py`. The corpus crossed 1000 in relaunch #44, so
+    # `1000_module_global_field_store_erasure.py` and `1001_..._faithful.py` — route
+    # #28's OWN negative witnesses, written by the very window that fixed this harness
+    # so a negative witness could FAIL — had never been executed by the suite, and
+    # neither would any witness added after them. A regression gate that silently stops
+    # growing with the corpus reports the same green whether the new files pass or not.
+    # (`bin/byte-diff-sweep.sh` had the identical blind spot; both were found on the
+    # same day by asking what the instrument iterated over.)
+    for f in "$dir"/*.py; do
         [ -f "$f" ] && py_files+=("$f")
     done
     if [ -d "$dir/stdlib" ]; then
@@ -172,7 +207,15 @@ for dir in "${TEST_DIRS[@]}"; do
     for py_file in "${py_files[@]}"; do
         [ -f "$py_file" ] || continue
         name="$(basename "$py_file" .py)"
-        file_num=$(echo "$name" | sed 's/^0*//'); file_num="${file_num:-0}"
+        # (#33) STOP AT THE FIRST NON-DIGIT. A descriptively-named test
+        # (`0970_annotated_field_store`) left a non-numeric token here, and the
+        # `[[ "$file_num" -lt ... ]]` below then printed
+        #   run-reference-tests.sh: line NNN: [[: 970_annotated_field_store: value too
+        #   great for base (error token is "970_annotated_field_store")
+        # once per such file — 46 lines of noise in a standard run, and worse, the
+        # comparison ERRORS OUT rather than evaluating, so `--start-at`/`--stop-at`
+        # silently stop filtering exactly the files whose names say what they test.
+        file_num=$(echo "$name" | sed 's/^0*//' | sed 's/[^0-9].*//'); file_num="${file_num:-0}"
         [[ "$file_num" -lt "$START_AT" ]] && continue
         if [[ -n "$STOP_AT" && "$file_num" -gt "$STOP_AT" ]]; then break; fi
         entries+=("$py_file")
@@ -180,6 +223,22 @@ for dir in "${TEST_DIRS[@]}"; do
 done
 
 echo "[*] $((${#entries[@]})) tests across ${#TEST_DIRS[@]} suite(s); jobs=$JOBS (cores=$CORES)"
+
+# (#45) ZERO-INPUT / SHRINKING-INPUT GUARD (the #44 rule: a gate that cannot distinguish
+# "nothing is wrong" from "I looked at nothing" is not a gate). A full run discovers 3000+
+# tests; anything below this floor means the glob, the corpus path or a --start-at filter
+# has silently emptied the run, and a green on that is not a pass. Skipped when the caller
+# asked for a SUBSET (--start-at / --stop-at / --python / --pycsl / --negative), which are
+# the only legitimate ways to run fewer. THE COUNT HERE IS THE NUMBER OF SUITES, and it
+# went 2 -> 3 when the negative corpus joined the default run (#49, gen #30): leaving it
+# at 2 would have turned the floor guard OFF for every full run, which is the same class
+# of silent-disable this guard exists to catch.
+if [ -z "$STOP_AT" ] && [ "$START_AT" = "0" ] \
+   && [ "${#TEST_DIRS[@]}" -eq 3 ] && [ "${#entries[@]}" -lt 3000 ]; then
+    echo "[!] run-reference-tests: only ${#entries[@]} tests discovered for a FULL run."
+    echo "    The corpus glob or path is broken. NOT A PASS."
+    exit 2
+fi
 
 RESULTS_DIR="$(mktemp -d)"
 export RESULTS_DIR PYCSL
@@ -206,6 +265,7 @@ for py_file in "${entries[@]}"; do
     case "$status" in
         PASS)  echo -e "${GREEN}[PASS]${RESET} $name"; ((passed++)) ;;
         XFAIL) echo -e "${GREEN}[XFAIL]${RESET} $name (expected failure)"; ((passed++)) ;;
+        XPASS) echo -e "${RED}[XPASS]${RESET} $name (expected FAIL but PROVED — a negative witness that no longer fails)"; ((failed++)); errors+=("$suite/$name (XPASS)"); failed_files+=("$py_file") ;;
         SKIP)  echo -e "${YELLOW}[SKIP]${RESET} $name (no output)"; ((failed++)); errors+=("$suite/$name (no output)"); failed_files+=("$py_file") ;;
         FAIL)  echo -e "${RED}[FAIL]${RESET} $name"; ((failed++)); errors+=("$suite/$name"); failed_files+=("$py_file") ;;
         *)     echo -e "${RED}[FAIL]${RESET} $name (no result)"; ((failed++)); errors+=("$suite/$name (no result)"); failed_files+=("$py_file") ;;

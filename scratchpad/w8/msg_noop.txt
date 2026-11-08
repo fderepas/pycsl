@@ -1,0 +1,26 @@
+audit(#43): hand over the rest of the no-op census — four un-probed candidates, each with a prose soundness argument beside it
+
+All 13 statement-level `()` sites in `module6_whyml/statements.py` are enumerated by
+function; routes #17 and #18 came from two of them. The remaining candidates, listed so the
+next window can start from the census rather than rebuild it — and every one carries a
+comment ASSERTING it is sound, which is the signal that paid twice already:
+
+  · `statements.py:2670` `_handle_expr_stmt` — a set/dict-typed PARAM mutated via
+    `.add`/`.discard`/`.remove` inside a `@mutable_state` class is a NO-OP, on the grounds
+    that "the mutation is on a value param, so it does NOT escape ... A Python set param IS
+    mutated, but no contract here reads it". That last clause is a claim about the CURRENT
+    corpus, not a guarantee — and the non-`@mutable_state` path REJECTS the same shape.
+  · `statements.py:1634` `_handle_array_set_stmt` — an `<emit_ir>[k] = v` store inside a
+    `@mutable_state` class, on the grounds that "the reflected IR is never claimed updated".
+  · `statements.py:2252` `_handle_fieldassign_stmt` — the four ASDL location-attribute
+    stamps, argued identity-faithful because `_fin` is itself modelled as identity.
+  · `expressions.py:14789` `_handle_sum_node_expr` returns the literal "0" when NOT
+    `_value_semantic` — i.e. under memory model `typed` or `store`, since
+    `_value_semantic = memory_model in ("hoare", "concurrent")` — so a `\sum` contract
+    would erase to 0 there. No corpus file uses those models, so this is UNPROBED rather
+    than refuted.
+
+Recorded, not scoped. Each needs the same treatment routes #17 and #18 got: build the
+false-contract probe and see whether the prose holds.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

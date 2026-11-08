@@ -1,0 +1,102 @@
+(* term-rewriter-spike.mlw — INDEPENDENT REVIEWER SPIKE for term-rewriter-wall.md §4.
+   Hand-written; tests whether a total, structurally-terminating Term -> Term rewriter
+   is expressible + provable in WhyML with NO new axiom, under a type-safety-shaped
+   contract (requires { true } / ensures { true }).
+
+   Fault lines under test (report §4):
+     (C) construction  — the rewriter CONSTRUCTS new Binop/App/Unary nodes and returns a term;
+     (L) list-child map — flip_list maps the rewriter over App's `list term` child;
+     (T) termination   — `variant { size t }` / `variant { size_list l }` discharge with
+                         the element-of-list-child decrease, axiom-free.
+
+   NO `axiom` keyword appears in this file. The only unaxiomatized symbols are the two
+   abstract `val function`s (is_cmp / flip_op), which carry no assumed properties.
+
+   Prove: why3 prove -P alt-ergo getting-better/composition-wall/term-rewriter-spike.mlw *)
+
+module TermRewriterSpike
+
+  use int.Int
+  use list.List
+  use list.Mem
+
+  (* The term ADT: BOTH a fixed-arity recursive constructor (Binop) AND a
+     list-of-children constructor (App with `list term`) — the report's fault line (L). *)
+  type term =
+    | Var string
+    | IntLit int
+    | Binop string term term
+    | App string (list term)
+    | Unary string term
+
+  (* Structural size measure, mutually recursive into the list children.
+     `variant { t }` / `variant { l }` are STRUCTURAL (subterm order);
+     the ensures give the int lower bounds the int-variant callers need. *)
+  let rec function size (t: term) : int
+    ensures { result >= 1 }
+    variant { t }
+  = match t with
+    | Var _ -> 1
+    | IntLit _ -> 1
+    | Binop _ l r -> 1 + size l + size r
+    | App _ args -> 1 + size_list args
+    | Unary _ a -> 1 + size a
+    end
+  with function size_list (l: list term) : int
+    ensures { result >= 0 }
+    variant { l }
+  = match l with
+    | Nil -> 0
+    | Cons x rest -> 1 + size x + size_list rest
+    end
+
+  (* Report §4.3's exact question, as a PROVED lemma-function (not an axiom):
+     each element of a list child is strictly smaller than the list's measure,
+     hence strictly smaller than the App node that carries the list. *)
+  let rec lemma size_mem (x: term) (l: list term)
+    ensures { mem x l -> size x < size_list l }
+    variant { l }
+  = match l with
+    | Nil -> ()
+    | Cons _ rest -> size_mem x rest
+    end
+
+  lemma size_app_child:
+    forall h: string, args: list term, x: term.
+      mem x args -> size x < size (App h args)
+
+  (* The comparison-flip table, modeled abstractly: which ops flip, and to what.
+     Abstract `val function` = declared symbol with NO axiom (content-irrelevant
+     for the type-safety+frame contract shape). *)
+  val function is_cmp (op: string) : bool
+  val function flip_op (op: string) : string
+
+  (* THE REWRITER — the report §2 minimal witness `_flip_comparisons`, verbatim shape:
+     leaves are identity; Binop with a comparison op is REBUILT with args swapped (C);
+     App REBUILDS its child list by mapping flip over it (C)+(L); termination is the
+     int measure over the input subtree (T). Contract = the campaign's
+     type-safety+frame shape, nothing more. *)
+  let rec flip (t: term) : term
+    requires { true }
+    ensures  { true }
+    variant  { size t }
+  = match t with
+    | Var v -> Var v
+    | IntLit n -> IntLit n
+    | Unary op a -> Unary op (flip a)
+    | Binop op l r ->
+        if is_cmp op
+        then Binop (flip_op op) (flip r) (flip l)   (* CONSTRUCT, args swapped *)
+        else Binop op (flip l) (flip r)             (* CONSTRUCT *)
+    | App h args -> App h (flip_list args)          (* CONSTRUCT over a rebuilt child LIST *)
+    end
+  with flip_list (l: list term) : list term
+    requires { true }
+    ensures  { true }
+    variant  { size_list l }
+  = match l with
+    | Nil -> Nil
+    | Cons x rest -> Cons (flip x) (flip_list rest)
+    end
+
+end

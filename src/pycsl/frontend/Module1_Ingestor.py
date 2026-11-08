@@ -43,7 +43,7 @@ class _Target:
     __slots__ = ("node", "node_type", "node_name", "start_line", "report_line",
                  "indent", "child_suites", "leading", "footer")
 
-    def __init__(self, node, node_type, node_name, start_line, report_line, indent):
+    def __init__(self, node, node_type: str, node_name: str, start_line, report_line, indent):
         self.node = node
         self.node_type = node_type      # emitted type, or None for an un-annotated
                                         # compound (If/Try/Match/…)
@@ -117,7 +117,158 @@ class Module1_Ingestor:
         tree = ast.parse(self.source_code)
         coms = [c for c in ast.comments(self.source_code)
                 if c.own_line and c.text.startswith("#@")]
-        return _Harvester(coms).run(tree)
+        # (#43) A `#@` DIRECTIVE WRITTEN INSIDE THE CONTINUATION LINES OF A SIMPLE
+        # STATEMENT IS SILENTLY DISCARDED, AND THE RUN STILL PRINTS "All contracts
+        # formally proven". `_Harvester._assign` associates a comment with a target by
+        # `bisect` over the targets' START lines, so a comment that sits BETWEEN a leaf
+        # statement's first and last line bisects PAST that statement. When the statement
+        # is the last one in the file there is no `nxt` at all and the comment takes the
+        # `elif nxt is None: pass` branch ("module-level trailing comment -> ignored, as
+        # libcst") or `prev.footer`, and in both cases the directive vanishes. #33's and
+        # #34's end-of-file guards in `Module3_Weaver.process` do NOT see this: the block
+        # does not run to end-of-file, the statement's own continuation lines follow it.
+        # MEASURED, before this refusal (both the column-0 and the indented form):
+        #     #@ ensures \result == 2
+        #     def f() -> int:
+        #         return (
+        #     #@ assert 1 == 2                  <-- FALSE, AND NEVER CHECKED
+        #             2)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # A `#@ ghost x = 99` + `#@ assert x == 99` pair in the same position also proved.
+        # CENSUS: 0 real `#@` COMMENT tokens in this position across all 3663 annotated
+        # files of `src/`, `test-suite/`, `bin/` and `tests/` (the census must tokenize --
+        # a line-based scan reports 95, every one of them `#@` text inside a docstring).
+        # So the refusal is byte-inert.
+        # SPELLED INLINE, not as a helper, for the reason recorded beside
+        # `Module3_Weaver.process`'s dangling-block guard: a new method on this class
+        # becomes a new abstract `val` in the emission of every mirror that imports the
+        # ingestor, which would owe whole-file re-proofs for a check whose census is 0.
+        _leaf_spans = []
+        for _n in ast.walk(tree):
+            if not isinstance(_n, ast.stmt):
+                continue
+            _has_kids = False
+            for _f in ("body", "orelse", "finalbody", "handlers", "cases"):
+                _v = getattr(_n, _f, None)
+                if isinstance(_v, list) and _v:
+                    _has_kids = True
+                    break
+            if not _has_kids:
+                _leaf_spans.append((_n.lineno, getattr(_n, "end_lineno", _n.lineno)))
+        for _c in coms:
+            for _lo, _hi in _leaf_spans:
+                if _lo < _c.lineno <= _hi:
+                    raise PyCSLParseError(
+                        "line " + str(_c.lineno) + ": this `#@` directive sits INSIDE "
+                        "the continuation lines of the statement that begins on line "
+                        + str(_lo) + ", where it would be SILENTLY DISCARDED while the "
+                        "run still reports 'All contracts formally proven' (a directive "
+                        "is associated with the statement that FOLLOWS it, and a "
+                        "statement already in progress cannot follow it). Move it to its "
+                        "own line above that statement.", stage="Module1")
+        # (#49) ROUTE #463 — CLAIM CONSERVATION (red team 37 F6; MEASURED PROVED at 33f7ac681,
+        # CPython violates the written contract). Every `#@` comment must land in a slot that
+        # is EMITTED; `_assign` has three slots that are not:
+        #   · a FOOTER on a statement that is not the last of a child suite. An indented
+        #     block above a less-indented statement (`    #@ ensures \result == n` above a
+        #     column-0 `def f`, one space or a tab likewise) bisects to the PREVIOUS
+        #     statement's footer — a module-level `import` — and `_emit_suite` emits a
+        #     footer only for the last statement of a suite, so `f` was lowered with NO
+        #     contract and the run printed "All contracts formally proven";
+        #   · the MODULE HEADER of a file with no def / class / loop / `with` to consume it
+        #     (its module-level `shared` / `datatype` / ... lines are still emitted);
+        #   · a column-0 comment with no statement after it (`nxt is None`) — refused by
+        #     `Module3_Weaver.process`'s end-of-file guard UNLESS an indented `#@` shares the
+        #     run, which turns that guard's column-0 test off while the column-0 line is
+        #     still dropped here.
+        # And two spellings never reached `_assign` at all: a `#@` written AFTER code on its
+        # line (`x = f()  #@ assert x > 0`; only own-line comments are harvested) and a
+        # NEAR-MISS (`# @ensures`, `#\t@requires`, `##@assert`: a directive keyword or a
+        # `\`-name after `#` + spaces/tabs + `@`, or after `##`+ `@`), each a plain comment
+        # to the tokenizer. RULE: refuse all five. A near-miss is keyed on the directive
+        # keyword so prose such as `# @dataclass` / `# @property` stays a comment, and a
+        # QUOTED directive (`#     #@ ensures ...` -- a comment that cites `#@` text, as in
+        # the mirror's own route write-ups) is not a near-miss: its `#@` is deliberate.
+        # CENSUS (tokenized, all 8004 `.py` files of `test-suite/`, `src/`, `bin/`, `tests/`):
+        # 0 trailing `#@`; 0 near-miss directives (44 `# @<decorator>` prose comments, all in
+        # the live `src/pycsl`, none a directive keyword); orphan footers / headers: see
+        # route463-claim-conservation.md (REPAIR).
+        # SPELLED INLINE in this `\trusted` method (no new helper: a new method becomes a new
+        # `val` in the emission of every mirror importing the ingestor).
+        _kw463 = ("requires", "ensures", "assigns", "loop", "assert", "check", "assume",
+                  "assumes", "ghost", "label", "class", "raises", "no_exception", "reveal",
+                  "unfold", "havoc", "lemma", "proof", "shared", "datatype", "inductive",
+                  "act", "happy", "for", "with", "uses", "interface", "footprint",
+                  "mutex_invariant", "lock_order", "critical", "acquires", "releases",
+                  "depends", "depends_method", "requires_method", "complete", "disjoint",
+                  "given", "mixin", "provides", "shared_state", "touches_field",
+                  "compose_from", "conforms_to", "allow_finalizer",
+                  "allow_iteration_mutation", "thread_entry", "verify_module",
+                  "propagate_frame", "fresh_globals", "sibling_concrete", "no_inline",
+                  "declared_in",
+                  "bounded_int", "invariant", "variant", "trusted", "abstract", "diverges",
+                  "preserves")
+        for _c in ast.comments(self.source_code):
+            if _c.text.startswith("#@"):
+                if not _c.own_line:
+                    raise PyCSLParseError(
+                        "line " + str(_c.lineno) + ": this `#@` directive follows code on "
+                        "the same line, where it is a plain comment and would be SILENTLY "
+                        "DISCARDED while the run still reports 'All contracts formally "
+                        "proven' (route #463). Write it on its own line: above the "
+                        "`def`/loop it describes, or, for a statement-level `assert`/`ghost`, "
+                        "on the line after the statement it follows.", stage="Module1")
+                continue
+            _m463 = re.match(r"#(?:[ \t]+|#+)@\s*(\\?)([A-Za-z_]+)", _c.text)
+            if _m463 and (_m463.group(1) or _m463.group(2).lower() in _kw463):
+                raise PyCSLParseError(
+                    "line " + str(_c.lineno) + ": `" + _c.text.strip()[:60] + "` is a "
+                    "near-miss spelling of a `#@` directive: the tokenizer reads it as a plain "
+                    "comment, so the claim would be SILENTLY DISCARDED while the run still "
+                    "reports 'All contracts formally proven' (route #463). Write `#@` with no "
+                    "space or extra `#` between `#` and `@` (e.g. `#@ ensures ...`), or reword "
+                    "the comment.", stage="Module1")
+        _h463 = _Harvester(coms)
+        _out463 = _h463.run(tree)
+        _last463 = set()
+        for _t in _h463._flat:
+            for _cs in _t.child_suites:
+                if _cs:
+                    _last463.add(id(_cs[-1]))
+        _held463 = len(_h463._module_header)
+        for _t in _h463._flat:
+            _held463 += len(_t.leading) + len(_t.footer)
+            if _t.footer and id(_t) not in _last463:
+                raise PyCSLParseError(
+                    "the `#@` block after line " + str(_t.report_line) + " (`"
+                    + _t.footer[0][:60] + "`) is indented deeper than the statement that "
+                    "follows it, so it belongs to no block: it would be SILENTLY DISCARDED "
+                    "while the run still reports 'All contracts formally proven' (route "
+                    "#463). Indent a contract block exactly like the `def`/`class`/loop it "
+                    "sits above (a `#@` block above a column-0 `def` starts in column 0).",
+                    stage="Module1")
+        if _h463._module_header and not _h463._header_consumed:
+            for _ln in _h463._module_header:
+                if not any(_ln.strip().startswith(_p) for _p in _MODULE_PREFIXES):
+                    raise PyCSLParseError(
+                        "the `#@` line `" + _ln.strip()[:60] + "` sits above the first "
+                        "statement of a file that has no `def`/`class`/loop/`with` to attach "
+                        "it to, so it would be SILENTLY DISCARDED while the run still reports "
+                        "'All contracts formally proven' (route #463). Move it directly above "
+                        "the construct it describes, or delete it.", stage="Module1")
+        if _held463 != len(coms):
+            _tail463 = [_c for _c in coms if not any(_t.start_line > _c.lineno
+                                                     for _t in _h463._flat)]
+            if any(_c.indent > 0 for _c in _tail463) or len(_tail463) != len(coms) - _held463:
+                raise PyCSLParseError(
+                    "line " + str(min([_c.lineno for _c in _tail463 if _c.indent == 0]
+                                      or [_c.lineno for _c in coms]))
+                    + ": " + str(len(coms) - _held463) + " `#@` line(s) after the last "
+                    "statement attach to nothing and would be SILENTLY DISCARDED while the "
+                    "run still reports 'All contracts formally proven' (route #463). Move "
+                    "them directly above the construct they describe, or delete them.",
+                    stage="Module1")
+        return _out463
 
 
 class _Harvester:
@@ -156,14 +307,30 @@ class _Harvester:
             return mk("For", "<for_loop>"), [list(node.body), list(node.orelse)]
         if t in ("With", "AsyncWith"):
             return mk("With", "<with>"), [list(node.body)]
+        # (#34) `If` / `Try` / `TryStar` / `Match` USED TO RETURN `mk(None, None)`, and
+        # `_emit_target` emits nothing when `node_type is None` — so EVERY `#@` directive
+        # written directly above one of them was SILENTLY DISCARDED while the run still
+        # printed "All contracts formally proven". They are not function/loop/class
+        # anchors, but they ARE statements, and the STATEMENT-level directives
+        # (`assert`, `check`, `ghost`, `label`) attach by line number to any `ast.stmt`
+        # (`Module3_Weaver._attach_labels_and_ghost_assigns`) and are lowered by
+        # `_py_stmts_to_ir`, which HAS handlers for `If`, `Try` and `Match`. So the drop
+        # was pure loss: the whole mechanism downstream was ready for them.
+        # MEASURED VICTIMS at the time of the fix: `#@ assert self.i > \old(self.i)` twice
+        # in the mirror's own `pure_ast._Parser.import_from` — a method inside a file
+        # proved at 3103 goals, two of whose six staged monotonicity checkpoints were
+        # never checked; four more `#@ assert` in `src/pycsl_lib` (`csys`,
+        # `UnixInodeFileSystem`); and `#@ ghost total += 1` in corpus 0208, which is
+        # exactly why that test is `pycsl-expected: FAIL` — its `loop invariant
+        # total == i` could not hold when the ghost update did not exist.
         if t == "If":
-            return mk(None, None), [list(node.body), list(node.orelse)]
+            return mk("SimpleStatement", "<statement>"), [list(node.body), list(node.orelse)]
         if t in ("Try", "TryStar"):
             suites = [list(node.body)] + [list(h.body) for h in node.handlers] \
                 + [list(node.orelse), list(node.finalbody)]
-            return mk(None, None), suites
+            return mk("SimpleStatement", "<statement>"), suites
         if t == "Match":
-            return mk(None, None), [list(c.body) for c in node.cases]
+            return mk("SimpleStatement", "<statement>"), [list(c.body) for c in node.cases]
         return mk("SimpleStatement", "<statement>"), []   # simple statement
 
     # --- build the target tree (and flat source-order list) ---------------
@@ -195,9 +362,25 @@ class _Harvester:
         starts = [t.start_line for t in self._flat]   # ascending
         import bisect
         for c in self._coms:
-            # #@ inside decorator whitespace ([first_decorator, def)) is invisible
-            # to libcst's leading_lines — drop it.
-            if any(lo <= c.lineno < hi for lo, hi in self._dec_ranges):
+            # (#34) A `#@` INSIDE DECORATOR WHITESPACE ([first_decorator, def)) USED TO BE
+            # DROPPED OUTRIGHT — "invisible to libcst's leading_lines". libcst is no longer
+            # the parser (`pure_ast.comments` reports it fine), and the drop was silent: the
+            # run still printed "All contracts formally proven" over a contract that had
+            # been discarded. MEASURED VICTIM: `Module6_WhyMLTranspiler._heap_var` in the
+            # MIRROR carried `#@ requires/ensures/assigns` under its `@property` and was
+            # verified as though it had no contract at all.
+            # It is attached to the DECORATED target, which is the only reading a human
+            # gives it. It cannot simply fall through to the generic `nxt.leading` branch
+            # below: `starts` holds each target's FIRST DECORATOR line, so a comment after
+            # that line bisects PAST its own target and would be handed to the NEXT
+            # definition — a silent MIS-attachment, strictly worse than the drop.
+            _dec_owner = None
+            for _lo, _hi in self._dec_ranges:
+                if _lo <= c.lineno < _hi:
+                    _dec_owner = next((t for t in self._flat if t.start_line == _lo), None)
+                    break
+            if _dec_owner is not None:
+                _dec_owner.leading.append(c.text[2:].rstrip())
                 continue
             clean = _clean(c.text)
             raw = c.text[2:].rstrip()   # body with indentation kept (for `act` folding)

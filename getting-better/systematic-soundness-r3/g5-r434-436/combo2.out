@@ -1,0 +1,26 @@
+== 2026-10-28T12:59:22Z base mirror sweep (pristine git-archive of 1c083dcbe)
+base mirror sweep rc=0
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/g5/gate-c1/mb
+mirror compare rc=1
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 2 MOVED (2 unexpected), 0 GONE (0 unexpected), 0 APPEARED.
+== 2026-10-28T13:00:53Z k05
+6584_r436_k05_split_local_ctl base rc=0 exp=PASS Verification SUCCESS 
+6584_r436_k05_split_local_ctl cand rc=0 exp=PASS Verification SUCCESS 
+DONE
+== 2026-10-28T13:01:07Z census rows (own witnesses)
+census rc=0
+appended 28 row(s)
+== 2026-10-28T13:07:51Z planes (after census append)
+planes rc=0
+    check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival
+    and check-stdlib-modules-verify. Re-run with --slow before a GATE.
+refusal-witness-coverage rc=0
+[+] refusal-witness-coverage: OK — 337 demonstrated, 5 undemonstrated (floor 208 / ceiling 5); 14 not source-reachable, 10 unmatchable (ceiling 10).
+refusal-advice-audited rc=0
+[+] refusal-advice-audited: OK — 164 of 227 advice-bearing refusal(s) have had their advice FOLLOWED and run (floor 133). The remaining 63 are unaudited, which is a debt this plane exists to make visible rather than a failure.
+doc-coherency rc=0
+trusted-reasons rc=0
+[+] trusted-reasons: OK — 414 marker(s) <-> 414 row(s), both directions; unclassified 257 (ratchet 257)
+trusted lines: 442
+DONE-COMBO2 2026-10-28T13:24:01Z

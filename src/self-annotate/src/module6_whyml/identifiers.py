@@ -3,36 +3,68 @@ import hashlib
 import unicodedata
 from typing import Dict, Set
 #@ \trusted reviewer: pycsl-self-annotate
+# (#49) gen #31 — RE-TRUSTED. `bin/check-emitted-vacuity.py`:
+#     stable_hash  erased=['s'] of ['s']   -- INPUT-BLIND
+# and it is the ORIGINAL member of the erasure family that plane was written for: a
+# hash-erased body in which the literal becomes `stable_hash("String") = 1153884070`, so
+# a MUTATION TEST passes (the constant moves) while the emitted body never touches `s`.
+# See getting-better/genexp-erasure-wall.md.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def stable_hash(s: str) -> int:
-    return 0
+    return int(hashlib.sha256(s.encode("utf-8")).hexdigest()[:8], 16) % 2147483647
 
-OP_MAP: int = {'==': '=', '!=': '<>', '==>': '->', '<==>': '<->', 'and': '&&', 'or': '||', 'not': 'not', 'div': 'div', '//': 'div', '/': 'div', '%': 'mod'}
-WHYML_RESERVED: int = {'at', 'any', 'diverges', 'val', 'let', 'in', 'if', 'then', 'else', 'while', 'do', 'done', 'for', 'to', 'begin', 'end', 'match', 'with', 'try', 'raise', 'exception', 'type', 'use', 'module', 'theory', 'import', 'export', 'clone', 'goal', 'lemma', 'axiom', 'predicate', 'function', 'constant', 'mutable', 'ghost', 'invariant', 'variant', 'requires', 'ensures', 'returns', 'raises', 'reads', 'writes', 'assert', 'assume', 'check', 'absurd', 'true', 'false', 'not', 'old', 'ref', 'abstract', 'private', 'model', 'range', 'float', 'by', 'so', 'pure', 'alias', 'label', 'epsilon', 'exists', 'forall', 'rec', 'and', 'or', 'mod', 'div', 'result', 'partial', 'fun', 'as', 'scope', 'coinductive', 'inductive'}
-#@ \trusted reviewer: pycsl-self-annotate
+OP_MAP: Dict[str, str] = {'==': '=', '!=': '<>', '==>': '->', '<==>': '<->', 'and': '&&', 'or': '||', 'not': 'not', 'div': 'div', '//': 'div', '/': 'div', '%': 'mod'}
+WHYML_RESERVED: Set[str] = {'at', 'any', 'diverges', 'val', 'let', 'in', 'if', 'then', 'else', 'while', 'do', 'done', 'for', 'to', 'begin', 'end', 'match', 'with', 'try', 'raise', 'exception', 'type', 'use', 'module', 'theory', 'import', 'export', 'clone', 'goal', 'lemma', 'axiom', 'predicate', 'function', 'constant', 'mutable', 'ghost', 'invariant', 'variant', 'requires', 'ensures', 'returns', 'raises', 'reads', 'writes', 'assert', 'assume', 'check', 'absurd', 'true', 'false', 'not', 'old', 'ref', 'abstract', 'private', 'model', 'range', 'float', 'by', 'so', 'pure', 'alias', 'label', 'epsilon', 'exists', 'forall', 'rec', 'and', 'or', 'mod', 'div', 'result', 'partial', 'fun', 'as', 'scope', 'coinductive', 'inductive'}
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def whyml_ident(name: str) -> str:
-    return ""
+    if name == "_":
+        return "py_underscore"
+    # Replace dots with underscores for valid WhyML identifiers
+    name = name.replace(".", "_")
+    # Sanitize non-ASCII characters to ASCII equivalents
+    sanitized = []
+    for ch in name:
+        if ord(ch) > 127:
+            decomp = unicodedata.normalize('NFD', ch)
+            ascii_ch = ''.join(c for c in decomp if ord(c) < 128)
+            sanitized.append(ascii_ch if ascii_ch else f"u{ord(ch)}")
+        else:
+            sanitized.append(ch)
+    name = ''.join(sanitized)
+    if name and name[0].isupper():
+        name = name[0].lower() + name[1:]
+    # Prefix reserved words to avoid conflicts
+    if name in WHYML_RESERVED:
+        name = f"py_{name}"
+    return name
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def safe_mutex_name(mutex: str) -> str:
     """Convert a mutex expression (possibly 'locks[0]') to a valid WhyML identifier."""
     return whyml_ident(mutex.replace("[", "_").replace("]", "").replace(".", "_"))
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def safe_exc_name(name: str) -> str:
-    return ""
-#@ \trusted reviewer: pycsl-self-annotate
+    """Sanitize a user-exception name for WhyML emission.
+
+    Python local-alias imports (`from X import Y as _Y`) produce
+    exception names starting with `_`, which WhyML rejects in
+    exception-declaration position. Stripping leading underscore(s)
+    yields a valid WhyML identifier; the de-aliased name also
+    collapses with the original (un-prefixed) declaration via set
+    deduplication at the call site, so `Y` and `_Y` emit a single
+    `exception Y` declaration."""
+    return name.lstrip("_") or name
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def op_translate(op: str) -> str:
-    return ""
+    """Translates operators; defaults to the same string (e.g., +, -, >, <)."""
+    return OP_MAP.get(op, op)
 

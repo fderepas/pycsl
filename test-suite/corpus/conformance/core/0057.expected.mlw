@@ -12,6 +12,6 @@ module PyCSL_Program
   let quintuple (x: int) : int
     ensures  { (result = (5 * x)) } (* linear *)
   =
-    ((double_int x) + (triple_int x))
+    (let _pycsl_seq459630221_0 = (double_int x) in (_pycsl_seq459630221_0 + (triple_int x)))
 
 end

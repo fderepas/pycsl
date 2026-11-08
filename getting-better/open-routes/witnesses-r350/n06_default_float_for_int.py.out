@@ -1,0 +1,47 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt25/n06_default_float_for_int.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_yq401kll.mlw", line 9, characters 7-14:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 21 steps).
+
+File "/tmp/.pycsl_yq401kll.mlw", line 9, characters 34-41:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 208 steps).
+
+File "/tmp/.pycsl_yq401kll.mlw", line 9, characters 51-58:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 221 steps).
+
+File "/tmp/.pycsl_yq401kll.mlw", line 8, characters 14-79:
+Sub-goal postcondition of goal pycsl_div'vc.
+Prover result is: Valid (4.55s, 15267905 steps).
+
+File "/tmp/.pycsl_yq401kll.mlw", line 14, characters 7-14:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 21 steps).
+
+File "/tmp/.pycsl_yq401kll.mlw", line 14, characters 34-41:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 208 steps).
+
+File "/tmp/.pycsl_yq401kll.mlw", line 14, characters 51-58:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 221 steps).
+
+File "/tmp/.pycsl_yq401kll.mlw", line 13, characters 14-79:
+Sub-goal postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.01s, 3036 steps).
+
+File "/tmp/.pycsl_yq401kll.mlw", line 19, characters 4-19:
+Sub-goal modulo by zero of goal f'vc.
+Prover result is: Valid (0.00s, 14 steps).
+
+File "/tmp/.pycsl_yq401kll.mlw", line 17, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 184 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

@@ -1,0 +1,5 @@
+[!]   MOVED 3570_gen37_r299_hval_list_starred_range_len.mlw — if that is an intended SOURCE repair, pass --expect-moved 3570_gen37_r299_hval_list_starred_range_len.
+[!]   MOVED 3571_gen37_r299_hval_list_starred_empty_bool.mlw — if that is an intended SOURCE repair, pass --expect-moved 3571_gen37_r299_hval_list_starred_empty_bool.
+[!]   MOVED 3575_gen37_r299_hval_starred_controls.mlw — if that is an intended SOURCE repair, pass --expect-moved 3575_gen37_r299_hval_starred_controls.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 2484 baseline / 2497 candidate .mlw; 3 MOVED (3 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 13 new source file(s) ignored.

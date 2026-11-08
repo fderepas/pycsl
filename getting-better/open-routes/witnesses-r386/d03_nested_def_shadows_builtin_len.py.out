@@ -1,0 +1,23 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt30/d03_nested_def_shadows_builtin_len.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_p4rmtrsj.mlw", line 10, characters 15-34:
+Sub-goal postcondition of goal w__len'vc.
+Prover result is: Valid (0.00s, 275 steps).
+
+File "/tmp/.pycsl_p4rmtrsj.mlw", line 15, characters 15-27:
+Sub-goal postcondition of goal w__m'vc.
+Prover result is: Valid (0.01s, 275 steps).
+
+File "/tmp/.pycsl_p4rmtrsj.mlw", line 16, characters 15-34:
+Sub-goal postcondition of goal w__m'vc.
+Prover result is: Valid (0.00s, 276 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_p4rmtrsj.mlw", line 9, characters 24-26: unused variable xs
+Warning, file "/tmp/.pycsl_p4rmtrsj.mlw", line 10, characters 15-34: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

@@ -1,0 +1,61 @@
+== ROUTE level (root causes opened per red-team round, rt6..rt30) ==
+round   a   b   c   d   e   f   g  tot
+rt6     0   1   0   2   2   0   0    5
+rt7     1   1   0   0   1   0   0    3
+rt8     0   5   0   0   2   0   0    7
+rt9     1   0   0   0   0   0   0    1
+rt10    2   0   0   0   0   0   0    2
+rt11    0   0   0   0   1   0   0    1
+rt12    0   0   0   0   0   1   0    1
+rt13    0   1   0   0   0   0   1    2
+rt14    2   1   0   0   0   0   0    3
+rt15    1   1   2   1   0   0   0    5
+rt16    0   0   0   0   2   0   0    2
+rt17    3   0   0   0   0   0   0    3
+rt18    0   2   1   0   0   1   0    4
+rt19    0   0   1   0   0   0   1    2
+rt20    1   0   3   0   0   0   1    5
+rt21    0   0   1   0   0   0   1    2
+rt22    0   0   0   1   0   0   0    1
+rt23    0   0   2   1   0   0   0    3
+rt24    1   0   0   3   0   0   0    4
+rt25    0   0   2   5   1   0   1    9
+rt26    0   0   2   6   0   0   0    8
+rt27    0   0   0   8   0   0   0    8
+rt28    0   0   2   6   0   0   0    8
+rt29    1   0   0   6   0   0   0    7
+rt30    1   0   0   6   0   0   1    8
+TOTAL  14  12  16  45   9   2   6  104
+
+== PROBE level (confirmed false proofs rt11..rt30; rt25+ exact route, rt11-24 prefix-mapped) ==
+round   a   b   c   d   e   f   g   ?  tot
+rt11    0   0   0   0   4   0   0   0    4
+rt12    0   0   0   0   0  14   0   0   14
+rt13    0   6   0   0   0   0   4   0   10
+rt14   25   3   0   0   0   0   0   0   28
+rt15    2   3  31  11   0   0   0   0   47
+rt16    0   0   0   0  14   0   0   0   14
+rt17   12   0   0   0   0   0   0   0   12
+rt18    0  25  10   0   0   7   0   0   42
+rt19    0   0  62   0   0   0  13   0   75
+rt20    5   0  21   0   0   0  10   0   36
+rt21    0   0  11   0   0   0   2   0   13
+rt22    0   0   0   5   0   0   0   0    5
+rt23    0   0   4   2   0   0   0   0    6
+rt24   14   5   0  42   0   0   0   0   61
+rt25    0   0  14   9   2   0   2   0   27
+rt26    0   0  16  19   0   0   0   0   35
+rt27    0   0   0  31   0   0   0   0   31
+rt28    0   0  13  54   0   0   0   0   67
+rt29    9   0   0  66   0   0   0   0   75
+rt30    2   0   0  55   0   0   3   0   60
+TOTAL  69  42 182 294  20  21  34   0  662
+last-8 rounds (rt23..rt30) by family: {'a': 25, 'b': 5, 'c': 47, 'd': 278, 'e': 2, 'f': 0, 'g': 5, '?': 0}
+class-machinery (d) subfamilies: {'ctor': 89, 'hash': 75, 'enum': 43, 'dataclass': 29, 'mro': 19, 'attr': 12, 'slots': 10, 'classbody': 10, 'metaclass': 5, 'subtyping': 2}
+  a = construct ignored/partial
+  b = stdlib/builtin assumed
+  c = erased value as known
+  d = class machinery
+  e = alias/effect/frame
+  f = contract plumbing
+  g = names/shadowing

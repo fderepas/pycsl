@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/exec_splice.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLParseError (record + 0 method stub(s) + 2 helper(s))
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

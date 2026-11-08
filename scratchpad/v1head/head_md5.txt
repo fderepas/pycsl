@@ -1,0 +1,14 @@
+67eeff2232b955f331218d80fb38c515  src/pycsl/module6_whyml/preamble.py
+ecf73f7ce57e85af2293748d5c036b07  src/pycsl/module6_whyml/functions.py
+5a1b152a7bdcbdebae7e278b6dfdd39c  src/pycsl/module6_whyml/expressions.py
+75980e533c9c59322294da6431b9a499  src/pycsl/module6_whyml/statements.py
+019bc4982bc726719c67f6364d9cc5b0  src/pycsl/module6_whyml/stmt_control_flow.py
+caf94eb439d33dcfdfec12a6989f1baa  src/pycsl/module6_whyml/types.py
+2349ad4f3bb006a4e6dcdec052405137  src/pycsl/frontend/Module5_IREmitter.py
+37fc5becb6dacd2aced351665fcfc5e5  src/self-annotate/src/module6_whyml/preamble.py
+14b2aa59e488de0a3100efb62d1c4c3f  src/self-annotate/src/module6_whyml/functions.py
+964aefa1128f7c4d4ec1ff0083daa850  src/self-annotate/src/module6_whyml/expressions.py
+834ef7ee0ffcf4c18b434237aece0429  src/self-annotate/src/module6_whyml/statements.py
+cb35808cf483fd797b3b44b524eecd6c  src/self-annotate/src/module6_whyml/stmt_control_flow.py
+0e19ca8eab7499ae4e8b62183dfba59a  src/self-annotate/src/module6_whyml/types.py
+0035f195f222171b59f16e3385f0bbe6  src/self-annotate/src/frontend/Module5_IREmitter.py

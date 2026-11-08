@@ -11,8 +11,14 @@ for real) instead. A genuine typed default (e.g. `sep: str = " "`) has IR `{"typ
 and falls through unchanged.
 
 STATUS — **PROVES**. `use` calls `h(s)` with `sep` omitted; `sep` is filled `""` (string),
-so the application type-checks and the `\str_length(\result) >= 0` postcondition discharges."""
+so the application type-checks and the `\str_length(\result) >= 0` postcondition discharges.
+
+ROUTE #350 (gen #37, 2026-10-25) — NOW REFUSED (PYCSL-SEM-DEFAULT-ANNOTATION-MISMATCH). The `""`
+fill IS the defect route #350 closes: CPython binds the omitted `sep` to `None`, not `""`, and the
+body of `h` was verified for a `str` it never receives. A `None` default needs an `Optional[str]`
+annotation; a lowered body whose `str` parameter defaults to `None` is refused."""
 # pycsl-flags: --memory-model hoare
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ requires \str_length(s) >= 0
 #@ ensures \str_length(\result) >= 0

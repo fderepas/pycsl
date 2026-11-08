@@ -1,0 +1,5214 @@
+{
+  "ir_version": "1.4",
+  "source_language": "python",
+  "type_decls": [
+    {
+      "kind": "record",
+      "name": "PyCSLWeaver",
+      "fields": [
+        {
+          "name": "contracts_map",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "mutable_state": false,
+      "class_invariants": [],
+      "field_defaults": {
+        "contracts_map": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [
+        "NodeVisitor"
+      ],
+      "init_params": [
+        "contracts_map"
+      ],
+      "init_body": [
+        {
+          "field": "contracts_map",
+          "value": {
+            "type": "Var",
+            "name": "contracts_map"
+          }
+        }
+      ],
+      "init_ensures": [
+        {
+          "type": "Bool",
+          "value": true
+        }
+      ],
+      "is_mixin": false,
+      "compose_from": []
+    },
+    {
+      "kind": "record",
+      "name": "Module3_Weaver",
+      "fields": [
+        {
+          "name": "source_code",
+          "type": "int",
+          "mutable": true
+        },
+        {
+          "name": "extracted_data",
+          "type": "int",
+          "mutable": true
+        },
+        {
+          "name": "parser_module",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "mutable_state": false,
+      "class_invariants": [],
+      "field_defaults": {
+        "source_code": 0,
+        "extracted_data": 0,
+        "parser_module": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [
+        "source_code",
+        "extracted_data",
+        "parser_module"
+      ],
+      "init_body": [
+        {
+          "field": "source_code",
+          "value": {
+            "type": "Var",
+            "name": "source_code"
+          }
+        },
+        {
+          "field": "extracted_data",
+          "value": {
+            "type": "Var",
+            "name": "extracted_data"
+          }
+        },
+        {
+          "field": "parser_module",
+          "value": {
+            "type": "Var",
+            "name": "parser_module"
+          }
+        }
+      ],
+      "init_ensures": [
+        {
+          "type": "Bool",
+          "value": true
+        }
+      ],
+      "is_mixin": false,
+      "compose_from": []
+    }
+  ],
+  "functions": [
+    {
+      "name": "pycslweaver___init_function_csl_fields",
+      "symbol_table": {
+        "node": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {
+        "node": "FunctionDef"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 24,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver___act_guard",
+      "symbol_table": {
+        "act": "Act"
+      },
+      "param_annotations": {
+        "act": "Act"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "act"
+      ],
+      "return_annotation": "CSLNode",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "None"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 32,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver___const_int",
+      "symbol_table": {
+        "node": "Any",
+        "var": "str"
+      },
+      "param_annotations": {
+        "var": "str"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "var"
+      ],
+      "return_annotation": "int",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Attribute",
+              "object": {
+                "type": "Var",
+                "name": "node"
+              },
+              "attr": "value"
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "If",
+          "test": {
+            "type": "BinOp",
+            "op": "and",
+            "left": {
+              "type": "Call",
+              "func": "isinstance",
+              "args": [
+                {
+                  "type": "Var",
+                  "name": "node"
+                },
+                {
+                  "type": "Var",
+                  "name": "Number"
+                }
+              ]
+            },
+            "right": {
+              "type": "Call",
+              "func": "is_integer",
+              "args": [],
+              "receiver": {
+                "type": "Call",
+                "func": "float",
+                "args": [
+                  {
+                    "type": "Attribute",
+                    "object": {
+                      "type": "Var",
+                      "name": "node"
+                    },
+                    "attr": "value"
+                  }
+                ]
+              }
+            }
+          },
+          "body": [
+            {
+              "stmt": "Return",
+              "value": {
+                "type": "Call",
+                "func": "int",
+                "args": [
+                  {
+                    "type": "Attribute",
+                    "object": {
+                      "type": "Var",
+                      "name": "node"
+                    },
+                    "attr": "value"
+                  }
+                ]
+              }
+            }
+          ],
+          "orelse": []
+        },
+        {
+          "stmt": "Raise",
+          "exc_type": "PyCSLSemanticError",
+          "exc_value": {
+            "type": "FString",
+            "parts": [
+              {
+                "type": "String",
+                "value": "`for "
+              },
+              {
+                "type": "Var",
+                "name": "var"
+              },
+              {
+                "type": "String",
+                "value": " in range(...)`: range bound must be an integer literal (got "
+              },
+              {
+                "type": "Attribute",
+                "object": {
+                  "type": "Call",
+                  "func": "type",
+                  "args": [
+                    {
+                      "type": "Var",
+                      "name": "node"
+                    }
+                  ]
+                },
+                "attr": "__name__"
+              },
+              {
+                "type": "String",
+                "value": "); named-constant bounds are not yet supported"
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 39,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver___subst_var",
+      "symbol_table": {
+        "node": "Any",
+        "var": "str",
+        "m": "int"
+      },
+      "param_annotations": {
+        "var": "str",
+        "m": "int"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "var",
+        "m"
+      ],
+      "return_annotation": "Any",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "None"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 52,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver___desugar_for",
+      "symbol_table": {
+        "contracts": "list"
+      },
+      "param_annotations": {
+        "contracts": "list"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "contracts"
+      ],
+      "return_annotation": "list",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "ArrayLit",
+            "elts": []
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 60,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver___desugar_acts",
+      "symbol_table": {
+        "contracts": "list"
+      },
+      "param_annotations": {
+        "contracts": "list"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "contracts"
+      ],
+      "return_annotation": "tuple",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Tuple",
+            "elts": [
+              {
+                "type": "ArrayLit",
+                "elts": []
+              },
+              {
+                "type": "DictLit",
+                "keys": [],
+                "values": []
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 68,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver___extract_mixin_directives",
+      "symbol_table": {
+        "node": "Any",
+        "contracts": "list"
+      },
+      "param_annotations": {
+        "contracts": "list"
+      },
+      "param_ast_node_types": {
+        "node": "FunctionDef"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "contracts"
+      ],
+      "return_annotation": "list",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "ArrayLit",
+            "elts": []
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 76,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver___dispatch_function_contracts",
+      "symbol_table": {
+        "node": "Any",
+        "contracts": "list"
+      },
+      "param_annotations": {
+        "contracts": "list"
+      },
+      "param_ast_node_types": {
+        "node": "FunctionDef"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "contracts"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 84,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver___validate_function_contracts",
+      "symbol_table": {
+        "node": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {
+        "node": "FunctionDef"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 92,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver__visit_FunctionDef",
+      "symbol_table": {
+        "node": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {
+        "node": "FunctionDef"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "Any",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "None"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 99,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver__visit_Module",
+      "symbol_table": {
+        "node": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {
+        "node": "Module"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "Any",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "None"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 106,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver__visit_With",
+      "symbol_table": {
+        "node": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {
+        "node": "With"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "Any",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "None"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 113,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver___is_trivial_new",
+      "symbol_table": {
+        "fn": "Any",
+        "body": "Any",
+        "val": "Any",
+        "recv": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {
+        "fn": "FunctionDef"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "fn"
+      ],
+      "return_annotation": "bool",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Assign",
+          "target": "body",
+          "value": {
+            "type": "ListComp",
+            "elt": {
+              "type": "Var",
+              "name": "s"
+            },
+            "generators": [
+              {
+                "target": "s",
+                "iter": {
+                  "type": "Attribute",
+                  "object": {
+                    "type": "Var",
+                    "name": "fn"
+                  },
+                  "attr": "body"
+                },
+                "ifs": [
+                  {
+                    "type": "UnaryOp",
+                    "op": "not",
+                    "expr": {
+                      "type": "BinOp",
+                      "op": "and",
+                      "left": {
+                        "type": "Call",
+                        "func": "isinstance",
+                        "args": [
+                          {
+                            "type": "Var",
+                            "name": "s"
+                          },
+                          {
+                            "type": "Attribute",
+                            "object": {
+                              "type": "Var",
+                              "name": "ast"
+                            },
+                            "attr": "Expr"
+                          }
+                        ]
+                      },
+                      "right": {
+                        "type": "Call",
+                        "func": "isinstance",
+                        "args": [
+                          {
+                            "type": "Attribute",
+                            "object": {
+                              "type": "Var",
+                              "name": "s"
+                            },
+                            "attr": "value"
+                          },
+                          {
+                            "type": "Attribute",
+                            "object": {
+                              "type": "Var",
+                              "name": "ast"
+                            },
+                            "attr": "Constant"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "stmt": "If",
+          "test": {
+            "type": "BinOp",
+            "op": "or",
+            "left": {
+              "type": "BinOp",
+              "op": "!=",
+              "left": {
+                "type": "Call",
+                "func": "len",
+                "args": [
+                  {
+                    "type": "Var",
+                    "name": "body"
+                  }
+                ]
+              },
+              "right": {
+                "type": "Number",
+                "value": 1
+              }
+            },
+            "right": {
+              "type": "UnaryOp",
+              "op": "not",
+              "expr": {
+                "type": "Call",
+                "func": "isinstance",
+                "args": [
+                  {
+                    "type": "Subscript",
+                    "value": {
+                      "type": "Var",
+                      "name": "body"
+                    },
+                    "index": {
+                      "type": "Number",
+                      "value": 0
+                    }
+                  },
+                  {
+                    "type": "Attribute",
+                    "object": {
+                      "type": "Var",
+                      "name": "ast"
+                    },
+                    "attr": "Return"
+                  }
+                ]
+              }
+            }
+          },
+          "body": [
+            {
+              "stmt": "Return",
+              "value": {
+                "type": "Bool",
+                "value": false
+              }
+            }
+          ],
+          "orelse": []
+        },
+        {
+          "stmt": "Assign",
+          "target": "val",
+          "value": {
+            "type": "Attribute",
+            "object": {
+              "type": "Subscript",
+              "value": {
+                "type": "Var",
+                "name": "body"
+              },
+              "index": {
+                "type": "Number",
+                "value": 0
+              }
+            },
+            "attr": "value"
+          }
+        },
+        {
+          "stmt": "If",
+          "test": {
+            "type": "UnaryOp",
+            "op": "not",
+            "expr": {
+              "type": "BinOp",
+              "op": "and",
+              "left": {
+                "type": "BinOp",
+                "op": "and",
+                "left": {
+                  "type": "Call",
+                  "func": "isinstance",
+                  "args": [
+                    {
+                      "type": "Var",
+                      "name": "val"
+                    },
+                    {
+                      "type": "Attribute",
+                      "object": {
+                        "type": "Var",
+                        "name": "ast"
+                      },
+                      "attr": "Call"
+                    }
+                  ]
+                },
+                "right": {
+                  "type": "Call",
+                  "func": "isinstance",
+                  "args": [
+                    {
+                      "type": "Attribute",
+                      "object": {
+                        "type": "Var",
+                        "name": "val"
+                      },
+                      "attr": "func"
+                    },
+                    {
+                      "type": "Attribute",
+                      "object": {
+                        "type": "Var",
+                        "name": "ast"
+                      },
+                      "attr": "Attribute"
+                    }
+                  ]
+                }
+              },
+              "right": {
+                "type": "BinOp",
+                "op": "==",
+                "left": {
+                  "type": "Attribute",
+                  "object": {
+                    "type": "Attribute",
+                    "object": {
+                      "type": "Var",
+                      "name": "val"
+                    },
+                    "attr": "func"
+                  },
+                  "attr": "attr"
+                },
+                "right": {
+                  "type": "String",
+                  "value": "__new__"
+                }
+              }
+            }
+          },
+          "body": [
+            {
+              "stmt": "Return",
+              "value": {
+                "type": "Bool",
+                "value": false
+              }
+            }
+          ],
+          "orelse": []
+        },
+        {
+          "stmt": "Assign",
+          "target": "recv",
+          "value": {
+            "type": "Attribute",
+            "object": {
+              "type": "Attribute",
+              "object": {
+                "type": "Var",
+                "name": "val"
+              },
+              "attr": "func"
+            },
+            "attr": "value"
+          }
+        },
+        {
+          "stmt": "If",
+          "test": {
+            "type": "BinOp",
+            "op": "and",
+            "left": {
+              "type": "BinOp",
+              "op": "and",
+              "left": {
+                "type": "Call",
+                "func": "isinstance",
+                "args": [
+                  {
+                    "type": "Var",
+                    "name": "recv"
+                  },
+                  {
+                    "type": "Attribute",
+                    "object": {
+                      "type": "Var",
+                      "name": "ast"
+                    },
+                    "attr": "Call"
+                  }
+                ]
+              },
+              "right": {
+                "type": "Call",
+                "func": "isinstance",
+                "args": [
+                  {
+                    "type": "Attribute",
+                    "object": {
+                      "type": "Var",
+                      "name": "recv"
+                    },
+                    "attr": "func"
+                  },
+                  {
+                    "type": "Attribute",
+                    "object": {
+                      "type": "Var",
+                      "name": "ast"
+                    },
+                    "attr": "Name"
+                  }
+                ]
+              }
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "==",
+              "left": {
+                "type": "Attribute",
+                "object": {
+                  "type": "Attribute",
+                  "object": {
+                    "type": "Var",
+                    "name": "recv"
+                  },
+                  "attr": "func"
+                },
+                "attr": "id"
+              },
+              "right": {
+                "type": "String",
+                "value": "super"
+              }
+            }
+          },
+          "body": [
+            {
+              "stmt": "Return",
+              "value": {
+                "type": "Bool",
+                "value": true
+              }
+            }
+          ],
+          "orelse": []
+        },
+        {
+          "stmt": "If",
+          "test": {
+            "type": "BinOp",
+            "op": "and",
+            "left": {
+              "type": "Call",
+              "func": "isinstance",
+              "args": [
+                {
+                  "type": "Var",
+                  "name": "recv"
+                },
+                {
+                  "type": "Attribute",
+                  "object": {
+                    "type": "Var",
+                    "name": "ast"
+                  },
+                  "attr": "Name"
+                }
+              ]
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "==",
+              "left": {
+                "type": "Attribute",
+                "object": {
+                  "type": "Var",
+                  "name": "recv"
+                },
+                "attr": "id"
+              },
+              "right": {
+                "type": "String",
+                "value": "object"
+              }
+            }
+          },
+          "body": [
+            {
+              "stmt": "Return",
+              "value": {
+                "type": "Bool",
+                "value": true
+              }
+            }
+          ],
+          "orelse": []
+        },
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Bool",
+            "value": false
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 120,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver__visit_ClassDef",
+      "symbol_table": {
+        "node": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {
+        "node": "ClassDef"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "Any",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "None"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 141,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver___attach_loop_contracts",
+      "symbol_table": {
+        "node": "Any",
+        "contracts": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "contracts"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 149,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver__visit_While",
+      "symbol_table": {
+        "node": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {
+        "node": "While"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "Any",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "None"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 156,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "pycslweaver__visit_For",
+      "symbol_table": {
+        "node": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {
+        "node": "For"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "Any",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "None"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 163,
+      "col": 4,
+      "kind": "method",
+      "self_type": "PyCSLWeaver"
+    },
+    {
+      "name": "module3_weaver___parse_extracted_contracts",
+      "symbol_table": {},
+      "param_annotations": {},
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [],
+      "return_annotation": "tuple",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Tuple",
+            "elts": [
+              {
+                "type": "ArrayLit",
+                "elts": []
+              },
+              {
+                "type": "DictLit",
+                "keys": [],
+                "values": []
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 181,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___consolidate_module_concurrency",
+      "symbol_table": {
+        "python_ast": "Any",
+        "contracts_map": "dict"
+      },
+      "param_annotations": {
+        "contracts_map": "dict"
+      },
+      "param_ast_node_types": {
+        "python_ast": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {
+        "contracts_map": "seq int"
+      },
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "python_ast",
+        "contracts_map"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 189,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___attach_labels_and_ghost_assigns",
+      "symbol_table": {
+        "python_ast": "Any",
+        "contracts_map": "dict",
+        "trailing_contracts_map": "dict"
+      },
+      "param_annotations": {
+        "contracts_map": "dict",
+        "trailing_contracts_map": "dict"
+      },
+      "param_ast_node_types": {
+        "python_ast": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {
+        "contracts_map": "seq int",
+        "trailing_contracts_map": "seq int"
+      },
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "python_ast",
+        "contracts_map",
+        "trailing_contracts_map"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 197,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___extract_happy_properties",
+      "symbol_table": {
+        "contracts_map": "dict"
+      },
+      "param_annotations": {
+        "contracts_map": "dict"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {
+        "contracts_map": "seq int"
+      },
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "contracts_map"
+      ],
+      "return_annotation": "list",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Var",
+            "name": "contracts_map"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "ArrayLit",
+            "elts": []
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 205,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___field_write_site",
+      "symbol_table": {
+        "stmt": "Any",
+        "field": "str"
+      },
+      "param_annotations": {
+        "field": "str"
+      },
+      "param_ast_node_types": {
+        "stmt": "stmt"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "stmt",
+        "field"
+      ],
+      "return_annotation": null,
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 213,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___happy_predicate",
+      "symbol_table": {
+        "hp": "HappyProperty",
+        "site": "dict",
+        "line": "int"
+      },
+      "param_annotations": {
+        "hp": "HappyProperty",
+        "site": "dict",
+        "line": "int"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "hp",
+        "site",
+        "line"
+      ],
+      "return_annotation": "CSLNode",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "None"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 220,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___expand_happy_properties",
+      "symbol_table": {
+        "python_ast": "Any",
+        "happy_props": "list"
+      },
+      "param_annotations": {
+        "happy_props": "list"
+      },
+      "param_ast_node_types": {
+        "python_ast": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "python_ast",
+        "happy_props"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 227,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___region_bound_str",
+      "symbol_table": {
+        "node": "CSLNode"
+      },
+      "param_annotations": {
+        "node": "CSLNode"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "str",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "String",
+            "value": ""
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 235,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___canonical_preservation_ensures",
+      "symbol_table": {
+        "hp": "HappyProperty",
+        "v": "Any",
+        "guard": "Any",
+        "eq": "Any"
+      },
+      "param_annotations": {
+        "hp": "HappyProperty"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "hp"
+      ],
+      "return_annotation": "ExprIR",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Assign",
+          "target": "v",
+          "value": {
+            "type": "String",
+            "value": "__happy_i"
+          }
+        },
+        {
+          "stmt": "Assign",
+          "target": "guard",
+          "value": {
+            "type": "Call",
+            "func": "BinOp",
+            "args": [
+              {
+                "type": "Call",
+                "func": "BinOp",
+                "args": [
+                  {
+                    "type": "Call",
+                    "func": "copy.deepcopy",
+                    "args": [
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "hp"
+                        },
+                        "attr": "region_lo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "String",
+                    "value": "<="
+                  },
+                  {
+                    "type": "Call",
+                    "func": "Var",
+                    "args": [
+                      {
+                        "type": "Var",
+                        "name": "v"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "String",
+                "value": "and"
+              },
+              {
+                "type": "Call",
+                "func": "BinOp",
+                "args": [
+                  {
+                    "type": "Call",
+                    "func": "Var",
+                    "args": [
+                      {
+                        "type": "Var",
+                        "name": "v"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "String",
+                    "value": "<"
+                  },
+                  {
+                    "type": "Call",
+                    "func": "copy.deepcopy",
+                    "args": [
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "hp"
+                        },
+                        "attr": "region_hi"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "stmt": "Assign",
+          "target": "eq",
+          "value": {
+            "type": "Call",
+            "func": "BinOp",
+            "args": [
+              {
+                "type": "Call",
+                "func": "FieldSubscript",
+                "args": [
+                  {
+                    "type": "Attribute",
+                    "object": {
+                      "type": "Var",
+                      "name": "hp"
+                    },
+                    "attr": "field"
+                  },
+                  {
+                    "type": "Call",
+                    "func": "Var",
+                    "args": [
+                      {
+                        "type": "Var",
+                        "name": "v"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "String",
+                "value": "=="
+              },
+              {
+                "type": "Call",
+                "func": "Old",
+                "args": [
+                  {
+                    "type": "Call",
+                    "func": "FieldSubscript",
+                    "args": [
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "hp"
+                        },
+                        "attr": "field"
+                      },
+                      {
+                        "type": "Call",
+                        "func": "Var",
+                        "args": [
+                          {
+                            "type": "Var",
+                            "name": "v"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Call",
+            "func": "Ensures",
+            "args": [
+              {
+                "type": "Call",
+                "func": "Forall",
+                "args": [
+                  {
+                    "type": "Var",
+                    "name": "v"
+                  },
+                  {
+                    "type": "Call",
+                    "func": "BinOp",
+                    "args": [
+                      {
+                        "type": "Var",
+                        "name": "guard"
+                      },
+                      {
+                        "type": "String",
+                        "value": "==>"
+                      },
+                      {
+                        "type": "Var",
+                        "name": "eq"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 242,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___target_dotted_path",
+      "symbol_table": {
+        "target": "Any"
+      },
+      "param_annotations": {},
+      "param_ast_node_types": {
+        "target": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "target"
+      ],
+      "return_annotation": null,
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 257,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___collect_protect_sites",
+      "symbol_table": {
+        "node": "Any",
+        "protected": "set",
+        "cur_func": "Any",
+        "out": "list",
+        "child": "Any",
+        "inner": "Any",
+        "tgts": "Any",
+        "tgt": "Any",
+        "p": "Any"
+      },
+      "param_annotations": {
+        "protected": "set",
+        "out": "list"
+      },
+      "param_ast_node_types": {
+        "node": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "protected",
+        "cur_func",
+        "out"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Var",
+            "name": "out"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "For",
+          "line": 264,
+          "target": "child",
+          "iter": {
+            "type": "Call",
+            "func": "ast.iter_child_nodes",
+            "args": [
+              {
+                "type": "Var",
+                "name": "node"
+              }
+            ]
+          },
+          "invariants": [],
+          "variants": [],
+          "body": [
+            {
+              "stmt": "If",
+              "test": {
+                "type": "Call",
+                "func": "isinstance",
+                "args": [
+                  {
+                    "type": "Var",
+                    "name": "child"
+                  },
+                  {
+                    "type": "Tuple",
+                    "elts": [
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "ast"
+                        },
+                        "attr": "Assign"
+                      },
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "ast"
+                        },
+                        "attr": "AnnAssign"
+                      },
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "ast"
+                        },
+                        "attr": "AugAssign"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "body": [
+                {
+                  "stmt": "Assign",
+                  "target": "tgts",
+                  "value": {
+                    "type": "IfExpr",
+                    "test": {
+                      "type": "Call",
+                      "func": "isinstance",
+                      "args": [
+                        {
+                          "type": "Var",
+                          "name": "child"
+                        },
+                        {
+                          "type": "Attribute",
+                          "object": {
+                            "type": "Var",
+                            "name": "ast"
+                          },
+                          "attr": "Assign"
+                        }
+                      ]
+                    },
+                    "body": {
+                      "type": "Attribute",
+                      "object": {
+                        "type": "Var",
+                        "name": "child"
+                      },
+                      "attr": "targets"
+                    },
+                    "orelse": {
+                      "type": "ArrayLit",
+                      "elts": [
+                        {
+                          "type": "Attribute",
+                          "object": {
+                            "type": "Var",
+                            "name": "child"
+                          },
+                          "attr": "target"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "stmt": "For",
+                  "line": 267,
+                  "target": "tgt",
+                  "iter": {
+                    "type": "Var",
+                    "name": "tgts"
+                  },
+                  "invariants": [],
+                  "variants": [],
+                  "body": [
+                    {
+                      "stmt": "Assign",
+                      "target": "p",
+                      "value": {
+                        "type": "Call",
+                        "func": "self._target_dotted_path",
+                        "args": [
+                          {
+                            "type": "Var",
+                            "name": "tgt"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "stmt": "If",
+                      "test": {
+                        "type": "BinOp",
+                        "op": "in",
+                        "left": {
+                          "type": "Var",
+                          "name": "p"
+                        },
+                        "right": {
+                          "type": "Var",
+                          "name": "protected"
+                        }
+                      },
+                      "body": [
+                        {
+                          "stmt": "Expr",
+                          "value": {
+                            "type": "Call",
+                            "func": "out.append",
+                            "args": [
+                              {
+                                "type": "Tuple",
+                                "elts": [
+                                  {
+                                    "type": "Var",
+                                    "name": "child"
+                                  },
+                                  {
+                                    "type": "Var",
+                                    "name": "cur_func"
+                                  },
+                                  {
+                                    "type": "Var",
+                                    "name": "p"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ],
+                      "orelse": []
+                    }
+                  ],
+                  "allow_iteration_mutation": false,
+                  "lineno": 267
+                }
+              ],
+              "orelse": []
+            },
+            {
+              "stmt": "Assign",
+              "target": "inner",
+              "value": {
+                "type": "IfExpr",
+                "test": {
+                  "type": "Call",
+                  "func": "isinstance",
+                  "args": [
+                    {
+                      "type": "Var",
+                      "name": "child"
+                    },
+                    {
+                      "type": "Attribute",
+                      "object": {
+                        "type": "Var",
+                        "name": "ast"
+                      },
+                      "attr": "FunctionDef"
+                    }
+                  ]
+                },
+                "body": {
+                  "type": "Attribute",
+                  "object": {
+                    "type": "Var",
+                    "name": "child"
+                  },
+                  "attr": "name"
+                },
+                "orelse": {
+                  "type": "Var",
+                  "name": "cur_func"
+                }
+              }
+            },
+            {
+              "stmt": "Expr",
+              "value": {
+                "type": "Call",
+                "func": "self._collect_protect_sites",
+                "args": [
+                  {
+                    "type": "Var",
+                    "name": "child"
+                  },
+                  {
+                    "type": "Var",
+                    "name": "protected"
+                  },
+                  {
+                    "type": "Var",
+                    "name": "inner"
+                  },
+                  {
+                    "type": "Var",
+                    "name": "out"
+                  }
+                ]
+              }
+            }
+          ],
+          "allow_iteration_mutation": false,
+          "lineno": 264
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 263,
+      "col": 4,
+      "seq_promoted_vars": [
+        "out"
+      ],
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___collect_protect_index_sites",
+      "symbol_table": {
+        "node": "Any",
+        "path": "str",
+        "cur_func": "Any",
+        "out": "list",
+        "child": "Any",
+        "inner": "Any",
+        "tgts": "Any",
+        "tgt": "Any",
+        "sl": "Any"
+      },
+      "param_annotations": {
+        "path": "str",
+        "out": "list"
+      },
+      "param_ast_node_types": {
+        "node": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "path",
+        "cur_func",
+        "out"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Var",
+            "name": "out"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "For",
+          "line": 278,
+          "target": "child",
+          "iter": {
+            "type": "Call",
+            "func": "ast.iter_child_nodes",
+            "args": [
+              {
+                "type": "Var",
+                "name": "node"
+              }
+            ]
+          },
+          "invariants": [],
+          "variants": [],
+          "body": [
+            {
+              "stmt": "If",
+              "test": {
+                "type": "Call",
+                "func": "isinstance",
+                "args": [
+                  {
+                    "type": "Var",
+                    "name": "child"
+                  },
+                  {
+                    "type": "Tuple",
+                    "elts": [
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "ast"
+                        },
+                        "attr": "Assign"
+                      },
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "ast"
+                        },
+                        "attr": "AnnAssign"
+                      },
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "ast"
+                        },
+                        "attr": "AugAssign"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "body": [
+                {
+                  "stmt": "Assign",
+                  "target": "tgts",
+                  "value": {
+                    "type": "IfExpr",
+                    "test": {
+                      "type": "Call",
+                      "func": "isinstance",
+                      "args": [
+                        {
+                          "type": "Var",
+                          "name": "child"
+                        },
+                        {
+                          "type": "Attribute",
+                          "object": {
+                            "type": "Var",
+                            "name": "ast"
+                          },
+                          "attr": "Assign"
+                        }
+                      ]
+                    },
+                    "body": {
+                      "type": "Attribute",
+                      "object": {
+                        "type": "Var",
+                        "name": "child"
+                      },
+                      "attr": "targets"
+                    },
+                    "orelse": {
+                      "type": "ArrayLit",
+                      "elts": [
+                        {
+                          "type": "Attribute",
+                          "object": {
+                            "type": "Var",
+                            "name": "child"
+                          },
+                          "attr": "target"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "stmt": "For",
+                  "line": 281,
+                  "target": "tgt",
+                  "iter": {
+                    "type": "Var",
+                    "name": "tgts"
+                  },
+                  "invariants": [],
+                  "variants": [],
+                  "body": [
+                    {
+                      "stmt": "If",
+                      "test": {
+                        "type": "BinOp",
+                        "op": "and",
+                        "left": {
+                          "type": "Call",
+                          "func": "isinstance",
+                          "args": [
+                            {
+                              "type": "Var",
+                              "name": "tgt"
+                            },
+                            {
+                              "type": "Attribute",
+                              "object": {
+                                "type": "Var",
+                                "name": "ast"
+                              },
+                              "attr": "Subscript"
+                            }
+                          ]
+                        },
+                        "right": {
+                          "type": "BinOp",
+                          "op": "==",
+                          "left": {
+                            "type": "Call",
+                            "func": "self._target_dotted_path",
+                            "args": [
+                              {
+                                "type": "Attribute",
+                                "object": {
+                                  "type": "Var",
+                                  "name": "tgt"
+                                },
+                                "attr": "value"
+                              }
+                            ]
+                          },
+                          "right": {
+                            "type": "Var",
+                            "name": "path"
+                          }
+                        }
+                      },
+                      "body": [
+                        {
+                          "stmt": "Assign",
+                          "target": "sl",
+                          "value": {
+                            "type": "Attribute",
+                            "object": {
+                              "type": "Var",
+                              "name": "tgt"
+                            },
+                            "attr": "slice"
+                          }
+                        },
+                        {
+                          "stmt": "If",
+                          "test": {
+                            "type": "Call",
+                            "func": "isinstance",
+                            "args": [
+                              {
+                                "type": "Var",
+                                "name": "sl"
+                              },
+                              {
+                                "type": "Attribute",
+                                "object": {
+                                  "type": "Var",
+                                  "name": "ast"
+                                },
+                                "attr": "Index"
+                              }
+                            ]
+                          },
+                          "body": [
+                            {
+                              "stmt": "Assign",
+                              "target": "sl",
+                              "value": {
+                                "type": "Attribute",
+                                "object": {
+                                  "type": "Var",
+                                  "name": "sl"
+                                },
+                                "attr": "value"
+                              }
+                            }
+                          ],
+                          "orelse": []
+                        },
+                        {
+                          "stmt": "If",
+                          "test": {
+                            "type": "UnaryOp",
+                            "op": "not",
+                            "expr": {
+                              "type": "Call",
+                              "func": "isinstance",
+                              "args": [
+                                {
+                                  "type": "Var",
+                                  "name": "sl"
+                                },
+                                {
+                                  "type": "Attribute",
+                                  "object": {
+                                    "type": "Var",
+                                    "name": "ast"
+                                  },
+                                  "attr": "Slice"
+                                }
+                              ]
+                            }
+                          },
+                          "body": [
+                            {
+                              "stmt": "Expr",
+                              "value": {
+                                "type": "Call",
+                                "func": "out.append",
+                                "args": [
+                                  {
+                                    "type": "Tuple",
+                                    "elts": [
+                                      {
+                                        "type": "Var",
+                                        "name": "child"
+                                      },
+                                      {
+                                        "type": "Var",
+                                        "name": "cur_func"
+                                      },
+                                      {
+                                        "type": "Var",
+                                        "name": "sl"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            }
+                          ],
+                          "orelse": []
+                        }
+                      ],
+                      "orelse": []
+                    }
+                  ],
+                  "allow_iteration_mutation": false,
+                  "lineno": 281
+                }
+              ],
+              "orelse": []
+            },
+            {
+              "stmt": "Assign",
+              "target": "inner",
+              "value": {
+                "type": "IfExpr",
+                "test": {
+                  "type": "Call",
+                  "func": "isinstance",
+                  "args": [
+                    {
+                      "type": "Var",
+                      "name": "child"
+                    },
+                    {
+                      "type": "Attribute",
+                      "object": {
+                        "type": "Var",
+                        "name": "ast"
+                      },
+                      "attr": "FunctionDef"
+                    }
+                  ]
+                },
+                "body": {
+                  "type": "Attribute",
+                  "object": {
+                    "type": "Var",
+                    "name": "child"
+                  },
+                  "attr": "name"
+                },
+                "orelse": {
+                  "type": "Var",
+                  "name": "cur_func"
+                }
+              }
+            },
+            {
+              "stmt": "Expr",
+              "value": {
+                "type": "Call",
+                "func": "self._collect_protect_index_sites",
+                "args": [
+                  {
+                    "type": "Var",
+                    "name": "child"
+                  },
+                  {
+                    "type": "Var",
+                    "name": "path"
+                  },
+                  {
+                    "type": "Var",
+                    "name": "inner"
+                  },
+                  {
+                    "type": "Var",
+                    "name": "out"
+                  }
+                ]
+              }
+            }
+          ],
+          "allow_iteration_mutation": false,
+          "lineno": 278
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 277,
+      "col": 4,
+      "seq_promoted_vars": [
+        "out"
+      ],
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___subst_csl_param",
+      "symbol_table": {
+        "node": "Any",
+        "param_name": "str",
+        "repl": "Any"
+      },
+      "param_annotations": {
+        "param_name": "str"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "param_name",
+        "repl"
+      ],
+      "return_annotation": null,
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 297,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___check_protect_aliasing",
+      "symbol_table": {
+        "node": "Any",
+        "protected": "set",
+        "except_set": "set",
+        "cur_func": "Any",
+        "hp_name": "str"
+      },
+      "param_annotations": {
+        "protected": "set",
+        "except_set": "set",
+        "hp_name": "str"
+      },
+      "param_ast_node_types": {
+        "node": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "protected",
+        "except_set",
+        "cur_func",
+        "hp_name"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 304,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___collect_field_sites",
+      "symbol_table": {
+        "node": "Any",
+        "field": "str",
+        "cur_func": "Any",
+        "out": "list",
+        "child": "Any",
+        "inner_func": "Any",
+        "site": "Any"
+      },
+      "param_annotations": {
+        "field": "str",
+        "out": "list"
+      },
+      "param_ast_node_types": {
+        "node": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "field",
+        "cur_func",
+        "out"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Var",
+            "name": "out"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "For",
+          "line": 311,
+          "target": "child",
+          "iter": {
+            "type": "Call",
+            "func": "ast.iter_child_nodes",
+            "args": [
+              {
+                "type": "Var",
+                "name": "node"
+              }
+            ]
+          },
+          "invariants": [],
+          "variants": [],
+          "body": [
+            {
+              "stmt": "If",
+              "test": {
+                "type": "Call",
+                "func": "isinstance",
+                "args": [
+                  {
+                    "type": "Var",
+                    "name": "child"
+                  },
+                  {
+                    "type": "Tuple",
+                    "elts": [
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "ast"
+                        },
+                        "attr": "Assign"
+                      },
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "ast"
+                        },
+                        "attr": "AnnAssign"
+                      },
+                      {
+                        "type": "Attribute",
+                        "object": {
+                          "type": "Var",
+                          "name": "ast"
+                        },
+                        "attr": "AugAssign"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "body": [
+                {
+                  "stmt": "Assign",
+                  "target": "site",
+                  "value": {
+                    "type": "Call",
+                    "func": "self._field_write_site",
+                    "args": [
+                      {
+                        "type": "Var",
+                        "name": "child"
+                      },
+                      {
+                        "type": "Var",
+                        "name": "field"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "stmt": "If",
+                  "test": {
+                    "type": "BinOp",
+                    "op": "!=",
+                    "left": {
+                      "type": "Var",
+                      "name": "site"
+                    },
+                    "right": {
+                      "type": "None"
+                    }
+                  },
+                  "body": [
+                    {
+                      "stmt": "Expr",
+                      "value": {
+                        "type": "Call",
+                        "func": "out.append",
+                        "args": [
+                          {
+                            "type": "Tuple",
+                            "elts": [
+                              {
+                                "type": "Var",
+                                "name": "child"
+                              },
+                              {
+                                "type": "Var",
+                                "name": "site"
+                              },
+                              {
+                                "type": "Var",
+                                "name": "cur_func"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "orelse": []
+                }
+              ],
+              "orelse": []
+            },
+            {
+              "stmt": "Assign",
+              "target": "inner_func",
+              "value": {
+                "type": "IfExpr",
+                "test": {
+                  "type": "Call",
+                  "func": "isinstance",
+                  "args": [
+                    {
+                      "type": "Var",
+                      "name": "child"
+                    },
+                    {
+                      "type": "Attribute",
+                      "object": {
+                        "type": "Var",
+                        "name": "ast"
+                      },
+                      "attr": "FunctionDef"
+                    }
+                  ]
+                },
+                "body": {
+                  "type": "Attribute",
+                  "object": {
+                    "type": "Var",
+                    "name": "child"
+                  },
+                  "attr": "name"
+                },
+                "orelse": {
+                  "type": "Var",
+                  "name": "cur_func"
+                }
+              }
+            },
+            {
+              "stmt": "Expr",
+              "value": {
+                "type": "Call",
+                "func": "self._collect_field_sites",
+                "args": [
+                  {
+                    "type": "Var",
+                    "name": "child"
+                  },
+                  {
+                    "type": "Var",
+                    "name": "field"
+                  },
+                  {
+                    "type": "Var",
+                    "name": "inner_func"
+                  },
+                  {
+                    "type": "Var",
+                    "name": "out"
+                  }
+                ]
+              }
+            }
+          ],
+          "allow_iteration_mutation": false,
+          "lineno": 311
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 310,
+      "col": 4,
+      "seq_promoted_vars": [
+        "out"
+      ],
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___subscript_read_site",
+      "symbol_table": {
+        "sub": "Any",
+        "field": "str"
+      },
+      "param_annotations": {
+        "field": "str"
+      },
+      "param_ast_node_types": {
+        "sub": "Subscript"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "sub",
+        "field"
+      ],
+      "return_annotation": null,
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 324,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___collect_self_call_sites",
+      "symbol_table": {
+        "node": "Any",
+        "target": "str",
+        "cur_func": "Any",
+        "cur_stmt": "Any",
+        "out": "list"
+      },
+      "param_annotations": {
+        "target": "str",
+        "out": "list"
+      },
+      "param_ast_node_types": {
+        "node": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "target",
+        "cur_func",
+        "cur_stmt",
+        "out"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 331,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___synthesize_selfcomp",
+      "symbol_table": {
+        "python_ast": "Any",
+        "hp": "HappyProperty"
+      },
+      "param_annotations": {
+        "hp": "HappyProperty"
+      },
+      "param_ast_node_types": {
+        "python_ast": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "python_ast",
+        "hp"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 338,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver___collect_field_read_sites",
+      "symbol_table": {
+        "node": "Any",
+        "field": "str",
+        "cur_func": "Any",
+        "cur_stmt": "Any",
+        "out": "list"
+      },
+      "param_annotations": {
+        "field": "str",
+        "out": "list"
+      },
+      "param_ast_node_types": {
+        "node": "AST"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "node",
+        "field",
+        "cur_func",
+        "cur_stmt",
+        "out"
+      ],
+      "return_annotation": "None",
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Pass"
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 345,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    },
+    {
+      "name": "module3_weaver__process",
+      "symbol_table": {},
+      "param_annotations": {},
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [],
+      "return_annotation": null,
+      "return_value_type": null,
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "None"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "pycsl-self-annotate",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 352,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Module3_Weaver"
+    }
+  ],
+  "trusted_funcs": [
+    "_act_guard",
+    "_attach_labels_and_ghost_assigns",
+    "_attach_loop_contracts",
+    "_check_protect_aliasing",
+    "_collect_field_read_sites",
+    "_collect_self_call_sites",
+    "_consolidate_module_concurrency",
+    "_desugar_acts",
+    "_desugar_for",
+    "_dispatch_function_contracts",
+    "_expand_happy_properties",
+    "_extract_happy_properties",
+    "_extract_mixin_directives",
+    "_field_write_site",
+    "_happy_predicate",
+    "_init_function_csl_fields",
+    "_parse_extracted_contracts",
+    "_region_bound_str",
+    "_subscript_read_site",
+    "_subst_csl_param",
+    "_subst_var",
+    "_synthesize_selfcomp",
+    "_target_dotted_path",
+    "_validate_function_contracts",
+    "process",
+    "visit_ClassDef",
+    "visit_For",
+    "visit_FunctionDef",
+    "visit_Module",
+    "visit_While",
+    "visit_With"
+  ],
+  "imports": [
+    [
+      "annotations",
+      "annotations",
+      "__future__",
+      0,
+      false
+    ],
+    [
+      "ast",
+      "pure_ast",
+      "frontend",
+      0,
+      false
+    ],
+    [
+      "warnings",
+      "warnings",
+      "warnings",
+      0,
+      true
+    ],
+    [
+      "List",
+      "List",
+      "typing",
+      0,
+      false
+    ],
+    [
+      "Dict",
+      "Dict",
+      "typing",
+      0,
+      false
+    ],
+    [
+      "Any",
+      "Any",
+      "typing",
+      0,
+      false
+    ],
+    [
+      "Tuple",
+      "Tuple",
+      "typing",
+      0,
+      false
+    ],
+    [
+      "dataclass",
+      "dataclass",
+      "dataclasses",
+      0,
+      false
+    ],
+    [
+      "_dc_fields",
+      "fields",
+      "dataclasses",
+      0,
+      false
+    ],
+    [
+      "_is_dc",
+      "is_dataclass",
+      "dataclasses",
+      0,
+      false
+    ],
+    [
+      "_dc_replace",
+      "replace",
+      "dataclasses",
+      0,
+      false
+    ],
+    [
+      "CSLNode",
+      "CSLNode",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Requires",
+      "Requires",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Ensures",
+      "Ensures",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Assigns",
+      "Assigns",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "LoopInvariant",
+      "LoopInvariant",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "LoopVariant",
+      "LoopVariant",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "ClassInvariant",
+      "ClassInvariant",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "CSLLabel",
+      "Label",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "FunctionVariant",
+      "FunctionVariant",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Diverges",
+      "Diverges",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "NoInline",
+      "NoInline",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "SiblingConcrete",
+      "SiblingConcrete",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "VerifyModule",
+      "VerifyModule",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "PropagateFrame",
+      "PropagateFrame",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "FreshGlobals",
+      "FreshGlobals",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Trusted",
+      "Trusted",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Abstract",
+      "Abstract",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Lemma",
+      "Lemma",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Uses",
+      "Uses",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "InterfaceClause",
+      "InterfaceClause",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Reveal",
+      "Reveal",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "GhostAssignDecl",
+      "GhostAssignDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "GhostArraySetDecl",
+      "GhostArraySetDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "RaisesDecl",
+      "RaisesDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "NoExceptionDecl",
+      "NoExceptionDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "AllowFinalizerDecl",
+      "AllowFinalizerDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "AllowIterationMutationDecl",
+      "AllowIterationMutationDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "BoundedIntDecl",
+      "BoundedIntDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "ProofDecl",
+      "ProofDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "SharedDecl",
+      "SharedDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "DatatypeDecl",
+      "DatatypeDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "InductiveDecl",
+      "InductiveDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "ThreadEntry",
+      "ThreadEntry",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Acquires",
+      "Acquires",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Releases",
+      "Releases",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "CriticalSection",
+      "CriticalSection",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "MutexInvariant",
+      "MutexInvariant",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "LockOrder",
+      "LockOrder",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "BinOp",
+      "BinOp",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Number",
+      "Number",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Act",
+      "Act",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "ForExpand",
+      "ForExpand",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Given",
+      "Given",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Complete",
+      "Complete",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Disjoint",
+      "Disjoint",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Old",
+      "Old",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "UnaryOp",
+      "UnaryOp",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "CSLBool",
+      "CSLBool",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "CheckPoint",
+      "CheckPoint",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "HappyProperty",
+      "HappyProperty",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Preserves",
+      "Preserves",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Footprint",
+      "Footprint",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Var",
+      "Var",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "Forall",
+      "Forall",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "FieldSubscript",
+      "FieldSubscript",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "MixinDecl",
+      "MixinDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "ProvidesDecl",
+      "ProvidesDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "SharedStateDecl",
+      "SharedStateDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "TouchesFieldDecl",
+      "TouchesFieldDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "MethodDependencyDecl",
+      "MethodDependencyDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "ComposeFromDecl",
+      "ComposeFromDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "ConformsToDecl",
+      "ConformsToDecl",
+      "frontend.Module2_Parser",
+      0,
+      false
+    ],
+    [
+      "copy",
+      "copy",
+      "copy",
+      0,
+      true
+    ],
+    [
+      "PyCSLSemanticError",
+      "PyCSLSemanticError",
+      "errors",
+      0,
+      false
+    ],
+    [
+      "PyCSLContract",
+      "PyCSLContract",
+      "frontend.Module1_Ingestor",
+      0,
+      false
+    ]
+  ]
+}

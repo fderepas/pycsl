@@ -1,0 +1,54 @@
+(* string-valued Python `or`/`and` SMT-feasibility spike.
+
+   FEATURE: when BOTH operands of a Python `or`/`and` are `string`-typed, the
+   expression is itself a STRING (not a bool). Python truthiness of a string is
+   non-emptiness, so:
+
+       s or  t  =  if String.length s > 0 then s else t
+       s and t  =  if String.length s > 0 then t else s
+
+   Both are total `string` expressions; NO new axiom, NO `string.String`
+   extensionality — only `String.length` of a literal and literal disequality of
+   distinct string constants.
+
+   Z3 has a string theory (decides `String.length ""=0`, `String.length "a"=1`,
+   and `"a" <> "b"`); Alt-Ergo has NO string theory, so the emptiness / literal
+   goals stay Unknown there. This is the SANCTIONED best-of-N path (the emitter
+   ships both provers; Z3 discharges the string goals) — NOT an axiom.
+
+   Target laws:
+     (OR-HIT)    "a" or  "b" = "a"    -- first operand truthy (non-empty)
+     (OR-DEF)    ""  or  "b" = "b"    -- first operand falsy (empty) -> second
+     (AND-HIT)   "a" and "b" = "b"    -- first truthy -> second
+     (AND-DEF)   ""  and "b" = ""     -- first falsy (empty) -> first
+   plus a FALSE-TWIN goal (below) that must NOT prove on either prover. *)
+module StringOrAnd
+  use int.Int
+  use string.String
+
+  function py_or  (s t: string) : string = if String.length s > 0 then s else t
+  function py_and (s t: string) : string = if String.length s > 0 then t else s
+
+  (* OR: returns the first operand when it is non-empty (truthy), else the second. *)
+  goal g_or_hit : py_or "a" "b" = "a"
+  goal g_or_def : py_or "" "b" = "b"
+
+  (* AND: returns the second operand when the first is non-empty, else the first. *)
+  goal g_and_hit : py_and "a" "b" = "b"
+  goal g_and_def : py_and "" "b" = ""
+end
+
+(* SOUNDNESS floor: FALSE of the real semantics; must NOT be Valid on ANY prover.
+   A Valid here is a severity-1 regression (false twin proven => UNSOUND). *)
+module StringOrAndFalseTwins
+  use int.Int
+  use string.String
+
+  function py_or  (s t: string) : string = if String.length s > 0 then s else t
+  function py_and (s t: string) : string = if String.length s > 0 then t else s
+
+  (* FALSE: "a" is non-empty, so `"a" or "b"` = "a", never "b". *)
+  goal g_or_wrong  : py_or "a" "b" = "b"
+  (* FALSE: "a" is non-empty, so `"a" and "b"` = "b", never "a". *)
+  goal g_and_wrong : py_and "a" "b" = "a"
+end

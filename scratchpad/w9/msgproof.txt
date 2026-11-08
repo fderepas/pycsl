@@ -1,0 +1,22 @@
+PROVED(#44): the proof battery is 6 of 6, all rc=0, zero bad goals
+
+    stmt_control_flow    12294 Valid    0 bad
+    Module5_IREmitter     2109          0
+    frontend/pure_ast     3372          0
+    frontend/ir_resolve     793         0
+    frontend/__init__       684         0
+    pycsl                   735         0
+
+The manifest says those six ARE the complete set: emitting all 53 mirrors
+from a worktree at #43's closing commit `afbc6803` and byte-diffing against
+HEAD gives exactly these six and no others. Every emission this window
+moved is proved, the other 47 keep #43's verdicts unchanged, nothing is
+owed.
+
+That also closes the inherited `o_scf.rc = 1` at exactly the goal count
+`a_scf` had BEFORE route #21's sync deleted the nine loop invariant/variant
+lines (12294, against the broken tree's 12217 + 15 bad) — the tightest
+confirmation available that the restoration put back precisely the missing
+obligations rather than merely making the file pass.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

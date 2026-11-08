@@ -1,0 +1,5 @@
+FUZZ8-DONE seed=1 n=20 false_proofs=0
+FUZZ8-DONE seed=2 n=20 false_proofs=0
+FALSE-PROOF /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/fz8_5/false_5_5_0.py (CPython 3, claim 0)
+FALSE-PROOF /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/fz8_6/false_6_8_0.py (CPython 2, claim 0)
+BATCH8-DONE 10:40:17Z

@@ -1,0 +1,51 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt25/f02_import_tail_base_inv.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_lxj4mo25.mlw", line 7, characters 16-26:
+Sub-goal type invariant of goal b'vc.
+Prover result is: Valid (0.00s, 10 steps).
+
+File "/tmp/.pycsl_lxj4mo25.mlw", line 10, characters 57-69:
+Sub-goal goal of goal _check_class_inv_b.
+Prover result is: Valid (0.00s, 46 steps).
+
+File "/tmp/.pycsl_lxj4mo25.mlw", line 13, characters 16-26:
+Sub-goal type invariant of goal s'vc.
+Prover result is: Valid (0.00s, 25 steps).
+
+File "/tmp/.pycsl_lxj4mo25.mlw", line 21, characters 57-69:
+Sub-goal goal of goal _check_class_inv_s.
+Prover result is: Valid (0.00s, 67 steps).
+
+File "/tmp/.pycsl_lxj4mo25.mlw", line 24, characters 15-27:
+Sub-goal postcondition of goal b__m'vc.
+Prover result is: Valid (0.00s, 36 steps).
+
+File "/tmp/.pycsl_lxj4mo25.mlw", line 25, characters 15-38:
+Sub-goal postcondition of goal b__m'vc.
+Prover result is: Valid (0.00s, 37 steps).
+
+File "/tmp/.pycsl_lxj4mo25.mlw", line 30, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 36 steps).
+
+File "/tmp/.pycsl_lxj4mo25.mlw", line 35, characters 15-38:
+Sub-goal postcondition of goal s__k'vc.
+Prover result is: Valid (0.00s, 36 steps).
+
+File "/tmp/.pycsl_lxj4mo25.mlw", line 40, characters 15-27:
+Sub-goal postcondition of goal s__m'vc.
+Prover result is: Valid (0.00s, 36 steps).
+
+File "/tmp/.pycsl_lxj4mo25.mlw", line 41, characters 15-38:
+Sub-goal postcondition of goal s__m'vc.
+Prover result is: Valid (0.00s, 37 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_lxj4mo25.mlw", line 18, characters 13-17: unused variable self
+Warning, file "/tmp/.pycsl_lxj4mo25.mlw", line 35, characters 15-38: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

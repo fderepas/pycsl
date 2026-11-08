@@ -60,6 +60,16 @@ from errors import PyCSLIRError
 # consumed by `frontend/monomorphize.apply_monomorphization` (the step-5 IR-resolution
 # pass): COLLECT concrete instantiations, EMIT name-mangled specialized copies with
 # substituted contracts, GT3/GT4 loud-fails. See docs/ir.md §10.
+# *** ONE KEY, TWO PRODUCERS, TWO SHAPES — read this before consuming `type_params`
+# off a type_decl. *** The dict shape above is the RECORD (class) shape only. A
+# `#@ datatype Option[T]` writes the SAME KEY on a `kind == "variant"` type_decl as a
+# list of BARE NAMES (`["T"]`, `Module5_IREmitter`, A5d), consumed by
+# `module6_whyml/preamble._fmt_variant` to emit a POLYMORPHIC Why3 variant
+# (`type option 'a = Nothing | Just 'a`). The two are NOT interchangeable: reading a
+# variant's list as the dict shape crashed monomorphization with `'str' object has no
+# attribute 'get'` on every parametric datatype (pycsl-reference/0540; fixed relaunch
+# #45 by skipping variant decls, which are not monomorphization candidates at all).
+# Any new consumer must branch on `decl["kind"]` first.
 IR_VERSION = "1.4"
 ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2", "1.3", "1.4"})
 
@@ -310,6 +320,15 @@ class ArraySetStmt(StmtIR):
 
 
 @dataclass(frozen=True)
+class DelSubscriptStmt(StmtIR):
+    # wrong-lowering-to-fix.md §WL-05c (T7): `del d[k]` — a dict/set item deletion.
+    # Module 6 lowers a LOCAL dict/set to `map_update_none` (faithful key clear) and a
+    # dict/set PARAMETER to the WL-05 caller-visible-mutation rejection (fail-closed).
+    array: "ExprIR"
+    index: "ExprIR"
+
+
+@dataclass(frozen=True)
 class ArraySliceSetStmt(StmtIR):
     array: "ExprIR"
     lower: "ExprIR"
@@ -343,6 +362,9 @@ class ForStmt(StmtIR):
     body: List["StmtIR"]
     allow_iteration_mutation: bool
     lineno: int
+    # W2 char-iteration: element names of a tuple loop target
+    # (`for i, ch in …` → ["i", "ch"]). None for a plain single-name target.
+    tuple_targets: Optional[List[str]] = None
 
 
 @dataclass(frozen=True)
@@ -581,6 +603,11 @@ class CallExpr(ExprIR):
     func: str
     args: List["ExprIR"]
     receiver: "ExprIR" = _ABSENT  # type: ignore[assignment]
+    # WL-07: EXPLICIT keyword args (`Point(x=1, y=2)`) as a list of
+    # {"arg": str, "value": ExprIR} — carried through so a record constructor
+    # binds its fields by name. _ABSENT (omitted) for a keyword-free call, so the
+    # wire dict is byte-identical for every existing call.
+    keywords: Any = _ABSENT  # type: ignore[assignment]
 
 
 @dataclass(frozen=True)
@@ -1046,6 +1073,9 @@ def _stmt_from_dict_inner(d: Dict[str, Any]) -> StmtIR:
     if k == "ArraySet":
         return ArraySetStmt(kind=k, array=_e(d.get("array")),
                             index=_e(d.get("index")), value=_e(d.get("value")))
+    if k == "DelSubscript":
+        return DelSubscriptStmt(kind=k, array=_e(d.get("array")),
+                                index=_e(d.get("index")))
     if k == "ArraySliceSet":
         up = d.get("upper")
         return ArraySliceSetStmt(kind=k, array=_e(d.get("array")),
@@ -1067,7 +1097,8 @@ def _stmt_from_dict_inner(d: Dict[str, Any]) -> StmtIR:
                        variants=_es(d.get("variants", [])),
                        body=_ss(d.get("body", [])),
                        allow_iteration_mutation=d.get("allow_iteration_mutation", False),
-                       lineno=d.get("lineno", 0))
+                       lineno=d.get("lineno", 0),
+                       tuple_targets=d.get("tuple_targets"))
     if k == "Return":
         v = d.get("value")
         return ReturnStmt(kind=k, value=_e(v) if v is not None else None)
@@ -1131,6 +1162,56 @@ def _stmt_from_dict_inner(d: Dict[str, Any]) -> StmtIR:
     return OpaqueStmt(kind=k or "Opaque", raw=dict(d))
 
 
+# ---------------------------------------------------------------------------
+# TIER3-P1 — the out-of-registry tag reconciliation (`triage-ranked-tcb-tier3.md`
+# Phase-1 prereq (a)+(b); design note: `getting-better/tier3/ir-node-adt-signature.md`
+# §5c).
+#
+# The Module-6 emitter branches (`ir.get("type") == "K"`) on eleven tag names that
+# the IR registry (`_expr_from_dict_inner`) has **no constructor for** — so they would
+# parse to `OpaqueExpr`. Investigation (Module5_IREmitter.py + frontend/pure_ast.py +
+# frontend/Module2_Parser.py) established that all eleven are **upstream** node names —
+# CPython-`ast`/`pure_ast` node types and `Module2_Parser` CSL-parse nodes — that
+# Module 5 **already structurally normalizes to a canonical registry tag at emission**
+# (e.g. `_py_expr_boolop`/`_py_expr_compare` both emit `BinOp`; `_csl_chained_subscript`
+# emits nested `Subscript`; `_csl_old` emits `Old`/`OldField`). None is a genuinely
+# distinct IR kind, and none is a trivial tag-rename alias — each carries different
+# FIELDS from its canonical form (`BoolOp.values` list vs `BinOp.left`/`right`;
+# `Name.id` vs `Var.name`; `Num.n` vs `Number.value`), so a registry-level rename would
+# fabricate a malformed node. Several (`ListLit`, `ListLiteral`, `ChainedSubscript`,
+# `OldVar`) are *phantom* — they have no wire-dict form at all, only defensive
+# string-matches in Module 6.
+#
+# Reconciliation (additive, emission-inert): record the canonical mapping here as the
+# single source of truth, and treat these tags as a **fail-closed boundary** — if one
+# ever reaches the registry / the emitter un-normalized, that is a front-end
+# normalization-contract violation (docs/ir.md §9.5), never a faithful lowering. The
+# emitter (`module6_whyml/expressions.py::_expr_to_whyml`) asserts an `OpaqueExpr` whose
+# `kind` is one of these is NEVER lowered inside `raw`.
+IR_TAG_ALIASES: Dict[str, str] = {
+    # tag the emitter dispatches on  ->  the canonical registry tag Module 5 emits
+    "BoolOp":           "BinOp",     # `_py_expr_boolop`  (and/or fold)
+    "Compare":          "BinOp",     # `_py_expr_compare` (chained comparison)
+    "Num":              "Number",    # legacy CPython<3.8 numeric literal
+    "Constant":         "Number",    # CPython>=3.8 literal (numeric/Bool/String/None)
+    "Name":             "Var",       # `_csl_var` / `_py_expr_name`
+    "List":             "ArrayLit",  # list-literal Python-AST node
+    "ListLit":          "ArrayLit",  # phantom synonym (no wire-dict form)
+    "ListLiteral":      "ArrayLit",  # phantom synonym (no wire-dict form)
+    "Set":              "SetLit",    # set-literal Python-AST node
+    "ChainedSubscript": "Subscript", # `_csl_chained_subscript` (a[i][j] -> nested)
+    "OldVar":           "Old",       # `_csl_old` (\old(x) -> Old(Var))
+}
+
+
+def is_upstream_alias_tag(tag: Any) -> bool:
+    """True iff `tag` is one of the eleven upstream/out-of-registry node names that
+    Module 5 normalizes to a canonical registry tag at emission (see `IR_TAG_ALIASES`).
+    Such a tag must never reach the emitter as a raw `OpaqueExpr` to be lowered — it is
+    a fail-closed boundary."""
+    return isinstance(tag, str) and tag in IR_TAG_ALIASES
+
+
 def expr_from_dict(d: Dict[str, Any]) -> ExprIR:
     """Convert a wire-format expr dict into its typed `ExprIR` constructor.
 
@@ -1190,8 +1271,13 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
                             attr=d.get("attr", ""))
     if k == "Call":
         rec = d.get("receiver", _ABSENT)
+        _kws = d.get("keywords", _ABSENT)
+        _kws_parsed = ([{"arg": kw.get("arg"), "value": _e(kw.get("value"))}
+                        for kw in _kws]
+                       if isinstance(_kws, list) else _ABSENT)
         return CallExpr(kind=k, func=d.get("func", ""), args=_es(d.get("args", [])),
-                        receiver=_e(rec) if rec is not _ABSENT else _ABSENT)
+                        receiver=_e(rec) if rec is not _ABSENT else _ABSENT,
+                        keywords=_kws_parsed)
     if k == "Tuple":
         return TupleExpr(kind=k, elts=_es(d.get("elts", [])))
     if k == "ArrayLit":
@@ -1397,6 +1483,9 @@ def _stmt_to_dict(s: StmtIR) -> Dict[str, Any]:
         out["array"] = s.array.to_dict()
         out["index"] = s.index.to_dict()
         out["value"] = s.value.to_dict()
+    elif isinstance(s, DelSubscriptStmt):
+        out["array"] = s.array.to_dict()
+        out["index"] = s.index.to_dict()
     elif isinstance(s, ArraySliceSetStmt):
         out["array"] = s.array.to_dict()
         out["lower"] = s.lower.to_dict()
@@ -1421,6 +1510,10 @@ def _stmt_to_dict(s: StmtIR) -> Dict[str, Any]:
         out["body"] = [b.to_dict() for b in s.body]
         out["allow_iteration_mutation"] = s.allow_iteration_mutation
         out["lineno"] = s.lineno
+        # W2: emit only when present, so a plain single-name `for` round-trips
+        # to the same key-set (the round-trip guard in `_stmt_from_dict`).
+        if s.tuple_targets is not None:
+            out["tuple_targets"] = s.tuple_targets
     elif isinstance(s, ReturnStmt):
         out["value"] = s.value.to_dict() if s.value is not None else None
     elif isinstance(s, ExprStmt):
@@ -1542,6 +1635,9 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["args"] = [a.to_dict() for a in e.args]
         if e.receiver is not _ABSENT:
             out["receiver"] = e.receiver.to_dict()
+        if e.keywords is not _ABSENT:
+            out["keywords"] = [{"arg": kw["arg"], "value": kw["value"].to_dict()}
+                               for kw in e.keywords]
     elif isinstance(e, TupleExpr):
         out["elts"] = [x.to_dict() for x in e.elts]
     elif isinstance(e, ArrayLitExpr):

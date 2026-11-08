@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5683_gen37_r399_ctl_from_builtins_explicit_args.py'...
+[*] Memory model: hoare
+[*] Import 'builtins.sum': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_2bo1uys2.mlw", line 8, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.01s, 275 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

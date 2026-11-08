@@ -1,0 +1,317 @@
+#!/usr/bin/env python3
+r"""check-avatar-frame-parity.py — the AVATAR-FRAME plane.
+
+WHAT IT MEASURES.
+
+Every `self.<m>(...)` call site in a converted mirror method is emitted as an application of
+an abstract AVATAR, `val self__<m>_<arity> ...`. The avatar's `writes` clause is the ONLY
+thing a caller knows about the callee's effect: if the avatar declares no frame, Why3 infers
+NO effect, and every caller may then declare `assigns \nothing` however much state the real
+callee writes. That is an assumption STRONGER than the mirror's own `#@ assigns`, i.e.
+unsound, and it is invisible to `check-trusted-frame-honesty`, which compares a SOURCE
+declaration against a LIVE closure and never looks at what the emitted avatar says.
+
+Relaunch #32 discovered the intra-file half of this (a `\trusted` stub's `#@ assigns` was
+UNOBSERVABLE when the label filter emptied the declared set) and built the rule that fixes
+it: the avatar declares `writes { _pyobj_state }` when the callee declares a non-empty
+`#@ assigns` the record cannot label. Relaunch #33 measured the residue and found the rule
+is **INTRA-FILE ONLY**.
+
+THE RESIDUE, and it is a real one. A mixin method is DEFINED (and its `#@ assigns`
+declared) in one mirror file and INHERITED by another. In the inheriting file the emitter
+has no declaration to read — `_module_method_writes` is keyed on the methods THIS file
+declares — so `_declared_w` is empty, the `_pyobj_state` rule does not fire, and the avatar
+is minted frameless. Measured: `module6_whyml/stmt_control_flow.mlw` emits
+
+    val self__add_abstract_op_1 (x0: int) : int
+
+with no receiver and no frame, while the SAME method in `statements.mlw` and
+`expressions.mlw` — where it IS declared — carries
+
+    val self__add_abstract_op_1 (self: statementemissionmixin) (x0: string) : unit
+      writes { self._abstract_ops }
+
+TWO BUCKETS, and they are different findings:
+
+  (A) SAME-FILE — the method is declared in this very file with a non-`\nothing`
+      `#@ assigns` and the avatar is still frameless. This would be a failure of #32's
+      rule itself. **Measured 0, and 0 is the ratchet.**
+  (B) INHERITED — the method is not declared here, and EVERY mirror file that does declare
+      it says non-`\nothing`. The honest frame is knowable but not visible at this emission
+      site. **Measured 11.**
+
+REOPENING CAPABILITY for (B), and TWO ROUTES WERE SPIKED AND MEASURED (#33):
+
+  ROUTE 1 — read the declaration from ANOTHER `<cls>__<m>` entry in `_module_method_writes`
+  (the callee's own class prefix rather than the caller's). **MEASURED: no mirror moved,
+  0 of 53.** `ir_resolve` injects a dependency's method stubs only for classes the file
+  IMPORTS, and an inheriting mirror does not import the defining mixin — `stmt_control_flow`
+  reports only `Imported from 'exception_model'`. There is nothing to find.
+
+  ROUTE 2 — when the file has NO declaration for the callee at all, mint the avatar with
+  the coarse `writes { _pyobj_state }`. Sound in the MODEL, and it does move the emission
+  (7 mirrors), but **REFUTED**: 5 of 53 then fail L3-tc with "this expression depends on
+  variable _pyobj_state, which is left out in the specification", and the only way to
+  satisfy that is a non-`\nothing` `#@ assigns` on the CALLER. The first caller reached is
+  `types._rhs_yields_map`, whose newly-flagged callee `_self_field_py_type` is a PURE
+  lookup — so the rule forces a source declaration that is FALSE IN THE OTHER DIRECTION.
+  Over-claiming is precisely what #32 measured and refused ("the cruder 'always emit the
+  coarse cell when the filtered set is empty' rule was tried first and REFUSED"). A rule
+  that cannot tell a writing callee from a pure one may not speak for either.
+  (Two emitter pieces from that spike ARE independently correct and are recorded here for
+  reuse: an avatar carrying the cell must register its name in `_pyobj_state_writers`,
+  because `_add_abstract_op` DEDUPES and only the FIRST caller's mint sets
+  `_obj_state_written`, so every later caller emitted `writes { }`; the caller-side re-arm
+  then behaves exactly as it already does for a concrete sibling.)
+
+  WHAT REMAINS, and it is a COST/SCALE item, not a floor: the source-level route #32 used
+  by hand for `_add_abstract_op` in `statements.py` and `expressions.py` — add a `\trusted`
+  protocol stub carrying the honest `#@ assigns` to each inheriting mirror. It is HONEST
+  (all 11 methods declare a real frame where they are defined), it costs ONE MARKER PER
+  STUB, and it triggers the same caller fixpoint #32 closed in 5-6 iterations per file,
+  followed by a whole-file re-proof of each. Budget it as a segment, not as an increment.
+
+A THIRD KIND OF SILENT FRAME HOLE, found by closing (B) and worth its own sweep: a
+`\trusted` stub that carries `#@ requires` / `#@ ensures` and **NO `#@ assigns` LINE AT
+ALL**. The stub exists, is signature-checked and is believed — it simply says nothing about
+its frame, so `_module_method_writes` has no entry and the avatar is minted frameless.
+THREE of the four (B) closures were exactly this, and cost no marker to fix. CENSUS at
+#33: **11 of 476** `\trusted` stubs have no `#@ assigns`. RE-MEASURED gen #30 (the
+campaign's own rule: re-measure, never inherit): **still exactly 11, and the SAME
+eleven** — the denominator is now 459 markers, so the set has not drifted in either
+direction. A NOTE ON MEASURING IT, paid for on the first attempt: a census that walks
+from the `#@` block to the `def` must skip PLAIN `#` COMMENT LINES as well as blanks
+and decorators, or six of the eleven come back unnamed and the count reads 17. A census
+that cannot name its members is not a measurement. The eleven:
+    errors.py                        message, as_dict
+    module6_whyml/statements.py      _resolve_dotted_signature, _is_emit_ir_expr,
+                                     _coerce_to_int, _expr_to_whyml_string_ctx,
+                                     _is_string_expr, _e,
+                                     _maybe_emit_no_exception_assert, _mutex_inv_application
+    module6_whyml/stmt_control_flow.py  _coerce_to_int
+Some are genuinely pure (`_coerce_to_int`, `errors.message`); the rest are candidates, and
+the CONSEQUENTIAL subset is exactly what the INHERITED bucket below already counts.
+
+`--emit-dir` must point at a directory of emitted mirror `.mlw` files (the `l3sweep.sh`
+output). Without it the gate emits them itself is NOT attempted — it fails loudly instead,
+because a silently-skipped plane is worse than no plane.
+"""
+from __future__ import annotations
+
+import argparse
+import ast
+import os
+import re
+import sys
+import warnings
+
+warnings.filterwarnings("ignore", category=SyntaxWarning)
+
+MIRROR_ROOT = "src/self-annotate/src"
+
+# --------------------------------------------------------------------------------------
+# RATCHETS — the honest measurement at the tree that introduced this gate (relaunch #33).
+#   (A) SAME-FILE ... 0  — a HARD 0. #32's rule covers this case and must keep covering it.
+#   (B) INHERITED ... 11 -> **7**, closed by the source-level protocol-stub route:
+#         CLOSED, and TWO OF THE FOUR COST NO MARKER — `statements._handle_return_stmt`,
+#           `stmt_control_flow._seq_init_expr` and `stmt_control_flow._to_bool` ALREADY had
+#           a local `\trusted` stub; it simply carried no `#@ assigns` line at all, so
+#           adding the honest frame copied from the DECLARING mirror costs nothing.
+#           `stmt_control_flow._add_abstract_op` and `stmt_control_flow._is_string_expr`
+#           needed a new stub (+2 markers). The caller fixpoint closed in 2 iterations
+#           (`_materialize_bridge`, `_materialize_str_bridge`,
+#           `_infer_return_value_type`, `_maybe_inject_union_return`).
+#         REFUTED — `functions._is_string_expr` / `_is_emit_ir_expr` /
+#           `_collect_array_var_assigns`. Declaring them LOCALLY also RETYPES the avatar's
+#           parameter (from the int fallback to the stub's `ir: "ExprIR"` -> `emit_ir`) and
+#           `functions.py` then fails L3-tc: "This expression has type `string -> option
+#           string`, but is expected to have type `emit_ir`" at a call site whose local is a
+#           map. The frame and the TYPE ride on the same declaration and cannot be
+#           separated, so this file's three are a TYPE-MODEL boundary, not a frame one.
+#         NOT REACHABLE BY THIS ROUTE — `_py_stmts_to_ir` in `frontend/__init__`,
+#           `frontend/ir_resolve` and `pycsl`: those avatars are minted from the HARD-CODED
+#           table in `module6_whyml/abstract_ops.py` (the imported-emitter-class path), not
+#           from `_module_method_writes`, so a source stub does not reach them.
+#           SPIKED AND MEASURED (#33): giving that declaration the coarse
+#           `writes { _pyobj_state }` when `_stmts_disp_writes` returns [] IS the right
+#           shape — the cell is a GLOBAL ref, not a record label, so it needs no receiver
+#           and the four producers' application spelling is unchanged. All three files then
+#           fail L3-tc on the caller, and the caller is `_py_stmt_match` — which lives in
+#           `frontend/Module5_IREmitter.py`, the IMPORTED file, not in the file being
+#           emitted. So the source frame must be added THERE, which re-emits
+#           `Module5_IREmitter.mlw` (1499 goals) as well as all three importers, and the
+#           automatic `_obj_state_written` re-arm cannot help because this avatar is
+#           registered by `_register_referenced_self_dispatch_vals` AFTER every function is
+#           emitted. A four-file segment with its own caller fixpoint — budgeted, not
+#           attempted.
+# --------------------------------------------------------------------------------------
+MAX_SAME_FILE = 0
+# (#43) LOWERED 7 -> 1. The 7 was never a census: it was the RATCHET, and the OK line
+# below used to print `args.max_*` rather than the measured counts, so a handoff that
+# copied that line recorded the ratchet as though it were a measurement (#34's closing
+# baseline says "avatar-frame-parity 0 same-file / 7 inherited"). The OK line now prints
+# BOTH the measurement and the ratchet so the two can never be confused again.
+#
+# (#44) *** AND THE 1 THAT REPLACED IT WAS NOT A MEASUREMENT EITHER. *** #43 lowered this
+# to 1 on the strength of three runs "twice at HEAD, once at 13c4860b, all three
+# agreeing". They agreed because all three `--emit-dir` arguments pointed at directories
+# WITH NO MIRROR EMISSIONS IN THEM: `scratchpad/w8/emit_head3` holds 820 CORPUS `.mlw`
+# files (no `self__` avatar exists in a corpus emission), and `mirror43b` / `mirror_now`
+# hold ZERO `.mlw` files at all. The gate scanned 0 avatars, correctly found 0 frameless
+# ones, and printed a green 0 — which reads exactly like a tightening.
+#
+# So the gate has been RED, not green, since that commit: emitted properly (all 53 mirrors,
+# `--import-path src/pycsl`) it scans 83 avatars and measures 0 SAME-FILE / 7 INHERITED,
+# identically at HEAD and at the pre-#44 tree. Restored to the MEASURED 7.
+#
+# THE INSTRUMENT FIX MATTERS MORE THAN THE CONSTANT, and it is below in `main`: a run that
+# scans ZERO avatars now FAILS instead of passing. An instrument aimed at the wrong input
+# reports zero, and zero is indistinguishable from success — the same failure mode as a
+# refusal that never fires (#43), a probe that deletes nothing (#44), and a pin that cannot
+# trip (#44). A plane must be able to tell "nothing is wrong" from "I looked at nothing".
+MAX_INHERITED = 7
+
+# Below this many avatars in the whole emit dir, the directory is not a mirror emission and
+# the run is REFUSED. Measured: a correct sweep of the 53 mirrors scans 83. A corpus emit
+# dir scans 0. There is no legitimate middle ground near zero.
+MIN_AVATARS_SCANNED = 60   # gen #4: was 1, against a TRUE POPULATION OF 83. Its own note
+                           # two lines up said "a correct sweep of the 53 mirrors scans 83"
+                           # and then set the floor to the literal-zero case, so a sweep
+                           # that emitted ONE mirror, or in which 82 of the 83 avatars
+                           # regressed out of existence, cleared it. A guard that only
+                           # catches zero does not catch the shape it is written for. 60 is
+                           # comfortably below 83 and far above any truncated emission.
+                           # Compare check-computed-rhs-erasure and check-emitted-vacuity,
+                           # which both floor at 40 against a true 53.
+
+_AVATAR = re.compile(r"^\s*val self__([A-Za-z0-9_]+)_\d+ ")
+
+
+def _declared_assigns(path: str):
+    """{method name: True if its `#@ assigns` names anything but `\\nothing`}."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        tree = ast.parse(src)
+    except (SyntaxError, UnicodeDecodeError, OSError):
+        return {}
+    lines = src.split("\n")
+    out = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        block = []
+        for line in reversed(lines[max(0, node.lineno - 45):node.lineno - 1]):
+            if line.strip().startswith("#") or not line.strip():
+                block.append(line)
+            else:
+                break
+        # THE DIRECTIVE, NOT A PROSE MENTION (gen #4) — the same repair applied to the four
+        # `\trusted` classifiers this window, one directive over. `block` is built by walking
+        # UPWARD (`reversed(...)`), so `assigns[0]` is the match NEAREST the `def`: a
+        # justification comment that merely quotes `#@ assigns \nothing` while sitting below
+        # the real `#@ assigns self._x` would be read as the frame, and the method would be
+        # dropped from the census with its frameless avatar never reported.
+        assigns = [l for l in block if l.strip().startswith("#@") and "assigns" in l]
+        if assigns:
+            out[node.name] = "\\nothing" not in assigns[0]
+    return out
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--emit-dir", required=True,
+                    help="directory of emitted mirror .mlw files (scratchpad l3sweep output)")
+    ap.add_argument("--max-same-file", type=int, default=MAX_SAME_FILE)
+    ap.add_argument("--max-inherited", type=int, default=MAX_INHERITED)
+    args = ap.parse_args()
+
+    if not os.path.isdir(args.emit_dir):
+        print("[!] avatar-frame-parity: --emit-dir %r is not a directory. A silently "
+              "skipped plane is worse than no plane." % (args.emit_dir,))
+        return 2
+
+    decl = {}
+    for dirpath, dirnames, filenames in os.walk(MIRROR_ROOT):
+        dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+        for fn in filenames:
+            if fn.endswith(".py"):
+                path = os.path.join(dirpath, fn)
+                decl[os.path.relpath(path, MIRROR_ROOT)] = _declared_assigns(path)
+
+    same_file, inherited = [], []
+    scanned = 0
+    for mlw in sorted(os.listdir(args.emit_dir)):
+        if not mlw.endswith(".mlw"):
+            continue
+        owner = None
+        for rel in decl:
+            if rel[:-3].replace("/", "_") + ".mlw" == mlw:
+                owner = rel
+        with open(os.path.join(args.emit_dir, mlw), encoding="utf-8") as fh:
+            lines = fh.read().split("\n")
+        for i, line in enumerate(lines):
+            m = _AVATAR.match(line)
+            if not m:
+                continue
+            scanned += 1
+            nxt = lines[i + 1] if i + 1 < len(lines) else ""
+            if "writes {" in line or "writes {" in nxt:
+                continue
+            name = m.group(1)
+            for key in ("_" + name, name):
+                if owner and key in decl[owner]:
+                    if decl[owner][key]:
+                        same_file.append((mlw, key))
+                    break
+                declaring = [r for r in decl if key in decl[r]]
+                if declaring and all(decl[r][key] for r in declaring):
+                    inherited.append((mlw, key, declaring[0]))
+                    break
+
+    mlw_count = len([f for f in os.listdir(args.emit_dir) if f.endswith(".mlw")])
+    print("[*] avatar-frame-parity: %d abstract `self__` avatar(s) scanned across %d "
+          "emitted mirror(s); %d SAME-FILE frameless-yet-declared, %d INHERITED "
+          "frameless-yet-declared."
+          % (scanned, mlw_count, len(same_file), len(inherited)))
+
+    # (#44) THE ZERO-INPUT GUARD. See MAX_INHERITED's note: three runs against directories
+    # holding no mirror emissions produced a green 0 that was then written into a ratchet
+    # and a handoff. A green verdict must never be reachable by looking at nothing.
+    if scanned < MIN_AVATARS_SCANNED:
+        print("[!] avatar-frame-parity: SCANNED %d AVATARS in %r (%d .mlw file(s)). "
+              "That is not a mirror emission — a corpus emit dir contains no `self__` "
+              "avatar, and an empty dir contains nothing at all. REFUSING to report a "
+              "verdict: emit the 53 mirrors with `--import-path src/pycsl` first."
+              % (scanned, args.emit_dir, mlw_count))
+        return 2
+    for mlw, key in sorted(same_file):
+        print("    SAME-FILE  %-44s %s" % (mlw, key))
+    for mlw, key, src in sorted(inherited):
+        print("    INHERITED  %-44s %-32s declared in %s" % (mlw, key, src))
+
+    rc = 0
+    if len(same_file) > args.max_same_file:
+        print("[!] avatar-frame-parity: SAME-FILE RATCHET BROKEN — %d > %d. A frameless "
+              "avatar lets every caller assume the callee changes NOTHING."
+              % (len(same_file), args.max_same_file))
+        rc = 1
+    if len(inherited) > args.max_inherited:
+        print("[!] avatar-frame-parity: INHERITED RATCHET BROKEN — %d > %d."
+              % (len(inherited), args.max_inherited))
+        rc = 1
+    if rc == 0:
+        for got, want, what in ((len(same_file), args.max_same_file, "same-file"),
+                                (len(inherited), args.max_inherited, "inherited")):
+            if got < want:
+                print("[+] avatar-frame-parity: %s %d < ratchet %d — lower the constant."
+                      % (what, got, want))
+        print("[+] avatar-frame-parity: OK — measured %d same-file / %d inherited "
+              "(ratchets %d / %d)."
+              % (len(same_file), len(inherited), args.max_same_file,
+                 args.max_inherited))
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())

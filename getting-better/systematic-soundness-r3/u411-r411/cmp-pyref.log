@@ -1,0 +1,6 @@
+[!]   MOVED pyref__0020.mlw — if that is an intended SOURCE repair, pass --expect-moved pyref__0020.
+[!]   MOVED pyref__0023.mlw — if that is an intended SOURCE repair, pass --expect-moved pyref__0023.
+[!]   MOVED pyref__0028.mlw — if that is an intended SOURCE repair, pass --expect-moved pyref__0028.
+[!]   MOVED pyref__0030.mlw — if that is an intended SOURCE repair, pass --expect-moved pyref__0030.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 2186 baseline / 2186 candidate .mlw; 4 MOVED (4 unexpected), 0 GONE (0 unexpected), 0 APPEARED.

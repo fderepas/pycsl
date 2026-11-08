@@ -1,5 +1,5 @@
 """Test ctypes.find_msvcrt L5 — positive: caller exploits ensures."""
-# pycsl-flags: --no-proof
+# pycsl-flags: --no-proof --allow-unverified-imports
 # pycsl-expected: PASS
 _ = 0  # anchor
 import ctypes  # noqa: F401

@@ -1,0 +1,120 @@
+(* r2c-wall spike: functional write-back of an in-place store into an element of a list
+   inside the CALLER's dict (`for f in ir["functions"]: f["symbol_table"] = v`), over the
+   landed hval ADT (verbatim types + hpairs_key_eq + pairs_get), with a `ref` parameter and
+   `writes { ir }`. New ops: pairs_set (replace-in-place-or-APPEND: Python insertion order),
+   hval_list_set. No axioms beyond the landed hpairs_key_eq val-spec. *)
+module R2c
+  use int.Int
+  use map.Map
+  use map.Const
+  use option.Option
+  use ref.Ref
+
+  type hval = HStr string | HInt int | HArr hval_list | HMap hpairs | HNode hval
+  with hval_list = HNil | HCons hval hval_list
+  with hpairs = PNil | PCons string hval hpairs
+
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+  val function hpairs_key_eq (a b: string) : bool ensures { result <-> a = b }
+
+  let rec function pairs_get (p: hpairs) (k: string) : option hval
+    variant { p }
+  = match p with PNil -> None | PCons k' v t -> if hpairs_key_eq k k' then Some v else pairs_get t k end
+
+  (* d[k] = v : replace the FIRST binding in place, else append at the END *)
+  let rec function pairs_set (p: hpairs) (k: string) (v: hval) : hpairs
+    variant { p }
+  = match p with PNil -> PCons k v PNil
+    | PCons k' v' t -> if hpairs_key_eq k k' then PCons k' v t else PCons k' v' (pairs_set t k v) end
+
+  let rec lemma pairs_set_get (p: hpairs) (k j: string) (v: hval)
+    variant { p }
+    ensures { pairs_get (pairs_set p k v) j = if k = j then Some v else pairs_get p j }
+  = match p with PNil -> () | PCons _ _ t -> pairs_set_get t k j v end
+
+  let rec function hval_list_len (l: hval_list) : int
+    variant { l }
+  = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end
+  let rec lemma len_nonneg (l: hval_list) variant { l } ensures { hval_list_len l >= 0 }
+  = match l with HNil -> () | HCons _ t -> len_nonneg t end
+
+  let rec function hval_list_nth (l: hval_list) (i: int) : hval
+    variant { l }
+  = match l with HNil -> HInt 0 | HCons h t -> if i = 0 then h else hval_list_nth t (i - 1) end
+
+  let rec function hval_list_set (l: hval_list) (i: int) (x: hval) : hval_list
+    variant { l }
+  = match l with HNil -> HNil | HCons h t -> if i = 0 then HCons x t else HCons h (hval_list_set t (i - 1) x) end
+
+  let rec lemma list_set_len (l: hval_list) (i: int) (x: hval)
+    variant { l } ensures { hval_list_len (hval_list_set l i x) = hval_list_len l }
+  = match l with HNil -> () | HCons _ t -> list_set_len t (i - 1) x end
+  let rec lemma list_set_nth (l: hval_list) (i j: int) (x: hval)
+    requires { 0 <= i < hval_list_len l } requires { 0 <= j }
+    variant { l }
+    ensures { hval_list_nth (hval_list_set l i x) j = if i = j then x else hval_list_nth l j }
+  = match l with HNil -> () | HCons _ t -> if i > 0 && j > 0 then list_set_nth t (i - 1) (j - 1) x end
+
+  let function fns (m: map string (option hval)) : hval_list =
+    match Map.get m "functions" with Some (HArr l) -> l | _ -> HNil end
+
+  (* `f["symbol_table"] = v` on element i of ir["functions"] *)
+  let function upd (h: hval) (v: hval) : hval =
+    match h with HMap p -> HMap (pairs_set p "symbol_table" v) | _ -> h end
+
+  (* the ported loop: `for f in ir["functions"]: f["symbol_table"] = v` *)
+  let rewrite_all (ir: ref (map string (option hval))) (v: hval) : unit
+    requires { match Map.get !ir "functions" with Some (HArr _) -> true | _ -> false end }
+    writes { ir }
+    ensures { hval_list_len (fns !ir) = hval_list_len (fns (old !ir)) }
+    ensures { forall j. 0 <= j < hval_list_len (fns !ir) ->
+                hval_list_nth (fns !ir) j = upd (hval_list_nth (fns (old !ir)) j) v }
+    ensures { forall k. k <> "functions" -> Map.get !ir k = Map.get (old !ir) k }
+  = let n = hval_list_len (fns !ir) in
+    for i = 0 to n - 1 do
+      invariant { hval_list_len (fns !ir) = n }
+      invariant { match Map.get !ir "functions" with Some (HArr _) -> true | _ -> false end }
+      invariant { forall j. 0 <= j < i -> hval_list_nth (fns !ir) j = upd (hval_list_nth (fns (old !ir)) j) v }
+      invariant { forall j. i <= j < n -> hval_list_nth (fns !ir) j = hval_list_nth (fns (old !ir)) j }
+      invariant { forall k. k <> "functions" -> Map.get !ir k = Map.get (old !ir) k }
+      let l = fns !ir in
+      let f = hval_list_nth l i in
+      ir := map_update_some !ir "functions" (HArr (hval_list_set l i (upd f v)))
+    done
+
+  (* caller observes the write through its own name *)
+  let caller_ok () : unit
+  = let st0 = HMap PNil in
+    let f0 = HMap (PCons "name" (HStr "m") (PCons "symbol_table" st0 PNil)) in
+    let ir = ref (Map.set (const None) "functions" (Some (HArr (HCons f0 HNil)))) in
+    let v = HMap (PCons "x" (HStr "int") PNil) in
+    rewrite_all ir v;
+    match hval_list_nth (fns !ir) 0 with
+    | HMap p -> assert { pairs_get p "symbol_table" = Some v };
+                assert { pairs_get p "name" = Some (HStr "m") }
+    | _ -> absurd end
+
+  (* FALSE twin: claims the caller still sees the OLD symbol table; must NOT prove *)
+  let caller_twin () : unit
+  = let st0 = HMap PNil in
+    let f0 = HMap (PCons "name" (HStr "m") (PCons "symbol_table" st0 PNil)) in
+    let ir = ref (Map.set (const None) "functions" (Some (HArr (HCons f0 HNil)))) in
+    let v = HMap (PCons "x" (HStr "int") PNil) in
+    rewrite_all ir v;
+    match hval_list_nth (fns !ir) 0 with
+    | HMap p -> assert { pairs_get p "symbol_table" = Some st0 }
+    | _ -> absurd end
+
+  (* ALIAS twin (the soundness hole a PARAM-DISJOINT obligation must close): Python
+     `body_funcs = [f for f in funcs if ..]; rewrite(body_funcs); funcs[0]["symbol_table"]`
+     sees v; in the value model `funcs` is a separate copy and keeps st0 -> PROVES (unsound). *)
+  let alias_hole () : unit
+  = let st0 = HMap PNil in
+    let f0 = HMap (PCons "name" (HStr "m") (PCons "symbol_table" st0 PNil)) in
+    let funcs = HArr (HCons f0 HNil) in
+    let ir = ref (Map.set (const None) "functions" (Some funcs)) in
+    let v = HMap (PCons "x" (HStr "int") PNil) in
+    rewrite_all ir v;
+    match funcs with HArr (HCons (HMap p) _) -> assert { pairs_get p "symbol_table" = Some st0 } | _ -> absurd end
+end

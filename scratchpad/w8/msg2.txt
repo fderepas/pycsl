@@ -1,0 +1,34 @@
+gate(#43): route #12 refusal is byte-inert, witnessed and negative-tested; array/map corpus plane independently re-proved 26/26
+
+ROUTE #12 GATES
+  witness       0979_continuation_directive_refused, NEGATIVE-TESTED: the identical file
+                prints `[+] Verification SUCCESS! All contracts formally proven.` at
+                13c4860b with its false `#@ assert 1 == 2`, and is refused at HEAD
+  corpus        820 / 820 emissions BYTE-IDENTICAL (821 .py files present, exactly one
+                refusal, and it is 0979 itself)
+  mirror L3-tc  53 / 53, TC_FAIL=0
+  doc-coherency OK
+  metric        451 / 476 / offset 25 / unattached 0 — UNCHANGED
+
+INSTRUMENT FACT 19, learned the hard way here: A LIVE-TREE EDIT LEAKS INTO MIRROR EMISSION
+THROUGH `--import-path src/pycsl`. The mirrors import the LIVE `Module1_Ingestor`, so the
+live body is what the importer reads. The first spelling of the refusal used `%` string
+formatting; the emitter reads `%` as MODULO and pulled the whole `pycsl_div` / `pycsl_mod`
+preamble into `frontend/Module3_Weaver.mlw` and `frontend/ir_resolve.mlw` — ten lines of
+arithmetic helpers, from a `raise` message. Rewritten with `str()` concatenation, that
+delta is gone. "I only touched the live tree" is not an argument for emission inertness;
+measure it.
+
+The residual delta is exactly ONE line in three mirrors:
+`raises { PyCSLParseError }` on `val module1_ingestor__process`. That val is DECLARED BUT
+NEVER CALLED in all three (grepped), so no goal can move — the three whole-file re-proofs
+are queued behind the two already running rather than skipped on that argument.
+
+ALSO BANKED HERE: the ARRAY/MAP extension's CORPUS plane, re-derived and re-proved by this
+driver rather than inherited. The 26 changed corpus files were re-derived from a 820-vs-820
+emission diff against 13c4860b (not read out of `changed_arr.txt`), and all 26 prove:
+`43 ARR PROVE OK: 26 / 26`, `FAIL:` empty. That is #34's `verify_arr2.log` claim
+independently reproduced — the one part of the inherited array claim that was true as
+stated.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

@@ -1,0 +1,59 @@
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index a0a12d34..bb81b81a 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -12210,6 +12210,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+             return self._field_label(self._emit_record_ctx, expr['field'])
+         obj = expr['object']
+         field = expr['field']
++        # `@property` SUPPORT, the SELF-RECEIVER READ half (relaunch #16). The non-self
++        # path (`_handle_attribute_expr`) already routes `<recv>.<prop>` to the emitted
++        # nullary getter; `self.<prop>` arrives HERE instead, and without this it projects
++        # a RECORD FIELD of the same name — so the proven getter sits beside an
++        # unconstrained mutable field that nothing relates to it (`_heap_var` is exactly
++        # that shape). `_property_getters` is keyed by (class whyml_name, property name)
++        # and built ONLY from methods Module 5 flagged `is_property`, so it is empty for
++        # every property-free module -> corpus byte-inert.
++        _pg2 = getattr(self, "_property_getters", None)
++        if _pg2 and obj == "self":
++            _pgfn2 = _pg2.get((getattr(self, "_current_self_type", None), field))
++            if _pgfn2:
++                return f"({_pgfn2} self)"
+         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`):
+         # the opaque-int self-field READS this signature builder makes — the symbol table
+         # and the three source-ordered param sequences — are typed collections, NOT the
+diff --git a/test-suite/corpus/pycsl-reference/0967_property_getter_supported.py b/test-suite/corpus/pycsl-reference/0967_property_getter_supported.py
+index 6153174c..f442eef4 100644
+--- a/test-suite/corpus/pycsl-reference/0967_property_getter_supported.py
++++ b/test-suite/corpus/pycsl-reference/0967_property_getter_supported.py
+@@ -38,9 +38,30 @@ class Box:
+         return self.w * self.h
+ 
+ 
++    # SELF-RECEIVER read of a `@property` (relaunch #16, the other half of the READ
++    # capability): `self.area` inside a sibling method must ALSO route to the getter.
++    # `self.<attr>` takes a DIFFERENT emitter path from `<recv>.<attr>`
++    # (`_handle_field_get_expr` rather than `_handle_attribute_expr`), so it needs its
++    # own rule and its own witness — without the rule this projects a record FIELD named
++    # `area`, which does not exist, and the postcondition below is unprovable.
++    #@ requires self.w >= 0 and self.h >= 0
++    #@ ensures \result == 2 * (self.w * self.h)
++    #@ assigns \nothing
++    def double_area(self) -> int:
++        return self.area + self.area
++
++
+ #@ requires True
+ #@ ensures \result == 12
+ #@ assigns \nothing
+ def main() -> int:
+     b = Box(w=3, h=4)
+     return b.area
++
++
++#@ requires True
++#@ ensures \result == 24
++#@ assigns \nothing
++def main_self() -> int:
++    b = Box(w=3, h=4)
++    return b.double_area()

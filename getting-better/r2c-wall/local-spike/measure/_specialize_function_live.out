@@ -1,0 +1,8 @@
+/home/fabrice/git/pycsl-r2c/src/pycsl/core_ir_semantic.py:1708: UserWarning: Function '_specialize_function': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+[*] Parsing and Semantic Analysis for '_specialize_function_live.py'...
+[*] Memory model: hoare
+[*] Import 'copy.deepcopy': external module, no local source found — skipping
+
+[!] PIPELINE ERROR:
+`spec.pop(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause, so the mutation would be SILENTLY ABSENT from the model while the run still reported 'All contracts formally proven' — the method would satisfy `#@ assigns \nothing`, satisfy its emitted frame-preservation `ensures`, and re-establish the class invariant. Rewrite the mutation as an indexed store (`spec[i] = v`), or mark the enclosing function `#@ \trusted`.

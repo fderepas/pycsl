@@ -1,0 +1,2 @@
+OK: all 932 un-trusted self-annotate mirror functions (self-methods, module-level helpers, and pycsl.py driver functions) are verbatim copies of the live source; 37 class-level constants are subsets of live (no mirror-only key, no differing value)
+[+] mirror-check: all 53 mirrors are in sync with src/pycsl/ (a def the mirror RELOCATES into a sibling file is not staleness; its body is checked by bin/check-sibling-concrete-fidelity.py)

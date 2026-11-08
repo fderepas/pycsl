@@ -1,0 +1,139 @@
+diff --git a/src/pycsl/module6_whyml/statements.py b/src/pycsl/module6_whyml/statements.py
+index 4c49bc7e..3dc7cf10 100644
+--- a/src/pycsl/module6_whyml/statements.py
++++ b/src/pycsl/module6_whyml/statements.py
+@@ -3657,6 +3657,51 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+         find_assigns(body_stmts)
+         return out - set(self._formal_params)
+ 
++    def _collect_str_array_field_elem_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
++        """relaunch #16 (`struct_format.slot_id`): a local bound to an ELEMENT of a
++        STRING-ELEMENT list self-field — `run_type = self.slots[0]`, or the target of
++        `for t in self.slots[1:]` — is a `string` local, not the default `ref 0`. Without
++        this the element read (a real `string` out of `array string`) is assigned to an
++        int ref and every downstream `_short_type(run_type)` applies a `string`-parameter
++        function to an int. `_str_array_record_fields` is populated only for such a field
++        -> empty, hence byte-inert, for the whole corpus and every mirror without one."""
++        _sarf = getattr(self, "_str_array_record_fields", None)
++        if not _sarf:
++            return set()
++        out: Set[str] = set()
++
++        def _is_str_field_read(v: Any) -> bool:
++            """True for `self.<f>` and for any slice of it, with <f> a string-list field."""
++            if not isinstance(v, dict):
++                return False
++            if v.get("type") in ("FieldGet", "Attribute"):
++                _f = v.get("field") or v.get("attr")
++                _o = v.get("object") or v.get("value")
++                if isinstance(_o, dict):
++                    _o = _o.get("name")
++                return _f in _sarf and _o == "self"
++            if v.get("type") == "SliceAccess":
++                return _is_str_field_read(v.get("value"))
++            return False
++
++        def scan(n: Any) -> None:
++            if isinstance(n, dict):
++                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
++                    _v = n.get("value")
++                    if (isinstance(_v, dict) and _v.get("type") == "Subscript"
++                            and _is_str_field_read(_v.get("value"))):
++                        out.add(n["target"])
++                if n.get("stmt") == "For" and isinstance(n.get("target"), str) \
++                        and _is_str_field_read(n.get("iter")):
++                    out.add(n["target"])
++                for x in n.values():
++                    scan(x)
++            elif isinstance(n, list):
++                for x in n:
++                    scan(x)
++        scan(body_stmts)
++        return out - set(self._formal_params)
++
+     def _collect_refine_str_get_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+         """cap1 (self-tcb-reduction `_refine_tuple_return_type`): a local assigned
+         `<func>.get("<key>", "<str-literal>")` on the `Dict[str, PyVal]` func param (hval
+@@ -5083,6 +5128,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+         # cap1 (self-tcb-reduction `_refine_tuple_return_type`): `_nm`/`_nm2` from
+         # `func.get("name", "")` (hval func param, string default) are string locals.
+         string_vars |= self._collect_refine_str_get_locals(body_stmts)
++        # relaunch #16: elements of a STRING-ELEMENT list self-field (`run_type =
++        # self.slots[0]`, `for t in self.slots[1:]`) are `string` locals.
++        string_vars |= self._collect_str_array_field_elem_locals(body_stmts)
+         self._string_local_vars = string_vars   # so _mark_string_seq_locals sees items-keys
+         self._mark_string_seq_locals(body_stmts)
+         string_vars |= self._collect_enum_str_elem_locals(body_stmts)
+diff --git a/src/pycsl/module6_whyml/stmt_control_flow.py b/src/pycsl/module6_whyml/stmt_control_flow.py
+index d85fb550..84cdfb05 100644
+--- a/src/pycsl/module6_whyml/stmt_control_flow.py
++++ b/src/pycsl/module6_whyml/stmt_control_flow.py
+@@ -344,6 +344,38 @@ class ControlFlowStmtMixin:
+         self._for_iter_materialize = None
+         self._for_target_is_pyval = False
+         self._for_items_hval_map = None
++        # relaunch #16 (`struct_format.slot_id`): `for t in self.<f>[k:]` where `<f>` is a
++        # STRING-ELEMENT list self-field (`array string`). This is the FAITHFUL lowering,
++        # not a decline: iterating `xs[k:]` visits exactly `xs[k]`, `xs[k+1]`, …, so the
++        # bound is `Array.length <f> - k` and the element is `<f>[!idx + k]` — the REAL
++        # array read, with a real `string` per iteration. Without it the whole slice
++        # erased to the opaque `iter_length 0` / `iter_get 0 !idx`, an int-typed oracle
++        # that both mistypes against the string element AND makes the loop contentless.
++        # Restricted to a constant NON-NEGATIVE lower bound with no upper and no step, and
++        # gated on `_str_array_record_fields` -> corpus byte-inert.
++        _sarf0 = getattr(self, "_str_array_record_fields", None)
++        if _sarf0 and iter_ir.get("type") == "SliceAccess":
++            _sl = iter_ir.get("slice") or {}
++            _base = iter_ir.get("value") or {}
++            _bf = (_base.get("field") or _base.get("attr")
++                   if isinstance(_base, dict) else None)
++            _bo = _base.get("object") or _base.get("value") if isinstance(_base, dict) else None
++            if isinstance(_bo, dict):
++                _bo = _bo.get("name")
++            _lo = _sl.get("lower") if isinstance(_sl, dict) else None
++            # an OMITTED bound is the IR node `{"type": "None"}` (a truthy dict), not a
++            # Python None — testing truthiness alone would admit `xs[1:3]`, whose bound is
++            # NOT `Array.length - 1`. Fail-closed on both.
++            def _absent(_b: Any) -> bool:
++                return _b is None or (isinstance(_b, dict) and _b.get("type") == "None")
++            if (_bf in _sarf0 and _bo == "self"
++                    and _absent(_sl.get("upper")) and _absent(_sl.get("step"))
++                    and isinstance(_lo, dict) and _lo.get("type") == "Number"
++                    and isinstance(_lo.get("value"), int) and _lo["value"] >= 0):
++                _k = _lo["value"]
++                _fw = self._expr_to_whyml(_base, local_refs)
++                return (f"((Array.length {_fw}) - {_k})",
++                        f"{_fw}[!{idx} + {_k}]", False)
+         # hval-retype (self-tcb-reduction Tier-5): `for info in <pyval-field>.values()`
+         # (the `_field_type_for`/`_field_type_of` record-registry scan over
+         # `self._record_types.values()`, retyped to `map string (option hval)`) iterates
+diff --git a/src/self-annotate/src/module6_whyml/struct_format.py b/src/self-annotate/src/module6_whyml/struct_format.py
+index 7226e2a1..f30234fd 100644
+--- a/src/self-annotate/src/module6_whyml/struct_format.py
++++ b/src/self-annotate/src/module6_whyml/struct_format.py
+@@ -29,12 +29,23 @@ class StructFormat:
+     def arity(self) -> int:
+         return len(self.slots)
+ 
+-    #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+     def slot_id(self) -> str:
+-        return ""
++        if not self.slots:
++            return "empty"
++        out: List[str] = []
++        run_type = self.slots[0]
++        run_count = 1
++        for t in self.slots[1:]:
++            if t == run_type:
++                run_count += 1
++            else:
++                out.append(_short_type(run_type) + str(run_count))
++                run_type, run_count = t, 1
++        out.append(_short_type(run_type) + str(run_count))
++        return "".join(out)
+ #@ requires True
+ #@ ensures True
+ #@ assigns \nothing

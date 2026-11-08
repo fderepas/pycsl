@@ -1,0 +1,55 @@
+@startuml sl-base-structure
+' Base SL: self-tcb-reduction — bounds, actors, gates
+skinparam backgroundColor #FDFDFD
+skinparam defaultFontName Helvetica
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam ArrowColor #555555
+skinparam rectangle {
+  BorderColor #888888
+  FontColor #222222
+}
+
+title self-tcb-reduction — the Squeeze Loop (bounds • actors • gates)
+
+' ===== U : upper bound (soft) =====
+rectangle "U  —  UPPER BOUND (soft: transcription authority)" as U #E8F0FE {
+  rectangle "the LIVE emitter method\n(src/pycsl/…) — verbatim source" as Ulive #D2E3FC
+  rectangle "fixed contract shape\n#@ requires True / ensures True / assigns <tight-frame>\n(NEVER value-faithful, NEVER vacuous)" as Ucontract #D2E3FC
+  rectangle "item-3 ceiling doctrine\n(what may be re-sited to the floor)" as Uceiling #D2E3FC
+}
+
+' ===== actors squeezed between U and L =====
+rectangle "ACTORS  —  each pinned to its own disjoint (U, L)" as A #FFFFFF {
+  rectangle "coordinator\ntier work-list • delegation • verdicts • ledger\n(cannot edit code; cannot rubber-stamp)" as coord #FFF6D6
+  rectangle "converter\nverbatim mirror body + #@ + recognizer\n(cannot weaken/axiom; blind to baseline+floor)" as conv #FFE9C7
+  rectangle "verifier\nruns the 3 L-planes FRESH from the surface\n(blind to the converter's rationale)" as veri #D8F5D8
+  rectangle "floor-auditor\nPASS/REJECT a re-siting to F1/F3\n(ceiling doctrine; blind to convenience motive)" as floor #F5D8E8
+  rectangle "triage-probe (opt., parallel, read-only)\none classification per stub" as probe #E8E8F8
+}
+
+' ===== L : lower bound (hard, 3 disjoint planes) =====
+rectangle "L  —  LOWER BOUND (hard: 3 disjoint executable oracle planes, ALL required, NEVER blended)" as L #E6F4EA {
+  rectangle "① FIDELITY\ncheck-self-annotate-sync.sh\nself-annotate-mirror-check.sh\n(mirror body == live body)" as Lfid #CEEAD6
+  rectangle "② TYPE-SAFETY\npycsl.py <file> --import-path (whole-file + --fun)\nproof_axiom_allowlist unchanged" as Ltype #CEEAD6
+  rectangle "③ CORPUS INERTNESS\nbyte-diff-sweep vs HEAD == 0\nsuite no-new-fail • \\trusted count ↓" as Lcorp #CEEAD6
+}
+
+' ===== gate pipeline =====
+rectangle "GATES (pipeline)" as G #FCE8E6 {
+  rectangle "Gate A\n(editorial: tier / not-floor / contract shape)" as GA #F6C7C2
+  rectangle "Gate B\n(machine: all 3 L-planes + count ↓ + no smuggle)" as GB #F6C7C2
+  rectangle "Gate C\n(no-blend + non-vacuity + floor-audit)" as GC #F6C7C2
+}
+
+U -down-> A : bounds from above
+A -down-> L : must satisfy below
+GA -right-> GB
+GB -right-> GC
+
+note bottom of L
+  Correctness = U ∩ L :
+  verbatim-faithful ∧ type-safe ∧ corpus-inert ∧ (if re-sited) genuinely irreducible.
+  Dominant failure guarded: a stub that "verifies" a STALE copy (coherent-and-wrong).
+end note
+@enduml

@@ -25,20 +25,26 @@ _HEADER_CONSUMERS = {'ClassDef', 'FunctionDef', 'While', 'For', 'With'}
 class _Target:
     'One statement in source order, as the harvester sees it.'
     __slots__ = ('node', 'node_type', 'node_name', 'start_line', 'report_line', 'indent', 'child_suites', 'leading', 'footer')
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def __init__(self, node, node_type, node_name, start_line, report_line, indent):
-        pass
+    def __init__(self, node, node_type: str, node_name: str, start_line, report_line, indent):
+        self.node = node
+        self.node_type = node_type
+        self.node_name = node_name
+        self.start_line = start_line
+        self.report_line = report_line
+        self.indent = indent
+        self.child_suites = []
+        self.leading: List[str] = []
+        self.footer: List[str] = []
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _clean(comment_text: str) -> str:
-    return ""
+    return comment_text[2:].strip()
 
 _ACT_HDR = re.compile('^\\s*act\\s+(\\w+)\\s*:\\s*$')
 _HAPPY_HDR = re.compile('^\\s*happy\\s+(\\w+)\\s*(?:\\(\\s*(\\w+)\\s*\\))?\\s*:\\s*$')
@@ -53,21 +59,24 @@ _BLOCK_HDRS = (('act', _ACT_HDR), ('happy', _HAPPY_HDR), ('inductive', _INDUCTIV
 def _match_block_hdr(line: str):
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _indent_width(body: str) -> int:
-    return 0
+    lead = body[: len(body) - len(body.lstrip())]
+    if "\t" in lead:
+        raise PyCSLParseError(
+            "tabs are not allowed in `act` block indentation; use 4 spaces",
+            stage="Module1")
+    return len(lead)
 
 class Module1_Ingestor:
     'Ingests source code and extracts `#@` annotations as PyCSLContracts.'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, source_code: str) -> None:
-        pass
+        self.source_code = source_code
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -78,38 +87,49 @@ class Module1_Ingestor:
 
 
 class _Harvester:
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, comments: List[ast.Comment]) -> None:
-        pass
+        self._coms = sorted(comments, key=lambda c: c.lineno)
+        self._out: List[PyCSLContract] = []
+        self._module_header: List[str] = []
+        self._module_contracts: List[str] = []
+        self._header_consumed = False
+        self._flat: List[_Target] = []
+        self._dec_ranges: List[tuple] = []
+        self._cur_class: Optional[str] = None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._dec_ranges
     def _make(self, node):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._cur_class, self._dec_ranges, self._flat
     def _build(self, stmt_nodes) -> List[_Target]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._cur_class, self._dec_ranges, self._flat, self._header_consumed, self._module_contracts, self._module_header, self._out
     def run(self, tree) -> List[PyCSLContract]:
-        return []
+        top = self._build(tree.body)
+        self._flat.sort(key=lambda t: t.start_line)
+        self._assign()
+        if self._module_contracts:
+            self._out.append(PyCSLContract("Module", "<module>", 0, self._module_contracts))
+        self._emit_suite(top)
+        return self._out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._module_contracts, self._module_header
     def _assign(self) -> None:
         pass
 
@@ -120,12 +140,29 @@ class _Harvester:
     def _normalize_leading(self, raw_lines: List[str]) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    #@ requires 0 <= i and n <= len(raw_lines)
     #@ ensures True
     #@ assigns \nothing
-    def _fold_clauses(self, raw_lines: List[str], i: int, n: int, blk_indent: int, label: str) -> tuple:
-        return ([], {})
+    #@ raises PyCSLParseError when True
+    def _fold_clauses(self, raw_lines: List[str], i: int, n: int, blk_indent: int,
+                      label: str) -> tuple:
+        """Collect the 4-space-indented body lines of the block whose header is at
+        `blk_indent`, starting at `raw_lines[i]`. Returns `(clauses, next_i)`. Strict:
+        each body line must be exactly `blk_indent + 4`."""
+        clauses: List[str] = []
+        #@ loop invariant 0 <= i
+        #@ loop variant n - i
+        while i < n and raw_lines[i].strip():
+            body_indent = _indent_width(raw_lines[i])
+            if body_indent <= blk_indent:
+                break                       # block ends (next top-level contract)
+            if body_indent != blk_indent + 4:
+                raise PyCSLParseError(
+                    f"`{label}`: body must be indented exactly 4 spaces under the "
+                    f"header (got {body_indent - blk_indent})", stage="Module1")
+            clauses.append(raw_lines[i].strip())
+            i += 1
+        return clauses, i
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -137,22 +174,32 @@ class _Harvester:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._header_consumed, self._out
     def _emit_suite(self, targets: List[_Target]) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._header_consumed, self._out
     def _emit_target(self, tgt: _Target) -> None:
-        pass
+        contracts: List[str] = []
+        # First header-consumer in source order prepends the module header once,
+        # and emits even if it had no own contracts.
+        if (tgt.node_type in _HEADER_CONSUMERS and not self._header_consumed
+                and self._module_header):
+            contracts.extend(self._normalize_leading(self._module_header))
+            self._header_consumed = True
+        contracts.extend(self._normalize_leading(tgt.leading))
+        if contracts and tgt.node_type is not None:
+            self._out.append(PyCSLContract(tgt.node_type, tgt.node_name,
+                                           tgt.report_line, contracts))
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._out
     def _emit_block_footer(self, last_stmt: _Target) -> None:
-        pass
+        if last_stmt.footer:
+            self._out.append(PyCSLContract("TrailingSimpleStatement", "<trailing>",
+                                           last_stmt.report_line, list(last_stmt.footer)))
 
 

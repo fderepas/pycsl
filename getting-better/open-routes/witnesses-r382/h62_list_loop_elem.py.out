@@ -1,0 +1,32 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt29/h62_list_loop_elem.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_27l5wjsz.mlw", line 26, characters 18-30:
+Sub-goal loop invariant init of goal g'vc.
+Prover result is: Valid (0.00s, 343 steps).
+
+File "/tmp/.pycsl_27l5wjsz.mlw", line 28, characters 18-31:
+Sub-goal index in array bounds of goal g'vc.
+Prover result is: Valid (0.00s, 880 steps).
+
+File "/tmp/.pycsl_27l5wjsz.mlw", line 27, characters 16-41:
+Sub-goal loop variant decrease of goal g'vc.
+Prover result is: Valid (0.01s, 7222 steps).
+
+File "/tmp/.pycsl_27l5wjsz.mlw", line 26, characters 18-30:
+Sub-goal loop invariant preservation of goal g'vc.
+Prover result is: Valid (0.00s, 7060 steps).
+
+File "/tmp/.pycsl_27l5wjsz.mlw", line 21, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 590 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_27l5wjsz.mlw", line 29, characters 10-11: unused variable s
+Warning, file "/tmp/.pycsl_27l5wjsz.mlw", line 28, characters 10-11: unused variable y
+Warning, file "/tmp/.pycsl_27l5wjsz.mlw", line 23, characters 8-9: unused variable y
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

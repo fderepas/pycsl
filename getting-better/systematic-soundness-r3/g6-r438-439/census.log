@@ -1,0 +1,42 @@
+NEW 6601_r438_set_bare_tuple_param.py	REFUSAL	[ir-semantic]: 'f' line 6: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set 
+NEW 6604_r438_ifexp_bare_tuple.py	REFUSAL	[ir-semantic]: 'f' line 6: `t` is HASHED by `{t if c else ()}` (a set element, a dict key, a membership test or subscript 
+NEW 6600_r438_hash_bare_tuple_param.py	REFUSAL	[ir-semantic]: 'f' line 6: `t` is HASHED by `hash(t)` (a set element, a dict key, a membership test or subscript of a
+NEW 6616_r439_callable_value_hashed.py	REFUSAL	[ir-semantic]: 'f' line 15: `c` (an instance of ['Cc', 'a list / dict / set']) is HASHED by `{c}` (a set element, a d
+NEW 6612_r438_set_of_bare_tuple_elements.py	REFUSAL	[ir-semantic]: 'f' line 8: `xs` is HASHED by `set(xs)` (a set element, a dict key, a membership test or subscrip
+NEW 6603_r438_ret_bare_tuple_set.py	REFUSAL	[ir-semantic]: 'f' line 13: `k` is HASHED by `{k}` (a set element, a dict key, a membership test or subscript of a set /
+NEW 6611_r438_nested_bare_tuple_component.py	REFUSAL	[ir-semantic]: 'f' line 8: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of
+NEW 6602_r438_set_typing_Tuple_param.py	REFUSAL	[ir-semantic]: 'f' line 8: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a se
+NEW 6613_r438_claimed_caller_bare_tuple_callee.py	REFUSAL	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set ele
+NEW 6624_r439_setattr_computed_name_field.py	REFUSAL	[ir-semantic]: 'f' line 12: `r.x` is HASHED by `{r.x}` (a set element, a dict key, a membership test or subscri
+NEW 6615_r439_protocol_value_hashed.py	REFUSAL	[ir-semantic]: 'f' line 13: `c` (an instance of ['a list / dict / set']) is HASHED by `{c}` (a set element, a dict ke
+NEW 6605_r438_tuple_in_tuple.py	REFUSAL	[ir-semantic]: 'f' line 6: `t` is HASHED by `{(1, t)}` (a set element, a dict key, a membership test or subscript of a set /
+NEW 6610_r438_field_bare_tuple.py	REFUSAL	[ir-semantic]: 'f' line 11: `r.t` is HASHED by `{r.t}` (a set element, a dict key, a membership test or subscript of a set
+NEW 6606_r438_walrus_bare_tuple.py	REFUSAL	[ir-semantic]: 'f' line 6: `t` is HASHED by `{(u := t)}` (a set element, a dict key, a membership test or subscript of a 
+NEW 6607_r438_typing_Tuple_ret.py	REFUSAL	[ir-semantic]: 'f' line 12: `g3(t)` is HASHED by `{g3(t)}` (a set element, a dict key, a membership test or subscript of a
+NEW 6622_r439_usermod_callee_transitive.py	REFUSAL	`mid(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element,
+NEW 6608_r438_method_bare_tuple.py	REFUSAL	[ir-semantic]: 'm' line 7: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / d
+NEW 6609_r438_ret_bare_tuple_hash.py	REFUSAL	[ir-semantic]: 'f' line 13: `k` is HASHED by `hash(k)` (a set element, a dict key, a membership test or subscript of a 
+NEW 6621_r439_usermod_callee_from_import.py	REFUSAL	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, 
+NEW 6617_r439_hashable_abc_value_hashed.py	REFUSAL	[ir-semantic]: 'f' line 8: `c` (an instance of ['a list / dict / set']) is HASHED by `hash(c)` (a set element, a 
+NEW 6620_r439_usermod_callee_module_import.py	REFUSAL	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element
+NEW 6619_r439_supports_int_value_hashed.py	REFUSAL	[ir-semantic]: 'f' line 15: `c` (an instance of ['I', 'a list / dict / set']) is HASHED by `{c}` (a set element, 
+NEW 6618_r439_typing_dot_protocol_value.py	REFUSAL	[ir-semantic]: 'f' line 13: `c` (an instance of ['a list / dict / set']) is HASHED by `{c}` (a set element, a dic
+OLD 3341_gen37_r287_sorted_key_dict_subscript.py	REFUSAL	[ir-semantic]: 'f' line 10: `v` is HASHED by `d[v]` (a set element, a dict key, a membership test or subscr
+NEW 3341_gen37_r287_sorted_key_dict_subscript.py	REFUSAL	[ir-semantic]: 'f' line 10: `v` is HASHED by `d[v]` (a set element, a dict key, a membership test or subscr
+OLD 3342_gen37_r287_sorted_key_list_subscript.py	REFUSAL	[ir-semantic]: 'f' line 10: `v` is HASHED by `xs[v]` (a set element, a dict key, a membership test or subsc
+NEW 3342_gen37_r287_sorted_key_list_subscript.py	REFUSAL	[ir-semantic]: 'f' line 10: `v` is HASHED by `xs[v]` (a set element, a dict key, a membership test or subsc
+OLD 5069_gen37_r375_star_set_erased.py	REFUSAL	[ir-semantic]: 'm' line 7: `*self` is HASHED by `{*self}` (a set element, a dict key, a membership test or subscript 
+NEW 5069_gen37_r375_star_set_erased.py	REFUSAL	[ir-semantic]: 'm' line 7: `*self` is HASHED by `{*self}` (a set element, a dict key, a membership test or subscript 
+OLD 6470_rgate_set_display_get_under_claim.py	REFUSAL	[ir-semantic]: 'f' line 10: `m.get('a')` is HASHED by `{m.get('a')}` (a set element, a dict key, a membership 
+NEW 6470_rgate_set_display_get_under_claim.py	REFUSAL	[ir-semantic]: 'f' line 10: `m.get('a')` is HASHED by `{m.get('a')}` (a set element, a dict key, a membership 
+OLD 6471_rgate_set_add_get_under_claim.py	REFUSAL	[ir-semantic]: 'g' line 10: `f2.get('name')` is HASHED by `seen.add(f2.get('name'))` (a set element, a dict key, a
+NEW 6471_rgate_set_add_get_under_claim.py	REFUSAL	[ir-semantic]: 'g' line 10: `f2.get('name')` is HASHED by `seen.add(f2.get('name'))` (a set element, a dict key, a
+OLD 6472_rgate_local_from_get_under_claim.py	REFUSAL	[ir-semantic]: 'h' line 11: `v` is HASHED by `{v}` (a set element, a dict key, a membership test or subscript o
+NEW 6472_rgate_local_from_get_under_claim.py	REFUSAL	[ir-semantic]: 'h' line 11: `v` is HASHED by `{v}` (a set element, a dict key, a membership test or subscript o
+OLD 6473_rgate_loop_set_add_under_claim.py	REFUSAL	[ir-semantic]: 'names' line 12: `f.get('name')` is HASHED by `seen.add(f.get('name'))` (a set element, a dict key
+NEW 6473_rgate_loop_set_add_under_claim.py	REFUSAL	[ir-semantic]: 'names' line 12: `f.get('name')` is HASHED by `seen.add(f.get('name'))` (a set element, a dict key
+OLD 6474_rgate_values_in_set_under_claim.py	REFUSAL	[ir-semantic]: 'f' line 11: `v` is HASHED by `v in seen` (a set element, a dict key, a membership test or subscr
+NEW 6474_rgate_values_in_set_under_claim.py	REFUSAL	[ir-semantic]: 'f' line 11: `v` is HASHED by `v in seen` (a set element, a dict key, a membership test or subscr
+OLD 6475_rgate_dict_key_get_under_claim.py	REFUSAL	[ir-semantic]: 'f' line 10: `m.get('a')` is HASHED by `{m.get('a'): 1}` (a set element, a dict key, a membership 
+NEW 6475_rgate_dict_key_get_under_claim.py	REFUSAL	[ir-semantic]: 'f' line 10: `m.get('a')` is HASHED by `{m.get('a'): 1}` (a set element, a dict key, a membership 
+DONE

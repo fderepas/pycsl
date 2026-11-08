@@ -1,0 +1,416 @@
+======================================================================
+_union_c8_walk params= ['stmts', 'union_vars', 'fname'] ret= None
+[
+ {
+  "stmt": "For",
+  "line": 1176,
+  "target": "s",
+  "iter": {
+   "type": "Var",
+   "name": "stmts"
+  },
+  "invariants": [],
+  "variants": [],
+  "body": [
+   {
+    "stmt": "If",
+    "test": {
+     "type": "UnaryOp",
+     "op": "not",
+     "expr": {
+      "type": "Call",
+      "func": "isinstance",
+      "args": [
+       {
+        "type": "Var",
+        "name": "s"
+       },
+       {
+        "type": "Var",
+        "name": "dict"
+       }
+      ]
+     }
+    },
+    "body": [
+     {
+      "stmt": "Continue"
+     }
+    ],
+    "orelse": []
+   },
+   {
+    "stmt": "Assign",
+    "target": "st",
+    "value": {
+     "type": "Call",
+     "func": "s.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "stmt"
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "==",
+     "left": {
+      "type": "Var",
+      "name": "st"
+     },
+     "right": {
+      "type": "String",
+      "value": "If"
+     }
+    },
+    "body": [
+     {
+      "stmt": "Assign",
+      "target": "test",
+      "value": {
+       "type": "Call",
+       "func": "s.get",
+       "args": [
+        {
+         "type": "String",
+         "value": "test"
+        },
+        {
+         "type": "DictLit",
+         "keys": [],
+         "values": []
+        }
+       ]
+      }
+     },
+     {
+      "stmt": "If",
+      "test": {
+       "type": "Call",
+       "func": "_union_c8_test_references_union_var",
+       "args": [
+        {
+         "type": "Var",
+         "name": "test"
+        },
+        {
+         "type": "Var",
+         "name": "union_vars"
+        }
+       ]
+      },
+      "body": [
+       {
+        "stmt": "If",
+        "test": {
+         "type": "UnaryOp",
+         "op": "not",
+         "expr": {
+          "type": "Call",
+          "func": "_union_c8_recognized_guard",
+          "args": [
+           {
+            "type": "Var",
+            "name": "test"
+           }
+          ]
+         }
+        },
+        "body": [
+         {
+          "stmt": "Expr",
+          "value": {
+           "type": "Call",
+           "func": "warnings.warn",
+           "args": [
+            {
+             "type": "FString",
+             "parts": [
+              {
+               "type": "String",
+               "value": "Function '"
+              },
+              {
+               "type": "Var",
+               "name": "fname"
+              },
+              {
+               "type": "String",
+               "value": "': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8)."
+              }
+             ]
+            }
+           ]
+          }
+         }
+        ],
+        "orelse": []
+       }
+      ],
+      "orelse": []
+     },
+     {
+      "stmt": "Expr",
+      "value": {
+       "type": "Call",
+       "func": "_union_c8_walk",
+       "args": [
+        {
+         "type": "BinOp",
+         "op": "or",
+         "left": {
+          "type": "Call",
+          "func": "s.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "body"
+           },
+           {
+            "type": "ArrayLit",
+            "elts": []
+           }
+          ]
+         },
+         "right": {
+          "type": "ArrayLit",
+          "elts": []
+         }
+        },
+        {
+         "type": "Var",
+         "name": "union_vars"
+        },
+        {
+         "type": "Var",
+         "name": "fname"
+        }
+       ]
+      }
+     },
+     {
+      "stmt": "Expr",
+      "value": {
+       "type": "Call",
+       "func": "_union_c8_walk",
+       "args": [
+        {
+         "type": "BinOp",
+         "op": "or",
+         "left": {
+          "type": "Call",
+          "func": "s.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "orelse"
+           },
+           {
+            "type": "ArrayLit",
+            "elts": []
+           }
+          ]
+         },
+         "right": {
+          "type": "ArrayLit",
+          "elts": []
+         }
+        },
+        {
+         "type": "Var",
+         "name": "union_vars"
+        },
+        {
+         "type": "Var",
+         "name": "fname"
+        }
+       ]
+      }
+     }
+    ],
+    "orelse": [
+     {
+      "stmt": "If",
+      "test": {
+       "type": "BinOp",
+       "op": "in",
+       "left": {
+        "type": "Var",
+        "name": "st"
+       },
+       "right": {
+        "type": "Tuple",
+        "elts": [
+         {
+          "type": "String",
+          "value": "While"
+         },
+         {
+          "type": "String",
+          "value": "For"
+         }
+        ]
+       }
+      },
+      "body": [
+       {
+        "stmt": "Expr",
+        "value": {
+         "type": "Call",
+         "func": "_union_c8_walk",
+         "args": [
+          {
+           "type": "BinOp",
+           "op": "or",
+           "left": {
+            "type": "Call",
+            "func": "s.get",
+            "args": [
+             {
+              "type": "String",
+              "value": "body"
+             },
+             {
+              "type": "ArrayLit",
+              "elts": []
+             }
+            ]
+           },
+           "right": {
+            "type": "ArrayLit",
+            "elts": []
+           }
+          },
+          {
+           "type": "Var",
+           "name": "union_vars"
+          },
+          {
+           "type": "Var",
+           "name": "fname"
+          }
+         ]
+        }
+       }
+      ],
+      "orelse": [
+       {
+        "stmt": "If",
+        "test": {
+         "type": "BinOp",
+         "op": "==",
+         "left": {
+          "type": "Var",
+          "name": "st"
+         },
+         "right": {
+          "type": "String",
+          "value": "Match"
+         }
+        },
+        "body": [
+         {
+          "stmt": "Expr",
+          "value": {
+           "type": "Call",
+           "func": "_union_c11_check_dead_arms",
+           "args": [
+            {
+             "type": "Var",
+             "name": "s"
+            },
+            {
+             "type": "Var",
+             "name": "fname"
+            }
+           ]
+          }
+         },
+         {
+          "stmt": "For",
+          "line": 1197,
+          "target": "c",
+          "iter": {
+           "type": "BinOp",
+           "op": "or",
+           "left": {
+            "type": "Call",
+            "func": "s.get",
+            "args": [
+             {
+              "type": "String",
+              "value": "cases"
+             },
+             {
+              "type": "ArrayLit",
+              "elts": []
+             }
+            ]
+           },
+           "right": {
+            "type": "ArrayLit",
+            "elts": []
+           }
+          },
+          "invariants": [],
+          "variants": [],
+          "body": [
+           {
+            "stmt": "Expr",
+            "value": {
+             "type": "Call",
+             "func": "_union_c8_walk",
+             "args": [
+              {
+               "type": "BinOp",
+               "op": "or",
+               "left": {
+                "type": "Call",
+                "func": "c.get",
+                "args": [
+                 {
+                  "type": "String",
+                  "value": "body"
+                 },
+                 {
+                  "type": "ArrayLit",
+                  "elts": []
+                 }
+                ]
+               },
+               "right": {
+                "type": "ArrayLit",
+                "elts": []
+               }
+              },
+              {
+               "type": "Var",
+               "name": "union_vars"
+              },
+              {
+               "type": "Var",
+               "name": "fname"
+              }
+             ]
+            }
+           }
+          ],
+          "allow_iteration_mutation": false,
+          "lineno": 1197
+         }
+        ],
+        "orelse": []
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "allow_iteration_mutation": false,
+  "lineno": 1176
+ }
+]

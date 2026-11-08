@@ -1,0 +1,10 @@
+planes rc=1
+[!] soundness-planes: 1 of 19 RED — check-self-annotate-mirror-sync.py(rc=1)
+    RED      check-self-annotate-mirror-sync.py         rc=1
+                  return self._slice_array_or_opaque(node, arr, sl, local_refs, invariant_ctx, subst)
+                 ---
+--
+[!] soundness-planes: 1 of 19 RED — check-self-annotate-mirror-sync.py(rc=1)
+conf rc=0
+sync rc=1
+FAST-DONE 09:31:21Z

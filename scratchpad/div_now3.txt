@@ -1,0 +1,3 @@
+DIVERGED: module6_whyml/expressions.py::ExpressionEmissionMixin._handle_var_expr
+DIVERGED: module6_whyml/stmt_control_flow.py::ControlFlowStmtMixin._handle_for_stmt
+DIVERGED: module6_whyml/stmt_control_flow.py::ControlFlowStmtMixin._handle_return_stmt

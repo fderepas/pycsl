@@ -1,0 +1,193 @@
+[*] IR conformance — core corpus (golden IR -> WhyML, no front-end)
+[+] core-only conformance: 38 OK / 0 MISMATCH (38 goldens) — front-end NOT imported
+  [0;32m[OK][0m core-only conformance
+[*] IR conformance — front-end corpus (source -> resolved IR, no prover)
+[*] Imported from 'multi_file_lib.arith': ['double_int'] (trusted stubs)
+[*] Imported from 'multi_file_lib.arith': ['double_int', 'triple_int'] (trusted stubs)
+[*] Imported from 'multi_file_lib.arith': ['double_int'] (trusted stubs, module-qualified)
+[*] Imported from 'multi_file_lib.deep_mid': ['double_plus_one'] (trusted stubs)
+[*] Imported from 'multi_file_lib.circ_a': ['func_a'] (trusted stubs)
+[*] Imported class from 'multi_file_lib.base_counter': Counter (record + 1 method stub(s) + 0 helper(s))
+[*] Imported from 'multi_file_lib.base_counter': ['Counter'] (trusted stubs)
+[*] Imported class from 'multi_file_lib.base_store': Store (record + 1 method stub(s) + 0 helper(s))
+[*] Imported base class from 'multi_file_lib.visitor_base': NodeVisitor (record + 2 method stub(s))
+front-end conformance: 38 OK / 0 MISMATCH (38 goldens; 0 version-skew)
+front-end-only: no core/Module6/prover module in sys.modules (import-based, no subprocess for the conformance check)
+determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
+  [0;32m[OK][0m front-end-only conformance
+[0;32m[+] IR conformance: both corpora pass — front-end<->core contract intact.[0m
+[*] 3355 tests across 2 suite(s); jobs=6 (cores=12)
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0031_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0032_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0033_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0035_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0036_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0038_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0039_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0021_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0040_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0042_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0043_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0034_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0037_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0047_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0041_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0048_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0049_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0050_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0051_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0044_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0052_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0045_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0046_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0053_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0054_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0055_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0056_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0057_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0058_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0059_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0060_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0061_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0062_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0063_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0064_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0065_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0066_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0067_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0068_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0069_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0071_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0072_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0073_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0074_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0075_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0076_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0077_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0080_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0081_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0082_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0083_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0086_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0070_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0087_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0078_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0079_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0084_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0085_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0088_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0089_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0090_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0091_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0095_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0098_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0092_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0093_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0099_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0102_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0094_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0103_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0104_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0105_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0096_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0097_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0106_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0107_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0108_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0100_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0109_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0101_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0110_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0111_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0112_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0113_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0114_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0115_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0116_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0117_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0118_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0119_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0124_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0125_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0120_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0121_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0122_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0123_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0129_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0128_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0130_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0131_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0126_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0127_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0132_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0133_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0134_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0135_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0136_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0137_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0138_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0139_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0140_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0141_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0142_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0143_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0144_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0145_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0146_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0147_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0148_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0149_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0150_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0151_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0152_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0153_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0158_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0154_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0155_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0159_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0156_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0157_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0160_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0161_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0162_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0163_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0164_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0165_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0166_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0167_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0168_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0169_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0170_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0171_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0172_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0173_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0174_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0175_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0176_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0177_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0178_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0179_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0180_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0181_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0182_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0183_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0184_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0185_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0186_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0187_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0191_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0193_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0192_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0188_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0189_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0190_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0194_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0195_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0196_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0202_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0204_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0197_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0205_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0199_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0206_py_: No such file or directory
+bin/run-reference-tests.sh: line 86: /tmp/tmp.7tOPMf9Z5o/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0207_py_: No such file or directory

@@ -1,0 +1,40 @@
+Sub-goal exceptional postcondition of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 337 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 104, characters 101-133:
+Sub-goal precondition of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 370 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 89, characters 32-36:
+Sub-goal exceptional postcondition of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 383 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 89, characters 32-36:
+Sub-goal exceptional postcondition of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 436 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 96, characters 16-42:
+Sub-goal loop variant decrease of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 4908 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 95, characters 18-33:
+Sub-goal loop invariant preservation of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 4634 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 88, characters 15-19:
+Sub-goal postcondition of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 297 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 47, characters 8-11: unused variable sub
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 44, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 68, characters 38-42: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 68, characters 62-66: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 72, characters 27-31: unused variable tree
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 72, characters 39-43: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 74, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 78, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 82, characters 24-28: unused variable tree
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_92ekl_qa.mlw", line 91, characters 8-12: unused variable node
+
+[+] Verification SUCCESS! All contracts formally proven.

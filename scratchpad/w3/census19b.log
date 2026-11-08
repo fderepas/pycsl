@@ -1,0 +1,105 @@
+  KEEP  Module6_WhyMLTranspiler.__init__                   score=None 
+[*] done Module6_WhyMLTranspiler.py (restored)
+[*] __init__.py: 0 trusted stubs with a live body
+[*] done __init__.py (restored)
+[*] audit_proof.py: 12 trusted stubs with a live body
+[*] done audit_proof.py (restored)
+[*] audit_proof_reverify.py: 0 trusted stubs with a live body
+[*] done audit_proof_reverify.py (restored)
+[*] core_ir_semantic.py: 4 trusted stubs with a live body
+[*] done core_ir_semantic.py (restored)
+  KEEP  PyCSLError.message                                 score=1 {'nilop': 1}
+[*] done errors.py (restored)
+[*] exception_model.py: 1 trusted stubs with a live body
+[*] done exception_model.py (restored)
+[*] frontend/ConcurrencyChecker.py: 6 trusted stubs with a live body
+[*] done frontend/ConcurrencyChecker.py (restored)
+  KEEP  _Harvester._build                                  score=2 {'fresharr': 1, 'int_param': 1}
+[*] done frontend/Module1_Ingestor.py (restored)
+[*] frontend/Module2_Parser.py: 26 trusted stubs with a live body
+[*] done frontend/Module2_Parser.py (restored)
+  KEEP  PyCSLWeaver._validate_function_contracts           score=2 {'nilop': 1, 'int_param': 1}
+[*] done frontend/Module3_Weaver.py (restored)
+[*] frontend/Module5_IREmitter.py: 30 trusted stubs with a live body
+[*] done frontend/Module5_IREmitter.py (restored)
+[*] frontend/__init__.py: 0 trusted stubs with a live body
+[*] done frontend/__init__.py (restored)
+[*] frontend/exec_splice.py: 1 trusted stubs with a live body
+[*] done frontend/exec_splice.py (restored)
+[*] frontend/import_classifier.py: 2 trusted stubs with a live body
+[*] done frontend/import_classifier.py (restored)
+[*] frontend/ir_inline.py: 7 trusted stubs with a live body
+[*] done frontend/ir_inline.py (restored)
+  KEEP  _inject_functions                                  score=2 {'nilop': 2}
+[*] done frontend/ir_resolve.py (restored)
+[*] frontend/module_collect.py: 2 trusted stubs with a live body
+[*] done frontend/module_collect.py (restored)
+[*] frontend/monomorphize.py: 14 trusted stubs with a live body
+[*] done frontend/monomorphize.py (restored)
+  KEEP  AST.__init__                                       score=None 
+[*] done frontend/pure_ast.py (restored)
+  KEEP  validate_ir                                        score=4 {'nilop': 3, 'int_param': 1}
+[*] done ir_schema.py (restored)
+[*] module6_whyml/__init__.py: 0 trusted stubs with a live body
+[*] done module6_whyml/__init__.py (restored)
+[*] module6_whyml/abstract_ops.py: 4 trusted stubs with a live body
+[*] done module6_whyml/abstract_ops.py (restored)
+[*] module6_whyml/auto_trust.py: 3 trusted stubs with a live body
+[*] done module6_whyml/auto_trust.py (restored)
+[*] module6_whyml/expr_ghost_collections.py: 0 trusted stubs with a live body
+[*] done module6_whyml/expr_ghost_collections.py (restored)
+[*] module6_whyml/expr_ghost_spec_ops.py: 2 trusted stubs with a live body
+[*] done module6_whyml/expr_ghost_spec_ops.py (restored)
+[*] module6_whyml/expressions.py: 36 trusted stubs with a live body
+[*] done module6_whyml/expressions.py (restored)
+[*] module6_whyml/functions.py: 10 trusted stubs with a live body
+[*] done module6_whyml/functions.py (restored)
+[*] module6_whyml/identifiers.py: 2 trusted stubs with a live body
+[*] done module6_whyml/identifiers.py (restored)
+[*] module6_whyml/ir_scanner.py: 0 trusted stubs with a live body
+[*] done module6_whyml/ir_scanner.py (restored)
+[*] module6_whyml/irx.py: 0 trusted stubs with a live body
+[*] done module6_whyml/irx.py (restored)
+[*] module6_whyml/preamble.py: 18 trusted stubs with a live body
+[*] done module6_whyml/preamble.py (restored)
+[*] module6_whyml/scc.py: 2 trusted stubs with a live body
+[*] done module6_whyml/scc.py (restored)
+[*] module6_whyml/statements.py: 14 trusted stubs with a live body
+[*] done module6_whyml/statements.py (restored)
+[*] module6_whyml/stmt_control_flow.py: 3 trusted stubs with a live body
+[*] done module6_whyml/stmt_control_flow.py (restored)
+[*] module6_whyml/struct_format.py: 2 trusted stubs with a live body
+[*] done module6_whyml/struct_format.py (restored)
+[*] module6_whyml/types.py: 2 trusted stubs with a live body
+[*] done module6_whyml/types.py (restored)
+[*] proof2why3/__init__.py: 0 trusted stubs with a live body
+[*] done proof2why3/__init__.py (restored)
+[*] proof2why3/canonical.py: 11 trusted stubs with a live body
+[*] done proof2why3/canonical.py (restored)
+[*] proof2why3/crosscheck.py: 4 trusted stubs with a live body
+[*] done proof2why3/crosscheck.py (restored)
+[*] proof2why3/crosscheck_ir.py: 6 trusted stubs with a live body
+[*] done proof2why3/crosscheck_ir.py (restored)
+[*] proof2why3/emit_why3.py: 0 trusted stubs with a live body
+[*] done proof2why3/emit_why3.py (restored)
+[*] proof2why3/extract.py: 3 trusted stubs with a live body
+[*] done proof2why3/extract.py (restored)
+[*] proof2why3/extract_lean_meta.py: 2 trusted stubs with a live body
+[*] done proof2why3/extract_lean_meta.py (restored)
+[*] proof2why3/from_lean_json.py: 3 trusted stubs with a live body
+[*] done proof2why3/from_lean_json.py (restored)
+[*] proof2why3/from_sexp.py: 4 trusted stubs with a live body
+[*] done proof2why3/from_sexp.py (restored)
+[*] proof2why3/ir.py: 0 trusted stubs with a live body
+[*] done proof2why3/ir.py (restored)
+[*] proof2why3/normalize.py: 6 trusted stubs with a live body
+[*] done proof2why3/normalize.py (restored)
+  KEEP  Token.__repr__                                     score=None 
+[*] done proof2why3/parser.py (restored)
+  KEEP  _sexp_tokens                                       score=4 {'nilop': 4}
+[*] done proof2why3/sertop.py (restored)
+[*] proof_axiom_allowlist.py: 2 trusted stubs with a live body
+[*] done proof_axiom_allowlist.py (restored)
+  KEEP  _parse_args                                        score=32 {'nilop': 31, 'int_param': 1}
+[*] done pycsl.py (restored)
+CENSUSDONE

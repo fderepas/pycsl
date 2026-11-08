@@ -1,0 +1,98 @@
+(* WL-04d SMT-feasibility spike: a FILTERED projection comprehension over a flat
+   `List[<record>]` source — `[p.x for p in a if <cond(p)>]` — realized as an
+   `array int` under a SOUND, non-opaque membership+predicate+projection law.
+
+   Python `result = [p.x for p in a if cond(p)]` over `a : List[Point]` keeps only
+   the elements whose record passes `cond`, projecting each retained record's field
+   `.x`. The RESULT LENGTH is data-dependent (`0 <= len(result) <= len(a)`), so an
+   exact length law is NOT provable and must NOT be claimed. What IS soundly
+   dischargeable:
+
+     (1) the length BOUND `len(result) <= len(a)` (the filter only removes), and
+     (2) for each result index i, there EXISTS a source index j such that the
+         record `a[j]` passed the predicate AND `result[i]` equals that record's
+         projected field (`(a[j]).x`). Every output came from some retained input
+         (Python semantics) — an honest under-approximating existential (the source
+         index is lost to compaction, so NO per-index content law is claimed).
+
+   From (2) the FILTER CONSEQUENCE transfers to the projected result whenever the
+   predicate constrains the projected field: `[p.x for p in a if p.x > 0]` yields
+   only positive elements, because each equals a retained `(a[j]).x` for which
+   `(a[j]).x > 0` held. That is the faithful, non-opaque gain over the prior hard
+   TYPEERR / opaque `list_comp` int.
+
+   Previously this shape fell through to `val list_comp (x:int):int` (an opaque
+   INT), so a `-> List[int]` return (typed `array int`) was returned an int →
+   ill-typed WhyML (TYPEERR, fail-closed but unusable). The faithful lowering
+   realizes the per-instance `list_content_comp_<n>` val below.
+
+   This fixture is the ground-truth that the law reasons CLEANLY on BOTH Alt-Ergo
+   AND Z3 with NO cited lemma: the length bound and the filter-consequence transfer
+   are direct consequences of the val's definitional `ensures`; the false twins
+   (length EQUALITY; a per-index `result[i] = (src[i]).x`) are NOT entailed. *)
+
+module WL04dFilteredRecordProjSpike
+  use int.Int
+  use array.Array
+
+  (* the PURE record lowering of `@dataclass Point: x: int; y: int` (immutable
+     fields — mandatory for use as an `array` element, as in WL-04b). *)
+  type point = { px: int; py: int }
+
+  (* the faithful lowering of `[p.x for p in src if p.x > 0]` — the emitted
+     per-instance abstract val. Length BOUND + membership/predicate/projection. *)
+  val filt_proj (src: array point) : array int
+    ensures { Array.length result <= Array.length src }
+    ensures { forall i: int. 0 <= i < Array.length result ->
+                exists j: int. 0 <= j < Array.length src /\
+                  (let p = src[j] in p.px > 0 /\ result[i] = p.px) }
+
+  (* POSITIVE 1 — the length bound transfers to the client. *)
+  let test_len_bound (a: array point) =
+    let r = filt_proj a in
+    assert { Array.length r <= Array.length a }
+
+  (* POSITIVE 2 — the FILTER CONSEQUENCE transfers to the projected result: every
+     result element is > 0 (it equals a retained element's px, which passed the
+     predicate). The faithful, non-opaque gain. *)
+  let test_pred_transfer (a: array point) =
+    let r = filt_proj a in
+    assert { forall i: int. 0 <= i < Array.length r -> r[i] > 0 }
+
+  (* POSITIVE 3 — membership: every result element is the px-projection of SOME
+     source element that passed the filter (the honest existential). *)
+  let test_membership (a: array point) =
+    let r = filt_proj a in
+    assert { forall i: int. 0 <= i < Array.length r ->
+               exists j: int. 0 <= j < Array.length a
+                              /\ (a[j]).px > 0 /\ r[i] = (a[j]).px }
+end
+
+(* NEGATIVE non-vacuity module: these goals encode claims FALSE of a real filter
+   and MUST NOT be provable from the law above — demonstrating the law is honest,
+   not a vacuous / over-strong axiom. Run with `why3 prove`; each stays
+   Unknown/Timeout (NOT Valid). (Kept in a separate module so the POSITIVE module
+   above is all-Valid.) *)
+module WL04dFilteredRecordProjNegatives
+  use int.Int
+  use array.Array
+
+  type point = { px: int; py: int }
+
+  val filt_proj (src: array point) : array int
+    ensures { Array.length result <= Array.length src }
+    ensures { forall i: int. 0 <= i < Array.length result ->
+                exists j: int. 0 <= j < Array.length src /\
+                  (let p = src[j] in p.px > 0 /\ result[i] = p.px) }
+
+  (* FALSE 1 — length EQUALITY (no element removed). Data-dependent → unprovable. *)
+  let neg_len_equality (a: array point) =
+    let r = filt_proj a in
+    assert { Array.length r = Array.length a }
+
+  (* FALSE 2 — a per-index content law (order/index preserved). Compaction loses
+     the source index → unprovable. *)
+  let neg_per_index (a: array point) =
+    let r = filt_proj a in
+    assert { forall i: int. 0 <= i < Array.length r -> r[i] = (a[i]).px }
+end

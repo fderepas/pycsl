@@ -1,0 +1,4 @@
+L3TC-FAIL            <module>._construct_indices  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>._find_construct_idx  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>._project_app  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>.project_constr  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]

@@ -1,0 +1,70 @@
+(* DRIVER ORACLE — does a `\trusted` stub's `#@ assigns self.<field>` reach Why3?
+   `as_emitted` reproduces VERBATIM the shape PyCSL emits today for
+   `_contractparser___parse_atom_primary` (Module2_Parser.mlw:756): a `val` with
+   `ensures { self.i >= old self.i }` and NO `writes` clause.
+   `as_declared` is the same val WITH the frame the mirror actually declares
+   (`#@ assigns self.i`).  If the caller proves under `as_emitted` and FAILS under
+   `as_declared`, the landed conversion depends on an UNSOUND no-write assumption. *)
+module TrustedFrame
+  use int.Int
+  use array.Array
+
+  type p = { mutable toks: array int; mutable i: int }
+    invariant { 0 <= i <= Array.length toks }
+    by { toks = Array.make 1 0; i = 0 }
+
+  (* AS EMITTED TODAY: no writes clause -> Why3 assumes the val writes NOTHING *)
+  val primary_emitted (self: p) : int
+    requires { true }
+    ensures  { self.i >= old self.i }
+
+  (* AS DECLARED IN THE MIRROR: `#@ assigns self.i` *)
+  val primary_declared (self: p) : int
+    requires { true }
+    writes   { self.i }
+    ensures  { self.i >= old self.i }
+
+  let advance (self: p) : unit
+    requires { self.i < Array.length self.toks }
+    writes   { self.i }
+    ensures  { self.i = old self.i + 1 }
+  = self.i <- self.i + 1
+
+  let rec atom_as_emitted (self: p) : int
+    ensures { self.i >= old self.i }
+    writes  { self.i }
+    variant { Array.length self.toks - self.i }
+  = let n = primary_emitted self in
+    if self.i < Array.length self.toks then begin advance self; atom_as_emitted self end
+    else n
+
+  let rec atom_as_declared (self: p) : int
+    ensures { self.i >= old self.i }
+    writes  { self.i }
+    variant { Array.length self.toks - self.i }
+  = let n = primary_declared self in
+    if self.i < Array.length self.toks then begin advance self; atom_as_declared self end
+    else n
+
+  (* ---- CASE 2: a trusted stub with `#@ assigns self.i` and NO monotonicity ensures
+     (Module2_Parser mirror `_parse_assigns` / `_parse_mutex_expr_str`), whose CONVERTED
+     caller (`_parse_interface` / `_parse_mutex_invariant` / `_parse_lock_order`) proves
+     `ensures self.i >= \old(self.i)`. ---- *)
+  val plain_emitted (self: p) : int
+    requires { true }
+    ensures  { true }
+
+  val plain_declared (self: p) : int
+    requires { true }
+    writes   { self.i }
+    ensures  { true }
+
+  let iface_as_emitted (self: p) : int
+    ensures { self.i >= old self.i }
+  = plain_emitted self
+
+  let iface_as_declared (self: p) : int
+    ensures { self.i >= old self.i }
+    writes  { self.i }
+  = plain_declared self
+end

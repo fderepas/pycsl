@@ -1,0 +1,26 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3p_caller_finally_swallows_callee_hash.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3p_caller_finally_swallows_callee_hash.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal h'vc.
+Prover result is: Valid (0.00s, 532 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3p_caller_finally_swallows_callee_hash.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal h'vc.
+Prover result is: Valid (0.00s, 528 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3p_caller_finally_swallows_callee_hash.mlw", line 26, characters 4-15:
+Sub-goal index in array bounds of goal caller'vc.
+Prover result is: Valid (0.00s, 679 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3p_caller_finally_swallows_callee_hash.mlw", line 27, characters 6-21:
+Sub-goal index in array bounds of goal caller'vc.
+Prover result is: Valid (0.00s, 999 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3p_caller_finally_swallows_callee_hash.mlw", line 24, characters 15-27:
+Sub-goal postcondition of goal caller'vc.
+Prover result is: Valid (0.00s, 7632 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

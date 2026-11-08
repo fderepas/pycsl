@@ -1,0 +1,78 @@
+CLOSED(#44): ROUTE #23 — an augmented store could VANISH, and dropped-mutation's DROPPED ratchet goes 1 -> 0
+
+`Module5_IREmitter._py_stmt_augassign` was an `if/elif/elif` with NO
+`else`. It named three target shapes — `x op= v`, `self.f op= v`,
+`a[k] op= v` — and SILENTLY DROPPED everything else. The same structural
+defect this campaign has now found twenty-three times.
+
+TWO SHAPES WERE EXPLOITABLE, and both are witnessed:
+  0993  `self.items[0].v += 5` emitted a body containing ONLY the read;
+        `#@ ensures \result == 0` proved while Python returns 5.
+  0994  `e = E(); e.v += 5; return e.v` — same verdict, same lie.
+
+THE CONTROLS ARE WHAT MAKE THESE GAPS RATHER THAN LIMITATIONS. The plain
+twin of 0993, `a[i].f = v`, was ALREADY refused by `_py_stmt_assign` with
+its reason spelled out (a `List[<record>]` element is emitted PURE/
+immutable, so there is no sound `<-` write-back). The plain twin of 0994,
+`e.v = e.v + 5`, was ALREADY handled — a `FieldAssign` arm added for
+exactly this fail-open on the plain form — and correctly FAILS. In both
+cases the augmented spelling was the only way through.
+
+CLOSED THE TWO WAYS THE TWO CASES DESERVE:
+  (a) subscript / nested-attribute / global / slice base  -> REFUSED,
+      inheriting the boundary its plain twin already names.
+  (b) `p.f op= v` on a record-typed local or parameter    -> CAPABILITY,
+      desugared to that proven `FieldAssign` arm (`p.f = (p.f) op v`),
+      exactly as `c[k] op= v` is desugared to `ArraySet`. Witness 0995
+      carries the TRUE `\result == 5` and PROVES — without it no test
+      could tell "the erasure is closed" from "the construct is banned".
+
+THE RATCHET'S OWN EXCUSE WAS FALSE, AND CHECKING IT MADE THE FIX FREE.
+`check-dropped-mutation.py` had carried DROPPED = 1 with the argument that
+refusing this "would reject `pure_ast.py` itself for every mirror that
+imports it". The single site is the LIVE `pure_ast._merge_str_constants`,
+which is never lowered, and the MIRROR's copy of that function is
+`\trusted` with a `pass` body, so it is not lowered either. AST census
+over both corpora, `src/pycsl`, `src/self-annotate/src`, `src/pycsl_lib`
+and `tests/`: 1310 augmented assignments — 1208 Name, 77 `self.f`,
+25 `a[k]`, all modelled — exactly TWO falling off the end, ZERO in either
+corpus. DROPPED is now a HARD ZERO.
+
+THE MIRROR KEPT ITS CONVERSION. `_py_stmt_augassign` is CONVERTED, so the
+live change desynced it (the fidelity plane caught that, as it has every
+time). Synced, and the new arm needed ONE additive model entry:
+`"FieldAssign": ("SFieldAssign", [...])` in `_STMT_IR_CTORS` — the
+constructor the stmt_ir ADT has carried all along for the plain form's
+bespoke lowering. Metric UNCHANGED at 456: no re-trust was needed.
+
+TWO SMALL THINGS MEASURED RATHER THAN GUESSED, both recorded in the code:
+  * A `%` operator anywhere in this LIVE function's source makes the
+    self-annotation preamble emit `pycsl_div`/`pycsl_mod` into every
+    mirror that imports the module. Two mirror emissions moved for no
+    reason until the format strings became f-strings.
+  * `type(t).__name__` in the refusal message lowers to
+    `int_to_string (get___name__ (py_type t))` and `t` is an `emit_ir`
+    there — an L3-tc rejection. Replaced with a literal; the branch is
+    unreachable from parseable source anyway, since Python itself rejects
+    a tuple/starred augmented-assignment target.
+
+GATES, re-derived from the surface:
+  pycsl-reference    820/820 BYTE-IDENTICAL (+ 0994/0995; 0993 refuses)
+  python-reference   2142/2142 BYTE-IDENTICAL, refusal set identical (75)
+  mirror emission    4 files moved: Module5_IREmitter (the new arm) and
+                     three importers gaining one honest
+                     `raises { PyCSLSemanticError }` line each
+  mirror L3-tc       53/53
+  fidelity           2 DIVERGED, the pre-existing pair, no new one
+  conformance        core 38/0, front-end 38/0, determinism 10/10
+  dropped-mutation   DROPPED 1 -> 0; ctxbind 51, tryfinal 10, dangling 0
+  loop-annotations   330/5 files
+  getattr-erasure    DECLARED 0 pinned, ABSENT 7, UNKNOWN 19
+  metric             UNCHANGED — markers 456 / grep 481
+  witnesses          0990/0991/0992 unchanged; 0993/0994/0995 all three
+                     negative-tested against a worktree at the parent —
+                     0993 and 0994 PROVED there, 0995 FAILED there
+
+OWED: whole-file re-proofs of the four moved mirrors.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

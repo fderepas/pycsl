@@ -1,0 +1,3 @@
+L3TC-FAIL            AutoTrustMixin._build_witness_str  ["This expression has type int, but is expected to have type 'mu -> option."]
+L3TC-FAIL            AutoTrustMixin._check_witness_vals  ['This expression has type string, but is expected to have type int']
+L3TC-FAIL            AutoTrustMixin._should_auto_trust_tuple_return  ['This expression has type array.Array.array int @rho, but is expected to have type int']

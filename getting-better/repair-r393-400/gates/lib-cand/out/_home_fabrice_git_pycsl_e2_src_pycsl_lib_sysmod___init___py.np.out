@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/sysmod/__init__.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+`_world.proc._path.insert(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause, so the mutation would be SILENTLY ABSENT from the model while the run still reported 'All contracts formally proven' — the method would satisfy `#@ assigns \nothing`, satisfy its emitted frame-preservation `ensures`, and re-establish the class invariant. Rewrite the mutation as an indexed store (`_world.proc._path[i] = v`), or mark the enclosing function `#@ \trusted`.

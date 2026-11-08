@@ -1,0 +1,125 @@
+(* gh-spike-controls.mlw — NEGATIVE CONTROLS for gh-spike.mlw.
+   Every goal in this file is EXPECTED TO FAIL (Unknown/Timeout). If any
+   prover reported one of these Valid, the main spike would be vacuous.
+
+   Control 1 (SentinelMasksNonTermination) is the load-bearing Q1 refutation:
+   take a hypothetical live handler that, at the very position the global
+   name->projector table lowers to svalue_of (the IrOther "" sentinel),
+   actually recurses on something NON-decreasing (here: the matched node
+   itself, rebuilt). Modeled FAITHFULLY, its termination VC must FAIL —
+   while its SENTINEL model (gh-spike.mlw Q1Projections.h_sentinel, same
+   lowering output for both live bodies) is Valid. Two live behaviors with
+   OPPOSITE termination ground truth map to one and the same Valid model:
+   the sentinel model's proof therefore cannot be evidence about the live
+   handler's termination at that site.
+
+   Control 2 (LeafProjectorNoGuard): projector recursion WITHOUT the node-
+   shape guard — on a leaf, left_of returns IrOther "" of the SAME size 1,
+   so the decrease is false. Shows the main spike's variants only discharge
+   BECAUSE of the shape guard + real-child decrease, i.e. the provers are
+   not rubber-stamping `variant { size t }`.
+
+   Control 3 (ArityNoContract): Q3a's failing twin — the abstract arity
+   getter WITHOUT `ensures { result >= 0 }`; Array.make's precondition
+   (0 <= n) must be undischargeable, reproducing the report's blocked
+   _handle_ctor_test_expr.
+
+   Prove (expect failures): why3 prove -P alt-ergo gh-spike-controls.mlw *)
+
+module SentinelMasksNonTermination
+
+  use int.Int
+  use string.String
+
+  (* Abstract program-level string builder: NO contract, NO axiom —
+     content-irrelevant under the type-safety+termination shape. *)
+  val cat (_a _b: string) : string
+
+
+  type term =
+    | IrVar string
+    | IrStr string
+    | IrOther string
+    | IrBin string term term
+    | IrSub term term
+
+  let rec function size (t: term) : int
+    ensures { result >= 1 }
+    variant { t }
+  = match t with
+    | IrVar _ -> 1
+    | IrStr _ -> 1
+    | IrOther _ -> 1
+    | IrBin _ l r -> 1 + size l + size r
+    | IrSub v i -> 1 + size v + size i
+    end
+
+  let function left_of (t: term) : term
+  = match t with IrBin _ l _ -> l | _ -> IrOther "" end
+
+  (* The FAITHFUL model of the masked live bug: second recursion re-passes
+     the (rebuilt) node itself — size does NOT decrease. MUST FAIL. *)
+  let rec live_bug (t: term) : string
+    requires { true }
+    ensures  { true }
+    variant  { size t }
+  = match t with
+    | IrBin op l r ->
+        cat (live_bug (left_of t)) (live_bug (IrBin op l r))
+    | _ -> "leaf"
+    end
+
+end
+
+module LeafProjectorNoGuard
+
+  use int.Int
+  use string.String
+
+  (* Abstract program-level string builder: NO contract, NO axiom —
+     content-irrelevant under the type-safety+termination shape. *)
+  val cat (_a _b: string) : string
+
+
+  type term =
+    | IrVar string
+    | IrOther string
+    | IrBin string term term
+
+  let rec function size (t: term) : int
+    ensures { result >= 1 }
+    variant { t }
+  = match t with
+    | IrVar _ -> 1
+    | IrOther _ -> 1
+    | IrBin _ l r -> 1 + size l + size r
+    end
+
+  let function left_of (t: term) : term
+  = match t with IrBin _ l _ -> l | _ -> IrOther "" end
+
+  (* Unconditional projector recursion, no shape guard: on IrVar/IrOther,
+     size (left_of t) = size (IrOther "") = 1 = size t — decrease FALSE. *)
+  let rec no_guard (t: term) : string
+    requires { true }
+    ensures  { true }
+    variant  { size t }
+  = cat (no_guard (left_of t)) "x"
+
+end
+
+module ArityNoContract
+
+  use int.Int
+  use string.String
+  use array.Array
+
+  val get_arity (_u: unit) : int
+    (* no ensures — the report's live abstract getter *)
+
+  let mk_ctor_test_unsafe (_u: unit) : array string
+    requires { true }
+    ensures  { true }
+  = Array.make (get_arity ()) "_"   (* precond 0 <= n MUST FAIL *)
+
+end

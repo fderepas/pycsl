@@ -1,0 +1,44 @@
+# route #473 census (executor e473, driver run #3, base 1f3aa3081 = emission of 33f7ac681): every site that materialises, consumes or corrects the fixed-size list placeholder `Array.make 1024 0`, and every position where an empty-list placeholder can leave its function's local length tracking.
+# Emission counts (base sweeps v13/ca, v13/ca/pyref, v13/ma): paren `(Array.make 1024 0)` 27 occurrences in 21 root-corpus files (11 `let X = ... in` locals), 0 in pyref, 0 in mirror function bodies (2 hits are WhyML string LITERALS in module6_whyml__types / __statements); bare `Array.make 1024 0` (shadow-local capacity) 7 root + 5 mirror bindings, ALL dead (the name's only occurrence is its binding).
+# Probe verdicts: scratchpad e473/p/*.py, proved at base (worktree pycsl-e473base = 1f3aa3081) and candidate; P = PROVED, F = FAILED, R = refused upstream.
+section	site	role	spelling	escape position	base verdict (probe)	CPython	after repair
+PRODUCER	src/pycsl/module6_whyml/expressions.py:22724 (ArrayLit, no elts)	empty list literal `[]` / `list([])`	(Array.make 1024 0)	(all rows below)	-	len 0	value rewritten to (Array.make 0 0) in _run_pipeline when the IR attributes it (pycsl.py ROUTE #473 block)
+PRODUCER	src/pycsl/module6_whyml/expressions.py:5724 (`[v] * n` BinOp)	REAL list of n elements	(Array.make 1024 0) when n = 1024	-	-	len 1024	left alone (IR: BinOp * over an ArrayLit; consistency check names it by its local)
+PRODUCER	src/pycsl/module6_whyml/expressions.py:12675 (`bytearray(n)` / `bytes(n)`)	REAL list of n zero bytes	(Array.make 1024 0) when n = 1024	-	-	len 1024	left alone (IR: Call bytearray/bytes)
+PRODUCER	src/pycsl/module6_whyml/expressions.py:16745 (record field default)	REAL field default of a constructed record	{ f = (Array.make 1024 0) } (corpus 0614/0615/0618/0723-0725/1252/1253/1885)	-	-	len 1024	left alone (a constructor whose type_decl carries 1024 makes the function AMBIGUOUS: only IR-named empty locals are rewritten)
+CAPACITY	src/pycsl/module6_whyml/statements.py:9185 (append-target shadow local)	capacity backing + `X_len` sidecar	let X = Array.make 1024 0 in (bare)	none measured: 7 corpus + 5 mirror bindings, every one dead	-	-	untouched (bare spelling, not the paren placeholder)
+CAPACITY	src/pycsl/module6_whyml/statements.py (gen #31 literal-rebind counter, `_literal_rebind_targets`)	capacity + `X_len` sidecar	let X = (Array.make 1024 0) in + let X_len = ref k	call argument / field / return: REFUSED upstream (p28 p29 p30: `rebinding the list local ... used as a value`)	R	-	untouched (sidecar detected in the block)
+CONSUMER	src/pycsl/module6_whyml/expressions.py:9484 (#195 int-erased param)	direct `f([])`	(any int)	call argument (direct)	F (closed by #195)	-	unchanged
+CONSUMER	src/pycsl/module6_whyml/expressions.py:9501 / 9533 (#196 array param)	direct `f([])` / `self.f([])`	(Array.make 0 0)	call argument (direct)	F p31 p34 (closed by #196)	-	unchanged
+CONSUMER	src/pycsl/module6_whyml/expressions.py:8433 (abstract-op param inference)	skips the placeholder	-	-	-	-	unchanged
+CONSUMER	src/pycsl/module6_whyml/expressions.py:11906 (#158 any/all fold)	`all(.. for x in [])`	folded to the empty fold	-	F (closed by #158)	-	unchanged
+CONSUMER	src/pycsl/module6_whyml/expressions.py:16111 / 16131 / 16154 (ADT child lists)	`[]` child of an IR-node constructor	Seq.empty / IONil / ILNil	-	-	-	unchanged
+CONSUMER	src/pycsl/module6_whyml/expressions.py:14883 (`.get(k, [])` default)	falsy default	(Array.make 1024 0) in a match arm	-	L3-tc when the codomain is int-erased	len 0	rewritten to (Array.make 0 0) when the function is not ambiguous
+CONSUMER	src/pycsl/module6_whyml/expressions.py:18051 + statements.py:2855 (#159 read/store bounds)	`xs[i]` / `xs[i] = v` on the placeholder	in_bounds (0)	-	F (closed by #159)	IndexError	unchanged (now also faithful by the value)
+CONSUMER	src/pycsl/module6_whyml/types.py:321 (let-vs-ref classification)	keeps the placeholder an immutable `let`	-	-	-	-	unchanged
+CORRECTOR	src/pycsl/pycsl.py _run_pipeline #159 block	in_bounds rewrite inside a let scope	in_bounds (0)	-	-	-	runs before #473 (unchanged)
+CORRECTOR	src/pycsl/pycsl.py _run_pipeline gen #31 block	final `return []` / `return xs`	header (Array.length result) -> (0)	return (final)	F (closed by gen #31)	len 0	runs before #473 (unchanged); body now (Array.make 0 0) too
+ESCAPE	local `c = []` -> `g(c)`	call argument	let c = (Array.make 1024 0) in (g c)	CALL ARGUMENT	P r473 / r473b (witnesses-r473)	IndexError	F (7380 7381)
+ESCAPE	`d = c; g(d)`	call argument via alias	let d = c in (g d)	CALL ARGUMENT (alias)	P p03	IndexError	F (7382)
+ESCAPE	`self.g(c)`	sibling method (R167 stubbed-call assert)	assert { Array.length c >= 1 }	CALL ARGUMENT (method)	P p12	IndexError	F (7383)
+ESCAPE	`g(c=c)`	keyword argument	(g c)	CALL ARGUMENT (keyword)	P p14	IndexError	F (7384)
+ESCAPE	`if b: return g(c)`	call on a branch	raise (Return (g c))	CALL ARGUMENT (branch)	P p04	IndexError	F (7385)
+ESCAPE	`x = g(c)`	call result bound	x := (g c)	CALL ARGUMENT	P p22	IndexError	F (7386)
+ESCAPE	`d = [0]*1024; c = []; g(c)`	same function holds a real 1024 list	let d = .. in let c = .. in	CALL ARGUMENT (mixed function)	P p50	IndexError	F (7387; the real `d` keeps 1024: control 7393)
+ESCAPE	`c = []; ln(c)` claiming `== 1024`	callee's ensures reads the length	(ln c)	CALL ARGUMENT (length fact)	P p10 (true `== 0` F p10b)	0	F (7388); true `== 0` P (7391)
+ESCAPE	`c = list([])`; `len(c)` / `g(c)`	the function's OWN length (no size fold)	(Array.length c)	LOCAL LENGTH + CALL ARGUMENT	P p40 p37	0 / IndexError	F (7389 7396); true `ln(c) == 0` P (7395)
+ESCAPE	`o.xs = c` / `o.xs = []` / `self.xs = []`	field store	o.xs <- c / o.xs <- (Array.make 1024 0)	FIELD STORE	F p19 p32 p39 p48 p63 p65 p67 (L3-tc: `val iter_length (x: int)` applied to the array field; R167 assert over iter_length)	IndexError / 0	F (value now (Array.make 0 0); the iter_length type error remains, fail-closed)
+ESCAPE	`return (c, 1)` then caller `g(a)`	returned tuple	(c, 1)	RETURN (container)	F p46 (caller sees only mk's contract)	IndexError	F (value now (Array.make 0 0))
+ESCAPE	`if b: return c` claiming `b ==> len(\result) >= 1`	return on a branch	raise (Return_seq (snapshot c))	RETURN (branch)	F p05 (materialize opaque)	[]	F (value now (Array.make 0 0))
+ESCAPE	`t = (c, 1); g(t[0])`	container element (tuple)	t := (any int)	CONTAINER	F p15 (erased to any int)	IndexError	F unchanged
+ESCAPE	`[[], [1]]`	container element (nested list)	Array.make 2 (any int)	CONTAINER	F p44 (element erased)	IndexError	F unchanged
+ESCAPE	`c = [] if b else [1]`	conditional expression	ref (if b then (any int) else ..)	CONTAINER / IFEXP	F p18 (erased)	IndexError	F unchanged
+ESCAPE	`def gen(): c = []; yield c`	yield	-	YIELD	R p45 (generator call refused)	-	R unchanged
+ESCAPE	`def inner(): return g(c)` (closure over c)	closure capture	-	CLOSURE	R p16 (lift refused: reads an enclosing local)	-	R unchanged
+ESCAPE	`def gd(c: List[int] = [])`	default argument	-	DEFAULT	R p17 (mutable default refused)	-	R unchanged
+ESCAPE	module global `XS: List[int] = []`	module constant	-	GLOBAL	R p42 (PYCSL-R325-OPAQUE-INT-FALLBACK)	-	R unchanged
+ESCAPE	callee appends to the passed list (`fill(c)`)	growth across the boundary	-	CALL ARGUMENT (mutated)	R p26 p27 (in-place append to a list parameter refused)	-	R unchanged
+ESCAPE	`c.sort/extend/insert/clear/pop`	local in-place mutators	-	LOCAL MUTATION	R p56 p57 p60 p61 p62	-	R unchanged
+ESCAPE	`c += [1]` / `c.append(1)`	growth	ref Seq.empty	-	resizable seq model (p58 p02 p21 p25), never the placeholder	-	unchanged
+ESCAPE	`c[0:0] = [1]`	slice-assign growth	Array.blit .. + assert length	LOCAL MUTATION	F p59 (#157 width assertion 1 = 0 fails)	len 1	F unchanged (fail-closed completeness gap, base too)
+RESIDUAL	direct `o.xs = []` in a function that also constructs a record with a 1024 default / holds an unattributable real-list producer	ambiguous direct placeholder	(Array.make 1024 0)	FIELD STORE (direct)	F (L3-tc iter_length, p41 p64 at base)	-	LEFT AS AT BASE (fail-closed by the field-length type error; no refusal added)

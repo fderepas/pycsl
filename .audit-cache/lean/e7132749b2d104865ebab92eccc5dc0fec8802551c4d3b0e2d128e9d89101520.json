@@ -1,0 +1,16 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "FieldToStrRoundTrip.lean:69:10: warning: `if_neg` has been deprecated: Use `ite_eq_right` instead\n'UnixFs.Field.field_to_str_round_trip' depends on axioms: [propext, Quot.sound]\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 1.2165881829569116,
+  "qualname_results": [
+    [
+      "UnixFs.Field.field_to_str_round_trip",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ]
+  ]
+}

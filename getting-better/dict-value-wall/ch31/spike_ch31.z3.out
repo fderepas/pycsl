@@ -1,0 +1,168 @@
+File "spike_ch31.mlw", line 31, characters 63-76:
+Sub-goal Variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2832 steps).
+
+File "spike_ch31.mlw", line 48, characters 99-120:
+Sub-goal Variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 3008 steps).
+
+File "spike_ch31.mlw", line 54, characters 48-63:
+Sub-goal Variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2338 steps).
+
+File "spike_ch31.mlw", line 61, characters 43-66:
+Sub-goal Variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2374 steps).
+
+File "spike_ch31.mlw", line 72, characters 63-83:
+Sub-goal Variant decrease of goal hval_list_to_seq'vc.
+Prover result is: Valid (0.00s, 2338 steps).
+
+File "spike_ch31.mlw", line 78, characters 69-86:
+Sub-goal Variant decrease of goal hpairs_to_map'vc.
+Prover result is: Valid (0.00s, 2342 steps).
+
+File "spike_ch31.mlw", line 82, characters 86-105:
+Sub-goal Variant decrease of goal hpairs_to_map_p'vc.
+Prover result is: Valid (0.00s, 2342 steps).
+
+File "spike_ch31.mlw", line 81, characters 14-38:
+Sub-goal Postcondition of goal hpairs_to_map_p'vc.
+Prover result is: Valid (0.00s, 11353 steps).
+
+File "spike_ch31.mlw", line 85, characters 14-92:
+Sub-goal Postcondition of goal hval_to_map'vc.
+Prover result is: Valid (0.00s, 3894 steps).
+
+File "spike_ch31.mlw", line 89, characters 14-110:
+Sub-goal Postcondition of goal is_valid'vc.
+Prover result is: Valid (0.01s, 11257 steps).
+
+File "spike_ch31.mlw", line 104, characters 80-94:
+Sub-goal Variant decrease of goal hpairs_nkeys'vc.
+Prover result is: Valid (0.00s, 2342 steps).
+
+File "spike_ch31.mlw", line 132, characters 54-73:
+Sub-goal Variant decrease of goal hval_list_all_str'vc.
+Prover result is: Valid (0.00s, 2358 steps).
+
+File "spike_ch31.mlw", line 137, characters 63-82:
+Sub-goal Variant decrease of goal hval_list_ins'vc.
+Prover result is: Valid (0.00s, 2832 steps).
+
+File "spike_ch31.mlw", line 138, characters 29-48:
+Sub-goal Variant decrease of goal hval_list_ins'vc.
+Prover result is: Valid (0.00s, 2508 steps).
+
+File "spike_ch31.mlw", line 144, characters 44-62:
+Sub-goal Variant decrease of goal hval_list_sort'vc.
+Prover result is: Valid (0.00s, 2358 steps).
+
+File "spike_ch31.mlw", line 145, characters 29-47:
+Sub-goal Variant decrease of goal hval_list_sort'vc.
+Prover result is: Valid (0.00s, 2508 steps).
+
+File "spike_ch31.mlw", line 159, characters 66-81:
+Sub-goal Variant decrease of goal hpairs_keys'vc.
+Prover result is: Valid (0.00s, 3336 steps).
+
+File "spike_ch31.mlw", line 159, characters 96-109:
+Sub-goal Variant decrease of goal hpairs_keys'vc.
+Prover result is: Valid (0.00s, 3350 steps).
+
+File "spike_ch31.mlw", line 166, characters 65-75:
+Sub-goal Postcondition of goal bool_t'vc.
+Prover result is: Valid (0.00s, 9643 steps).
+
+File "spike_ch31.mlw", line 167, characters 65-75:
+Sub-goal Postcondition of goal bool_f'vc.
+Prover result is: Timeout (20.00s, 26191655 steps).
+
+File "spike_ch31.mlw", line 168, characters 67-77:
+Sub-goal Postcondition of goal bool_t2'vc.
+Prover result is: Valid (0.01s, 9561 steps).
+
+File "spike_ch31.mlw", line 169, characters 73-83:
+Sub-goal Postcondition of goal bool_f2'vc.
+Prover result is: Timeout (20.00s, 27104782 steps).
+
+File "spike_ch31.mlw", line 171, characters 66-76:
+Sub-goal Postcondition of goal len_t'vc.
+Prover result is: Valid (0.01s, 14958 steps).
+
+File "spike_ch31.mlw", line 172, characters 66-76:
+Sub-goal Postcondition of goal len_f'vc.
+Prover result is: Timeout (20.00s, 33849110 steps).
+
+File "spike_ch31.mlw", line 173, characters 129-139:
+Sub-goal Postcondition of goal len_t2'vc.
+Prover result is: Valid (0.74s, 1353895 steps).
+
+File "spike_ch31.mlw", line 174, characters 129-139:
+Sub-goal Postcondition of goal len_f2'vc.
+Prover result is: Timeout (20.00s, 31523044 steps).
+
+File "spike_ch31.mlw", line 175, characters 63-73:
+Sub-goal Postcondition of goal len_f3'vc.
+Prover result is: Timeout (20.00s, 32050000 steps).
+
+File "spike_ch31.mlw", line 177, characters 83-97:
+Sub-goal Postcondition of goal fmt_t'vc.
+Prover result is: Valid (0.01s, 9533 steps).
+
+File "spike_ch31.mlw", line 178, characters 83-96:
+Sub-goal Postcondition of goal fmt_f'vc.
+Prover result is: Timeout (20.00s, 25901370 steps).
+
+File "spike_ch31.mlw", line 179, characters 64-77:
+Sub-goal Postcondition of goal fmt_f2'vc.
+Prover result is: Timeout (20.00s, 233878826 steps).
+
+File "spike_ch31.mlw", line 181, characters 104-117:
+Sub-goal Postcondition of goal set_t'vc.
+Prover result is: Valid (0.06s, 296549 steps).
+
+File "spike_ch31.mlw", line 182, characters 104-118:
+Sub-goal Postcondition of goal set_f'vc.
+Prover result is: Timeout (20.00s, 14187873 steps).
+
+File "spike_ch31.mlw", line 183, characters 88-101:
+Sub-goal Postcondition of goal set_t2'vc.
+Prover result is: Valid (0.06s, 300548 steps).
+
+File "spike_ch31.mlw", line 184, characters 68-82:
+Sub-goal Postcondition of goal set_f2'vc.
+Prover result is: Timeout (20.00s, 15739052 steps).
+
+File "spike_ch31.mlw", line 186, characters 104-114:
+Sub-goal Postcondition of goal list_t'vc.
+Prover result is: Valid (0.07s, 330673 steps).
+
+File "spike_ch31.mlw", line 187, characters 104-114:
+Sub-goal Postcondition of goal list_f'vc.
+Prover result is: Unknown (unknown) (0.08s, 353519 steps).
+
+File "spike_ch31.mlw", line 189, characters 107-124:
+Sub-goal Postcondition of goal sorted_t'vc.
+Prover result is: Out of memory (3.35s).
+
+File "spike_ch31.mlw", line 191, characters 107-124:
+Sub-goal Postcondition of goal sorted_f'vc.
+Prover result is: Out of memory (3.35s).
+
+File "spike_ch31.mlw", line 193, characters 105-115:
+Sub-goal Postcondition of goal sorted_f2'vc.
+Prover result is: Out of memory (14.02s).
+
+File "spike_ch31.mlw", line 196, characters 132-144:
+Sub-goal Postcondition of goal keys_t'vc.
+Prover result is: Unknown (unknown) (1.05s, 1315132 steps).
+
+File "spike_ch31.mlw", line 198, characters 132-144:
+Sub-goal Postcondition of goal keys_f'vc.
+Prover result is: Unknown (unknown) (1.07s, 1326189 steps).
+
+File "spike_ch31.mlw", line 201, characters 34-39:
+Sub-goal Postcondition of goal falsity'vc.
+Prover result is: Timeout (20.00s, 18069120 steps).
+

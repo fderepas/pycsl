@@ -1,0 +1,7 @@
+test-suite/corpus/python-reference/0072.py	test_slice_objects	14	NONE	0	0	1:4	a[1:4]
+test-suite/corpus/python-reference/0091.py	Vec.__getitem__	13	NONE	0	0	i	self._d[i]
+test-suite/corpus/python-reference/0091.py	test_emulating_container_types	13	NONE	0	0	i	self._d[i]
+test-suite/corpus/python-reference/0151.py	test_slicings	8	NONE	0	0	1:4	a[1:4]
+test-suite/corpus/python-reference/0212.py	test_generic_type_aliases	6	NONE	0	0	T	tuple[T, T]
+test-suite/corpus/python-reference/0212.py	test_generic_type_aliases	6	NONE	0	0	T	tuple[T, T]
+test-suite/corpus/python-reference/stdlib/collections/counter_proves.py	make_counter	12	UND-IT	0	0	items	Counter(items)

@@ -54,23 +54,86 @@ KNOWN_EXCEPTIONS: frozenset = frozenset({
 # summarisation — it does not auto-inject any VC.
 
 EXCEPTION_BASES: Dict[str, Tuple[str, ...]] = {
-    # --- the OSError family (the os-module faithfulness fix) ---------
-    "OSError":            ("Exception",),
-    "FileNotFoundError":  ("OSError", "Exception"),
-    "FileExistsError":    ("OSError", "Exception"),
-    "PermissionError":    ("OSError", "Exception"),
-    "NotADirectoryError": ("OSError", "Exception"),
-    "IsADirectoryError":  ("OSError", "Exception"),
-    "InterruptedError":   ("OSError", "Exception"),
-    "BlockingIOError":    ("OSError", "Exception"),
-    "ChildProcessError":  ("OSError", "Exception"),
-    "ConnectionError":    ("OSError", "Exception"),
-    "ProcessLookupError": ("OSError", "Exception"),
-    "TimeoutError":       ("OSError", "Exception"),
+    # (#49) ROUTE #260 — THE WHOLE BUILTIN HIERARCHY, NOT ONLY THE OSError FAMILY. Why3
+    # matches `with` / `raises` arms by EXACT tag, so a builtin class missing here was a
+    # flat token: `try: raise KeyError(...) except LookupError: r = 7` lowered to
+    # `try raise KeyError with LookupError -> ...`, the raise escaped the handler into an
+    # added `raises { KeyError }`, and `\result == 0` PROVED (CPython 7). Every CPython
+    # builtin exception class now lists ALL its proper ancestors (CPython 3.14 `__mro__`
+    # minus `object`), so `except LookupError` / `ArithmeticError` / `ValueError` /
+    # `Exception` / `BaseException` expand to an arm for every raised subclass. Data only:
+    # `bases_closure` / `handler_catches` are unchanged.
+    "ArithmeticError": ("Exception", "BaseException"),
+    "AssertionError": ("Exception", "BaseException"),
+    "AttributeError": ("Exception", "BaseException"),
+    "BaseExceptionGroup": ("BaseException",),
+    "BlockingIOError": ("OSError", "Exception", "BaseException"),
+    "BrokenPipeError": ("ConnectionError", "OSError", "Exception", "BaseException"),
+    "BufferError": ("Exception", "BaseException"),
+    "BytesWarning": ("Warning", "Exception", "BaseException"),
+    "ChildProcessError": ("OSError", "Exception", "BaseException"),
+    "ConnectionAbortedError": ("ConnectionError", "OSError", "Exception", "BaseException"),
+    "ConnectionError": ("OSError", "Exception", "BaseException"),
+    "ConnectionRefusedError": ("ConnectionError", "OSError", "Exception", "BaseException"),
+    "ConnectionResetError": ("ConnectionError", "OSError", "Exception", "BaseException"),
+    "DeprecationWarning": ("Warning", "Exception", "BaseException"),
+    "EOFError": ("Exception", "BaseException"),
+    "EncodingWarning": ("Warning", "Exception", "BaseException"),
+    "Exception": ("BaseException",),
+    "ExceptionGroup": ("BaseExceptionGroup", "Exception", "BaseException"),
+    "FileExistsError": ("OSError", "Exception", "BaseException"),
+    "FileNotFoundError": ("OSError", "Exception", "BaseException"),
+    "FloatingPointError": ("ArithmeticError", "Exception", "BaseException"),
+    "FutureWarning": ("Warning", "Exception", "BaseException"),
+    "GeneratorExit": ("BaseException",),
+    "ImportError": ("Exception", "BaseException"),
+    "ImportWarning": ("Warning", "Exception", "BaseException"),
+    "IndentationError": ("SyntaxError", "Exception", "BaseException"),
+    "IndexError": ("LookupError", "Exception", "BaseException"),
+    "InterruptedError": ("OSError", "Exception", "BaseException"),
+    "IsADirectoryError": ("OSError", "Exception", "BaseException"),
+    "KeyError": ("LookupError", "Exception", "BaseException"),
+    "KeyboardInterrupt": ("BaseException",),
+    "LookupError": ("Exception", "BaseException"),
+    "MemoryError": ("Exception", "BaseException"),
+    "ModuleNotFoundError": ("ImportError", "Exception", "BaseException"),
+    "NameError": ("Exception", "BaseException"),
+    "NotADirectoryError": ("OSError", "Exception", "BaseException"),
+    "NotImplementedError": ("RuntimeError", "Exception", "BaseException"),
+    "OSError": ("Exception", "BaseException"),
+    "OverflowError": ("ArithmeticError", "Exception", "BaseException"),
+    "PendingDeprecationWarning": ("Warning", "Exception", "BaseException"),
+    "PermissionError": ("OSError", "Exception", "BaseException"),
+    "ProcessLookupError": ("OSError", "Exception", "BaseException"),
+    "PythonFinalizationError": ("RuntimeError", "Exception", "BaseException"),
+    "RecursionError": ("RuntimeError", "Exception", "BaseException"),
+    "ReferenceError": ("Exception", "BaseException"),
+    "ResourceWarning": ("Warning", "Exception", "BaseException"),
+    "RuntimeError": ("Exception", "BaseException"),
+    "RuntimeWarning": ("Warning", "Exception", "BaseException"),
+    "StopAsyncIteration": ("Exception", "BaseException"),
+    "StopIteration": ("Exception", "BaseException"),
+    "SyntaxError": ("Exception", "BaseException"),
+    "SyntaxWarning": ("Warning", "Exception", "BaseException"),
+    "SystemError": ("Exception", "BaseException"),
+    "SystemExit": ("BaseException",),
+    "TabError": ("IndentationError", "SyntaxError", "Exception", "BaseException"),
+    "TimeoutError": ("OSError", "Exception", "BaseException"),
+    "TypeError": ("Exception", "BaseException"),
+    "UnboundLocalError": ("NameError", "Exception", "BaseException"),
+    "UnicodeDecodeError": ("UnicodeError", "ValueError", "Exception", "BaseException"),
+    "UnicodeEncodeError": ("UnicodeError", "ValueError", "Exception", "BaseException"),
+    "UnicodeError": ("ValueError", "Exception", "BaseException"),
+    "UnicodeTranslateError": ("UnicodeError", "ValueError", "Exception", "BaseException"),
+    "UnicodeWarning": ("Warning", "Exception", "BaseException"),
+    "UserWarning": ("Warning", "Exception", "BaseException"),
+    "ValueError": ("Exception", "BaseException"),
+    "Warning": ("Exception", "BaseException"),
+    "ZeroDivisionError": ("ArithmeticError", "Exception", "BaseException"),
     # `os.error` is documented as an alias for OSError (os.rst l.51-53).
     # Treat it as a synonym so `except os.error` behaves like
     # `except OSError`.
-    "error":              ("OSError", "Exception"),
+    "error":              ("OSError", "Exception", "BaseException"),
 }
 
 
@@ -95,7 +158,6 @@ def bases_closure(exc: str) -> frozenset:
     return frozenset(seen)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -109,7 +171,6 @@ def handler_catches(handler_exc: str, raised_exc: str) -> bool:
     return handler_exc in bases_closure(raised_exc)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -173,12 +234,57 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
     ("binop", "%"):   [("ZeroDivisionError", "no_div_zero ({1})")],
     ("binop", "<<"):  [("ValueError",        "non_neg_shift ({1})")],
     ("binop", ">>"):  [("ValueError",        "non_neg_shift ({1})")],
+    # (#49) ROUTE #68 — `0 ** -1` raises `ZeroDivisionError` in Python (a zero base cannot be
+    # raised to a negative power). Both operands are available at the call site, so the
+    # condition is EXACT and a correct power still discharges. NOTE the two rows above were
+    # in the table all along and were NOT being injected: the `<<`/`>>` emission goes through
+    # the bitwise/power path, which did not wrap, so `1 << -1` PROVED under
+    # `#@ no_exception \all` while CPython raises `ValueError`. That path now wraps.
+    ("binop", "**"):  [("ZeroDivisionError", "not ({0} = 0 /\\ {1} < 0)")],
 
     # Indexing — {0} is the array-length expression supplied at the call
     # site, {1} is the index. The Module 6 emitter looks up the array's
     # length via the same machinery that supports `\length(arr)`.
     ("subscript", "read"):  [("IndexError", "in_bounds ({0}) ({1})")],
     ("subscript", "write"): [("IndexError", "in_bounds ({0}) ({1})")],
+    # (#49) ROUTE #64 — AN ELEMENT STORE TO A `bytes`/`bytearray` RECEIVER also raises
+    # `ValueError` when the value is out of [0, 256). There was no entry for this at all,
+    # so `#@ no_exception \all` — which expands to the whole KNOWN_EXCEPTIONS set, and
+    # `ValueError` IS in it — PROVED for `b = bytearray([1]); b[0] = 999; return b[0]`,
+    # which raises `ValueError: byte must be in range(0, 256)` in CPython. Measured that
+    # the machinery itself works: `a // 0` under `no_exception ZeroDivisionError` does NOT
+    # prove and `a // b` with `requires b != 0` DOES, so this was a missing ROW, not a
+    # broken mechanism.
+    #
+    # A SEPARATE KEY, not a second trigger on ("subscript", "write"): that key is shared
+    # with plain lists, whose elements are ordinary ints and must NOT acquire a byte-range
+    # obligation. The emitter selects this key only when the receiver's type is known to be
+    # `bytes`/`bytearray`. {0} is the stored VALUE.
+    # INLINE, like the `map_get` row above and deliberately NOT a new entry in
+    # PREDICATE_LIBRARY: that library is emitted WHOLESALE into the preamble of every unit
+    # declaring `no_exception`, so adding a predicate there moved 31 corpus emissions by one
+    # inert definition line — measured. An inline condition keeps the repair byte-inert on
+    # every program that does not actually store into a bytes receiver.
+    ("subscript", "write_bytes"): [("ValueError", "0 <= {0} /\\ {0} < 256")],
+    # (#49) ROUTE #66 — `del d[k]` on a LOCAL dict raises `KeyError` when the key is absent.
+    # The operation lowers FAITHFULLY (`d := map_update_none !d k`) and carried no obligation
+    # at all, so `#@ no_exception KeyError` PROVED for `d = {1:1}; del d[5]`. Same condition
+    # the `("attr_call", "pop")` row already carries. WIRED rather than refused, because
+    # unlike `divmod`/`int(str)` the receiver here is a real modelled map, so the obligation
+    # is faithful and a correct program still discharges it.
+    ("subscript", "del"): [("KeyError", "Map.get {0} {1} <> None")],
+    # (#49) ROUTE #66 — `chr(n)` raises `ValueError` outside [0, 0x110000). The abstract
+    # `chr_op` carried `ensures { String.length result = 1 }` UNCONDITIONALLY, i.e. it
+    # asserted a TOTALITY Python does not have, and there was no trigger row, so
+    # `#@ no_exception \all` PROVED for `chr(-1)`. WIRED rather than refused: the bound is
+    # exact, so `chr(65)` still discharges.
+    ("call", "chr"): [("ValueError", "0 <= {0} /\\ {0} < 1114112")],
+    # (#49) ROUTE #67 — a STRING subscript read raises `IndexError` out of range, and went
+    # down the `char_code_at` path that no row covered while the ARRAY read (below) was
+    # wired all along. `{0}` is the string, `{1}` the index. `in_bounds` is already in
+    # PREDICATE_LIBRARY, and an `assert` is a LOGIC context, so `String.length` is legal
+    # here even though it is not in a program term.
+    ("subscript", "read_str"): [("IndexError", "in_bounds (String.length {0}) ({1})")],
 
     # Dict access — inline `Map.get d k <> None` rather than a separate
     # predicate, mirroring the existing ghost-dict vocabulary so we don't
@@ -190,10 +296,68 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
     ("attr_call", "pop"):     [("KeyError",          "Map.get {0} {1} <> None")],
     ("attr_call", "index"):   [("ValueError",        "true")],  # placeholder; \mem when proof needs it
     ("call", "next"):         [("StopIteration",     "true")],  # Phase 2 — left as a marker
+    # (#49) ROUTE #281 — int -> DECIMAL str raises `ValueError` past 4300 digits
+    # (CPython 3.11+ `sys.int_max_str_digits`, default 4300): `str(10**5000)`,
+    # `f"{x}"`, `print(x)`, `repr(x)`, `"%d" % x` all raise "Exceeds the limit (4300
+    # digits) for integer string conversion". 4300 digits is exactly |x| < 10**4300.
+    # {0} is the int operand. Wired at every int->decimal-string conversion site the
+    # emitter lowers (`str`/`repr` of an int, a non-string `print` argument, an int
+    # f-string part — plain, `!s`/`!r`/`!a`, or a decimal spec —, a `%` format operand).
+    ("call", "int_str"): [("ValueError",
+                           "(- 1" + "0" * 4300 + ") < {0} /\\ {0} < 1" + "0" * 4300)],
+    # (#49) ROUTE #284 — a FORMAT SPEC not valid for the operand's type raises `ValueError`
+    # whatever the value: `f"{x:s}"` / `f"{x:.2}"` on an int ("Unknown format code 's'",
+    # "Precision not allowed in integer format specifier"), `f"{s:d}"` on a str. The
+    # emitter decides a LITERAL spec at emit time against CPython's own `format()` (spec
+    # validity is value-independent for int and str) and consults this row only for a spec
+    # that is INVALID, or whose validity it cannot decide (a computed `{x:{w}}` spec, a
+    # width/precision of more than 6 digits): the obligation is then `false`, so a
+    # reachable occurrence under a `no_exception` covering `ValueError` never proves.
+    ("call", "format_spec"): [("ValueError", "false")],
 }
 
 
-#@ \trusted reviewer: pycsl-self-annotate
+# (#49) ROUTE #285 — HOW EACH TRIGGERS ROW IS REACHED FROM AN EXPRESSION (the comprehension
+# census). A comprehension / generator expression is lowered as an opaque value, so NONE of
+# the obligations above is injected for its element, key, value, condition or iterable.
+# `module6_whyml/functions.py::_reset_function_state` therefore refuses, under an active
+# `no_exception` context, a comprehension containing an expression of one of the SHAPES
+# listed for a row whose exception is active. The refusal is driven by THIS table: a row of
+# TRIGGERS with no entry here makes EVERY comprehension refused under its exceptions
+# (fail-closed for a row added later), and a row with an EMPTY shape list is reachable from a
+# STATEMENT only (an element store / `del`), never from a comprehension's expressions.
+# Shapes: ("BinOp", op) an IR BinOp with that op; ("Subscript", "") any subscript read;
+# ("Call", name) a call of the bare builtin `name`; ("Method", name) a method call
+# `<recv>.name(...)`; ("FString", "") an f-string with a part that is not a literal
+# (an int part renders in decimal); ("FormattedValue", "") a `{v!c:spec}` part.
+TRIGGER_EXPR_SHAPES: Dict[Tuple[str, Optional[str]], List[Tuple[str, str]]] = {
+    ("binop", "div"): [("BinOp", "div")],
+    ("binop", "mod"): [("BinOp", "mod")],
+    ("binop", "/"): [("BinOp", "/")],
+    ("binop", "//"): [("BinOp", "//")],
+    ("binop", "%"): [("BinOp", "%")],
+    ("binop", "<<"): [("BinOp", "<<")],
+    ("binop", ">>"): [("BinOp", ">>")],
+    ("binop", "**"): [("BinOp", "**")],
+    ("subscript", "read"): [("Subscript", "")],
+    ("subscript", "write"): [],
+    ("subscript", "write_bytes"): [],
+    ("subscript", "del"): [],
+    ("call", "chr"): [("Call", "chr")],
+    ("subscript", "read_str"): [("Subscript", "")],
+    ("map_get", None): [("Subscript", "")],
+    ("call", "divmod"): [("Call", "divmod")],
+    ("attr_call", "pop"): [("Method", "pop")],
+    ("attr_call", "index"): [("Method", "index")],
+    ("call", "next"): [("Call", "next")],
+    ("call", "int_str"): [("Call", "str"), ("Call", "repr"), ("Call", "format"),
+                          ("Call", "print"), ("FString", ""), ("FormattedValue", ""),
+                          ("BinOp", "%"), ("BinOp", "mod")],
+    ("call", "format_spec"): [("FormattedValue", ""), ("Call", "format"),
+                              ("Method", "format")],
+}
+
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -204,7 +368,6 @@ def triggers_for(op_key: Tuple[str, Optional[str]]) -> List[Trigger]:
     return TRIGGERS.get(op_key, [])
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -217,7 +380,6 @@ def predicate_definitions(needed: Optional[set] = None) -> List[str]:
     return [v for k, v in PREDICATE_LIBRARY.items() if k in needed]
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

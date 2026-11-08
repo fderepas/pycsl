@@ -11,6 +11,7 @@ x = 0
 #@ thread_entry
 #@ \diverges
 def increment() -> int:
+    global x
     #@ critical lock_a
     with lock_a:
         x += 1

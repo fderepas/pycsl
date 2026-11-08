@@ -1,0 +1,7 @@
+FAST-START 13:28:38Z
+fast rc=0
+[+] soundness-planes: OK — all 19 plane(s) green.
+SLOW-START 13:29:22Z
+slow rc=0
+[+] soundness-planes: OK — all 36 plane(s) green.
+PLANES-BATTERY-DONE 14:13:18Z

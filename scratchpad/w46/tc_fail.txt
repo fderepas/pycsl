@@ -1,0 +1,17 @@
+=== 0050.mlw :: syntax error
+=== 0303.mlw :: unbound function or predicate symbol 'z_'
+=== 0386.mlw :: syntax error
+=== 0557.mlw :: This term has type PyCSL_Program.color, but is expected to have type int
+=== 0560.mlw :: Cannot prove termination for bogus
+=== 0563.mlw :: Inductive clause Bad_step contains a non strictly positive occurrence of symbol bad
+=== 0575.mlw :: Inductive clause Odd_bad contains a non strictly positive occurrence of symbol even
+=== 0601.mlw :: This expression has type array.Array.array (int, int) @rho,
+=== 0639.mlw :: unbound function or predicate symbol 'int_mem'
+=== 0700.mlw :: This expression has type int, but is expected to have type string
+=== 0793.mlw :: unbound function or predicate symbol 'iter_length'
+=== 0794.mlw :: unbound function or predicate symbol 'iter_length'
+=== 0807.mlw :: unbound function or predicate symbol 'subscript_get'
+=== 0814.mlw :: This expression has type real, but is expected to have type int
+=== 0849.mlw :: This expression has type int -> option.Option.option int,
+=== 1014_route33_element_fold_branch_insensitive.mlw :: unbound function or predicate symbol 'a'
+=== 1013_route32_len_fold_branch_insensitive.mlw :: unbound function or predicate symbol 'a'

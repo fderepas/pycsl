@@ -1,0 +1,27 @@
+emitted 1241 of 1574 source file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAC/corpus_cand (6 jobs)
+emitted 2199 of 2217 python-reference file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAC/corpus_cand/pyref (6 jobs)
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAC/mirror_cand
+    Compare with: bin/byte-diff-compare.py <baseline> /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAC/mirror_cand --min-files 45
+== COMPARE corpus
+[*] byte-diff-compare: 1239 baseline / 1240 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED, 1 new source file(s) ignored.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+== COMPARE pyref
+[*] byte-diff-compare: 2199 baseline / 2199 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+== COMPARE mirrors
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+EMISSION-DONE 17:39:43Z
+1643 HEAD [+] Verification SUCCESS! DRAFT [!] PIPELINE ERROR:
+1644 HEAD [+] Verification SUCCESS! DRAFT [!] PIPELINE ERROR:
+1645 HEAD [+] Verification SUCCESS! DRAFT [+] Verification SUCCESS!
+1646 HEAD [+] Verification SUCCESS! DRAFT [!] PIPELINE ERROR:
+1647 HEAD [+] Verification SUCCESS! DRAFT [!] PIPELINE ERROR:
+planes rc=0
+[+] soundness-planes: OK — all 19 plane(s) green.
+conf rc=0
+sync rc=0
+FAST-DONE 17:42:35Z

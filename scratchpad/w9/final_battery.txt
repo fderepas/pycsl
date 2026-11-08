@@ -1,0 +1,58 @@
+=== FINAL GATE BATTERY Fri Sep  4 05:18:19 UTC 2026 HEAD=5c1bfd53
+--- count-trusted-directives
+[+] trusted-directives: OK
+    rc=0
+--- check-mirror-loop-annotations
+[+] mirror loop annotations: 330 lines across 5 files, every file at or above its floor
+    rc=0
+--- check-trusted-raises-honesty
+[+] trusted-raises-honesty: OK — measured 2 declared / 68 silent (ratchet 68). NOTE: direct `raise` statements only, so this is a LOWER BOUND on the population.
+    rc=0
+--- check-dropped-mutation
+[+] dropped-mutation: OK — measured 0 dropped / 51 ctxbind / 10 tryfinal / 0 dangling (ratchets 0 / 51 / 10 / 0).
+    rc=0
+--- check-mirror-coverage
+[+] mirror-coverage: OK — measured 550 unmirrored def(s) / 41 unmirrored file(s) (ratchets 550 / 41).
+    rc=0
+--- check-mirror-field-parity
+[+] mirror-field-parity: OK
+    rc=0
+--- check-mirror-signature-drift
+[+] mirror-signature-drift: OK (0 / ratchet 0, 0 converted).
+    rc=0
+--- check-trusted-frame-honesty
+[+] frame-honesty: OK — measured trusted 0 model-visible / 1 total, converted 0 model-visible / 94 total (ratchets 0/1 and 0/94).
+    rc=0
+--- check-untrusted-emitted
+[+] untrusted-emitted: 861 un-trusted function(s); 845 emitted as definitions, 0 re-abstracted to `val`, 0 unexpectedly absent.
+    rc=0
+--- check-yield-erasure
+[+] yield-erasure: OK (0 value-erasing, 2 suspension-dropping / ratchet 2, 1 genuinely modelled).
+    rc=0
+--- check-shadowed-selfcalls
+[+] shadowed-selfcalls: OK — measured 14 (ratchet 14).
+    rc=0
+--- check-avatar-frame-parity
+[+] avatar-frame-parity: OK — measured 0 same-file / 7 inherited (ratchets 0 / 7).
+    rc=0
+--- check-computed-rhs-erasure
+[+] computed-rhs-erasure: OK — measured 1 rhs / 0 param (ratchets 1/0).
+    rc=0
+--- check-clause-survival
+[+] clause-survival: OK — measured 2 deficit file(s) of 825 compared (ratchet 2).
+    rc=0
+--- check-getattr-erasure
+[+] getattr-erasure: OK — DECLARED 0 (pinned), ABSENT 7/7, UNKNOWN 19/19.
+    rc=0
+--- check-bespoke-model-drift
+[+] bespoke-model-drift: OK — 27 hand-written model(s), no body moved without its model.
+    rc=0
+--- check-emitted-vacuity --emit
+[+] emitted-vacuity: no NEW erasure (8 known param-erasures gated; 0 input-blind methods). NOTE: this probe is a LOWER BOUND — a whole-function test cannot see a function that erases one input while still using another.
+    rc=0
+--- fidelity: check-self-annotate-sync.sh
+    DIVERGED=2 (baseline 2)
+--- conformance
+[+] core-only conformance: 38 OK / 0 MISMATCH (38 goldens) — front-end NOT imported
+front-end conformance: 38 OK / 0 MISMATCH (38 goldens; 0 version-skew)
+determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)

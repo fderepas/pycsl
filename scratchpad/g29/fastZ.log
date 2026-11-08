@@ -1,0 +1,10 @@
+planes rc=1
+[!] soundness-planes: 1 of 19 RED — check-mirror-coverage.py(rc=1)
+    RED      check-mirror-coverage.py                   rc=1
+                   frontend/desugar.py                            1 unmirrored  e.g. __init__
+                   frontend/ir_inline.py                          1 unmirrored  e.g. reaches_self
+--
+[!] soundness-planes: 1 of 19 RED — check-mirror-coverage.py(rc=1)
+conf rc=0
+sync rc=0
+FAST-DONE 11:50:26Z

@@ -1,0 +1,53 @@
+[*] Parsing and Semantic Analysis for 'w3470_twin.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "w3470_twin.mlw", line 28, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.01s, 2842 steps).
+
+File "w3470_twin.mlw", line 49, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.01s, 3018 steps).
+
+File "w3470_twin.mlw", line 56, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.01s, 2348 steps).
+
+File "w3470_twin.mlw", line 63, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2384 steps).
+
+File "w3470_twin.mlw", line 82, characters 20-32:
+Sub-goal loop invariant init of goal recheck'vc.
+Prover result is: Valid (0.01s, 822 steps).
+
+File "w3470_twin.mlw", line 77, characters 15-27:
+Sub-goal postcondition of goal recheck'vc.
+Prover result is: Valid (0.01s, 1484 steps).
+
+File "w3470_twin.mlw", line 83, characters 18-44:
+Sub-goal loop variant decrease of goal recheck'vc.
+Prover result is: Valid (0.01s, 16889 steps).
+
+File "w3470_twin.mlw", line 82, characters 20-32:
+Sub-goal loop invariant preservation of goal recheck'vc.
+Prover result is: Valid (0.01s, 16689 steps).
+
+File "w3470_twin.mlw", line 83, characters 18-44:
+Sub-goal loop variant decrease of goal recheck'vc.
+Prover result is: Valid (0.01s, 15735 steps).
+
+File "w3470_twin.mlw", line 82, characters 20-32:
+Sub-goal loop invariant preservation of goal recheck'vc.
+Prover result is: Valid (0.01s, 15559 steps).
+
+File "w3470_twin.mlw", line 77, characters 15-27:
+Sub-goal postcondition of goal recheck'vc.
+Prover result is: Timeout (30.00s, 27882488 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 27882488 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

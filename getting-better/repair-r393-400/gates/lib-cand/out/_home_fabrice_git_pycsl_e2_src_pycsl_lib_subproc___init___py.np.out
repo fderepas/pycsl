@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/subproc/__init__.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+function 'run': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `int` parameter `args` of `CompletedProcess` (body); the `int` parameter `args` of `Popen` (body). Python does not enforce the annotation (a user `__sub__`/`__eq__`/... runs), but the model would treat the value as that builtin and re-apply its laws (route #252) -- refused fail-closed. Annotate the source value with the builtin type, or declare the slot `Any`.

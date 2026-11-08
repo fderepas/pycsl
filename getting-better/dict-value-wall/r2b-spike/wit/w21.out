@@ -1,0 +1,53 @@
+[*] Parsing and Semantic Analysis for 'w21.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "w21.mlw", line 32, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.01s, 2662 steps).
+
+File "w21.mlw", line 53, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.01s, 2838 steps).
+
+File "w21.mlw", line 60, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2190 steps).
+
+File "w21.mlw", line 67, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2226 steps).
+
+File "w21.mlw", line 89, characters 20-32:
+Sub-goal loop invariant init of goal find_last'vc.
+Prover result is: Valid (0.00s, 1177 steps).
+
+File "w21.mlw", line 81, characters 15-53:
+Sub-goal postcondition of goal find_last'vc.
+Prover result is: Timeout (30.00s, 32843515 steps).
+
+File "w21.mlw", line 81, characters 15-53:
+Sub-goal postcondition of goal find_last'vc.
+Prover result is: Valid (0.00s, 1682 steps).
+
+File "w21.mlw", line 90, characters 18-121:
+Sub-goal loop variant decrease of goal find_last'vc.
+Prover result is: Valid (0.01s, 17525 steps).
+
+File "w21.mlw", line 89, characters 20-32:
+Sub-goal loop invariant preservation of goal find_last'vc.
+Prover result is: Valid (0.01s, 17261 steps).
+
+File "w21.mlw", line 81, characters 15-53:
+Sub-goal postcondition of goal find_last'vc.
+Prover result is: Valid (0.00s, 1273 steps).
+
+Warnings/Errors from Why3:
+Warning, file "w21.mlw", line 84, characters 8-9: unused variable f
+Warning, file "w21.mlw", line 84, characters 8-9: unused variable f
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 32843515 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
