@@ -13102,7 +13102,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _on444 = _ON444.get(type(_n444.op))
                 _lk444 = _kz444.get(id(_l444), {"?"}) - {"None"}
                 _rk444 = _kz444.get(id(_r444), {"?"}) - {"None"}
-                if (_on444 is None or len(_lk444) != 1 or len(_rk444) != 1
+                # (run #5 u34, route #581) an operand derived as SEVERAL builtin classes is
+                # judged on every class pair when one of its class sets mixes `dict` with a
+                # set-like class (`{} if c else {"q"}` / `set()` / `frozenset()` / `m.keys()`
+                # / `m.items()`: the IfExp is lowered to an opaque `int` and `|` / `&` / `^`
+                # / `-` to TOTAL int ops, while CPython raises TypeError for `dict | set`).
+                # Any other multi-class operand stays unjudged, as before (a `Union`
+                # parameter may be narrowed by `isinstance`).
+                _mx581 = any(len(_k) > 1 and "dict" in _k
+                             and _k & {"set", "frozenset", "keys", "items", "values"}
+                             for _k in (_lk444, _rk444))
+                if (_on444 is None or ((len(_lk444) != 1 or len(_rk444) != 1) and not _mx581)
                         or not (_lk444 | _rk444) <= _SK444):
                     continue
                 if _on444 == "mod" and _lk444 & {"str", "bytes", "bytearray"}:
@@ -20743,6 +20753,30 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _imo556[_nm556] = _mo556
                 elif hasattr(_mo556, _at556):
                     _imo556[_nm556] = getattr(_mo556, _at556)
+        # (run #5 u34, route #575) a module-level name bound EXACTLY ONCE in the file, by a
+        # top-level `N = <value>` (no `global` / `nonlocal` of it, no other store anywhere):
+        # its value, resolved by the R556 judge below like the value itself (`AL = KI`,
+        # `L = len`, `M = os`, `E = ...`, `SEP = os.sep`, `LM = lambda: 0`, `OB = object()`)
+        _mal575 = {_x.targets[0].id: _x.value for _x in _tr486.body
+                   if isinstance(_x, _ast486.Assign) and len(_x.targets) == 1
+                   and isinstance(_x.targets[0], _ast486.Name)
+                   and _bnd556.get(_x.targets[0].id) == 1 and _x.targets[0].id not in _gl541}
+        # (route #575) a file ClassDef whose class object is an instance of the builtin
+        # `type` itself: no `metaclass=` / class keyword, no decorator but `@dataclass`,
+        # every base a plain name of a builtin class whose metaclass is `type` (`object`,
+        # `type`, `int`, `dict`, ..; a `class KM(type)` IS such a class) or of a file class
+        # bound once that is one itself (an `Enum` / ABC / NamedTuple base is not judged).
+        _mcd575 = lambda _cd, _n: _n > 0 and not _cd.keywords and all(
+            _hn552(_d) == "dataclass" for _d in _cd.decorator_list) and all(
+                isinstance(_b, _ast486.Name) and (
+                    (_b.id in _cls541 and _bnd556.get(_b.id) == 1
+                     and _mcnt541.get(_b.id) == 2 and _mcd575(_cls541[_b.id], _n - 1))
+                    or (_b.id not in _bnd556 and not _star556
+                        and isinstance(getattr(_bi556, _b.id, None), type)
+                        and type(getattr(_bi556, _b.id)) is type))
+                for _b in _cd.bases)
+        # (route #575) a stand-in object for such a class object (its type is `type`)
+        _sco575 = lambda _nm: type(str(_nm), (), {"__module__": "file"})
         _ie560, _mem560 = set(), {}
         for _c560 in _cls541:
             _hb560 = {_b for _a in _lin552[_c560] for _b in _bs552[_a]}
@@ -21824,9 +21858,70 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                  [_ob556(_v, _n - 1) for _md, _v in _vs]))(
                          [(_md, _v) for _m, _md, _v in _bd541 if _m == _e.id])
                      if _e.id in _loc541 and _e.id not in _dcl541 and _e.id not in _prm541
-                     else None) if isinstance(_e, _ast486.Name) else
+                     else
+                     # (u34, route #575) a module name bound once (`AL = KI`, `L = len`):
+                     # its value, when no name in it is a local / parameter here; a str
+                     # constant is not followed (route #569's needle rule is for `os.sep`)
+                     _ob556(_mal575[_e.id], _n - 1)
+                     if _e.id in _mal575 and _e.id not in _loc541 and _e.id not in _prm541
+                     and not (isinstance(_mal575[_e.id], _ast486.Constant)
+                              and isinstance(_mal575[_e.id].value, (str, bytes)))
+                     and not any(isinstance(_z, _ast486.Name)
+                                 and (_z.id in _loc541 or _z.id in _prm541)
+                                 for _z in _ast486.walk(_mal575[_e.id])) else
+                     # (u34, route #575) a file class object whose metaclass is `type`
+                     [_sco575(_e.id)]
+                     if _e.id in _cls541 and _e.id not in _loc541 and _e.id not in _prm541
+                     and _bnd556.get(_e.id) == 1 and _mcnt541.get(_e.id) == 2
+                     and _mcd575(_cls541[_e.id], 4) else None) if isinstance(_e, _ast486.Name) else
                     # (u31, route #569) a literal constant (`...`, a number, None) is itself
                     [_e.value] if isinstance(_e, _ast486.Constant) else
+                    # (u34, route #575) a lambda is a function object
+                    [lambda: 0] if isinstance(_e, _ast486.Lambda) else
+                    # (u34, route #575) `KN.Inner`: a class nested once in the body of a file
+                    # class object `KN` (metaclass `type`, so the attribute is the body's
+                    # binding), never stored to as an attribute anywhere in the file
+                    (lambda _ic: [_sco575(_e.attr)] if len(_ic) == 1 and isinstance(
+                        _ic[0], _ast486.ClassDef) and _mcd575(_ic[0], 4) and not any(
+                            isinstance(_z, _ast486.Attribute) and _z.attr == _e.attr
+                            and not isinstance(_z.ctx, _ast486.Load)
+                            for _z in _ast486.walk(_tr486)) else None)(
+                                [_z for _z in _cls541[_e.value.id].body
+                                 if getattr(_z, "name", None) == _e.attr or any(
+                                     isinstance(_w, _ast486.Name) and _w.id == _e.attr
+                                     for _t in (_z.targets if isinstance(_z, _ast486.Assign)
+                                                else [_z.target] if isinstance(
+                                                    _z, (_ast486.AnnAssign, _ast486.AugAssign))
+                                                else []) for _w in _ast486.walk(_t))])
+                    if isinstance(_e, _ast486.Attribute) and isinstance(_e.value, _ast486.Name)
+                    and _ob556(_e.value, _n - 1) is not None
+                    and len(_ob556(_e.value, _n - 1)) == 1
+                    and getattr(_ob556(_e.value, _n - 1)[0], "__module__", "") == "file"
+                    and _e.value.id in _cls541 and _e.value.id not in _loc541
+                    and _e.value.id not in _prm541 else
+                    # (u34, route #575) `p.__class__` / `type(p)` of a value of ONE file class
+                    # kind whose class object is an instance of `type` (and every file class
+                    # deriving from it too)
+                    (lambda _k: [_sco575(_k[2:])] if _k is not None and all(
+                        _mcd575(_cls541[_a], 4) for _a in _cls541
+                        if _k[2:] in _lin552.get(_a, [])) else None)(
+                            (lambda _ks: next(iter(_ks)) if len(_ks) == 1 and next(iter(
+                                _ks)).startswith("c:") and next(iter(_ks))[2:] in _cls541
+                             else None)(_T541.get(id(
+                                 _e.value if isinstance(_e, _ast486.Attribute)
+                                 else _e.args[0]), _UT541)[0]))
+                    if (isinstance(_e, _ast486.Attribute) and _e.attr == "__class__")
+                    or (isinstance(_e, _ast486.Call) and isinstance(_e.func, _ast486.Name)
+                        and _e.func.id == "type" and "type" not in _bnd556 and not _star556
+                        and len(_e.args) == 1 and not _e.keywords
+                        and not isinstance(_e.args[0], _ast486.Starred)
+                        and _T541.get(id(_e.args[0]), _UT541)[0] is not None
+                        and len(_T541.get(id(_e.args[0]), _UT541)[0]) == 1
+                        and next(iter(_T541.get(id(_e.args[0]), _UT541)[0])).startswith("c:"))
+                    else
+                    # (u34, route #575) `object()`: a bare instance of `object`
+                    [object()] if isinstance(_e, _ast486.Call) and not _e.args
+                    and not _e.keywords and _ob556(_e.func, _n - 1) == [object] else
                     ((lambda _bs: None if not _bs or not all(
                         (isinstance(_b, _ty556.ModuleType) or (isinstance(_b, type) and getattr(
                             _b, "__module__", "") == "builtins")) and hasattr(_b, _e.attr)
