@@ -3590,6 +3590,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         for f in ir_data["functions"]:
             if f["name"] not in reachable:
                 f["trusted"] = True
+                # (#49) run #6 lvM: a function trusted BY THIS FILTER is emitted as a `val`,
+                # and Why3 rejects a `variant` clause on a `val` ("unexpected 'variant'
+                # clause"), so `--fun` failed on every file with a `\variant`-carrying
+                # method outside the selection (Module2_Parser, pure_ast). A `val` has no
+                # body to terminate; dropping its measure loses nothing.
+                f["function_variants"] = []
         json_ir = _json.dumps(ir_data)
         verified_names = sorted(reachable & all_func_names)
         trusted_names = sorted(all_func_names - reachable)
