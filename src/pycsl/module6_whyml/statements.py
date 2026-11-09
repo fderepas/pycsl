@@ -5377,8 +5377,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         for _q_px in _fp_px):
                     _acc_px = ""
                     for _q_px in _fp_px:
+                        # a conversion / format-spec segment (`{v!r}`, `{b:02x}`) is a
+                        # string only when it formats a STRING without a spec: its opaque
+                        # `pycsl_format_*` lowering is int-typed on any other value
+                        _s_px = self._is_string_expr(_q_px) and not (
+                            isinstance(_q_px, dict) and _q_px.get("type") == "FormattedValue"
+                            and (_q_px.get("format_spec") is not None
+                                 or not isinstance(_q_px.get("value"), dict)
+                                 or not self._is_string_expr(_q_px["value"])))
                         _w_px = (self._expr_to_whyml(_q_px, local_refs)
-                                 if self._is_string_expr(_q_px) else "(any string)")
+                                 if _s_px else "(any string)")
                         if not _acc_px:
                             _acc_px = _w_px
                         else:
