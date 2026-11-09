@@ -961,3 +961,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-09T17:26Z | 687 | STATUS (run hour 23.5; 72 h left). int55 statements re-run (int55s2, PRIO, PYTHON_CPU_COUNT=4) running since 17:06Z as the only driver job. u37 / lvO told the OOM rule (RULES.md #20). oom_kill 75 (75 since 16:53Z). |
 2026-11-09T18:22Z | 688 | STATUS (run hour 24.4; 71.6 h left). statements re-run (int55s2) running alone (started 17:06Z). u37 / lvO working. oom_kill 75. |
 2026-11-09T19:19Z | 689 | STATUS (run hour 25.4; 70.6 h left). statements re-run (int55s2) running alone. lvO: law-free re.Match model + constant-pair loop unroll (0d91c47e8) and _match_block_hdr converted (9e8da02e0). u37 mostly queued. oom_kill 75. |
+2026-11-09T20:16Z | 690 | STATUS (run hour 26.3; 69.7 h left). statements re-run: 30430 Valid so far, alone on the proof slots apart from executors' small jobs. oom_kill 75. |
