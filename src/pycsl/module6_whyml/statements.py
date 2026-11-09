@@ -1189,7 +1189,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if isinstance(_td_rec, dict) and _td_rec.get("is_typeddict"):
                 self._func_return_type = _td_rec.get("whyml_name", "")
                 _td_fired = True
+        # lvO (re.Match model): the binding of a MATCH LOCAL (`_reset_function_state`) --
+        # only THIS value, structurally, lowers to the match handle (`_handle_re_str_call`).
+        _rmb_saved = getattr(self, "_re_m_binding", None)
+        self._re_m_binding = ((target, val_ir)
+                              if target in (getattr(self, "_re_m_locals", None) or {})
+                              else None)
         val = self._expr_to_whyml(val_ir, local_refs)
+        self._re_m_binding = _rmb_saved
         if _td_fired:
             self._func_return_type = _td_saved_frt
         self._pyval_get_as_string = _prev_pgas

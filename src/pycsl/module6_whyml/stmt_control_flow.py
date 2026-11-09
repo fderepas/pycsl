@@ -1179,6 +1179,98 @@ class ControlFlowStmtMixin:
         # (`_cpl_outside_names`: Python leaves them bound to the last pair, which the
         # unrolled code never binds). Byte-inert for every program without such a constant.
         _cpl_map = ((getattr(self, "ir", {}) or {}).get("module_const_str_pair_loops") or {})
+        # lvO (re.Match model): `for kw, rx in PAIRS` over a module constant of
+        # `(str literal, NAME)` pairs, NAME a module-constant `re.compile(<literal>)`
+        # (kind "seq_rx", Module 5). Unrolled like the str-pair loop above, one copy per
+        # pair in iteration order: `kw` -> its string literal, and `rx` -- whose ONLY
+        # admitted occurrence is the callee of `rx.match(..)` -- -> `NAME.match(..)`. A
+        # `return` in the body is admitted here: a straight-line copy's `return` leaves
+        # the function exactly as the loop's does (the loop never resumes after it);
+        # `break` / `continue` are not (they would need the copies' join). Same
+        # fail-closed conditions on the targets as the str-pair unroll.
+        _rxu_nm = (iter_ir.get("name") if isinstance(iter_ir, dict)
+                   and iter_ir.get("type") == "Var" else None)
+        if (_rxu_nm is not None and (_cpl_map.get(_rxu_nm) or {}).get("kind") == "seq_rx"
+                and isinstance(tuple_targets, list) and len(tuple_targets) == 2
+                and all(isinstance(_t, str) and _t != "_" and _t != target
+                        and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", _t) for _t in tuple_targets)
+                and tuple_targets[0] != tuple_targets[1]
+                and _rxu_nm not in (getattr(self, "_current_symbol_table", {}) or {})
+                and not (set(tuple_targets)
+                         & (getattr(self, "_cpl_outside_names", None) or set()))
+                and not getattr(stmt, "invariants", None)
+                and not getattr(stmt, "variants", None)
+                and 1 <= len(_cpl_map[_rxu_nm].get("pairs") or []) <= 64):
+            _rxu_kw, _rxu_rx = tuple_targets
+            _rxu_ok = True
+            _rxu_w: List[Any] = [[s.to_dict() for s in stmt.body]]
+            while _rxu_w and _rxu_ok:
+                _rxu_x = _rxu_w.pop()
+                if isinstance(_rxu_x, dict):
+                    if (_rxu_x.get("stmt") in ("Break", "Continue", "FunctionDef",
+                                               "ClassDef", "Global", "Nonlocal")
+                            or _rxu_x.get("type") in ("Lambda", "GenExp", "ListComp",
+                                                      "SetComp", "DictComp", "Yield",
+                                                      "YieldFrom", "Await", "NamedExpr")):
+                        _rxu_ok = False
+                    elif _rxu_x.get("type") == "Var" and _rxu_x.get("name") == _rxu_kw:
+                        continue
+                    elif (_rxu_x.get("type") == "Call" and _rxu_x.get("receiver") is None
+                            and _rxu_x.get("func") == _rxu_rx + ".match"):
+                        _rxu_w.extend(_v for _k, _v in _rxu_x.items() if _k != "func")
+                        continue
+                    _rxu_w.extend(_rxu_x.values())
+                elif isinstance(_rxu_x, (list, tuple)):
+                    _rxu_w.extend(_rxu_x)
+                elif isinstance(_rxu_x, str) and _rxu_x.split(".")[0] in tuple_targets:
+                    _rxu_ok = False
+            if _rxu_ok:
+                import copy as _rxu_cpm
+                _rxu_unrolled: List[Dict[str, Any]] = []
+                for _rxu_k, _rxu_c in _cpl_map[_rxu_nm]["pairs"]:
+                    _rxu_copy = _rxu_cpm.deepcopy([s.to_dict() for s in stmt.body])
+                    _rxu_w = [_rxu_copy]
+                    while _rxu_w:
+                        _rxu_x = _rxu_w.pop()
+                        if isinstance(_rxu_x, dict):
+                            if _rxu_x.get("type") == "Var" and _rxu_x.get("name") == _rxu_kw:
+                                _rxu_x.clear()
+                                _rxu_x["type"] = "String"
+                                _rxu_x["value"] = _rxu_k
+                                continue
+                            if (_rxu_x.get("type") == "Call"
+                                    and _rxu_x.get("func") == _rxu_rx + ".match"):
+                                _rxu_x["func"] = _rxu_c + ".match"
+                            # The reads of a match local bound in this copy by `rx.match`
+                            # (`_re_m_locals` source ("rx", rx)) are TAGGED with this copy's
+                            # constant, so their lowering never depends on emission order:
+                            # `m.group(k)` gains a trailing String argument (a user
+                            # `m.group(k, ..)` is never a match-local read) and `m.re.groups`
+                            # reads `re:<NAME>`.
+                            _rxu_f = _rxu_x.get("func")
+                            _rxu_o = _rxu_x.get("object")
+                            if (_rxu_x.get("type") == "Call" and isinstance(_rxu_f, str)
+                                    and _rxu_f.endswith(".group")
+                                    and (getattr(self, "_re_m_locals", None) or {}).get(
+                                        _rxu_f[:-len(".group")]) == ("rx", _rxu_rx)
+                                    and len(_rxu_x.get("args") or []) == 1):
+                                _rxu_x["args"] = list(_rxu_x["args"]) + [
+                                    {"type": "String", "value": _rxu_c}]
+                            elif (_rxu_x.get("type") == "Attribute"
+                                    and _rxu_x.get("attr") == "groups"
+                                    and isinstance(_rxu_o, dict)
+                                    and _rxu_o.get("type") == "Attribute"
+                                    and _rxu_o.get("attr") == "re"
+                                    and isinstance(_rxu_o.get("object"), dict)
+                                    and (getattr(self, "_re_m_locals", None) or {}).get(
+                                        _rxu_o["object"].get("name")) == ("rx", _rxu_rx)):
+                                _rxu_o["attr"] = "re:" + _rxu_c
+                            _rxu_w.extend(_rxu_x.values())
+                        elif isinstance(_rxu_x, list):
+                            _rxu_w.extend(_rxu_x)
+                    _rxu_unrolled.extend(_rxu_copy)
+                return self._stmts_to_whyml(_rxu_unrolled + list(rest), local_refs,
+                                            declared_refs, indent, in_loop)
         _cpl_nm = None
         if isinstance(iter_ir, dict) and iter_ir.get("type") == "Var":
             _cpl_nm = iter_ir.get("name")

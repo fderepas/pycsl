@@ -934,6 +934,120 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if _msp_ok:
                 self.program_ir["module_const_str_pair_loops"] = _msp_ok
 
+        # lvO (re.Match model): module-level CONSTANT compiled patterns
+        # `NAME = re.compile(<str literal>)` (`_ACT_HDR`, `_TOKEN_RE`), recorded as
+        # `{NAME: pattern}` under `module_const_regexes` so Module 6 can lower
+        # `NAME.match(s[, pos])` to the law-free match model over the REAL pattern text
+        # (`_handle_re_str_call`). Fail-closed and inline: `re` is bound ONLY by a plain
+        # module-top `import re` (no other binding of the name anywhere), NAME is bound
+        # EXACTLY once (module top level, a plain Name target), never `#@ shared` /
+        # `global` / `nonlocal` / a parameter / a def or class name, no other Store/Del,
+        # no namespace-access surface (`_nsx523`: `globals()` / module attribute writes),
+        # one positional str-literal argument, no flags, and the literal compiles under
+        # the running CPython (a pattern that raises `re.error` raises at import). A
+        # compiled pattern is immutable, so its Loads may be anything. And module-level
+        # LIST/TUPLE literals of `(str literal, NAME)` pairs (`_BLOCK_HDRS`) read ONLY as
+        # `for a, b in PAIRS` join `module_const_str_pair_loops` as kind "seq_rx" (pairs
+        # `[str, NAME]`), unrolled by `_handle_for_stmt`. Absent -> byte-identical.
+        _mrx_cand: Dict[str, str] = {}
+        _mrx_reimp = 0
+        for _mrx_child in getattr(node, "body", []):
+            if isinstance(_mrx_child, ast.Import):
+                for _mrx_al in _mrx_child.names:
+                    if _mrx_al.name == "re" and _mrx_al.asname is None:
+                        _mrx_reimp += 1
+            if not (isinstance(_mrx_child, ast.Assign) and len(_mrx_child.targets) == 1
+                    and isinstance(_mrx_child.targets[0], ast.Name)):
+                continue
+            _mrx_v = _mrx_child.value
+            if (isinstance(_mrx_v, ast.Call) and isinstance(_mrx_v.func, ast.Attribute)
+                    and _mrx_v.func.attr == "compile"
+                    and isinstance(_mrx_v.func.value, ast.Name)
+                    and _mrx_v.func.value.id == "re"
+                    and len(_mrx_v.args) == 1 and not _mrx_v.keywords
+                    and isinstance(_mrx_v.args[0], ast.Constant)
+                    and type(_mrx_v.args[0].value) is str):
+                try:
+                    import re as _mrx_re
+                    _mrx_re.compile(_mrx_v.args[0].value)
+                except Exception:
+                    continue
+                _mrx_cand[_mrx_child.targets[0].id] = _mrx_v.args[0].value
+        if _mrx_cand and _mrx_reimp == 1 and not _nsx523:
+            _mrx_bad: Set[str] = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+            _mrx_stores: Dict[str, int] = {}
+            _mrx_rebound_re = False
+            for _mrx_n in ast.walk(node):
+                if isinstance(_mrx_n, (ast.Global, ast.Nonlocal)):
+                    _mrx_bad.update(_mrx_n.names)
+                elif isinstance(_mrx_n, ast.arg):
+                    _mrx_bad.add(_mrx_n.arg)
+                    _mrx_rebound_re = _mrx_rebound_re or _mrx_n.arg == "re"
+                elif isinstance(_mrx_n, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                         ast.ClassDef)):
+                    _mrx_bad.add(_mrx_n.name)
+                    _mrx_rebound_re = _mrx_rebound_re or _mrx_n.name == "re"
+                elif isinstance(_mrx_n, (ast.Import, ast.ImportFrom)):
+                    for _mrx_al in _mrx_n.names:
+                        _mrx_bound = _mrx_al.asname or _mrx_al.name.split(".")[0]
+                        _mrx_bad.add(_mrx_bound)
+                        if _mrx_bound == "re" and not (
+                                isinstance(_mrx_n, ast.Import) and _mrx_al.name == "re"
+                                and _mrx_al.asname is None):
+                            _mrx_rebound_re = True
+                elif isinstance(_mrx_n, ast.Name):
+                    _mrx_ctx = type(getattr(_mrx_n, "ctx", None)).__name__
+                    if _mrx_ctx != "Load":
+                        _mrx_stores[_mrx_n.id] = _mrx_stores.get(_mrx_n.id, 0) + 1
+                        if _mrx_ctx == "Del":
+                            _mrx_bad.add(_mrx_n.id)
+            if "re" not in _mrx_stores and not _mrx_rebound_re:
+                _mrx_ok = {_k: _v for _k, _v in _mrx_cand.items()
+                           if _msl_counts.get(_k, 0) == 1 and _mrx_stores.get(_k, 0) == 1
+                           and _k not in _mrx_bad}
+                if _mrx_ok:
+                    self.program_ir["module_const_regexes"] = _mrx_ok
+                    _mrp_cand: Dict[str, List[List[str]]] = {}
+                    for _mrp_child in getattr(node, "body", []):
+                        if not (isinstance(_mrp_child, ast.Assign)
+                                and len(_mrp_child.targets) == 1
+                                and isinstance(_mrp_child.targets[0], ast.Name)):
+                            continue
+                        _mrp_v = _mrp_child.value
+                        if (isinstance(_mrp_v, (ast.List, ast.Tuple)) and _mrp_v.elts
+                                and all(isinstance(_e, ast.Tuple) and len(_e.elts) == 2
+                                        and isinstance(_e.elts[0], ast.Constant)
+                                        and type(_e.elts[0].value) is str
+                                        and isinstance(_e.elts[1], ast.Name)
+                                        and _e.elts[1].id in _mrx_ok
+                                        for _e in _mrp_v.elts)):
+                            _mrp_cand[_mrp_child.targets[0].id] = [
+                                [_e.elts[0].value, _e.elts[1].id] for _e in _mrp_v.elts]
+                    if _mrp_cand:
+                        _mrp_iters: Set[int] = set()
+                        for _mrp_n in ast.walk(node):
+                            if isinstance(_mrp_n, ast.For) and isinstance(_mrp_n.iter,
+                                                                         ast.Name):
+                                _mrp_iters.add(id(_mrp_n.iter))
+                        _mrp_reads: Set[str] = set()
+                        for _mrp_n in ast.walk(node):
+                            if isinstance(_mrp_n, ast.Name) and _mrp_n.id in _mrp_cand:
+                                if type(getattr(_mrp_n, "ctx", None)).__name__ != "Load":
+                                    continue
+                                if id(_mrp_n) not in _mrp_iters:
+                                    _mrx_bad.add(_mrp_n.id)
+                                else:
+                                    _mrp_reads.add(_mrp_n.id)
+                        _mrp_map = dict(self.program_ir.get("module_const_str_pair_loops")
+                                        or {})
+                        for _k, _v in _mrp_cand.items():
+                            if (_msl_counts.get(_k, 0) == 1 and _mrx_stores.get(_k, 0) == 1
+                                    and _k not in _mrx_bad and _k in _mrp_reads
+                                    and _k not in _mrp_map):
+                                _mrp_map[_k] = {"kind": "seq_rx", "pairs": _v}
+                        if _mrp_map:
+                            self.program_ir["module_const_str_pair_loops"] = _mrp_map
+
         # (#49) ROUTE #523 — the LOCAL twin. Module 6's faithful for-over-literal
         # (`_collect_str_literal_seq_locals` -> `_str_lit_seq_elts`) binds `for p in a` to
         # the Seq.cons chain of `a`'s literal; it is admitted only for a binding recorded
@@ -1203,6 +1317,64 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             self.program_ir["typevar_registry"] = typevar_registry
 
         self.generic_visit(node)
+        # lvO (re.Match model): the str slot `kw` of `for kw, rx in PAIRS` (kind "seq_rx",
+        # collected above, before the functions are built) is a
+        # `str` in every iteration: typed `str` in the function's symbol
+        # table when the name occurs NOWHERE in the function but as that
+        # loop's target and plain reads in its body (so it is never rebound,
+        # and Module 6 unrolls the loop, `_handle_for_stmt`).
+        _mrp_seqrx = {_k for _k, _v in (self.program_ir.get("module_const_str_pair_loops")
+                                         or {}).items()
+                      if isinstance(_v, dict) and _v.get("kind") == "seq_rx"}
+        for _mrp_f in (self.program_ir.get("functions") or []):
+            if not (_mrp_seqrx and isinstance(_mrp_f, dict)):
+                continue
+            _mrp_st = _mrp_f.get("symbol_table")
+            _mrp_w: List[Any] = [_mrp_f.get("body")]
+            _mrp_loops: List[Any] = []
+            while _mrp_w:
+                _mrp_x = _mrp_w.pop()
+                if isinstance(_mrp_x, dict):
+                    _mrp_it = _mrp_x.get("iter")
+                    if (_mrp_x.get("stmt") == "For"
+                            and isinstance(_mrp_it, dict)
+                            and _mrp_it.get("type") == "Var"
+                            and _mrp_it.get("name") in _mrp_seqrx
+                            and isinstance(_mrp_x.get("tuple_targets"), list)
+                            and len(_mrp_x["tuple_targets"]) == 2
+                            and isinstance(_mrp_x["tuple_targets"][0], str)):
+                        _mrp_loops.append(_mrp_x)
+                    _mrp_w.extend(_mrp_x.values())
+                elif isinstance(_mrp_x, list):
+                    _mrp_w.extend(_mrp_x)
+            for _mrp_l in _mrp_loops:
+                _mrp_kw = _mrp_l["tuple_targets"][0]
+                if not (isinstance(_mrp_st, dict)
+                        and _mrp_st.get(_mrp_kw) in (None, "Any")):
+                    continue
+                _mrp_clean = True
+                _mrp_w = [(_mrp_f.get(_k), False) for _k in _mrp_f
+                          if _k not in ("symbol_table", "name")]
+                while _mrp_w and _mrp_clean:
+                    _mrp_x, _mrp_in = _mrp_w.pop()
+                    if _mrp_x is _mrp_l:
+                        _mrp_w.extend((_v, True) for _k, _v in _mrp_l.items()
+                                      if _k == "body")
+                        continue
+                    if isinstance(_mrp_x, dict):
+                        if (_mrp_in and _mrp_x.get("type") == "Var"
+                                and _mrp_x.get("name") == _mrp_kw
+                                and set(_mrp_x) <= {"type", "name"}):
+                            continue
+                        _mrp_w.extend((_v, _mrp_in) for _v in _mrp_x.values())
+                    elif isinstance(_mrp_x, list):
+                        _mrp_w.extend((_v, _mrp_in) for _v in _mrp_x)
+                    elif isinstance(_mrp_x, str) and (
+                            _mrp_x == _mrp_kw
+                            or _mrp_x.startswith(_mrp_kw + ".")):
+                        _mrp_clean = False
+                if _mrp_clean:
+                    _mrp_st[_mrp_kw] = "str"
 
         # (#49) ROUTE #99 — THE UB-7.7 MEMOIZATION GATE MOVED HERE, FROM THE POST-CLASSDEF
         # HOOK, BECAUSE ITS OLD HOME'S COVERAGE PREMISE WAS FALSE.
