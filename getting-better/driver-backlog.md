@@ -9151,3 +9151,6 @@ COST/SCALE, not correctness.
   in the model -- `.value` on an `ast.Attribute` lowers to `svalue_of`, the Subscript projector (`IrOther ""` on an
   IrAttr) -- while CPython takes it, so a proof through that path is vacuous. Route #583 (OPEN). Convertible once
   `.value` on an Attribute-tested receiver projects the IrAttr object.
+- (run #6 lvL, same rule) `_union_arm_tag` RE-TRUSTED again (restored as at base): its `ast.expr` / `ast.stmt` /
+  `ast.AST` arm (`isinstance(elt, ast.Attribute) and isinstance(elt.value, ast.Name) and elt.value.id == "ast"`) is
+  dead in the model by the same route #583 read (a `#@ assert 1 == 2` there is PROVED); CPython takes it.

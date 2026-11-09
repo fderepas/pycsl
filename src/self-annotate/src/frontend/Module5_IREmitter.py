@@ -2887,9 +2887,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # by primitive #1; `isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name)` ->
     # `is_sub` / `is_var (svalue_of elt)`, `elt.value.id` -> `name_of (svalue_of elt)`. Early
     # returns via `Return_<variant>`. isinstance_op = 0. Verbatim body port of the LIVE method.
-    # (run #6 lvL) CONVERTED again (capability R1, the receiver-typed narrowing view, annotations §7.566):
-    # `isinstance(elt, ast.Constant)` lowers to `is_constant elt`; only its `.kind` stays refused (residual),
-    # and `elt.value.id` is read under `isinstance(elt, ast.Subscript)` as `name_of (svalue_of elt)`.
+    # (run #5 lvG2) RE-TRUSTED, route #567: `elt.value.id` is read on a path an `isinstance(.., ast.Constant)`
+    # of this body narrows to a non-IR class (the mirror exemption was rejected); no equivalent
+    # rewrite avoids the read.
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -2904,16 +2905,6 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if elt.id in ("int", "bool", "float", "str", "bytes",
                           "list", "dict", "set", "frozenset", "tuple", "bytearray"):
                 return "int" if elt.id in ("int", "bool") else elt.id
-            # W8 capability (v): a DECLARED RECORD CLASS arm (`Optional[_Tok]`)
-            # is a REAL arm carrying that record, not an `Any` to be dropped.
-            # Dropping it collapsed the synthesized variant to the vacuous
-            # `Arm_<i>_None`-only type, so `return <record>` could not be
-            # injected into any constructor and the file failed L3-tc. The tag
-            # is the class name; Module6's `_fmt_variant` resolves it to the
-            # record's WhyML type (the same resolution it already does for a
-            # payload naming another VARIANT). Gated on the record registry, so
-            # a non-record class arm still degrades to `Any` exactly as before.
-            #
             # The gate is the EMITTED `record` type_decl set — deliberately
             # narrower than `_m5_declared_record_names()` (which also carries the
             # pre-`generic_visit` class pre-scan). A class in the pre-scan but
