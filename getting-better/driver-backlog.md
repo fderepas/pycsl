@@ -9142,3 +9142,15 @@ rewrite keeps them verified):
   narrowed by `isinstance(node, ast.ClassDef)`: an element of a narrowed object's field has an unknown class).
   `\trusted` 406 -> 407 (markers 378 -> 379). No caller in the mirror emission; same `requires/ensures True` contract.
 COST/SCALE, not correctness.
+- (run #6 lvL) `emit-ir-narrowing-view` BUILT as capability R1, the receiver-typed narrowing view (annotations §7.566,
+  route567 doc "R1"): the six Module5 functions above (`_const_int_value`, `_collect_final_registry`,
+  `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag`, `_collect_type_params`) are VERIFIED
+  again. Remaining here: `emit-ir-item-store-model` (`_handle_match_stmt`).
+- (run #6 lvL, DRIVER DECISION) `_collect_final_registry` RE-TRUSTED again (restored exactly as at base): its
+  `self.<attr>: Final[T]` branch (`isinstance(sub.target, ast.Attribute)` then `sub.target.value.id == "self"`) is DEAD
+  in the model -- `.value` on an `ast.Attribute` lowers to `svalue_of`, the Subscript projector (`IrOther ""` on an
+  IrAttr) -- while CPython takes it, so a proof through that path is vacuous. Route #583 (OPEN). Convertible once
+  `.value` on an Attribute-tested receiver projects the IrAttr object.
+- (run #6 lvL, same rule) `_union_arm_tag` RE-TRUSTED again (restored as at base): its `ast.expr` / `ast.stmt` /
+  `ast.AST` arm (`isinstance(elt, ast.Attribute) and isinstance(elt.value, ast.Name) and elt.value.id == "ast"`) is
+  dead in the model by the same route #583 read (a `#@ assert 1 == 2` there is PROVED); CPython takes it.
