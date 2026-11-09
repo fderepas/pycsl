@@ -776,7 +776,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `true` is a sound over-approx for the type-safety+frame contract. @mutable_state.
         if (getattr(self, "_current_self_type", None) in getattr(self, "_mutable_state_classes", set())
                 and any(whyml_str.startswith(p) for p in
-                        ("(svalue_of ", "(object_of ", "(sindex_of ", "(arg0_of "))):
+                        ("(svalue_of ", "(avalue_of ", "(object_of ", "(sindex_of ",
+                         "(arg0_of "))):
             return "true"
         # cf6.md M1.6: `if existing_caps:` on an emit_ir-element ARRAY LOCAL is array-emptiness.
         if (t == "Var"
@@ -19860,6 +19861,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # of the SAME node (e.g. `_handle_map_get_expr`'s `node.dict` and `node.key`).
             if attr in _EMIT_IR_NODE_ATTRS:
                 return f"({_EMIT_IR_NODE_ATTRS[attr]} {_os})"
+            # (run #6 u37) ROUTE #583: `.value` is a field of BOTH IR classes an emit_ir
+            # value can be -- `ast.Attribute.value` (the OBJECT, IrAttr's 1st child) and
+            # `ast.Subscript.value` (the ARRAY, IrSub's 1st child). The Subscript-only
+            # `svalue_of` read `IrOther ""` on an IrAttr, so `isinstance(x.value, ast.Name)`
+            # after `isinstance(x, ast.Attribute)` was decided FALSE where CPython takes the
+            # branch (a false proof). Lower it with the UNIFIED `avalue_of` (IrAttr -> object,
+            # IrSub -> value), the projector `_py_stmt_augassign` already used: it agrees with
+            # `svalue_of` on every non-IrAttr node, so the Subscript path keeps its meaning.
+            if attr == "value":
+                return f"(avalue_of {_os})"
             return f"(svalue_of {_os})"
         # CARRIER-FIELD PROJECTION (L13): `<optional-union local>.<field>` reads the
         # carrier record's field directly, instead of the opaque int-hash `get_<attr>`
