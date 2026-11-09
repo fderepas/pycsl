@@ -956,3 +956,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-09T14:33Z | 682 | STATUS (run hour 20.6; 75 h left). int55 statements: 30430/30430 goals Valid so far, vacuity phase running (2 why3 children OOM-killed at 13:07Z; verdict per log 680 when it ends). pure_ast (stream B) running. v52 waiting. u37 / lvO working. oom_kill 72. |
 2026-11-09T15:30Z | 683 | STATUS (run hour 21.6; 74 h left). int55 statements vacuity phase + pure_ast still running; v52 waiting; u37 / lvO working. oom_kill 72. |
 2026-11-09T16:27Z | 684 | STATUS (run hour 22.5; 73 h left). int55 statements (vacuity phase) and pure_ast still running; v52 waiting; u37 / lvO mostly queued. oom_kill 72. |
+2026-11-09T16:39Z | 685 | int55 pure_ast 3866/3866 SUCCESS (11336 s); its 3 'could not be checked' vacuity probes == run #5's clean int50 set (accepted; no kill in its window). stream B -> stmt_control_flow. |
