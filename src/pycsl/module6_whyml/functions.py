@@ -5625,15 +5625,24 @@ class FunctionEmissionMixin:
                 # not in func_exceptions), the declared arm is emitted as
                 # before — preserving the pre-existing behaviour.
                 summary_only = (base_raw not in func_exceptions) and bool(raised_subs)
+                # (#49) cap-exception-payload-model: a USER exception tag carries a `string`
+                # payload (`_emit_preamble_exceptions`); the conditioned arm binds it with a
+                # wildcard (Why3 rejects a payload exception's arm without its argument).
+                _pat_px = ("" if (handler_catches("BaseException", base)
+                                  or base in ("EnvironmentError", "IOError")
+                                  or base.startswith("PyCSL_")) else " _")
                 if not summary_only:
-                    lines.append(f"    raises {{ {base} -> {cond_str} }}")
+                    lines.append(f"    raises {{ {base}{_pat_px} -> {cond_str} }}")
                     declared_exc.add(base)
                     covered_raw.add(base_raw)
                 # conditioned arms for each subclass actually raised
                 for raw in raised_subs:
                     sub = safe_exc_name(raw)
                     if sub not in declared_exc:
-                        lines.append(f"    raises {{ {sub} -> {cond_str} }}")
+                        _spat_px = ("" if (handler_catches("BaseException", sub)
+                                           or sub in ("EnvironmentError", "IOError")
+                                           or sub.startswith("PyCSL_")) else " _")
+                        lines.append(f"    raises {{ {sub}{_spat_px} -> {cond_str} }}")
                         declared_exc.add(sub)
                     covered_raw.add(raw)
             # Any raised exception NOT covered by a declared (base or
@@ -8457,7 +8466,14 @@ class FunctionEmissionMixin:
                 return []
             L.append(f"    | {pfx}{ast_cls} _p -> {emitted} self _p")
         if default[0] == "raise":
-            L.append(f"    | {pfx}Unknown -> raise {safe_exc_name(default[1])}")
+            # (#49) cap-exception-payload-model: a USER exception tag carries a `string`
+            # payload; this synthesized raise has no modelled argument -> unconstrained.
+            from exception_model import handler_catches as _hc_px
+            _d_px = safe_exc_name(default[1])
+            if not (_hc_px("BaseException", _d_px) or _d_px in ("EnvironmentError", "IOError")
+                    or _d_px.startswith("PyCSL_")):
+                _d_px = f"({_d_px} (any string))"
+            L.append(f"    | {pfx}Unknown -> raise {_d_px}")
         else:
             L.append(f"    | {pfx}Unknown -> IrOther \"{default[1]}\"")
         L.append("    end")
@@ -11692,8 +11708,12 @@ class FunctionEmissionMixin:
         if _r304_tags:
             # (#49) ROUTE #304 — see the escaping-set computation above: each own raise
             # covered by the declared `no_exception` is a reachability obligation.
+            # (#49) cap-exception-payload-model: a USER exception tag carries a `string`
+            # payload, so its arm binds it with a wildcard.
+            from exception_model import handler_catches as _hc_px
             _r304_arms = " | ".join(
-                f"{_t304} -> (assert {{ [@expl:no_exception: own raise {_t304} reachable] "
+                f"{_t304}{'' if (_hc_px('BaseException', _t304) or _t304 in ('EnvironmentError', 'IOError') or _t304.startswith('PyCSL_')) else ' _'}"
+                f" -> (assert {{ [@expl:no_exception: own raise {_t304} reachable] "
                 f"false }}; absurd)" for _t304 in sorted(set(_r304_tags)))
             _r304_body = f"    try (\n{_r304_body}\n    ) with {_r304_arms} end"
         lines.append(_r304_body)

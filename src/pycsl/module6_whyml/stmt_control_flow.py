@@ -2642,6 +2642,13 @@ class ControlFlowStmtMixin:
                 # `_FooError` must match the sanitized preamble declaration.
                 for tag in arm_tags:
                     ep = safe_exc_name(tag)
+                    # (#49) cap-exception-payload-model: a USER exception tag carries a
+                    # `string` payload (`_emit_preamble_exceptions`), so its arm binds it
+                    # with a wildcard. The payload stays unread (route #233).
+                    if (not handler_catches("BaseException", ep)
+                            and ep not in ("EnvironmentError", "IOError")
+                            and not ep.startswith("PyCSL_")):
+                        ep = ep + " _"
                     connector = "with" if first_handler else "|"
                     code += f"{indent}{connector} {ep} -> \n{handler_body}\n"
                     first_handler = False

@@ -280,7 +280,21 @@ When the function body contains early returns or the function declares
   exception Return_void       (* early return from void function *)
   exception ValueError        (* user-declared exception *)
   exception ZeroDivisionError (* division-by-zero exception *)
+  exception MyError string    (* USER exception class: carries its payload *)
 ```
+
+**Exception payload (cap-exception-payload-model, run #6).** A USER exception tag —
+one `handler_catches("BaseException", _)` does not place in the builtin hierarchy
+(`exception_model.EXCEPTION_BASES`), other than the `OSError` aliases `EnvironmentError` /
+`IOError` and the `PyCSL_*` control tags — is declared `exception E string`. The payload is
+the FIRST CONSTRUCTOR ARGUMENT of the `raise` that built it when that argument is
+string-typed (`_is_string_expr`), lowered in place so it is evaluated once, before the
+raise, with its effects and obligations; otherwise (`raise E`, a non-string argument, a
+synthesized or havoc raise) it is `(any string)`. It is the argument PASSED, not `args[0]`
+/ `str(e)` (a user `__init__` may store something else), so it is faithful for every class.
+It is NOT readable from Python: route #233 still refuses every read of an `except E as e`
+binding. Builtin tags keep the payload-free form. Every arm over a payload tag binds it with a
+wildcard (`with E _ ->`, `raises { E _ -> c }`, the route #304 reachability arms).
 
 **Implementation:** `_emit_preamble_exceptions`.
 
@@ -1635,6 +1649,11 @@ $$\mathcal{T}_s\llbracket \texttt{raise E} \rrbracket
 = \texttt{raise E}$$
 
 Exception types must be pre-declared (see §T.1.4).
+
+For a USER exception tag (payload model, "Exception Declarations" above):
+$\mathcal{T}_s\llbracket \texttt{raise E(a, ...)} \rrbracket = \texttt{raise (E } \mathcal{T}_e\llbracket a \rrbracket\texttt{)}$
+when `a` is string-typed, else `raise (E (any string))` (the route #310 evaluation of an
+effectful `a` is kept). Corpus 9350-9356.
 
 ### §T.5.10  Try/Except Statement
 

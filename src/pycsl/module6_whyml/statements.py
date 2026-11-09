@@ -5347,6 +5347,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # evaluated, and only the exception object stays unmodelled.
             _v310 = (stmt.exc_value.to_dict() if hasattr(stmt.exc_value, "to_dict")
                      else stmt.exc_value)
+            # (#49) cap-exception-payload-model: a USER exception tag (outside the builtin
+            # hierarchy; see `_emit_preamble_exceptions`, which declares it `exception E
+            # string`) carries its FIRST CONSTRUCTOR ARGUMENT. A string argument is lowered
+            # as the payload itself, so it is evaluated exactly once, at its Python position
+            # (before the raise), with every effect and obligation of its lowering; any other
+            # argument keeps the route #310 treatment below and the payload is an
+            # unconstrained string. Not readable from Python (route #233).
+            from exception_model import handler_catches as _hc_px
+            _px = (not _hc_px("BaseException", exc_type)
+                   and exc_type not in ("EnvironmentError", "IOError")
+                   and not exc_type.startswith("PyCSL_"))
+            if _px and isinstance(_v310, dict) and self._is_string_expr(_v310):
+                return (f"{indent}raise ({exc_type} "
+                        f"({self._expr_to_whyml(_v310, local_refs)}))")
+            if _px:
+                exc_type = f"({exc_type} (any string))"
             if isinstance(_v310, dict):
                 _a310 = [_v310]
                 _t310 = {"type": "Tuple", "elts": _a310}

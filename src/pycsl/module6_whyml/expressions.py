@@ -9885,7 +9885,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             for _e176 in sorted(_esc176):
                 if any(_hc176(_hn176, _e176) or _hn176 in ("Exception", "BaseException")
                        for _hn176 in _hs176):
-                    _pre176 += f"if (any bool) then raise {_sen176(_e176)}; "
+                    # (#49) cap-exception-payload-model: a USER exception tag carries a
+                    # `string` payload; this havoc raise has no modelled argument.
+                    _x176px = _sen176(_e176)
+                    if not (_hc176("BaseException", _x176px)
+                            or _x176px in ("EnvironmentError", "IOError")
+                            or _x176px.startswith("PyCSL_")):
+                        _x176px = f"({_x176px} (any string))"
+                    _pre176 += f"if (any bool) then raise {_x176px}; "
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{writes_clause}{ensures_suffix}")
             _call = self._wrap_call_with_callee_raises_assert(
@@ -12059,8 +12066,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                 _w176c.extend(_x176c)
                     if _hs176c:
                         from module6_whyml.identifiers import safe_exc_name as _sen176c
+                        # (#49) cap-exception-payload-model: a USER exception tag carries a
+                        # `string` payload; this havoc raise has no modelled argument.
+                        from exception_model import handler_catches as _hc176px
                         inner = ("begin " + "".join(
-                            f"if (any bool) then raise {_sen176c(_h)}; " for _h in sorted(_hs176c))
+                            f"if (any bool) then raise "
+                            f"{_sen176c(_h) if (_hc176px('BaseException', _sen176c(_h)) or _sen176c(_h) in ('EnvironmentError', 'IOError') or _sen176c(_h).startswith('PyCSL_')) else '(' + _sen176c(_h) + ' (any string))'}; "
+                            for _h in sorted(_hs176c))
                             + inner + " end")
             return self._wrap_unannotated_call_with_strict_assert(inner)
         # 1111-spec R7 (no-more-int): if the call passes fewer args than the callee

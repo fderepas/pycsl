@@ -6129,6 +6129,18 @@ def _match_sa_list_loop(stmt: Any, subj: str, fname: str, p1: str, p2: str) -> b
     return _match_list_loop_env(stmt, subj, fname, [p1, p2])
 
 
+def _exc_raise_term(exc: str) -> str:
+    """(#49) cap-exception-payload-model: the raisable term for exception tag `exc` in a
+    synthesized template. A USER exception tag (outside the builtin hierarchy, see
+    `preamble._emit_preamble_exceptions`) is declared `exception E string`; a template raise
+    has no modelled constructor argument, so its payload is an unconstrained string."""
+    from exception_model import handler_catches
+    if (handler_catches("BaseException", exc) or exc in ("EnvironmentError", "IOError")
+            or exc.startswith("PyCSL_")):
+        return exc
+    return f"({exc} (any string))"
+
+
 def _match_sa_raise(stmt: Any) -> Optional[str]:
     """A `raise <Exc>(...)` statement — returns the exception type name."""
     if not (isinstance(stmt, dict) and stmt.get("stmt") == "Raise"):
@@ -6530,7 +6542,7 @@ def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
         out.append(f"                  let tystr = (match slookup tgt {p2} with"
                    f' Some (PStr aty) -> pystr_eq aty "{pre["str_val"]}"'
                    " | _ -> false end) in")
-        out.append(f"                  if opne && tystr then raise {exc} else ()")
+        out.append(f"                  if opne && tystr then raise {_exc_raise_term(exc)} else ()")
         out.append("              | None -> () end)")
         out.append("           else ()")
         out.append("         | None -> () end)")
@@ -6562,7 +6574,7 @@ def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
         out.append(f"                       (match {n}__get_{name_suf} ad with")
         out.append("                        | Some nm ->")
         out.append(f"                            (match slookup nm {p2} with")
-        out.append(f'                             | Some (PStr aty) -> if pystr_eq aty "{pre["str_val"]}" then raise {exc} else ()')
+        out.append(f'                             | Some (PStr aty) -> if pystr_eq aty "{pre["str_val"]}" then raise {_exc_raise_term(exc)} else ()')
         out.append("                             | _ -> ()")
         out.append("                             end)")
         out.append("                        | None -> () end)")
@@ -6601,9 +6613,9 @@ def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
     out.append(f"                       (match {n}__get_{name_suf} ad with")
     out.append(f"                        | Some nm ->")
     out.append(f"                            (match slookup nm {p2} with")
-    out.append(f"                             | None -> raise {exc}")
-    out.append(f"                             | Some (PStr aty) -> if {n}__ok_type aty then () else raise {exc}")
-    out.append(f"                             | Some _ -> raise {exc}")
+    out.append(f"                             | None -> raise {_exc_raise_term(exc)}")
+    out.append(f"                             | Some (PStr aty) -> if {n}__ok_type aty then () else raise {_exc_raise_term(exc)}")
+    out.append(f"                             | Some _ -> raise {_exc_raise_term(exc)}")
     out.append("                             end)")
     out.append("                        | None -> () end)")
     out.append("                     else ()")
@@ -6796,7 +6808,7 @@ def emit_cpwalk_group(func: Dict[str, Any], cp: Dict[str, Any],
     out.append(f"        (match {n}__get_{stmt_suf} d with")
     out.append(f'         | Some st -> if pystr_eq st "{pre["tag"]}" then')
     out.append(f"             (match {n}__get_{key_suf} d with")
-    out.append(f"              | Some tv -> if {cross} tv then raise {exc} else ()")
+    out.append(f"              | Some tv -> if {cross} tv then raise {_exc_raise_term(exc)} else ()")
     out.append("              | None -> () end)")
     out.append("           else ()")
     out.append("         | None -> () end)")
@@ -7169,8 +7181,8 @@ def emit_pbexpr_group(func: Dict[str, Any], pb: Dict[str, Any],
         return (f"(match {n}__get_{suf} d with"
                 f" | Some b -> (match slookup b {symtab} with"
                 f" | None -> ()"
-                f" | Some (PStr aty) -> if {n}__array_base aty then () else raise {exc}"
-                f" | Some _ -> raise {exc} end)"
+                f" | Some (PStr aty) -> if {n}__array_base aty then () else raise {_exc_raise_term(exc)}"
+                f" | Some _ -> raise {_exc_raise_term(exc)} end)"
                 f" | None -> () end)")
 
     # ---- the multi-arm type-dispatch pre-action ----
@@ -7186,7 +7198,7 @@ def emit_pbexpr_group(func: Dict[str, Any], pb: Dict[str, Any],
     out.append("                | Some var ->")
     out.append(f'                    if (not ({n}__startswith var "self.")) && (not (pystr_eq var "\\\\result")) then')
     out.append(f"                      (match slookup var {symtab} with")
-    out.append(f"                       | Some (PStr typ) -> if {n}__lengthless typ then raise {exc} else ()")
+    out.append(f"                       | Some (PStr typ) -> if {n}__lengthless typ then raise {_exc_raise_term(exc)} else ()")
     out.append("                       | _ -> () end)")
     out.append("                    else ()")
     out.append("                | None -> () end)")
@@ -7199,7 +7211,7 @@ def emit_pbexpr_group(func: Dict[str, Any], pb: Dict[str, Any],
     # arm 4: Forall | Exists
     out.append(f'             else if (pystr_eq ty "Forall") || (pystr_eq ty "Exists") then')
     out.append(f"               (match {n}__get_{bt_suf} d with")
-    out.append(f"                | Some bt -> if {n}__present bt {known} then () else raise {exc}")
+    out.append(f"                | Some bt -> if {n}__present bt {known} then () else raise {_exc_raise_term(exc)}")
     out.append("                | None -> () end)")
     out.append("             else ()")
     out.append("         | None -> () end)")
@@ -9053,7 +9065,7 @@ def emit_walk_dicts_void_consumer_group(func: Dict[str, Any], desc: Dict[str, An
     out.append(f'             (match {n}__getk ad "{atype_key}" with')
     out.append(f'              | Some (PStr aty) -> if pystr_eq aty "{avar_tag}" then')
     out.append(f'                  (match {n}__getk ad "{aname_key}" with')
-    out.append(f"                   | Some (PStr nm) -> if {n}__mem {setp} nm then raise {exc} else ()")
+    out.append(f"                   | Some (PStr nm) -> if {n}__mem {setp} nm then raise {_exc_raise_term(exc)} else ()")
     out.append("                   | _ -> () end)")
     out.append("                else ()")
     out.append("              | _ -> () end)")
@@ -9078,7 +9090,7 @@ def emit_walk_dicts_void_consumer_group(func: Dict[str, Any], desc: Dict[str, An
     out.append(f'                       (match {n}__getk vd "{vtype_key}" with')
     out.append(f'                        | Some (PStr vt) -> if pystr_eq vt "{var_tag}" then')
     out.append(f'                            (match {n}__getk vd "{vname_key}" with')
-    out.append(f"                             | Some (PStr nm) -> if {n}__mem {setp} nm then raise {exc} else ()")
+    out.append(f"                             | Some (PStr nm) -> if {n}__mem {setp} nm then raise {_exc_raise_term(exc)} else ()")
     out.append("                             | _ -> () end)")
     out.append("                          else ()")
     out.append("                        | _ -> () end)")
@@ -30110,7 +30122,7 @@ def emit_check_guard_cascade_group(
     for g in desc["guards"]:
         out.append(f"{indent}if {gemit(g)} then ()")
         out.append(f"{indent}else")
-    out.append(f"{indent}raise {exc}")
+    out.append(f"{indent}raise {_exc_raise_term(exc)}")
     out.append("    | _ -> ()")
     out.append("    end")
     return out
@@ -30328,11 +30340,11 @@ def emit_check_clause_fold_group(desc: Dict[str, Any], whyml_ident) -> List[str]
     out.append(f"                  (match {n}__get_{base_suf} d with")
     out.append("                   | Some b ->")
     out.append("                       (match slookup b symtab with")
-    out.append(f"                        | None -> raise {exc}")
-    out.append(f"                        | Some (PStr aty) -> if {n}__ok_type aty then () else raise {exc}")
-    out.append(f"                        | Some _ -> raise {exc}")
+    out.append(f"                        | None -> raise {_exc_raise_term(exc)}")
+    out.append(f"                        | Some (PStr aty) -> if {n}__ok_type aty then () else raise {_exc_raise_term(exc)}")
+    out.append(f"                        | Some _ -> raise {_exc_raise_term(exc)}")
     out.append("                        end)")
-    out.append(f"                   | None -> raise {exc} end)")
+    out.append(f"                   | None -> raise {_exc_raise_term(exc)} end)")
     out.append("                else ()")
     out.append("              | None -> () end)")
     out.append("         | _ -> () end);")
@@ -30682,9 +30694,9 @@ def emit_check_lemma_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append("        (match h with")
     out.append(f"         | PDict hd -> (match {n}__get_{type_suf} hd with")
     out.append(f'                        | Some ty -> if pystr_eq ty "{desc["nothing_tag"]}"'
-               f" then () else raise {exc}")
-    out.append(f"                        | None -> raise {exc} end)")
-    out.append(f"         | _ -> raise {exc} end);")
+               f" then () else raise {_exc_raise_term(exc)}")
+    out.append(f"                        | None -> raise {_exc_raise_term(exc)} end)")
+    out.append(f"         | _ -> raise {_exc_raise_term(exc)} end);")
     out.append(f"        {n}__afold rest")
     out.append("    end")
     # the caller entry point.
@@ -30697,17 +30709,17 @@ def emit_check_lemma_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
                " Some _ -> true | None -> false end) then begin")
     # [2] diverges present -> raise.
     out.append(f'          (if (match pget_dyn "{desc["diverges_key"]}" d with'
-               f" Some _ -> true | None -> false end) then raise {exc});")
+               f" Some _ -> true | None -> false end) then raise {_exc_raise_term(exc)});")
     # [4] contracts.ensures empty -> raise (absent contracts reads as {} -> raise).
     out.append(f'          (match pget_dyn "{desc["contracts_key"]}" d with')
     out.append(f'           | Some (PDict cd) -> (match pget_list "{desc["ensures_key"]}" cd'
-               f" with Nil -> raise {exc} | Cons _ _ -> () end)")
-    out.append(f"           | _ -> raise {exc} end);")
+               f" with Nil -> raise {_exc_raise_term(exc)} | Cons _ _ -> () end)")
+    out.append(f"           | _ -> raise {_exc_raise_term(exc)} end);")
     # [6] return_annotation present and != "None" -> raise (absent -> None -> ok).
     out.append(f'          (match pget_dyn "{desc["ra_key"]}" d with')
     out.append(f'           | Some (PStr s) -> if pystr_eq s "{desc["none_lit"]}"'
-               f" then () else raise {exc}")
-    out.append(f"           | Some _ -> raise {exc}")
+               f" then () else raise {_exc_raise_term(exc)}")
+    out.append(f"           | Some _ -> raise {_exc_raise_term(exc)}")
     out.append("           | None -> () end);")
     # [7] assigns clause fold (absent contracts -> empty iter -> no raise).
     out.append(f'          (match pget_dyn "{desc["contracts_key"]}" d with')
@@ -30715,10 +30727,10 @@ def emit_check_lemma_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append("           | _ -> () end);")
     # [8] `_lemma_returns_value(body)` -> raise.
     out.append(f'          (if {bool_pred} (pget_list "{desc["body_key_1"]}" d)'
-               f" then raise {exc});")
+               f" then raise {_exc_raise_term(exc)});")
     # [10] `_lemma_calls_trusted(body, trusted_funcs)` non-empty -> raise.
     out.append(f'          (if not (pystr_eq ({str_pred} (pget_list "{desc["body_key_2"]}" d)'
-               f' {setp}) "") then raise {exc})')
+               f' {setp}) "") then raise {_exc_raise_term(exc)})')
     out.append("        end else ()")
     out.append("    | _ -> ()")
     out.append("    end")
@@ -30966,8 +30978,8 @@ def emit_check_no_exception_group(desc: Dict[str, Any], whyml_ident) -> List[str
     out.append("    | Cons h t ->")
     out.append("        (match h with")
     out.append("         | PStr nm ->")
-    out.append(f"             (if not ({n}__known nm) then raise {exc}")
-    out.append(f"              else if {n}__raised_has nm rs then raise {exc}")
+    out.append(f"             (if not ({n}__known nm) then raise {_exc_raise_term(exc)}")
+    out.append(f"              else if {n}__raised_has nm rs then raise {_exc_raise_term(exc)}")
     out.append("              else ());")
     out.append(f"             {n}__fold t rs")
     out.append(f"         | _ -> {n}__fold t rs end)")
@@ -30985,7 +30997,7 @@ def emit_check_no_exception_group(desc: Dict[str, Any], whyml_ident) -> List[str
     out.append("                         | Some (PBool b) -> b | _ -> false end) in")
     out.append(f"             {n}__fold nexc rlist;")
     out.append("             if nall && (match rlist with Nil -> false | Cons _ _ -> true end)")
-    out.append(f"             then raise {exc} else ()")
+    out.append(f"             then raise {_exc_raise_term(exc)} else ()")
     out.append("         | _ -> () end)")
     out.append("    | _ -> () end")
     return out
@@ -41154,7 +41166,7 @@ def emit_noreturn_walk_stmts_group(desc: Dict[str, Any], whyml_ident) -> List[st
     out.append("    | Nil -> ()")
     out.append("    | Cons h t ->")
     out.append("        size_pos h; size_list_nonneg t;")
-    out.append(f"        (if prev && is_pdict h then raise {exc});")
+    out.append(f"        (if prev && is_pdict h then raise {_exc_raise_term(exc)});")
     out.append(f"        let prev' = {sc} h {setp} in")
     out.append(f"        (match h with PDict d -> {n}__child d {setp} | _ -> () end);")
     out.append(f"        {n} prev' t {setp}")

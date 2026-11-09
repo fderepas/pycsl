@@ -199,6 +199,13 @@ IOError}`, in the main file or an imported module, is refused
 (`PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED`). Corpus 3780-3786 (refused),
 3787-3789 (controls).
 
+A USER exception class (a tag outside the builtin hierarchy, see
+`_emit_preamble_exceptions`) carries a payload: `exception E string`, the FIRST
+CONSTRUCTOR ARGUMENT of the raise when it is string-typed, `(any string)` otherwise
+(cap-exception-payload-model, run #6). Arms bind it with a wildcard (`with E _ ->`).
+The payload is not readable from Python: an `except E as e` read stays refused
+(route #233). Builtin tags are payload-free. Corpus 9350-9356.
+
 ## Test-corpus cross-references
 
 Numbering blocks under `test-suite/corpus/pycsl-reference/` (reserved in

@@ -2258,6 +2258,7 @@ class PreambleEmissionMixin:
                 elif isinstance(_n171p, list):
                     _w171p.extend(_n171p)
         bounded_sizes = {func["bounded_int"] for func in functions if func.get("bounded_int")}
+        from exception_model import handler_catches as _hc_px
         user_exceptions: Set[str] = set()
         n2 = len(all_bodies)
         i2 = 0
@@ -3194,7 +3195,15 @@ class PreambleEmissionMixin:
             "opt_tuple_return_types": opt_tuple_return_types,
             "pyconst_val_tuple_return_types": pyconst_val_tuple_return_types,
             "union_return_types": union_return_types,
-            "needs_string": needs_string,
+            # (#49) cap-exception-payload-model: a USER exception class (any tag outside the
+            # builtin hierarchy) is declared `exception E string` and carries its FIRST
+            # CONSTRUCTOR ARGUMENT, so its declaration needs `string.String` in scope even when
+            # nothing else in the program is a string.
+            "needs_string": needs_string or any(
+                not _hc_px("BaseException", safe_exc_name(_n_px))
+                and safe_exc_name(_n_px) not in ("EnvironmentError", "IOError")
+                and not safe_exc_name(_n_px).startswith("PyCSL_")
+                for _n_px in user_exceptions),
             "needs_char": needs_char,
             "needs_real": needs_real,
             "needs_fromint": needs_truediv,
@@ -3459,9 +3468,28 @@ class PreambleEmissionMixin:
         # Sanitize each user-exception name; collapse Python local-alias
         # imports (`from X import Y as _Y`) by deduping via set after
         # leading-underscore strip. See `safe_exc_name` in identifiers.py.
+        from exception_model import handler_catches
         sanitized_exc = sorted({safe_exc_name(n) for n in needs["user_exceptions"]})
         for exc in sanitized_exc:
-            out.append(f"  exception {exc}")
+            # (#49) cap-exception-payload-model — THE EXCEPTION VALUE CARRIES ITS PAYLOAD.
+            # A raise used to lower to the bare tag `raise E`, DISCARDING the constructor's
+            # argument, so a helper whose whole body is `raise E(f"{msg} ...")` emitted a
+            # body that never mentions `msg` (check-emitted-vacuity: INPUT-BLIND). A USER
+            # exception class (a tag `handler_catches("BaseException", _)` does not place in
+            # the builtin hierarchy `EXCEPTION_BASES`, minus the two `OSError` aliases;
+            # never a `PyCSL_*` control tag) is now declared with ONE `string` payload: the FIRST CONSTRUCTOR ARGUMENT
+            # of the raise that built it when that argument is a string, an unconstrained
+            # string otherwise (`raise E`, a non-string argument, an implicit or callee
+            # raise). It is the argument PASSED, not `args[0]` / `str(e)` (a user
+            # `__init__` may store something else), so it is faithful for every class by
+            # construction. NOT READABLE from Python yet: route #233 still refuses every
+            # read of an `except E as e` binding. Builtin tags keep the payload-free form.
+            if (not handler_catches("BaseException", exc)
+                    and exc not in ("EnvironmentError", "IOError")
+                    and not exc.startswith("PyCSL_")):
+                out.append(f"  exception {exc} string")
+            else:
+                out.append(f"  exception {exc}")
         return out
 
     def _emit_union_return_exceptions(self, needs: Dict[str, Any],

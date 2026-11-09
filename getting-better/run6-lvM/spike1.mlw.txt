@@ -1,0 +1,41 @@
+module Spike1
+  use int.Int
+  use string.String
+  val str_concat_op (a: string) (b: string) : string
+    ensures { result = (concat a b) }
+    ensures { String.length result = String.length a + String.length b }
+  exception ContractSyntaxError string
+
+  (* target shape: the raise carries the message built from the input *)
+  let err (msg: string) (ty: string) : unit
+    ensures { false }
+    raises { ContractSyntaxError m -> m = concat (concat msg " (got ") ty }
+  = raise (ContractSyntaxError (str_concat_op (str_concat_op msg " (got ") ty))
+
+  (* the short raises form is accepted for a payload exception *)
+  let err_short (msg: string) : unit
+    ensures { false }
+    raises { ContractSyntaxError }
+  = raise (ContractSyntaxError msg)
+
+  (* FALSE claim: the payload is the bare msg (CPython: msg + " (got " + ty) *)
+  let err_false (msg: string) (ty: string) : unit
+    ensures { false }
+    raises { ContractSyntaxError m -> m = msg }
+  = raise (ContractSyntaxError (str_concat_op (str_concat_op msg " (got ") ty))
+
+  (* handler with a wildcard payload pattern *)
+  let caller (x: int) : int
+    ensures { result = 1 }
+  = try err "a" "b"; 0 with ContractSyntaxError _ -> 1 end
+
+  (* honest read of the payload at a handler *)
+  let caller_read () : string
+    ensures { result = "a (got b" }
+  = try err "a" "b"; "" with ContractSyntaxError m -> m end
+
+  (* false read *)
+  let caller_read_false () : string
+    ensures { result = "a" }
+  = try err "a" "b"; "" with ContractSyntaxError m -> m end
+end
