@@ -1,0 +1,16 @@
+File "scratchpad/lvM/s1/errors.mlw", line 74, characters 37-122:
+Goal _check_class_inv_pycslerror.
+Prover result is: Timeout (20.00s, 164289403 steps).
+
+rc=2
+File "scratchpad/lvM/s1/errors.mlw", line 74, characters 37-122:
+Goal _check_class_inv_pycslerror.
+Prover result is: Timeout (20.00s, 543393 steps).
+
+rc=2
+
+(run6 lvM) The route #226 constructor goal emitted for the UNTRUSTED port of PyCSLError.__init__
+(`goal _check_class_inv_pycslerror : forall pycslerror_line line : int. pycslerror_line = line ->
+pycslerror_line >= 0`) is FALSE (line = -1; CPython accepts `PyCSLError("m", line=-1)`), and is
+not proved by z3 / alt-ergo (Timeout, 20 s). Converting needs `#@ requires line >= 0`: an OPEN
+USER DECISION, not taken. errors.py whole-file proof at HEAD (marker kept): SUCCESS 140/140.
