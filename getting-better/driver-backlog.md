@@ -9146,3 +9146,8 @@ COST/SCALE, not correctness.
   route567 doc "R1"): the six Module5 functions above (`_const_int_value`, `_collect_final_registry`,
   `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag`, `_collect_type_params`) are VERIFIED
   again. Remaining here: `emit-ir-item-store-model` (`_handle_match_stmt`).
+- (run #6 lvL, DRIVER DECISION) `_collect_final_registry` RE-TRUSTED again (restored exactly as at base): its
+  `self.<attr>: Final[T]` branch (`isinstance(sub.target, ast.Attribute)` then `sub.target.value.id == "self"`) is DEAD
+  in the model -- `.value` on an `ast.Attribute` lowers to `svalue_of`, the Subscript projector (`IrOther ""` on an
+  IrAttr) -- while CPython takes it, so a proof through that path is vacuous. Route #583 (OPEN). Convertible once
+  `.value` on an Attribute-tested receiver projects the IrAttr object.

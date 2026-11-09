@@ -5808,7 +5808,9 @@ RULES (emitter, `statements.py::_handle_array_set_stmt` / `expressions.py::_hand
   case): the mirror functions whose `ast.<Node>` tests outside the recognizer map narrow a path they then read a
   projector attribute on were `\trusted` -- `Module5_IREmitter.py` `_const_int_value`, `_collect_final_registry`,
   `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (run #5 lvG2; `_csl_in` was already) --
-  and are VERIFIED again under the receiver-typed view below (run #6 lvL), with `_collect_type_params` (§7.574).
+  and all but `_collect_final_registry` are VERIFIED again under the receiver-typed view below (run #6 lvL), with
+  `_collect_type_params` (§7.574); `_collect_final_registry` stays `\trusted`: its `self.<attr>: Final` branch is dead in
+  the model (route #583, `.value` of an `ast.Attribute` read by the Subscript projector).
 - (run #6, capability R1) THE RECEIVER-TYPED NARROWING VIEW. An `isinstance(p, ast.<X>)` test, `ast` RESOLVED
   (§7.579) and the class not inside a tuple, is an IR class ON THIS RECEIVER -- it does not narrow `p` -- exactly when
   `_handle_isinstance` lowers that very test to a constructor discriminant of `p`'s model type: a `pyast_stmt` loop
