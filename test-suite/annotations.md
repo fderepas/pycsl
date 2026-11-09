@@ -6085,6 +6085,76 @@ Byte-diff / mirror / rt43-44 as §7.576 (no corpus / pyref / mirror emission mov
 receiver (`c.g(k)` of `c: C`), a callee imported from another module, a float true division `x / 2.0` of an erased
 operand, an index computed from a negative literal through a unary minus (refused fail-closed as any non-constant).
 
+### 7.579 An IR node class is admitted by RESOLUTION, never by its spelling (route #579, run #6)
+
+Red team 55 (family R55-F5, PRE-EXISTING) measured `Verification SUCCESS` for a false `ensures \result == 0` in the
+default model: route #567's narrowing judge, and the isinstance-on-emit_ir recognizers it relies on, trusted a class
+argument BY NAME. A FILE-DEFINED `CSLFieldAccess` (a `@dataclass` or a plain class carrying `kind`) passed as pycsl's
+CSL class, so `isinstance(node, CSLFieldAccess)` lowered to `is_fieldget node` and `node.kind` to `kind_of node`, the
+emit_ir constructor tag; `ast.Name` / `ast.Call` passed as the standard-library classes whatever `ast` was bound to (a
+`class ast:` with nested dataclasses, `import rt55dep_ir as ast`), and the judge admitted ANY `<ns>.Name` / `.Call` /
+`.Attribute` / `.Subscript` / `.Tuple` / `.Slice`, whatever `<ns>` was (`irm.Name` held only by the solver).
+
+RULE (front end + Module 6; `pycsl.py::_run_pipeline`, `expressions.py::_handle_isinstance` / `_handle_attribute_expr`,
+every mirror twin `\trusted`; inline, no new def, no axiom): `_run_pipeline` collects EVERY binding of every name of the
+source (standard-library `ast`, all scopes, flow-insensitively: imports, `def`s, classes, stores, parameters, `except` /
+`match` captures, `global` / `nonlocal`, type parameters) and hands Module 6 the table `ir_class_targets_r579` of the
+names whose bindings are ALL one import of a real pycsl IR module that pycsl's own import resolution finds at the real
+file (`from frontend import pure_ast as ast`, `from frontend.Module2_Parser import FieldAccess as CSLFieldAccess`, `from
+ir_schema import <Node>`) or of the standard-library `ast` (`import ast`); a star import or a dynamic namespace write
+(`globals()` / `vars()` / `exec` / `eval` / `__import__` / `sys.modules`) leaves every name unresolved. Module 6 admits a
+class as an IR class only through that table: the `ast`-keyed recognizers (`is_var` / `is_call` / ... / `is_constant` /
+the stmt discriminants and the two `ast.Constant` compound guards) see an unresolved `ast` re-spelled and take the
+generic uninterpreted arm; the CSL recognizer requires `CSLFieldAccess` resolved to `frontend.Module2_Parser.FieldAccess`;
+route #567's judge treats every unresolved spelling as a class that is not an IR class. A projector read on a value so
+narrowed is REFUSED: `PYCSL-R579-IR-CLASS-NOT-RESOLVED` when the narrowing came from a spelling route #567 used to trust
+(the message names it), `PYCSL-R567-EMITIR-ATTR-ON-NONIR` otherwise (unchanged).
+
+MEASUREMENTS: `getting-better/open-routes/route579-rt55-r55-f5.md`.
+
+### 7.580 A call through a base-typed receiver frames the overrides' object-state writes (route #580, run #6)
+
+Red team 55 (family R55-F6, PRE-EXISTING): `S(C).m` overrides `C.m` with the same declared `assigns self.a` and a
+hidden `self.flag = v` (an attribute the record does not carry, so its verified `let` frame writes `_pyobj_state`);
+`caller(c: C, o)` with two `getattr(o, "flag", 0)` reads around `c.m(..)` used `C.m`'s caller-side stub (`writes {
+self.c_a }`, no cell), the two reads were one term and `ensures \result == 1` PROVED (CPython `caller(S(), same object)`
+returns 2). Route #568 framed a stub from the CALLEE's emitted frame only, and route #278 compares DECLARED frames, so
+the body-derived cell of an override was compared with nothing.
+
+RULE (Module 6; `expressions.py::_resolve_dotted_signature` and `functions.py::_emit_function`, mirror twins
+`\trusted`; inline, no new def, no axiom): a receiver's static class is not its dynamic class, so the stub of `C.m` (the
+`self.` arm and the record-typed receiver arm) carries `_pyobj_state` when `C.m` OR any override of it -- route #278's
+MRO pairs `ir["overrides"]`, closed transitively (a grandchild too) -- is in `_pyobj_state_writers`; and when an
+override's frame gains the cell AFTER a cell-less stub of an ancestor method it overrides was minted (the usual order:
+nothing calls the override, so the SCC order does not put it first), the override is REFUSED,
+`PYCSL-R580-OVERRIDE-FRAME-AFTER-BASE-STUB` (route #568's order backstop, one class up). Declared record-field frames
+stay route #278's (a wider declared override frame is refused there).
+
+MEASUREMENTS: `getting-better/open-routes/route580-rt55-r55-f6.md`.
+
+### 7.582 A method called through a class-body binding that is not a `def` is refused unless that binding is plain data or a `\nothing` frame (route #582, run #6)
+
+Red team 55 (family R55-F8, PRE-EXISTING): `class C: def m(self, v): self.a = v; n = m`, then `c.n(5); return c.a`
+PROVED `ensures \result == 0` (CPython 5) and even `assigns \nothing`: the method tables know only `def`s, so `c.n(5)`
+lowered to the receiver-less, effect-free `val c_n_1 (x0: int) : int` (plain class, dataclass, `@mutable_state`; a
+two-level alias `o = n`; the unbound `C.n(c, 5)`; a subclass's `n = C.m`; through an `Any` receiver with a hidden
+`self.flag` store between two `getattr` reads).
+
+RULE (front end, `pycsl.py::_run_pipeline` on the standard-library AST, twin `\trusted`; inline, no new def, no
+axiom), refuse-by-default: a name bound in a class body by anything but a `def` (an assignment, an annotated
+assignment with a value, an augmented assignment, a loop / `with` / walrus target, an import), or stored on a class of
+this file from outside its body (`C.n = ...`, `setattr(C, "n", ...)`, a computed `setattr` name counting as every
+name), is a POSSIBLE METHOD unless its value is plain data (constants, displays and arithmetic of constants, a constant
+f-string, a dataclass `field(...)` whose `default` is plain data) or resolves -- through further class-body aliases --
+to exactly one function (`n = m` of the same class, `n = C.m`, a module function `n = f`) whose verified / declared
+frame is `#@ assigns \nothing` (its writes are then none, and the effect-free modelling of the call is sound; its result
+stays unconstrained). A call `<x>.n(...)` in any function is then REFUSED, `PYCSL-R582-CLASS-BODY-ALIAS-CALL`, keyed on
+the name for every receiver (an instance's class is not known here: a subclass, `Any`, a local) except a receiver that
+names a CLASS of this file, `X.n(...)`, which looks `n` up in `X`'s file MRO only. Advice: call the method by the name of
+its `def`, or give the name its own `def` (with a contract) that calls it.
+
+MEASUREMENTS: `getting-better/open-routes/route582-rt55-r55-f8.md`.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

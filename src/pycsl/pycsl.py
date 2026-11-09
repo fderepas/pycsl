@@ -16599,6 +16599,290 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # merged the closure's): a class of the IR schema's name declared here is a user record,
     # not an IR node, for the emit_ir projector judge (`statements.py::_typed_local_vars`).
     transpiler.own_types_r567 = set(_r498_own[1]) - {None}
+    # (run #6) ROUTE #579 -- IR-CLASS IDENTITY BY RESOLUTION, NEVER BY NAME. The emit_ir
+    # isinstance recognizers (`isinstance(<emit_ir>, ast.Name)` -> `is_var`, `isinstance(
+    # <emit_ir>, CSLFieldAccess)` -> `is_fieldget`) and route #567's narrowing judge read the
+    # class argument's SPELLING: a file-defined `CSLFieldAccess`, a `class ast:` or `import
+    # rt55dep_ir as ast` passed as IR classes, the test lowered to the IR discriminant and
+    # `node.kind` to `kind_of node`, the constructor tag, so a false claim PROVED (witnesses-
+    # r579, CPython returns 1 under `ensures \result == 0`). Here every binding of every name
+    # of THIS source is collected (all scopes, flow-insensitive: imports, defs, classes,
+    # stores, parameters, handlers, match captures, type parameters); a name is RESOLVED only
+    # when every binding of it is the same import of a real pycsl IR module that pycsl's own
+    # import resolution finds at the real file (`frontend.pure_ast`, `frontend.Module2_Parser`,
+    # `ir_schema`) or of the standard-library `ast`. A star import or a dynamic namespace
+    # write (`globals()` / `vars()` / `exec` / `eval` / `__import__` / `sys.modules`) leaves
+    # every name unresolved. Module 6 admits a class as an IR class only through this table
+    # (`expressions.py::_handle_isinstance`, `_handle_attribute_expr`); absent: none is.
+    _rs579: Dict[str, str] = {}
+    try:
+        import ast as _ast579
+        _t579: Any = _ast579.parse(source_code)
+    except Exception:
+        _t579 = None
+    if _t579 is not None:
+        _b579: Dict[str, Set[str]] = {}
+        _dyn579 = False
+        for _n579 in _ast579.walk(_t579):
+            _nm579: List[Tuple[str, str]] = []
+            if isinstance(_n579, _ast579.Import):
+                for _al579 in _n579.names:
+                    if _al579.asname:
+                        _nm579.append((_al579.asname, _al579.name))
+                    else:
+                        _nm579.append((_al579.name.split(".")[0], _al579.name.split(".")[0]))
+            elif isinstance(_n579, _ast579.ImportFrom):
+                for _al579 in _n579.names:
+                    if _al579.name == "*":
+                        _dyn579 = True
+                        continue
+                    _nm579.append((_al579.asname or _al579.name,
+                                   "?" if (_n579.level or not _n579.module)
+                                   else _n579.module + "." + _al579.name))
+            elif isinstance(_n579, (_ast579.FunctionDef, _ast579.AsyncFunctionDef,
+                                    _ast579.ClassDef)):
+                _nm579.append((_n579.name, "?"))
+            elif isinstance(_n579, _ast579.Name):
+                if not isinstance(_n579.ctx, _ast579.Load):
+                    _nm579.append((_n579.id, "?"))
+                elif _n579.id in ("globals", "vars", "exec", "eval", "__import__"):
+                    _dyn579 = True
+            elif isinstance(_n579, _ast579.Attribute) and _n579.attr == "modules":
+                _dyn579 = True
+            elif isinstance(_n579, _ast579.arg):
+                _nm579.append((_n579.arg, "?"))
+            elif isinstance(_n579, (_ast579.Global, _ast579.Nonlocal)):
+                _nm579.extend((_g579, "?") for _g579 in _n579.names)
+            elif isinstance(_n579, _ast579.ExceptHandler) and _n579.name:
+                _nm579.append((_n579.name, "?"))
+            elif isinstance(_n579, (_ast579.MatchAs, _ast579.MatchStar)) and _n579.name:
+                _nm579.append((_n579.name, "?"))
+            elif isinstance(_n579, _ast579.MatchMapping) and _n579.rest:
+                _nm579.append((_n579.rest, "?"))
+            elif type(_n579).__name__ in ("TypeVar", "ParamSpec", "TypeVarTuple", "TypeAlias"):
+                _tn579 = getattr(_n579, "name", None)
+                if isinstance(_tn579, str):
+                    _nm579.append((_tn579, "?"))
+                elif isinstance(_tn579, _ast579.Name):
+                    _nm579.append((_tn579.id, "?"))
+            for _l579, _tg579 in _nm579:
+                _b579.setdefault(_l579, set()).add(_tg579)
+        if not _dyn579:
+            from frontend.ir_resolve import _resolve_module_path as _rmp579
+            _real579 = os.path.dirname(os.path.realpath(__file__))
+            _ok579: Dict[str, bool] = {}
+            for _l579, _ts579 in _b579.items():
+                if len(_ts579) != 1:
+                    continue
+                _tg579 = next(iter(_ts579))
+                _mod579 = ""
+                if _tg579 == "ast" and _l579 == "ast":
+                    _rs579[_l579] = _tg579
+                    continue
+                if _tg579 == "frontend.pure_ast" and _l579 == "ast":
+                    _mod579 = "frontend.pure_ast"
+                elif _tg579 == "frontend.Module2_Parser.FieldAccess":
+                    _mod579 = "frontend.Module2_Parser"
+                elif _tg579.startswith("ir_schema.") and _tg579.count(".") == 1:
+                    _mod579 = "ir_schema"
+                if not _mod579:
+                    continue
+                if _mod579 not in _ok579:
+                    try:
+                        _hit579 = _rmp579(_mod579, 0, args.file)
+                    except Exception:
+                        _hit579 = None
+                    _ok579[_mod579] = bool(_hit579) and os.path.realpath(_hit579) == os.path.join(
+                        _real579, *_mod579.split(".")) + ".py"
+                if _ok579[_mod579]:
+                    _rs579[_l579] = _tg579
+    transpiler.ir_class_targets_r579 = _rs579
+    # (run #6) ROUTE #582 -- A METHOD CALLED THROUGH A CLASS-BODY BINDING THAT IS NOT A `def`.
+    # `class C: def m(self, v): self.a = v; n = m` makes `c.n(5)` run `m`, but the method
+    # tables know only `def`s: `c.n(5)` lowered to an opaque receiver-less `val c_n_1 (x0:
+    # int) : int` with no `writes`, so the field `m` writes stayed unchanged in the proof and
+    # `c.a == 0` after `c.n(5)` PROVED (CPython 5; also two-level `o = n`, unbound `C.n(c, 5)`,
+    # a subclass's `n = C.m`, witnesses-r582). THE RULE (refuse-by-default, every receiver):
+    # a name bound in a class body by anything but a `def` (an assignment, an annotated
+    # assignment with a value, an augmented assignment, a loop / `with` / walrus target, an
+    # import), or stored on a class of this file from outside its body (`C.n = ...`,
+    # `setattr(C, "n", ...)`), whose value may be callable -- anything but plain data
+    # (constants, displays and arithmetic of constants, a dataclass `field(...)` with a
+    # plain-data `default`) -- may be a method; a call `<x>.n(...)` in any function is then
+    # REFUSED. Keyed on the NAME, so the receiver's static type (a subclass, `Any`, the class
+    # itself) does not matter.
+    if _t579 is not None:
+        _cls582 = {_c582.name for _c582 in _ast579.walk(_t579)
+                   if isinstance(_c582, _ast579.ClassDef)}
+        _al582: Dict[str, int] = {}
+
+        # candidate bindings (name, value node, line); a statement as the value (an
+        # augmented assignment, a loop / `with` target, an import) is never plain data
+        _cd582: List[Tuple[str, Any, int, str]] = []
+        _bs582: Dict[str, Set[str]] = {}
+        for _c582 in _ast579.walk(_t579):
+            if isinstance(_c582, _ast579.ClassDef):
+                _bs582.setdefault(_c582.name, set()).update(
+                    _b.id for _b in _c582.bases if isinstance(_b, _ast579.Name))
+                _q582: List[Any] = list(_c582.body)
+                while _q582:
+                    _s582 = _q582.pop()
+                    if isinstance(_s582, (_ast579.FunctionDef, _ast579.AsyncFunctionDef,
+                                          _ast579.ClassDef, _ast579.Lambda)):
+                        continue
+                    _bv582: List[Tuple[Any, Any]] = []
+                    if isinstance(_s582, _ast579.Assign):
+                        _bv582 = [(_t, _s582.value) for _t in _s582.targets]
+                    elif isinstance(_s582, _ast579.AnnAssign) and _s582.value is not None:
+                        _bv582 = [(_s582.target, _s582.value)]
+                    elif isinstance(_s582, (_ast579.AugAssign, _ast579.For, _ast579.AsyncFor)):
+                        _bv582 = [(_s582.target, _s582)]
+                    elif isinstance(_s582, (_ast579.With, _ast579.AsyncWith)):
+                        _bv582 = [(_w.optional_vars, _s582) for _w in _s582.items
+                                  if _w.optional_vars is not None]
+                    elif isinstance(_s582, _ast579.NamedExpr):
+                        _bv582 = [(_s582.target, _s582.value)]
+                    elif isinstance(_s582, (_ast579.Import, _ast579.ImportFrom)):
+                        for _a582 in _s582.names:
+                            _cd582.append(((_a582.asname or _a582.name).split(".")[0], _s582,
+                                           getattr(_s582, "lineno", 0), _c582.name))
+                    for _tg582, _v582 in _bv582:
+                        for _nn582 in _ast579.walk(_tg582):
+                            if isinstance(_nn582, _ast579.Name):
+                                _cd582.append((_nn582.id, _v582, getattr(_s582, "lineno", 0),
+                                               _c582.name))
+                    _q582.extend(_ast579.iter_child_nodes(_s582))
+            # stored on a file class from outside its body
+            if isinstance(_c582, (_ast579.Assign, _ast579.AnnAssign, _ast579.AugAssign)):
+                for _tg582 in (_c582.targets if isinstance(_c582, _ast579.Assign)
+                               else [_c582.target]):
+                    if (isinstance(_tg582, _ast579.Attribute)
+                            and isinstance(_tg582.value, _ast579.Name)
+                            and _tg582.value.id in _cls582):
+                        _cd582.append((_tg582.attr, (_c582 if isinstance(_c582, _ast579.AugAssign)
+                                                     else _c582.value),
+                                       getattr(_c582, "lineno", 0), _tg582.value.id))
+            if (isinstance(_c582, _ast579.Call) and isinstance(_c582.func, _ast579.Name)
+                    and _c582.func.id == "setattr" and len(_c582.args) >= 2
+                    and isinstance(_c582.args[0], _ast579.Name)
+                    and _c582.args[0].id in _cls582):
+                _cd582.append(((_c582.args[1].value if isinstance(_c582.args[1], _ast579.Constant)
+                                and isinstance(_c582.args[1].value, str) else "*"),
+                               (_c582.args[2] if len(_c582.args) >= 3 else _c582),
+                               getattr(_c582, "lineno", 0), _c582.args[0].id))
+        # class -> {name bound there by a possibly-callable non-`def` binding: line}
+        _ac582: Dict[str, Dict[str, int]] = {}
+        for _nm582, _v582, _ln582, _cc582 in _cd582:
+            # plain data: constants, displays / arithmetic of constants, a constant f-string,
+            # a dataclass `field(...)` whose `default` (if any) is plain data
+            _pv582 = True
+            _st582: List[Any] = [_v582]
+            while _st582 and _pv582:
+                _x582 = _st582.pop()
+                if _x582 is None or isinstance(_x582, _ast579.Constant):
+                    continue
+                if isinstance(_x582, (_ast579.Tuple, _ast579.List, _ast579.Set)):
+                    _st582.extend(_x582.elts)
+                elif isinstance(_x582, _ast579.Dict):
+                    _st582.extend(list(_x582.keys) + list(_x582.values))
+                elif isinstance(_x582, _ast579.UnaryOp):
+                    _st582.append(_x582.operand)
+                elif isinstance(_x582, _ast579.BinOp):
+                    _st582.extend([_x582.left, _x582.right])
+                elif isinstance(_x582, _ast579.JoinedStr):
+                    _pv582 = all(isinstance(_e, _ast579.Constant) for _e in _x582.values)
+                elif (isinstance(_x582, _ast579.Call) and isinstance(_x582.func, _ast579.Name)
+                        and _x582.func.id == "field" and not _x582.args):
+                    _st582.extend(_k.value for _k in _x582.keywords if _k.arg == "default")
+                else:
+                    _pv582 = False
+            # an alias of a `def` whose verified (or declared-trusted) frame is `#@ assigns
+            # \nothing` writes no field and no attribute, so the receiver-less effect-free
+            # modelling of the call is sound for it (its result is unconstrained): `n = m`
+            # (a method of the same class, followed through further aliases), `n = C.m`,
+            # `n = f` (a module function), each resolved to exactly one IR function
+            _fx582 = 0
+            _rv582: Any = _v582
+            _rc582 = _cc582
+            _nx582: Optional[str] = None
+            while not _pv582 and _fx582 < 8 and _nx582 is None:
+                _fx582 += 1
+                if isinstance(_rv582, _ast579.Name):
+                    _src582 = [_q for _q in _cd582 if _q[0] == _rv582.id and _q[3] == _rc582]
+                    if len(_src582) == 1 and _src582[0][1] is not _rv582:
+                        _rv582 = _src582[0][1]
+                        continue
+                    _nx582 = (_rc582.lower() + "__" + _rv582.id
+                              if any(isinstance(_d, (_ast579.FunctionDef, _ast579.AsyncFunctionDef))
+                                     and _d.name == _rv582.id
+                                     for _k in _ast579.walk(_t579)
+                                     if isinstance(_k, _ast579.ClassDef) and _k.name == _rc582
+                                     for _d in _k.body)
+                              else _rv582.id)
+                elif (isinstance(_rv582, _ast579.Attribute)
+                        and isinstance(_rv582.value, _ast579.Name)
+                        and _rv582.value.id in _cls582):
+                    _nx582 = _rv582.value.id.lower() + "__" + _rv582.attr
+                else:
+                    break
+            if _nx582 is not None:
+                _fn582 = [_g for _g in (ir_data.get("functions") or [])
+                          if isinstance(_g, dict) and _g.get("name") == _nx582]
+                _as582 = (((_fn582[0].get("contracts") or {}).get("assigns") or [])
+                          if len(_fn582) == 1 else [])
+                if (_as582 and all(isinstance(_a, dict) and _a.get("type") == "Nothing"
+                                   for _a in _as582)):
+                    _pv582 = True
+            if not _pv582:
+                _al582.setdefault(_nm582, _ln582)
+                _ac582.setdefault(_cc582, {}).setdefault(_nm582, _ln582)
+        if _al582:
+            for _f582 in _ast579.walk(_t579):
+                if not isinstance(_f582, (_ast579.FunctionDef, _ast579.AsyncFunctionDef)):
+                    continue
+                for _cl582 in _ast579.walk(_f582):
+                    if not (isinstance(_cl582, _ast579.Call)
+                            and isinstance(_cl582.func, _ast579.Attribute)
+                            and (_cl582.func.attr in _al582 or "*" in _al582)):
+                        continue
+                    _an582 = _cl582.func.attr
+                    # `X.n(...)` through a CLASS of this file looks `n` up in X's MRO only
+                    # (its file ancestors); any other receiver may be an instance of any
+                    # class, so every class's bindings count
+                    _rv582 = _cl582.func.value
+                    if isinstance(_rv582, _ast579.Name) and _rv582.id in _cls582:
+                        _mro582 = {_rv582.id}
+                        _wk582 = [_rv582.id]
+                        while _wk582:
+                            for _b582 in _bs582.get(_wk582.pop(), set()):
+                                if _b582 not in _mro582:
+                                    _mro582.add(_b582)
+                                    _wk582.append(_b582)
+                        _ln582 = None
+                        for _k582 in sorted(_mro582):
+                            _ln582 = _ln582 or (_ac582.get(_k582) or {}).get(
+                                _an582, (_ac582.get(_k582) or {}).get("*"))
+                        if _ln582 is None:
+                            continue
+                    else:
+                        _ln582 = _al582.get(_an582, _al582.get("*", 0))
+                    from errors import PyCSLSemanticError as _R582Err
+                    raise _R582Err(
+                        "line %d: PYCSL-R582-CLASS-BODY-ALIAS-CALL: in function '%s', the "
+                        "call `.%s(...)` may run a method bound to `%s` by a class-body "
+                        "statement that is not a `def` (line %d: an alias `%s = m`, an "
+                        "assignment of a function, lambda or other callable, an import, "
+                        "or a store / `setattr` of it on a class of this file). PyCSL's "
+                        "method tables know only `def`s, so the call would be modelled "
+                        "as an opaque function with no receiver and no effect, and a "
+                        "field the real method writes would stay unchanged in the proof "
+                        "(route #582). Call the method by the name of its `def` "
+                        "(`c.m(...)`), or define `%s` with its own `def` (and contract) "
+                        "that calls it."
+                        % (getattr(_cl582, "lineno", 0), _f582.name, _an582,
+                           _an582 if _an582 in _al582 else "a computed name",
+                           _ln582, _an582, _an582),
+                        stage="ir-semantic", code="PYCSL-R582-CLASS-BODY-ALIAS-CALL")
     # ROUTE #250 — opt-in drop of the FLOAT-FINITE assumption (read by the float
     # comparison lowering in `module6_whyml/expressions.py::_handle_binop`).
     transpiler.strict_float_finite = bool(getattr(args, "strict_float_finite", False))

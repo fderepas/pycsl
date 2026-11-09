@@ -1031,6 +1031,24 @@ AUDITED = {
         "w567_kind_misproj with `dv: DictView` as the parameter and no isinstance (getting-better/open-routes/witnesses-r567/"
         "advice/a567_record_typed_param) VERIFIES the honest two-sided `\\result == 1 ==> dv.kind == \"keys\"` / converse; "
         "control 9033 (the same, corpus) VERIFIES and 9034 (its false `\\result == 0`) does not."),
+    # driver run #6 -- routes #579 / #580 / #582 (u36, red team 55 R55-F5 / F6 / F8).
+    ('src/pycsl/module6_whyml/expressions.py', "_R579('PYCSL-R579-IR-CLASS-NOT-RESOLVED: `' + str(_k567) + '.' + str(attr) + '` (in `' + str(getattr(self, '_current_emitting_func', None) o"): (FOLLOWABLE,
+        "Route #579. 'Annotate the value with the class it really has (a parameter or local of that record type)': witness "
+        "gg1609 with `node: CSLFieldAccess` as the parameter and no isinstance (getting-better/open-routes/witnesses-r579/"
+        "advice/a579_record_typed_param) VERIFIES the honest two-sided `\\result == 1 ==> node.kind == \"keys\"` / converse; "
+        "control 9295 (the same, corpus) VERIFIES at base and HEAD. The import disjunct is control 9279 (`import ast`, "
+        "`isinstance(node, ast.Name)`, two reads of `node.id` agree) VERIFIES."),
+    ('src/pycsl/module6_whyml/functions.py', 'PyCSLSemanticError(f"PYCSL-R580-OVERRIDE-FRAME-AFTER-BASE-STUB: the method `{func[\'name\']}` writes object state (`_pyobj_state`: an attribut'): (FOLLOWABLE,
+        "Route #580. 'make the written attribute a field the BASE class declares in `__init__` and list it in both methods' "
+        "`#@ assigns`': witness gi1600 with `self.flag` declared in `C.__init__`, `assigns self.a, self.flag` on `C.m` and "
+        "`S.m` (both `ensures self.flag == v`) and the caller reading `c.flag` around `c.m(0)` / `c.m(5)` -- control 9297 -- "
+        "VERIFIES `\\result == 1` at base and HEAD (CPython 1 for S() and C()). The first disjunct (the caller's receiver "
+        "typed `S`) makes the stub `S.m`'s own frame, cell included: gi1600's FALSE claim is then NOT PROVED, as it must be."),
+    ('src/pycsl/pycsl.py', '_R582Err("line %d: PYCSL-R582-CLASS-BODY-ALIAS-CALL: in function \'%s\', the call `.%s(...)` may run a method bound to `%s` by a class-body st'): (FOLLOWABLE,
+        "Route #582. 'Call the method by the name of its `def` (`c.m(...)`)': witness hb1600 with `c.m(5)` and the honest "
+        "`\\result == 5` (getting-better/open-routes/witnesses-r582/advice/a582_call_def_name; control 9293) VERIFIES; 'or "
+        "define `n` with its own `def` (and contract) that calls it': a582_own_def (control 9294, `def n(self, v): "
+        "self.m(v)` with `ensures self.a == v`) VERIFIES `\\result == 5`. Both at base and HEAD."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1428,6 +1446,10 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R549-NONE-ARGUMENT: the argument `{_ast341.unparse(_r432)}` of `{'): '205c5b0dd5e8',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr466(f'{_rf466[1]}. CPython raises TypeError there before the callee runs, while the model binds the arguments it can, drops / de"): 'a679999cef18',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R555-IMPORTED-NONE-RESULT: the operand `{_ast341.unparse(_r432)}`'): '934289c53376',
+    # driver run #6 -- routes #579 / #580 / #582 (u36).
+    ('src/pycsl/module6_whyml/expressions.py', "_R579('PYCSL-R579-IR-CLASS-NOT-RESOLVED: `' + str(_k567) + '.' + str(attr) + '` (in `' + str(getattr(self, '_current_emitting_func', None) o"): 'd49ebfa1849d',
+    ('src/pycsl/module6_whyml/functions.py', 'PyCSLSemanticError(f"PYCSL-R580-OVERRIDE-FRAME-AFTER-BASE-STUB: the method `{func[\'name\']}` writes object state (`_pyobj_state`: an attribut'): '5da2b2273691',
+    ('src/pycsl/pycsl.py', '_R582Err("line %d: PYCSL-R582-CLASS-BODY-ALIAS-CALL: in function \'%s\', the call `.%s(...)` may run a method bound to `%s` by a class-body st'): 'f6e3c11983c0',
 }
 
 
