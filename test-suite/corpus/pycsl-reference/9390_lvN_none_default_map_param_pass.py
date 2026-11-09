@@ -9,27 +9,23 @@ class C:
     def __init__(self) -> None:
         self.k: int = 0
 
-    #@ requires True
     #@ ensures \result == x
     #@ assigns \nothing
     def g(self, x: int, d: Optional[Dict[str, str]] = None) -> int:
         return x
 
-    #@ requires True
     #@ ensures \result == 3
     #@ assigns \nothing
     def h(self) -> int:
         return self.g(3)
 
 
-#@ requires True
 #@ ensures \result == x + 1
 #@ assigns \nothing
 def mg(x: int, d: Optional[Dict[str, str]] = None) -> int:
     return x + 1
 
 
-#@ requires True
 #@ ensures \result == 4
 #@ assigns \nothing
 def mh() -> int:

@@ -318,7 +318,6 @@ module6_whyml/preamble.py	PreambleEmissionMixin._emit_type_decls	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_opaque_class_aliases	unclassified	-
 module6_whyml/scc.py	compute_sccs	cost-scale:nested-closure-lift	the nested-closure lift
 module6_whyml/scc.py	sort_functions_by_scc	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-module6_whyml/statements.py	StatementEmissionMixin._expr_to_whyml	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._track_collection_metadata	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_return_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._emit_first_assign	unclassified	-
