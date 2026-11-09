@@ -9142,3 +9142,7 @@ rewrite keeps them verified):
   narrowed by `isinstance(node, ast.ClassDef)`: an element of a narrowed object's field has an unknown class).
   `\trusted` 406 -> 407 (markers 378 -> 379). No caller in the mirror emission; same `requires/ensures True` contract.
 COST/SCALE, not correctness.
+- (run #6 lvL) `emit-ir-narrowing-view` BUILT as capability R1, the receiver-typed narrowing view (annotations §7.566,
+  route567 doc "R1"): the six Module5 functions above (`_const_int_value`, `_collect_final_registry`,
+  `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag`, `_collect_type_params`) are VERIFIED
+  again. Remaining here: `emit-ir-item-store-model` (`_handle_match_stmt`).

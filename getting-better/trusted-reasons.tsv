@@ -126,8 +126,6 @@ frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._py_expr_fstring	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._py_stmts_to_ir	cost-scale:stmt-handler-dispatch	L2 `_py_stmts_to_ir`
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._match_pattern_to_ir	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._field_type_from_annotation_inst	unclassified	-
-frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_type_params	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
-frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_typevar_registry	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._emit_typeddict_record	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._synthesize_typeddict_functional	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._emit_namedtuple_record	unclassified	-
@@ -135,14 +133,10 @@ frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._synthesize_namedtuple_function
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._emit_protocol_interface	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._populate_protocol_conformance	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_class_fields	unclassified	-
-frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._const_int_value	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter.visit_ClassDef	unclassified	-
-frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._union_arm_tag	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_union_arms	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._normalize_union_annotation	unclassified	-
-frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_final_registry	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._normalize_literal_annotation	unclassified	-
-frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._m5_get_type_name_legacy	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._encode_callable_annotation	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._m5_get_type_name	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._build_function_symbol_table	unclassified	-
