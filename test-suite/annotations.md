@@ -5806,13 +5806,35 @@ RULES (emitter, `statements.py::_handle_array_set_stmt` / `expressions.py::_hand
   a first placement that cached the table in a new emitter field tripped `check-assigns-underdeclaration`), closed
   under plain assignment of the path or of a prefix of it. EVERYWHERE, the mirror included (no file-path special
   case): the mirror functions whose `ast.<Node>` tests outside the recognizer map narrow a path they then read a
-  projector attribute on are `\trusted` -- `Module5_IREmitter.py` `_const_int_value`, `_collect_final_registry`,
-  `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (run #5 lvG2; `_csl_in` was already).
+  projector attribute on were `\trusted` -- `Module5_IREmitter.py` `_const_int_value`, `_collect_final_registry`,
+  `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (run #5 lvG2; `_csl_in` was already) --
+  and are VERIFIED again under the receiver-typed view below (run #6 lvL), with `_collect_type_params` (§7.574).
+- (run #6, capability R1) THE RECEIVER-TYPED NARROWING VIEW. An `isinstance(p, ast.<X>)` test, `ast` RESOLVED
+  (§7.579) and the class not inside a tuple, is an IR class ON THIS RECEIVER -- it does not narrow `p` -- exactly when
+  `_handle_isinstance` lowers that very test to a constructor discriminant of `p`'s model type: a `pyast_stmt` loop
+  local and X in `_AST_CLASS_TO_STMT_KIND` (`is_assign_node` / `is_annassign_node` / `is_classdef_node` /
+  `is_functiondef_node`), a `TParamNode` parameter and X = `ClassDef` (`is_classdef_of`), an emit_ir value and X =
+  `Constant` under the const-reflect model (`is_constant`), an emit_ir value and X = `UnaryOp` in `_const_int_value`
+  (`is_unaryop`); the pyval arm, which precedes them in `_handle_isinstance`, excludes the test. The receiver's root
+  name must have ONE binding in the body (a parameter never rebound, or the target of exactly one `for`), so its model
+  type -- the gate's input -- is the same wherever the name is bound and the test is lowered where it is judged. The
+  value then IS the modelled node: the emit_ir values read off its fields (`stmt_value`, `stmt_target0`,
+  `stmt_annotation`, `bases_of`, `unaryop_operand_of`) are that node's children, not values of an unknown class. The
+  attributes X carries that the projectors MISREAD stay refused through the whole #574 alias closure, as a separate
+  RESIDUAL narrowing (`.kind` of an `ast.Constant`, its own `str | None` field, not the `kind_of` tag; `.op` of an
+  `ast.UnaryOp`, an operator object, which `op_of` reads as `""`); the residual keeps its set across the two
+  exact-match coarse edges (an element of a container that may hold an X may be an X) and widens like the main table
+  everywhere else. One residual read is not a projector read: `<x>.op` when EVERY occurrence of `<x>.op` in the body is
+  the subject of `isinstance(<x>.op, ast.USub)`, which `_handle_isinstance` lowers over the object (`str_eq_op
+  (unaryop_op_of x) "-"`), the projector's own lowering of the subject being computed with the call's arguments and
+  discarded. A class decided by a spelling (§7.579), by the file, by a TUPLE of classes, or tested on any other
+  receiver narrows exactly as before. Applies identically to every file (no file-path special case); every read it
+  admits was refused before (it only removes refusals), and the emission of every admitted body is unchanged.
 
 MEASUREMENTS: see the route docs (route566 / route567) for the witness tables, the corpus files, the byte-diff and the
 mirror sweep.
-Residuals (named): the six mirror re-trusts above (convertible once an emit_ir item store / a narrowing view is
-modelled; getting-better/driver-backlog.md "routes #566 / #567 mirror re-trusts"); the closure ran FORWARD only and
+Residuals (named): `_handle_match_stmt`'s #566 re-trust (convertible once an emit_ir item store is modelled;
+getting-better/driver-backlog.md "routes #566 / #567 mirror re-trusts"; the five #567 re-trusts converted with R1); the closure ran FORWARD only and
 missed an alias through a container (`xs = [d]`): both REPAIRED by route #574 (§7.574); `type(x) is C` /
 `x.__class__` tests are not narrowings for #567; the int-erased `typed` / `store` emission of these programs fails
 L3 (`unbound type symbol 'array'`) at the base, so the refusals there replace an L3 failure, not a proof.

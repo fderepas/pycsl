@@ -103,6 +103,14 @@ rep("""                                _ok567 = _ast579 and (_e567.get("attr")
                                                 if _ky1 == "object" and _y1.get("type") in (
                                                         "Attribute", "FieldGet"):
                                                     continue
+                                                # an attribute / field NAME, a literal's text, a
+                                                # callee: not a binding of the name
+                                                if _ky1 in ("attr", "field") or (
+                                                        _ky1 == "value" and _y1.get("type") in (
+                                                            "String", "Str", "Bytes", "Number",
+                                                            "Constant")) or (
+                                                        _ky1 == "func" and _y1.get("type") == "Call"):
+                                                    continue
                                                 if (_y1.get("stmt") in ("For", "ForStmt")
                                                         and _ky1 == "target"):
                                                     _bf1 += 1
