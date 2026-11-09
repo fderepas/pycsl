@@ -7219,7 +7219,7 @@ class FunctionEmissionMixin:
             f" (ir_stmts: ref (seq stmt_ir)) : unit",
             "    requires { true }",
             "    ensures  { true }",
-            "    raises { PyCSLSemanticError -> true }",
+            "    raises { PyCSLSemanticError _ -> true }",
             "    writes { ir_stmts }",
             "  =",
             "    let ts = del_targets_ast stmt in",
@@ -7234,7 +7234,7 @@ class FunctionEmissionMixin:
             # raise carries the exception NAME only, and the raise path never reaches
             # `ensures`).
             "      (if is_sub tgt && is_slice (sindex_of tgt) then begin",
-            "         raise PyCSLSemanticError",
+            "         raise (PyCSLSemanticError (any string))",
             "       end);",
             # (#49) ROUTE #80 — the ATTRIBUTE arm is the second err-divergence arm.
             # `_py_stmt_delete` now REFUSES `del <obj>.<attr>` instead of dropping it to
@@ -7244,7 +7244,7 @@ class FunctionEmissionMixin:
             # total `is_attribute` projector (IrAttr arm); no isinstance_op, no new
             # preamble construct.
             "      (if is_attribute tgt then begin",
-            "         raise PyCSLSemanticError",
+            "         raise (PyCSLSemanticError (any string))",
             "       end);",
             "      (if is_sub tgt && not (is_slice (sindex_of tgt)) then",
             f"         ir_stmts := Seq.snoc !ir_stmts (SDelSubscript"
@@ -7334,7 +7334,7 @@ class FunctionEmissionMixin:
             "         ir_stmts := Seq.snoc !ir_stmts"
             " (SFieldAssign (name_of (avalue_of target)) (name_of target) value)",
             "       else if not (is_var (avalue_of target)) then",
-            "         raise PyCSLSemanticError",
+            "         raise (PyCSLSemanticError (any string))",
             # (#44) ROUTE #28 — the module-global arm, previously `else ()`.
             "       else",
             "         ir_stmts := Seq.snoc !ir_stmts"
@@ -7674,14 +7674,14 @@ class FunctionEmissionMixin:
             # keep the historical preamble fold (their record and `_csl_to_ir` stub are
             # int-erased — the #64 seam), byte-identical.
             "    diverges",
-            "    raises { PyCSLIRError -> true }",
-            "    raises { PyCSLSemanticError -> true }",
+            "    raises { PyCSLIRError _ -> true }",
+            "    raises { PyCSLSemanticError _ -> true }",
         ] + _frame74 + [
             "  =",
             "    let rec synth_local (guard: emit_ir) (ens: List.list ens_node) : Seq.seq emit_ir",
             "      diverges",
-            "      raises { PyCSLIRError -> true }",
-            "      raises { PyCSLSemanticError -> true }",
+            "      raises { PyCSLIRError _ -> true }",
+            "      raises { PyCSLSemanticError _ -> true }",
             "    =",
             "      match ens with",
             "      | Nil -> Seq.empty",
@@ -8139,8 +8139,8 @@ class FunctionEmissionMixin:
         if _lbls74 is not None:
             _c2i = f"{cls}___csl_to_ir self"
             L += ["    diverges",
-                  "    raises { PyCSLIRError -> true }",
-                  "    raises { PyCSLSemanticError -> true }"] + _frame74
+                  "    raises { PyCSLIRError _ -> true }",
+                  "    raises { PyCSLSemanticError _ -> true }"] + _frame74
         else:
             _c2i = "csl_to_ir"
         L += [

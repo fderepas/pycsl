@@ -10203,13 +10203,13 @@ def emit_final_pair_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append("         | Some st ->")
     out.append(f"             (if ({f1_cond}) then")
     out.append(f'                (match {n}__val_child "{desc["f1_target_key"]}" d with')
-    out.append(f"                 | Some (PStr tstr) -> if Map.get {f1_set} tstr then raise PyCSLSemanticError else ()")
+    out.append(f"                 | Some (PStr tstr) -> if Map.get {f1_set} tstr then raise (PyCSLSemanticError (any string)) else ()")
     out.append("                 | _ -> () end)")
     out.append(f"              else if ({f2_cond}) then")
     out.append(f'                (match {n}__val_child "{desc["f2_object_key"]}" d with')
     out.append(f'                 | Some (PStr ostr) -> if pystr_eq ostr "{desc["f2_object_val"]}" then')
     out.append(f'                       (match {n}__val_child "{desc["f2_field_key"]}" d with')
-    out.append(f"                        | Some (PStr fstr) -> if Map.get {f2_set} fstr then raise PyCSLSemanticError else ()")
+    out.append(f"                        | Some (PStr fstr) -> if Map.get {f2_set} fstr then raise (PyCSLSemanticError (any string)) else ()")
     out.append("                        | _ -> () end)")
     out.append("                     else ()")
     out.append("                 | _ -> () end)")
@@ -11643,7 +11643,7 @@ def emit_conc_cluster_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append(exc)
     out.append("  = match Map.get shared var_name with")
     out.append("    | None -> ()")
-    out.append("    | Some req -> if not (conc__contains held req) then raise PyCSLSemanticError else ()")
+    out.append("    | Some req -> if not (conc__contains held req) then raise (PyCSLSemanticError (any string)) else ()")
     out.append("    end")
     out.append("")
     # ---- reads walk (generic void-descend) ------------------------------
@@ -11695,7 +11695,7 @@ def emit_conc_cluster_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append("        let ah_idx = if conc__contains lo ah then conc__lindex lo ah else -1 in")
     out.append("        let new_idx = if conc__contains lo mutex then conc__lindex lo mutex else -1 in")
     out.append("        (if ah_idx >= 0 && new_idx >= 0 && new_idx <= ah_idx")
-    out.append("         then raise PyCSLSemanticError else ());")
+    out.append("         then raise (PyCSLSemanticError (any string)) else ());")
     out.append("        conc__lockcheck rest mutex lo")
     out.append("    end")
     out.append("")
@@ -11730,7 +11730,7 @@ def emit_conc_cluster_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append("                     | Nil -> ()")
     out.append("                     | Cons _ _ ->")
     out.append("                         (match lock_order with")
-    out.append("                          | None -> raise PyCSLSemanticError")
+    out.append("                          | None -> raise (PyCSLSemanticError (any string))")
     out.append("                          | Some lo -> conc__lockcheck held m lo")
     out.append("                          end)")
     out.append("                     end)")
@@ -12405,13 +12405,13 @@ def emit_cs_clause_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append(f"  let {n} (clause: pyval) (ctx: string) (allow_result: bool) (symtab: sdict) (mc: sdict) : unit")
     out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
     out.append("  = match clause with PNone -> () | _ ->")
-    out.append(f"      (if not allow_result && {cr} clause then raise PyCSLSemanticError else ());")
+    out.append(f"      (if not allow_result && {cr} clause then raise (PyCSLSemanticError (any string)) else ());")
     out.append(f"      let _fv = {fv} clause in")
     out.append(f"      let v = {n}__anystr () in")
     out.append('      if (not (pystr_eq v ""))')
     out.append("         && (match slookup v symtab with None -> true | _ -> false end)")
     out.append("         && (match slookup v mc with None -> true | _ -> false end)")
-    out.append("      then raise PyCSLSemanticError else ()")
+    out.append("      then raise (PyCSLSemanticError (any string)) else ()")
     out.append("    end")
     out.append(f"  let rec {n}__list (xs: list pyval) (ctx: string) (symtab: sdict) (mc: sdict) : unit")
     out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
@@ -12596,7 +12596,7 @@ def emit_check_class_invariants_group(desc: Dict[str, Any], whyml_ident) -> List
     out.append(f"  = let _fv = {fv} inv in")
     out.append(f"    let var = {n}__anystr () in")
     out.append('    if (not (pystr_eq var "")) && (not (Map.get fset var))')
-    out.append("    then raise PyCSLSemanticError else ()")
+    out.append("    then raise (PyCSLSemanticError (any string)) else ()")
     out.append(f"  let rec {n}__invs (fset: map string bool) (invs: list pyval) : unit")
     out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
     out.append("    variant { invs }")
@@ -12727,9 +12727,9 @@ def emit_check_gt3_schema_only_group(desc: Dict[str, Any], whyml_ident) -> List[
     out.append("    | Cons tp rest ->")
     out.append("        (match tp with")
     out.append(f'         | PDict d -> (match pget_dyn "{kk}" d with')
-    out.append(f'                      | Some (PStr k) -> if pystr_eq k "{tv}" then () else raise PyCSLSemanticError')
+    out.append(f'                      | Some (PStr k) -> if pystr_eq k "{tv}" then () else raise (PyCSLSemanticError (any string))')
     out.append("                      | None -> ()")
-    out.append("                      | Some _ -> raise PyCSLSemanticError end)")
+    out.append("                      | Some _ -> raise (PyCSLSemanticError (any string)) end)")
     out.append("         | _ -> () end);")
     out.append(f"        {n}__tps rest")
     out.append("    end")
@@ -15651,7 +15651,7 @@ def emit_check_bounds_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append("    | Cons tp rest ->")
     out.append("        (match tp with")
     out.append(f'         | PDict d -> (match pget_dyn "{bk}" d with')
-    out.append("                      | Some (PStr bound) -> if pystr_eq ct bound then () else raise PyCSLSemanticError")
+    out.append("                      | Some (PStr bound) -> if pystr_eq ct bound then () else raise (PyCSLSemanticError (any string))")
     out.append("                      | _ -> () end)")
     out.append("         | _ -> () end);")
     out.append(f"        {n}__tps ct rest")
@@ -15858,7 +15858,7 @@ def emit_check_mutex_invariants_group(desc: Dict[str, Any], whyml_ident) -> List
     out.append(f"    let _fv = {fv} inv_expr in")
     out.append(f"    let var = {n}__anystr () in")
     out.append(f"    if (not (Map.get prot var)) && (not (({n}__len var) <= {L}))")
-    out.append("    then raise PyCSLSemanticError else ()")
+    out.append("    then raise (PyCSLSemanticError (any string)) else ()")
     out.append(f"  let rec {n}__invs (svs: list pyval) (mis: pydict) : unit")
     out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
     out.append("    variant { mis }")
@@ -16005,7 +16005,7 @@ def emit_check_callable_params_group(desc: Dict[str, Any], whyml_ident) -> List[
     out.append("    | DCons _ v rest ->")
     out.append("        (match v with")
     out.append(f'         | PStr ptag -> if {n}__startswith ptag "{pre}" then')
-    out.append(f'             (if {n}__malformed ptag "{arrow}" "{comma}" then raise PyCSLSemanticError else ())')
+    out.append(f'             (if {n}__malformed ptag "{arrow}" "{comma}" then raise (PyCSLSemanticError (any string)) else ())')
     out.append("           else ()")
     out.append("         | _ -> () end);")
     out.append(f"        {n}__walk rest")
@@ -16192,8 +16192,8 @@ def emit_check_fresh_globals_group(desc: Dict[str, Any], whyml_ident) -> List[st
     out.append(f'         | PDict d -> if {n}__truthy (pget_dyn "{frk}" d) then')
     out.append(f'             (match pget_dyn "{nk}" d with')
     out.append("              | Some (PStr name) ->")
-    out.append(f'                  (match pget_dyn "{kk}" d with Some (PStr k) -> if pystr_eq k "{mt}" then raise PyCSLSemanticError else () | _ -> () end);')
-    out.append(f'                  if (Map.get !ct name) || (Map.get !ct ({n}__rsplit_last name "{sep}")) then raise PyCSLSemanticError else ()')
+    out.append(f'                  (match pget_dyn "{kk}" d with Some (PStr k) -> if pystr_eq k "{mt}" then raise (PyCSLSemanticError (any string)) else () | _ -> () end);')
+    out.append(f'                  if (Map.get !ct name) || (Map.get !ct ({n}__rsplit_last name "{sep}")) then raise (PyCSLSemanticError (any string)) else ()')
     out.append("              | _ -> () end)")
     out.append("           else ()")
     out.append("         | _ -> () end);")
@@ -16745,8 +16745,8 @@ def emit_check_noreturn_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append(f'        else if ({n}__truthy (pget_dyn "{tk}" fd)) || ({n}__truthy (pget_dyn "{ak}" fd)) then ()')
     out.append("        else begin")
     out.append(f'          let bd = pget_list "{bk}" fd in')
-    out.append(f"          if {hret} ({n}__psl bd) then raise PyCSLSemanticError")
-    out.append(f"          else if (not ({hrai} bd)) && (not ({hdiv} bd)) then raise PyCSLSemanticError")
+    out.append(f"          if {hret} ({n}__psl bd) then raise (PyCSLSemanticError (any string))")
+    out.append(f"          else if (not ({hrai} bd)) && (not ({hdiv} bd)) then raise (PyCSLSemanticError (any string))")
     out.append("          else ()")
     out.append("        end")
     out.append("    | _ -> () end")
@@ -29917,7 +29917,7 @@ def _recognize_check_field_guard_raise(
 def emit_check_field_guard_raise_group(
         desc: Dict[str, Any], whyml_ident) -> List[str]:
     """Emit a field-guard-raise `_check_*` caller (see module note): read the
-    single guarded key off `func`'s bridged pydict and `raise PyCSLSemanticError`
+    single guarded key off `func`'s bridged pydict and `raise (PyCSLSemanticError (any string))`
     when the guard holds (modelled by the key's PRESENCE), else return `unit`.
     Type-safe + terminating over the certified pydict bridge (no recursion, no
     new type/axiom/cert)."""
@@ -29935,7 +29935,7 @@ def emit_check_field_guard_raise_group(
     out.append(f"  let {n} {sig} : unit")
     out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
     out.append(f"  = match {subj} with")
-    out.append(f"    | PDict d -> if {guard} then raise PyCSLSemanticError else ()")
+    out.append(f"    | PDict d -> if {guard} then raise (PyCSLSemanticError (any string)) else ()")
     out.append("    | _ -> ()")
     out.append("    end")
     return out
@@ -31173,7 +31173,7 @@ def _match_not_in(test: Any, left_var: str) -> Optional[str]:
 
 
 def _is_single_raise_if(stmt: Any, left_var: str, right_var: str) -> bool:
-    """`if <left_var> not in <right_var>: raise PyCSLSemanticError` (single-stmt
+    """`if <left_var> not in <right_var>: raise (PyCSLSemanticError (any string))` (single-stmt
     body, no orelse)."""
     if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
             and not stmt.get("orelse")):
@@ -31375,14 +31375,14 @@ def emit_check_happy_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append(f"  let rec {n}__exfold (es: list pyval) (mn: map string bool) : unit")
     out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { es }")
     out.append("  = match es with Nil -> ()")
-    out.append("    | Cons (PStr nm) t -> (if not (Map.get mn nm) then raise PyCSLSemanticError);")
+    out.append("    | Cons (PStr nm) t -> (if not (Map.get mn nm) then raise (PyCSLSemanticError (any string)));")
     out.append(f"                          {n}__exfold t mn")
     out.append(f"    | Cons _ t -> {n}__exfold t mn end")
     # exec fold: raise when an exec method is not exempt.
     out.append(f"  let rec {n}__execf (ms: list pyval) (es: list pyval) : unit")
     out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { ms }")
     out.append("  = match ms with Nil -> ()")
-    out.append(f"    | Cons (PStr m) t -> (if not ({n}__lmem m es) then raise PyCSLSemanticError);")
+    out.append(f"    | Cons (PStr m) t -> (if not ({n}__lmem m es) then raise (PyCSLSemanticError (any string)));")
     out.append(f"                         {n}__execf t es")
     out.append(f"    | Cons _ t -> {n}__execf t es end")
     # properties fold: per property, run both raise-folds.
@@ -31725,7 +31725,7 @@ def emit_check_acts_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append(f"  let rec {n}__gfold (gxs: list pyval) : unit")
     out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { gxs }")
     out.append("  = match gxs with Nil -> ()")
-    out.append(f"    | Cons gx t -> (if {cr} gx then raise PyCSLSemanticError);")
+    out.append(f"    | Cons gx t -> (if {cr} gx then raise (PyCSLSemanticError (any string)));")
     out.append(f"                   {n}__gfold t end")
     # defined-building fold: duplicate-name raise + given-fold; `defined` set.
     out.append(f"  let rec {n}__dfold (acts: list pyval) (defined: ref (map string bool)) : unit")
@@ -31737,7 +31737,7 @@ def emit_check_acts_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append(f'             if pystr_eq k "{al}" then')
     out.append(f'               (match pget_dyn "{nk}" ad with')
     out.append("                | Some (PStr nm) ->")
-    out.append("                    (if Map.get !defined nm then raise PyCSLSemanticError);")
+    out.append("                    (if Map.get !defined nm then raise (PyCSLSemanticError (any string)));")
     out.append("                    defined := set_add !defined nm;")
     out.append(f'                    {n}__gfold (pget_list "{gk}" ad)')
     out.append("                | _ -> () end)")
@@ -31749,7 +31749,7 @@ def emit_check_acts_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append(f"  let rec {n}__nfold (ns: list pyval) (defined: map string bool) : unit")
     out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { ns }")
     out.append("  = match ns with Nil -> ()")
-    out.append("    | Cons (PStr nm) t -> (if not (Map.get defined nm) then raise PyCSLSemanticError);")
+    out.append("    | Cons (PStr nm) t -> (if not (Map.get defined nm) then raise (PyCSLSemanticError (any string)));")
     out.append(f"                          {n}__nfold t defined")
     out.append(f"    | Cons _ t -> {n}__nfold t defined end")
     # complete/disjoint fold over acts.
