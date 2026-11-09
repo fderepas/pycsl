@@ -8670,6 +8670,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _dir = _ddefs[_nm]
                     _pwt = _dptypes.get(_nm, "int")
                     if (isinstance(_dir, dict) and _dir.get("type") == "None"
+                            and _pwt.startswith("map ")):
+                        # (#49) cap-none-default-map-param (run #6 lvN): an omitted `None`
+                        # default of an `Optional[Dict[..]]` param (`map κ (option ν)`) was
+                        # filled with the int witness `0` (L3-tc `int` vs `κ -> option ν`).
+                        # Python's `None` is NOT the empty dict (`None == {}` is False), so
+                        # the empty map would let a callee contract decide what CPython does
+                        # not: fill the OPAQUE `pycsl_none_map` (route #44/#236's "this is
+                        # None, nothing is decidable about it"), the same at every site.
+                        self._add_abstract_op(
+                            "val function pycsl_none_map : map 'k (option 'v)")
+                        args = args + ["pycsl_none_map"]
+                    elif (isinstance(_dir, dict) and _dir.get("type") == "None"
                             and _pwt != "int"):
                         args = args + [{"string": '""', "real": "0.0"}.get(_pwt, "0")]
                     else:
@@ -12176,7 +12188,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     dflt_ir = defaults[nm]
                     pwt = getattr(self, "_module_method_param_whyml_types", {}).get(
                         func_name, {}).get(nm, "int")
-                    if dflt_ir.get("type") == "None" and pwt != "int":
+                    if dflt_ir.get("type") == "None" and pwt.startswith("map "):
+                        # (#49) cap-none-default-map-param: the module-function twin of
+                        # `_handle_dotted_call`'s fill — `None` is not the empty dict, so
+                        # an omitted `Optional[Dict[..]]` default is the opaque
+                        # `pycsl_none_map`, never the int witness `0` (ill-typed).
+                        self._add_abstract_op(
+                            "val function pycsl_none_map : map 'k (option 'v)")
+                        filled = "pycsl_none_map"
+                    elif dflt_ir.get("type") == "None" and pwt != "int":
                         filled = {"string": '""', "real": "0.0"}.get(pwt, "0")
                     else:
                         filled = self._expr_to_whyml(dflt_ir, local_refs,
