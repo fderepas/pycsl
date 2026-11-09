@@ -9154,3 +9154,7 @@ COST/SCALE, not correctness.
 - (run #6 lvL, same rule) `_union_arm_tag` RE-TRUSTED again (restored as at base): its `ast.expr` / `ast.stmt` /
   `ast.AST` arm (`isinstance(elt, ast.Attribute) and isinstance(elt.value, ast.Name) and elt.value.id == "ast"`) is
   dead in the model by the same route #583 read (a `#@ assert 1 == 2` there is PROVED); CPython takes it.
+- (run #6 u37) Route #583 REPAIRED (annotations §7.583: `.value` on an emit_ir value lowers to `avalue_of`);
+  `_collect_final_registry` and `_union_arm_tag` CONVERTED again (verbatim live bodies, lvL's 2c7ec1846 state):
+  `--fun` both 0 non-Valid, leaf-reachability 15/15 leaf blocks NOT proved (the two formerly dead arms live),
+  whole-file Module5_IREmitter proof in the route doc. `#@ \trusted` markers in the mirror 368 -> 366 (lvL's count 401 -> 399).

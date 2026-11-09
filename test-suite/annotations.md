@@ -5810,8 +5810,9 @@ RULES (emitter, `statements.py::_handle_array_set_stmt` / `expressions.py::_hand
   `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (run #5 lvG2; `_csl_in` was already) --
   and `_const_int_value`, `_collect_typevar_registry`, `_m5_get_type_name_legacy` are VERIFIED again under the
   receiver-typed view below (run #6 lvL), with `_collect_type_params` (§7.574); `_collect_final_registry` and
-  `_union_arm_tag` stay `\trusted`: each has a branch the model decides dead while CPython takes it (route #583,
-  `.value` of an `ast.Attribute` read by the Subscript projector).
+  `_union_arm_tag`, re-trusted by lvL because each had a branch the model decided dead while CPython takes it (route
+  #583, `.value` of an `ast.Attribute` read by the Subscript projector), are VERIFIED again after the #583 repair
+  (§7.583, run #6 u37; every leaf block live).
 - (run #6, capability R1) THE RECEIVER-TYPED NARROWING VIEW. An `isinstance(p, ast.<X>)` test, `ast` RESOLVED
   (§7.579) and the class not inside a tuple, is an IR class ON THIS RECEIVER -- it does not narrow `p` -- exactly when
   `_handle_isinstance` lowers that very test to a constructor discriminant of `p`'s model type: a `pyast_stmt` loop
