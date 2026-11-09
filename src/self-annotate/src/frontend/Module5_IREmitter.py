@@ -2477,18 +2477,46 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # reads `self.program_ir.get("typevar_registry")` -> Map.get (K6), `or {}` -> empty
     # PMap (#5), `registry.get(nm,{})`/`info.get("bound")` -> PMap-match (K7).
     # isinstance_op=0, get___name__=0, get_bases=0, no int-hash. `PyVal`~Any sentinel.
-    # (run #5 u32) RE-TRUSTED, route #574: `b.value.id` is read on `b`, a `for` target over
-    # `node.bases` with `node` narrowed by `isinstance(node, ast.ClassDef)` to a non-IR class (the
-    # alias-closed #567 narrowing: an element of a narrowed object's field has an unknown class);
-    # no equivalent rewrite avoids the read.
-    # Body STUBBED like every `\trusted` stub: its variant-less loops would count against the
-    # trusted-termination ratchet (bin/check-trusted-termination-honesty.py).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # (run #6 lvL) CONVERTED again (capability R1, the receiver-typed narrowing view, annotations §7.566):
+    # `isinstance(node, ast.ClassDef)` on the `TParamNode` parameter lowers to `is_classdef_of node`, so
+    # `node` IS the modelled node and `b` (a `for` target over `node.bases`) is its child, not a value of
+    # an unknown class; `b.value.id` reads `name_of (svalue_of b)` under `is_sub b`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _collect_type_params(self, node: TParamNode) -> List[Dict[str, PyVal]]:
-        return []
+        tparams = getattr(node, "type_params", None) or []
+        out: List[Dict[str, PyVal]] = []
+        for tp in tparams:
+            kind = type(tp).__name__  # TypeVar / ParamSpec / TypeVarTuple
+            name = getattr(tp, "name", None)
+            bound = None
+            bnode = getattr(tp, "bound", None)
+            if isinstance(bnode, ast.Name):
+                bound = bnode.id
+            elif isinstance(bnode, ast.Attribute):
+                bound = bnode.attr
+            out.append({"name": name, "bound": bound, "kind": kind})
+        # Legacy spelling: `class C(Generic[T])` where T was declared via
+        # `T = TypeVar("T", bound=B)` at module scope. The PEP 695 `type_params`
+        # is empty; the Generic[T] base carries the TypeVar name(s). We resolve
+        # the names against the module's TypeVar-call registry (collected in
+        # visit_Assign below) so the bound is recovered. Only the bare-Name form
+        # is recognized (a generic base that is itself a Subscript on Generic).
+        if not out and isinstance(node, ast.ClassDef):
+            for b in node.bases:
+                if (isinstance(b, ast.Subscript)
+                        and isinstance(b.value, ast.Name)
+                        and b.value.id in self._GENERIC_BASE_NAMES):
+                    names = self._extract_generic_arg_names(b.slice)
+                    registry = self.program_ir.get("typevar_registry") or {}
+                    for nm in names:
+                        info = registry.get(nm, {})
+                        out.append({"name": nm,
+                                    "bound": info.get("bound"),
+                                    "kind": "TypeVar"})
+                    break
+        return out
 
     # value-model-return-wall R1 (faithful `List[str]` RETURN): dispatch on the
     # `Generic[...]` slice — `isinstance(slice_node, ast.Name)` -> `is_var slice_node`,
@@ -2525,15 +2553,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # is_kwattr/kwattr_of, indexed via kwl_len/kwl_nth); (D) `{"bound": bound}` ->
     # `Dict[str, PyVal]` (PStr bound). Verbatim body port of the LIVE method (dict
     # annotations retyped Any->PyVal, an alias). isinstance_op = 0.
-    # (run #5 lvG2) RE-TRUSTED, route #567: `call.func` is read on `call = stmt.value`, a field of a path an `isinstance(stmt, ast.Assign)`
-    # of this body narrows to a non-IR class (the mirror exemption was rejected); no equivalent
-    # rewrite avoids the read.
-    # Body KEPT verbatim (not stubbed): it is the only `for .. in <ast.Module>.body` loop left in
-    # this file, the shape that gates `type py_module_node` (`preamble._uses_pyast_module`), which
-    # the `\trusted` vals of visit_Module / _synthesize_* / this method are typed with; stubbing it
-    # fails L3 (`unbound type symbol 'py_module_node'`, measured). Its termination is assumed
-    # (trusted-termination-honesty 55 -> 56, the ratchet is 56).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # (run #6 lvL) CONVERTED again (capability R1, the receiver-typed narrowing view, annotations §7.566):
+    # `isinstance(stmt, ast.Assign)` on the module-body `pyast_stmt` loop local lowers to `is_assign_node`,
+    # so `call = stmt.value` is `stmt_value stmt`, the node's own child; `call.func` reads `func_of call`
+    # under `is_call call`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -2745,10 +2768,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # whose value is 0 reads as None. With the marker the call binds the real
     # `Optional[int]` union and the guard becomes the faithful None-arm match.
     #@ sibling_concrete
-    # (run #5 lvG2) RE-TRUSTED, route #567: `value.op` is read on a path an `isinstance(.., ast.UnaryOp)`
-    # of this body narrows to a non-IR class (the mirror exemption was rejected); no equivalent
-    # rewrite avoids the read.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # (run #6 lvL) CONVERTED again (capability R1, the receiver-typed narrowing view, annotations §7.566):
+    # `isinstance(value, ast.UnaryOp)` lowers to `is_unaryop value` here; `.op` is read only as the subject
+    # of `isinstance(value.op, ast.USub)` (lowered over the object: `str_eq_op (unaryop_op_of value) "-"`).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -3088,17 +3110,48 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # is None: continue`->`is_none elt`; `elt.id`->`name_of elt`; `elt.value.id.lower()`->
     # `str_lower_op (name_of (svalue_of elt))`; early `return`s via Return_str. `Callable`->the
     # trusted `_encode_callable_annotation` (P3-retyped). isinstance_op=0. Verbatim body port.
-    # (run #5 lvG2) RE-TRUSTED, route #567: `elt.value.id` is read on a path an `isinstance(.., ast.Constant)`
-    # of this body narrows to a non-IR class (the mirror exemption was rejected); no equivalent
-    # rewrite avoids the read.
-    # Body STUBBED like every `\trusted` stub: its variant-less loop would count against the
-    # trusted-termination ratchet (bin/check-trusted-termination-honesty.py).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # (run #6 lvL) CONVERTED again (capability R1, the receiver-typed narrowing view, annotations §7.566):
+    # `isinstance(elt, ast.Constant)` (`elt` a `for` target over `inner.elts`) lowers to `is_constant elt`;
+    # only its `.kind` stays refused (the residual crosses the `for` edge without widening).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _m5_get_type_name_legacy(self, annotation: "ExprIR") -> str:
-        return ""
+        if isinstance(annotation, ast.Name):
+            return annotation.id
+        if isinstance(annotation, ast.Subscript) and isinstance(annotation.value, ast.Name):
+            head = annotation.value.id
+            if head == "Optional":
+                inner = annotation.slice
+                if isinstance(inner, ast.Name):
+                    return inner.id
+                if isinstance(inner, ast.Subscript) and isinstance(inner.value, ast.Name):
+                    return inner.value.id.lower()
+                return "Any"
+            if head == "Union":
+                inner = annotation.slice
+                if isinstance(inner, ast.Tuple):
+                    for elt in inner.elts:
+                        if isinstance(elt, ast.Constant) and elt.value is None:
+                            continue
+                        if isinstance(elt, ast.Name) and elt.id != "None":
+                            return elt.id
+                        if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
+                            return elt.value.id.lower()
+                return "Any"
+            if head == "Callable":
+                # typing-engagement ty3 / 34-1700-typing-spec-10: `Callable[[A1,
+                # ..., An], R]` (PEP 484) on a parameter is a function-type
+                # obligation (C1). The arg-list + return type are encoded into
+                # the existing symbol_table value as "callable:<a1>,...-><r>"
+                # (a new tag VALUE, NOT a new IR field → no IR_VERSION bump).
+                # Module 6's _param_type_str parses this into a curried WhyML
+                # arrow type; the call site `f(a1, ..., an)` already lowers to
+                # WhyML application. Triggers ONLY on head == "Callable" →
+                # byte-identical for every non-Callable driver.
+                return self._encode_callable_annotation(annotation)
+            return head.lower()
+        return "Any"
 
     _CALLABLE_SCALAR_TAGS = frozenset({'int', 'bool', 'str', 'float'})
     #@ \trusted reviewer: pycsl-self-annotate
