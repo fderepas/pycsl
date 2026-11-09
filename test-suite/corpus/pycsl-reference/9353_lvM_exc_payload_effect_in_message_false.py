@@ -19,7 +19,6 @@ def bump(xs: List[int]) -> str:
     return "bumped"
 
 
-#@ requires True
 #@ ensures \result == 0
 #@ assigns \nothing
 def probe() -> int:

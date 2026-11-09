@@ -9,7 +9,6 @@ class Oops(Exception):
     pass
 
 
-#@ requires True
 #@ ensures \result == "bang"
 #@ assigns \nothing
 def probe() -> str:

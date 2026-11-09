@@ -9,7 +9,6 @@ class NegErr(Exception):
     pass
 
 
-#@ requires True
 #@ ensures \result == x
 #@ raises NegErr when x < 0
 #@ assigns \nothing
@@ -19,7 +18,6 @@ def f(x: int) -> int:
     return x
 
 
-#@ requires True
 #@ ensures \result == 5 or \result == -1
 #@ assigns \nothing
 def g() -> int:

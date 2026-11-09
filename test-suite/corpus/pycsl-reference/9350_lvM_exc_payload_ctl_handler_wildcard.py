@@ -10,7 +10,6 @@ class BadInput(Exception):
     pass
 
 
-#@ requires True
 #@ ensures x < 0 ==> \result == 1
 #@ ensures x >= 0 ==> \result == 0
 #@ assigns \nothing

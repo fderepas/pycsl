@@ -72,7 +72,6 @@ frontend/Module1_Ingestor.py	_Harvester._fold_blocks	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._emit_suite	unclassified	-
 frontend/Module2_Parser.py	_lex_contract	unclassified	-
 frontend/Module2_Parser.py	_ContractParser.__init__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-frontend/Module2_Parser.py	_ContractParser._err	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
 frontend/Module2_Parser.py	_ContractParser._try	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_contract	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._grab_reviewer_id	unclassified	-
@@ -198,8 +197,6 @@ frontend/pure_ast.py	_lex	cost-scale:nested-closure-lift	the nested-closure lift
 frontend/pure_ast.py	comments	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_Parser.__init__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_Parser._slice	unclassified	-
-frontend/pure_ast.py	_Parser.error	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
-frontend/pure_ast.py	_Parser.unsupported	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
 frontend/pure_ast.py	_Parser._fin	cost-scale:erasure-ledger	THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
 frontend/pure_ast.py	_Parser.node	unclassified	-
 frontend/pure_ast.py	_Parser._max_end	unclassified	-

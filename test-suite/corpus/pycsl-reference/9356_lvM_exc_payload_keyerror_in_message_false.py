@@ -12,7 +12,6 @@ class Oops(Exception):
     pass
 
 
-#@ requires True
 #@ ensures \result == 1
 #@ assigns \nothing
 def probe() -> int:
