@@ -9,7 +9,7 @@ import re
 _OPT = re.compile(r"(\w+)(?:-(\w+))?")
 
 
-#@ ensures True
+#@ ensures \str_length(\result) >= 0
 #@ assigns \nothing
 def suffix_or_stem(s: str) -> str:
     m = _OPT.match(s)

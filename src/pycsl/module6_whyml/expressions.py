@@ -3851,11 +3851,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     if len(_rma) == 2:
                         _rmpos = args[1]
                 if not (isinstance(_rmp, str) and self._is_string_expr(_rms)):
-                    from errors import PyCSLSemanticError
-                    raise PyCSLSemanticError(
-                        f"re.Match model: the binding of match local `{_rmb}` "
-                        f"(`{_rmf}(...)`) is not a str-literal pattern applied to a `str` "
-                        "subject; the match object's reads cannot be modelled.")
+                    # Unreachable by `_reset_function_state`'s str-declared-subject test;
+                    # kept fail-safe: the generic opaque binding is an ARBITRARY handle,
+                    # which the law-free reads (pattern fixed or copy-tagged) stay sound on.
+                    return None
                 self._re_m_cur[_rmb] = _rmp
                 self._add_abstract_op(
                     "val function re_match_op (pat: string) (s: string) (pos: int) : int")
@@ -3872,10 +3871,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             and isinstance(_rmt2, dict) and _rmt2.get("type") == "String"
                             else (None if _rmf.endswith(".group") else ""))
                 if not isinstance(_rmp, str):
-                    from errors import PyCSLSemanticError
-                    raise PyCSLSemanticError(
-                        f"re.Match model: no reaching binding of match local `{_rmo}` is "
-                        "known at this read.")
+                    # Unreachable (a "lit"/"const" pattern is set at function entry, an
+                    # unrolled read carries its tag): the generic lowering is an opaque int
+                    # where the classifier said `str`, so Why3 rejects it -- fail-closed.
+                    return None
                 _rmh = self._expr_to_whyml({"type": "Var", "name": _rmo}, local_refs or set())
                 self._add_abstract_op(
                     "val function re_match_op (pat: string) (s: string) (pos: int) : int")
@@ -19179,10 +19178,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             elif obj_ir["attr"] != "re":
                 _rgp = None
             if not isinstance(_rgp, str):
-                from errors import PyCSLSemanticError
-                raise PyCSLSemanticError(
-                    f"re.Match model: no reaching binding of match local `{_rgm}` is "
-                    "known at this read.")
+                # Unreachable (see `_handle_re_str_call`): keep the pattern unknown out of
+                # the model -- an opaque, unconstrained group count, never a guessed one.
+                return "(any int)"
             import re as _rgre
             _rgh = self._expr_to_whyml(obj_ir["object"], local_refs, invariant_ctx, subst)
             return (f"(begin assert {{ [@expl:PyCSL re.Match.re on None] {_rgh} <> 0 }}; "

@@ -9,7 +9,7 @@ import re
 _KV = re.compile(r"(\w+)=(\w+)")
 
 
-#@ ensures True
+#@ ensures \str_length(\result) >= 0
 #@ assigns \nothing
 def third(s: str) -> str:
     m = _KV.match(s)
