@@ -966,3 +966,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-09T21:23Z | 692 | STATUS (run hour 27.5; 68.5 h left). statements re-run in vacuity phase (goals 30430/30430 Valid at ~20:15Z). u37, lvO working. oom_kill 75. |
 2026-11-09T22:19Z | 693 | STATUS (run hour 28.4; 67.6 h left). statements re-run still in vacuity phase. u37: #583 repair committed a5b292575 (.value of an emit_ir value -> unified avalue_of), gating. lvO working. oom_kill 75. |
 2026-11-09T23:16Z | 694 | STATUS (run hour 29.3; 66.7 h left). statements re-run still in vacuity phase (2 workers; started 17:06Z). u37 / lvO gating. oom_kill 75. |
+2026-11-10T00:01Z | 695 | STATUS (run hour 30.1; 65.9 h left). statements re-run still in vacuity phase. u37: two re-conversions committed 3efe30709 (_collect_final_registry, _union_arm_tag), gating (7142c9c3c). lvO working. oom_kill 75. |
