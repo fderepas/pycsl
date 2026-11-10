@@ -968,3 +968,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-09T23:16Z | 694 | STATUS (run hour 29.3; 66.7 h left). statements re-run still in vacuity phase (2 workers; started 17:06Z). u37 / lvO gating. oom_kill 75. |
 2026-11-10T00:01Z | 695 | STATUS (run hour 30.1; 65.9 h left). statements re-run still in vacuity phase. u37: two re-conversions committed 3efe30709 (_collect_final_registry, _union_arm_tag), gating (7142c9c3c). lvO working. oom_kill 75. |
 2026-11-10T00:58Z | 696 | STATUS (run hour 31.0; 65 h left). statements re-run still in vacuity phase (2 workers, slower). u37 / lvO gating. oom_kill 75. |
+2026-11-10T01:55Z | 697 | STATUS (run hour 32.0; 64 h left). statements re-run still in vacuity phase. u37 waiting for a slot for its Module5 whole-file; lvO on rule-18 planes (3 fast-plane REDs being compared vs base). oom_kill 75. |
