@@ -6206,7 +6206,7 @@ truthiness of `if <x>.value:` stays the always-present `true` (`_to_bool`'s sub-
 
 MEASUREMENTS: `getting-better/open-routes/route583-emitir-attribute-value-read-as-subscript.md` (witness table per
 model, corpus 9430-9435 / 9440-9441, byte-diff, mirror sweep, the two re-conversions).
-Residuals (named, findings of the same class, each measured in the route doc): the DICT view `.get("value")` of a
+Residuals (named, findings of the same class; the route doc records each measurement, the `pyast_stmt` one being unmeasurable in a user program today): the DICT view `.get("value")` of a
 `Starred` / `NamedExpr` / `SliceAccess` / `MapSet` node (the reflection table `_EMIT_IR_PROJ["value"]` is
 `svalue_of`, `IrOther ""` on those constructors); `.slice` on an emit_ir value outside the handler-scoped entries
 (the `svalue_of` catch-all reads the Subscript VALUE, not its index); `.value` of a `pyast_stmt` whose class the model

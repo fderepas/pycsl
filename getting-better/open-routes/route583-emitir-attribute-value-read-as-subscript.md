@@ -90,7 +90,7 @@ Lower `.value` on an emit_ir receiver with the unified `avalue_of` (IrAttr -> ob
   Module6_WhyMLTranspiler / frontend/pure_ast emissions UNCHANGED. Keeping expressions.py byte-identical is not
   possible without an exception for those handlers' receivers, which the model cannot justify: the projector choice
   cannot depend on an `isinstance` test, since an untested `"ExprIR"` receiver may be an IrAttr too.
-- WHOLE-FILE `frontend/Module5_IREmitter.py` (HEAD, PYTHON_CPU_COUNT=4, HEAVY_LOW): PENDING at the docs commit (queued behind the driver's statements.py proof in the LOW slot); result recorded in the executor report.
+- WHOLE-FILE `frontend/Module5_IREmitter.py` (emitter + mirror of 3efe30709, PYTHON_CPU_COUNT=4, HEAVY_LOW, run to completion incl. the vacuity phase, 11728 s): rc 0, `Verification SUCCESS`, 2636 Valid / 0 non-Valid, no "could not be checked" line; oom_kill 75 before and after.
 - RE-CONVERSIONS (commit 3efe30709): `Module5_IREmitter.py` `_collect_final_registry` and `_union_arm_tag` restored to
   their verbatim live bodies (lvL's 2c7ec1846 state; check-self-annotate-sync: 958 un-trusted mirror functions
   verbatim). `--fun pycsltojsonemitter___collect_final_registry --fun pycsltojsonemitter___union_arm_tag`

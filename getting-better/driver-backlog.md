@@ -9157,4 +9157,4 @@ COST/SCALE, not correctness.
 - (run #6 u37) Route #583 REPAIRED (annotations §7.583: `.value` on an emit_ir value lowers to `avalue_of`);
   `_collect_final_registry` and `_union_arm_tag` CONVERTED again (verbatim live bodies, lvL's 2c7ec1846 state):
   `--fun` both 0 non-Valid, leaf-reachability 15/15 leaf blocks NOT proved (the two formerly dead arms live),
-  whole-file Module5_IREmitter proof in the route doc. `#@ \trusted` markers in the mirror 368 -> 366 (lvL's count 401 -> 399).
+  whole-file Module5_IREmitter proof rc 0 (2636 Valid, route doc). `#@ \trusted` markers in the mirror 368 -> 366 (lvL's count 401 -> 399).
