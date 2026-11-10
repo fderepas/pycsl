@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from frontend import pure_ast as ast
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from errors import PyCSLParseError
 _MODULE_PREFIXES: tuple = ('shared ', 'mutex_invariant ', 'lock_order ', 'datatype ')
 ""  # pycsl
@@ -52,12 +52,20 @@ _INDUCTIVE_HDR = re.compile('^\\s*inductive\\s+(\\w+\\s*\\([^)]*\\))\\s*:\\s*$')
 _WITH_HDR = re.compile('^\\s*with\\s+(\\w+\\s*\\([^)]*\\))\\s*:\\s*$')
 _FOR_HDR = re.compile('^\\s*for\\s+(\\w+\\s+in\\s+range\\s*\\([^)]*\\))\\s*:\\s*$')
 _BLOCK_HDRS = (('act', _ACT_HDR), ('happy', _HAPPY_HDR), ('inductive', _INDUCTIVE_HDR), ('for', _FOR_HDR))
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _match_block_hdr(line: str):
-    pass
+def _match_block_hdr(line: str) -> Optional[Tuple[str, str]]:
+    for kw, rx in _BLOCK_HDRS:
+        m = rx.match(line)
+        if m:
+            name: str = m.group(1)
+            # 07-1143 R3: a `happy NAME(param):` header carries a parameter (group 2);
+            # preserve it in the reconstructed folded header so the grammar sees it.
+            if m.re.groups >= 2 and m.group(2):
+                name: str = f"{name}({m.group(2)})"
+            return kw, name
+    return None
 
 #@ requires True
 #@ ensures True

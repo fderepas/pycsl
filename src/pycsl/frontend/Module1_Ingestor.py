@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from frontend import pure_ast as ast
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from errors import PyCSLParseError
 
@@ -83,16 +83,21 @@ _FOR_HDR = re.compile(r"^\s*for\s+(\w+\s+in\s+range\s*\([^)]*\))\s*:\s*$")
 _BLOCK_HDRS = (("act", _ACT_HDR), ("happy", _HAPPY_HDR), ("inductive", _INDUCTIVE_HDR), ("for", _FOR_HDR))
 
 
-def _match_block_hdr(line: str):
+def _match_block_hdr(line: str) -> Optional[Tuple[str, str]]:
     """Return `(keyword, name)` if `line` opens an `act`/`happy` block, else None."""
+    # lvO: the return annotation and the two `name: str` annotations are runtime-inert
+    # (CPython evaluates neither a local annotation nor, under `from __future__ import
+    # annotations`, the return one); they let the mirror type `name` and the returned
+    # pair as `str` (`Module5_IREmitter._build_function_symbol_table` reads a plain
+    # re-assignment of an annotated local as `Any`, hence the second annotation).
     for kw, rx in _BLOCK_HDRS:
         m = rx.match(line)
         if m:
-            name = m.group(1)
+            name: str = m.group(1)
             # 07-1143 R3: a `happy NAME(param):` header carries a parameter (group 2);
             # preserve it in the reconstructed folded header so the grammar sees it.
             if m.re.groups >= 2 and m.group(2):
-                name = f"{name}({m.group(2)})"
+                name: str = f"{name}({m.group(2)})"
             return kw, name
     return None
 

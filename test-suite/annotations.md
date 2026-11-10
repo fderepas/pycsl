@@ -6654,6 +6654,34 @@ route #329: `x = 1; return 7 if x is True else 0` and `if not (x is True): retur
 PROVED the branch CPython does not take. Witnesses `4300`-`4308`, `4315`-`4323`; controls
 `4309`, `4310`, `4326`, `4327`.
 
+### 7.320 A match object of a literal pattern is a law-free handle; a `(str, pattern)` constant loop unrolls (lvO, run #6)
+
+A MATCH LOCAL `m` is a local every binding of which is `m = re.match(<str literal>, s)` (with
+`re` the stdlib module), `m = NAME.match(s[, pos])` (NAME a module constant
+`NAME = re.compile(<str literal>)`, bound once, no flags, `import re` the only binding of `re`),
+or `m = rx.match(s)` inside an unrolled `for kw, rx in PAIRS` (below), all with ONE pattern,
+`s` a `str`-declared name and `pos` a name or an int literal; and whose every other
+occurrence is the truth test `if m:` / `if not m:`, `m.group(<int literal>)`, `m.end()` or
+`m.re.groups`. The binding lowers to the int HANDLE `re_match_op <pattern> s pos` (`0` is
+CPython's `None`, so the int truth test is exact) and each read to a law-free `val function`
+of the handle: `re_group_op h k : string`, `re_end_op h : int`, `m.re.groups` the group count
+CPython's own `re.compile` reports. NO regex semantics is claimed (no axiom, no `ensures`):
+only that a match is a deterministic function of (pattern, subject, pos), which is exact
+because a match local never escapes (no `==` / `is` / argument / return / container), so the
+fresh-object identity CPython gives each call is unobservable; a match object that escapes is
+not a match local and keeps the opaque lowering. Every read carries the VCs CPython's
+exceptions need: `h <> 0` (AttributeError on `None`), an `assert false` for `group(k)` with `k`
+above the group count (IndexError), and for a group CPython's parser places under a min-0
+repeat, an alternation, a conditional or a lookaround, `re_group_present_op h k` (such a
+group is `None` when it does not take part, not a `str`). The TRUTH of `m.group(k)` is
+`present && len > 0` (None and "" are both falsy). A module constant list / tuple of
+`(str literal, NAME)` pairs read only as `for kw, rx in PAIRS` is unrolled one copy per pair
+(`kw` -> its literal, typed `str`; `rx.match` -> `NAME.match`; a `return` in the body is kept,
+`break` / `continue` refuse the unroll). Termination of a loop over `m.end()` is NOT given by
+the model (no width law): write the defensive `if e <= pos: <stop>` guard. Witnesses (must
+FAIL) `9471`-`9474`, `9476`, `9478`, `9480`, `9482`, `9483`, `9485`; controls (PASS) `9470`,
+`9475`, `9477`, `9479`, `9481`, `9484`.
+
 ---
 
 ## 10. Concurrent Model Annotations

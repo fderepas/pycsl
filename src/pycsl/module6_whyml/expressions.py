@@ -570,6 +570,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "object / field-less class) value runs a user __bool__ or __len__ that "
                     "may raise] false }; %s end)"
                     % self._to_bool(whyml_str, dict(ir_expr, _pycsl_r358n=True)))
+        # lvO (re.Match model): the TRUTH of `m.group(k)` (a match local's group read,
+        # `_handle_re_str_call`) is Python's truth of `str | None`: participated AND
+        # non-empty -- never the value read's presence VC (a None group is a legitimate
+        # falsy value here). Rebuilt from the value lowering this emitter produced.
+        if (isinstance(ir_expr, dict) and ir_expr.get("type") == "Call"
+                and isinstance(ir_expr.get("func"), str)
+                and ir_expr["func"].endswith(".group")
+                and ir_expr["func"][:-len(".group")] in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})
+                and isinstance(whyml_str, str)
+                and whyml_str.startswith("(begin assert { [@expl:PyCSL re.Match.group")):
+            if "IndexError" in whyml_str:
+                return whyml_str.rsplit(";", 1)[0] + "; false end)"
+            _rtm = re.search(r"\(re_group_op (.+) (\d+)\) end\)$", whyml_str)
+            if _rtm:
+                _rth, _rtk = _rtm.group(1), _rtm.group(2)
+                _rtg = f"(re_group_op {_rth} {_rtk})"
+                self._add_abstract_op(
+                    "val str_length_op (s: string) : int\n"
+                    "    ensures { result = (String.length s) }")
+                if "re_group_present_op" in whyml_str:
+                    return (f"(begin assert {{ [@expl:PyCSL re.Match.group on None] "
+                            f"{_rth} <> 0 }}; (re_group_present_op {_rth} {_rtk} "
+                            f"&& str_length_op {_rtg} > 0) end)")
+                return (f"(begin assert {{ [@expl:PyCSL re.Match.group on None] "
+                        f"{_rth} <> 0 }}; str_length_op {_rtg} > 0 end)")
         # ROUTE #487: a BoolOp over a non-bool / non-int operand is emitted inside the
         # `pycsl_r487_truth_only` marker (`_handle_binop`); its int form's truthiness IS the
         # selected operand's, so a TRUTH test strips the marker (after route #358's erased-value guard above,
@@ -3541,6 +3566,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not isinstance(expr, dict) or expr.get("type") != "Call":
             return False
         fn = expr.get("func")
+        # lvO (re.Match model): `m.group(<int literal>)` on a MATCH LOCAL
+        # (`_reset_function_state`) is a `str` read of the law-free match
+        # model (`_handle_re_str_call`), so a receiving local types as a string.
+        if (isinstance(fn, str) and fn.endswith(".group") and fn.count(".") == 1
+                and fn[:-len(".group")] in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})
+                and expr.get("receiver") is None and not expr.get("keywords")):
+            return True
         n = self._RE_STR_FUNCS.get(fn) if isinstance(fn, str) else None
         if n is not None and expr.get("receiver") is None and not expr.get("keywords"):
             a = expr.get("args") or []
@@ -3764,7 +3796,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(f"val {op} ({params}: string) : int")
         return "(" + op + " " + " ".join(args[:n]) + ")"
 
-    def _handle_re_str_call(self, expr, args):
+    def _handle_re_str_call(self, expr, args, local_refs=None):
         """Lower a recognized `re` string function to a faithful `string`-typed op.
 
         NO content law is claimed — a regex substitution is not expressible in the string
@@ -3774,6 +3806,133 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         pure function of (pattern, replacement, subject), so equal arguments give equal
         results. `re.escape` additionally never SHORTENS its input (it only inserts
         backslashes), which is a sound length lower bound. None if not applicable."""
+        # lvO (re.Match model): the LAW-FREE match object of a MATCH LOCAL `m`
+        # (`_reset_function_state`). `m = P.match(s, pos)` binds the int HANDLE
+        # `re_match_op <pattern> s pos` (0 <-> CPython `None`: the existing int truth test
+        # `m <> 0` is then exact); every read is a law-free `val function` of the handle:
+        # `m.group(k)` -> `re_group_op h k` (a `str`), `m.end()` -> `re_end_op h`, and
+        # `m.re.groups` -> the pattern's group count, computed by CPython's own parser.
+        # NOTHING about regex semantics is claimed (no axiom, no `ensures`): only that a
+        # match is a deterministic function of (pattern, subject, pos), which is exact
+        # because the match local never escapes (identity is unobservable). Every read
+        # carries the VCs CPython's exceptions need: `h <> 0` (AttributeError on None),
+        # `k <= groups` (IndexError, an `assert false`), and for a group the parser shows
+        # may NOT participate (under a min-0 repeat, an alternation, a conditional or a
+        # lookaround) `re_group_present_op h k` -- its value is then `None`, not a `str`,
+        # so a `str` read must first prove it took part. Its TRUTH (`_to_bool`, rebuilt
+        # from this lowering) is `present && len > 0`: None and "" are both falsy. A read in
+        # a spec context is not modelled (None -> the generic lowering). Only a match call
+        # whose (callee, args) signature occurs NOWHERE in the function but as a match
+        # local's binding value lowers to a handle ("sigs", `_reset_function_state`): any
+        # other match call keeps the opaque lowering, so a handle can never escape.
+        _rmst = (getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}
+        _rmm = _rmst.get("locals") or {}
+        _rmf = expr.get("func") if isinstance(expr, dict) else None
+        _rmc_all = ((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
+        if (_rmm and isinstance(_rmf, str) and expr.get("type") == "Call"
+                and expr.get("receiver") is None and not expr.get("keywords")
+                and not getattr(self, "_in_spec", False)):
+            _rmsig = (_rmf, tuple((_y.get("type"), _y.get("name"), _y.get("value"))
+                                  for _y in (expr.get("args") or []) if isinstance(_y, dict)))
+            if _rmsig in (_rmst.get("sigs") or set()):
+                _rma = expr.get("args") or []
+                _rmc = ((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
+                _rmp, _rms, _rmpos = None, None, "0"
+                if _rmf == "re.match" and len(_rma) == 2 and len(args) == 2:
+                    _rmp, _rms = _rma[0].get("value"), _rma[1]
+                    _rmsw = args[1]
+                elif (_rmf.endswith(".match") and _rmf[:-len(".match")] in _rmc
+                        and 1 <= len(_rma) <= 2 and len(args) == len(_rma)):
+                    _rmp, _rms = _rmc[_rmf[:-len(".match")]], _rma[0]
+                    _rmsw = args[0]
+                    if len(_rma) == 2:
+                        _rmpos = args[1]
+                if not (isinstance(_rmp, str) and self._is_string_expr(_rms)):
+                    # Unreachable by `_reset_function_state`'s str-declared-subject test;
+                    # kept fail-safe: the generic opaque binding is an ARBITRARY handle,
+                    # which the law-free reads (pattern fixed or copy-tagged) stay sound on.
+                    return None
+                self._add_abstract_op(
+                    "val function re_match_op (pat: string) (s: string) (pos: int) : int")
+                _rmpw = self._expr_to_whyml({"type": "String", "value": _rmp}, set())
+                return f"(re_match_op {_rmpw} {_rmsw} {_rmpos})"
+            _rmo = _rmf.rsplit(".", 1)[0] if _rmf.count(".") == 1 else None
+            if _rmo in _rmm and _rmf[len(_rmo):] in (".group", ".end"):
+                _rmp = (_rmst.get("cur") or {}).get(_rmo)
+                if _rmm[_rmo][0] == "rx":
+                    # an unrolled copy's read carries its constant (`_handle_for_stmt`)
+                    _rmt2 = (expr.get("args") or [None, None])[-1]
+                    _rmp = (_rmc_all.get(_rmt2.get("value"))
+                            if _rmf.endswith(".group") and len(expr.get("args") or []) == 2
+                            and isinstance(_rmt2, dict) and _rmt2.get("type") == "String"
+                            else (None if _rmf.endswith(".group") else ""))
+                if not isinstance(_rmp, str):
+                    # Unreachable (a "lit"/"const" pattern is set at function entry, an
+                    # unrolled read carries its tag): the generic lowering is an opaque int
+                    # where the classifier said `str`, so Why3 rejects it -- fail-closed.
+                    return None
+                _rmh = self._expr_to_whyml({"type": "Var", "name": _rmo}, local_refs or set())
+                self._add_abstract_op(
+                    "val function re_match_op (pat: string) (s: string) (pos: int) : int")
+                if _rmf.endswith(".end"):
+                    self._add_abstract_op("val function re_end_op (h: int) : int")
+                    return (f"(begin assert {{ [@expl:PyCSL re.Match.end on None] "
+                            f"{_rmh} <> 0 }}; (re_end_op {_rmh}) end)")
+                _rmk = expr["args"][0]["value"]
+                _rmng, _rmopt = 0, None
+                try:
+                    try:
+                        import re._parser as _rmsp
+                    except ImportError:
+                        import sre_parse as _rmsp
+                    _rmt = _rmsp.parse(_rmp)
+                    _rmng = _rmt.state.groups - 1
+                    _rmopt, _rmseen = set(), set()
+                    _rmw = [(_rmt, False)]
+                    while _rmw:
+                        _rmsub, _rmo2 = _rmw.pop()
+                        for _rmop, _rmav in _rmsub:
+                            _rmon = str(_rmop)
+                            if _rmon == "SUBPATTERN":
+                                if _rmav[0] is not None:
+                                    _rmseen.add(_rmav[0])
+                                    if _rmo2:
+                                        _rmopt.add(_rmav[0])
+                                _rmw.append((_rmav[3], _rmo2))
+                            elif _rmon in ("MAX_REPEAT", "MIN_REPEAT", "POSSESSIVE_REPEAT"):
+                                _rmw.append((_rmav[2], _rmo2 or _rmav[0] == 0))
+                            elif _rmon == "BRANCH":
+                                _rmw.extend((_a, _rmo2 or len(_rmav[1]) > 1)
+                                            for _a in _rmav[1])
+                            elif _rmon == "GROUPREF_EXISTS":
+                                _rmw.extend((_a, True) for _a in _rmav[1:] if _a is not None)
+                            elif _rmon in ("ASSERT", "ASSERT_NOT"):
+                                _rmw.append((_rmav[1], True))
+                            elif _rmon == "ATOMIC_GROUP":
+                                _rmw.append((_rmav, _rmo2))
+                            elif _rmon not in ("LITERAL", "NOT_LITERAL", "ANY", "IN", "AT",
+                                               "GROUPREF", "CATEGORY", "RANGE",
+                                               "RANGE_UNI_IGNORE", "NEGATE", "CHARSET",
+                                               "BIGCHARSET", "FAILURE", "SUCCESS"):
+                                raise ValueError(_rmon)
+                    _rmopt |= set(range(1, _rmng + 1)) - _rmseen
+                except Exception:
+                    import re as _rmre
+                    _rmng = _rmre.compile(_rmp).groups
+                    _rmopt = set(range(1, _rmng + 1))
+                if _rmk > _rmng:
+                    return ("(begin assert { [@expl:PyCSL re.Match.group IndexError: no "
+                            f"group {_rmk}] false }}; \"\" end)")
+                self._add_abstract_op("val function re_group_op (h: int) (k: int) : string")
+                _rmg = f"(re_group_op {_rmh} {_rmk})"
+                if _rmk in _rmopt:
+                    self._add_abstract_op(
+                        "val function re_group_present_op (h: int) (k: int) : bool")
+                    return (f"(begin assert {{ [@expl:PyCSL re.Match.group on None or a "
+                            f"non-participating group (a None value, not a str)] {_rmh} <> 0 "
+                            f"/\\ re_group_present_op {_rmh} {_rmk} }}; {_rmg} end)")
+                return (f"(begin assert {{ [@expl:PyCSL re.Match.group on None] "
+                        f"{_rmh} <> 0 }}; {_rmg} end)")
         if not self._is_re_str_call(expr):
             return None
         fn = expr.get("func")
@@ -11236,7 +11395,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # lowered: its value is not part of the model (`_handle_re_str_call`), exactly as
         # the dropped `sorted(key=<lambda>)` body (route #275).
         _rcs_idx = -1
-        if self._is_re_str_call(expr) and isinstance(func_name, str):
+        if (self._is_re_str_call(expr) and isinstance(func_name, str)
+                and not func_name.endswith(".group")):
             _rcs_i = 1 if func_name in ("re.sub", "_re.sub") else 0
             if (len(expr["args"]) > _rcs_i
                     and not self._is_string_expr(expr["args"][_rcs_i])):
@@ -11399,7 +11559,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
         # #31: `re.sub` / `re.escape` -> a faithful `string` op, BEFORE the generic
         # dotted-call fallback that would mint an opaque int `re_sub_3`.
-        _rsc = self._handle_re_str_call(expr, args)
+        _rsc = self._handle_re_str_call(expr, args, local_refs)
         if _rsc is not None:
             return _rsc
         # lv6: `unicodedata.normalize(<literal form>, <str>)` -> a `string` op, BEFORE the
@@ -18994,6 +19154,34 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         obj_ir = expr.get("object", {})
         attr = expr.get("attr", "unknown")
+        # lvO (re.Match model): `m.re.groups` of a MATCH LOCAL is the group count of the
+        # pattern of its binding ("cur", or the unrolled copy's tag), computed by CPython's own
+        # `re.compile` -- an int literal, after the `m <> 0` VC (AttributeError on None).
+        if (attr == "groups" and isinstance(obj_ir, dict) and obj_ir.get("type") == "Attribute"
+                and isinstance(obj_ir.get("attr"), str)
+                and (obj_ir["attr"] == "re" or obj_ir["attr"].startswith("re:"))
+                and isinstance(obj_ir.get("object"), dict)
+                and obj_ir["object"].get("type") == "Var"
+                and obj_ir["object"].get("name") in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})
+                and not invariant_ctx and not getattr(self, "_in_spec", False)):
+            _rgm = obj_ir["object"]["name"]
+            _rgst = (getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}
+            _rgp = (_rgst.get("cur") or {}).get(_rgm)
+            if (_rgst.get("locals") or {})[_rgm][0] == "rx":
+                # an unrolled copy's read carries its constant (`_handle_for_stmt`)
+                _rgp = (((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
+                        .get(obj_ir["attr"][len("re:"):])
+                        if obj_ir["attr"].startswith("re:") else None)
+            elif obj_ir["attr"] != "re":
+                _rgp = None
+            if not isinstance(_rgp, str):
+                # Unreachable (see `_handle_re_str_call`): keep the pattern unknown out of
+                # the model -- an opaque, unconstrained group count, never a guessed one.
+                return "(any int)"
+            import re as _rgre
+            _rgh = self._expr_to_whyml(obj_ir["object"], local_refs, invariant_ctx, subst)
+            return (f"(begin assert {{ [@expl:PyCSL re.Match.re on None] {_rgh} <> 0 }}; "
+                    f"{_rgre.compile(_rgp).groups} end)")
         # `@property` SUPPORT (relaunch #16), the READ half. A decorated getter is now
         # EMITTED as an ordinary nullary method (`let box__area (self: box) : int`), so a
         # `<recv>.<prop>` read must be the APPLICATION `(box__area <recv>)` — otherwise
