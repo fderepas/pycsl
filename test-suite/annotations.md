@@ -6650,6 +6650,42 @@ the model (no width law): write the defensive `if e <= pos: <stop>` guard. Witne
 FAIL) `9471`-`9474`, `9476`, `9478`, `9480`, `9482`, `9483`, `9485`; controls (PASS) `9470`,
 `9475`, `9477`, `9479`, `9481`, `9484`.
 
+A match-call signature (callee + each argument's `(type, name, value)`) whose argument is a
+Subscript / Attribute / any node-valued slot (`len(s[1:])`, `len(kv[0])` in the same function as
+a match local) is not a binding signature and keeps its ordinary lowering; until lvP (run #6)
+the comparison raised a Python `TypeError` inside the emitter (`UNEXPECTED PIPELINE ERROR`).
+Control (PASS) `9510`.
+
+### 7.321 A list of tuples with an IR-node slot is a `seq` of native tuples; a trusted tuple / tuple-list stub is typed (lvP, run #6)
+
+A `List[Tuple[T1, .., Tn]]` annotation (n >= 2) whose slots are each `str` / `int` / `bool` /
+an IR-node tag (`"ExprIR"`, `"StmtIR"`, `"IRNode"`, `"ContractExprIR"`) or ONE nested
+`List[Tuple[..]]` of those, with at least one IR-node or nested slot (a scalar-only tuple keeps
+WL-03's `pytuple_*` record), types its element as the native Why3 tuple `(t1, .., tn)`; a
+nested list slot is the PURE `seq (..)` (an `array` component cannot sit in a `seq`). Where
+it applies: (1) a method / function RETURNING such a list whose returned local (the last
+top-level `return x`) is a growable list local, every `.append(..)` of which is a tuple display
+of the element's arity, and which does not escape (each occurrence is a `return` value, a
+`for` iterable, an `if` / `while` test, a `not` operand or a `len` argument): the local grows by
+the real tuple (`rules := Seq.snoc !rules (!rname, <expr>)`, was `(any int)`) and the function
+returns the `seq (t1, .., tn)` as-is; its call sites see the same type (and a `#@
+sibling_concrete` / list-record-field class calls it concretely); (2) a record FIELD so
+annotated is `seq (t1, .., tn)`, and a constructor that is a `return` value binds a non-escaping
+tuple-element local passed to it as-is (was the unconstrained `any_array ()`); (3) a local bound
+only by calls returning such a seq and never mutated is that seq; (4) `for a, b in xs` over a
+tuple-element local binds each READ component to its projection of the element (was `any
+int`). A `-> Tuple[..]` method of that slot shape (where a `List[str]` slot is also admitted, as the
+`array string` the tail-return bridge `materialize_str` builds) returns its DECLARED native tuple
+type instead of the body-inferred `(int, ..)` of a call-valued slot (`_parse_variant_def`). A
+`\trusted` `pass`-body stub declared `-> List[Tuple[..]]` / `-> Tuple[..]` of that slot shape is
+announced with that type, UNCONSTRAINED (no ensures added; was `array int` / `unit`),
+and a tuple-unpack of a zero-argument receiver call no longer declares the abstract val curried
+over `()`. Value semantics is exact only for an unaliased list: an escaping local, an
+other-arity append or any other mutation keeps the base lowering. Witnesses (must FAIL)
+`9512`, `9514`, `9516`, `9518`, `9520`, `9521` (a caller sees only the callee's contract),
+`9524`; controls (PASS) `9511`, `9513`, `9515`, `9517`, `9519`, `9522` (other-arity append: base
+lowering kept), `9523`.
+
 ---
 
 ## 10. Concurrent Model Annotations
