@@ -988,3 +988,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-10T11:16Z | 714 | STATUS (run hour 41.3; 54.7 h left). int55 stmt_control_flow + expressions proving; u38, rt56, lvP working. oom_kill 75. |
 2026-11-10T12:10Z | 715 | STATUS (run hour 42.2; 53.8 h left). int55 stmt_control_flow + expressions proving (both slots). lvP, u38, rt56 queued for proof slots (QUICK triage only). oom_kill 75. |
 2026-11-10T13:01Z | 716 | STATUS (run hour 43.1; 53 h left). stmt_control_flow 16079 Valid so far, expressions 24951 Valid so far (non-Valid: 0). oom_kill 75. |
+2026-11-10T13:54Z | 717 | STATUS (run hour 44.0; 52 h left). stmt_control_flow + expressions in progress (0 non-Valid so far). Executors queued behind them. oom_kill 75. |
