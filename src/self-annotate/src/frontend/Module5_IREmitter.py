@@ -2480,7 +2480,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (run #6 lvL) CONVERTED again (capability R1, the receiver-typed narrowing view, annotations §7.566):
     # `isinstance(node, ast.ClassDef)` on the `TParamNode` parameter lowers to `is_classdef_of node`, so
     # `node` IS the modelled node and `b` (a `for` target over `node.bases`) is its child, not a value of
-    # an unknown class; `b.value.id` reads `name_of (svalue_of b)` under `is_sub b`.
+    # an unknown class; `b.value.id` reads `name_of (avalue_of b)` under `is_sub b` (route #583: `svalue_of`
+    # before; the two agree on an IrSub).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -2887,10 +2888,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # by primitive #1; `isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name)` ->
     # `is_sub` / `is_var (svalue_of elt)`, `elt.value.id` -> `name_of (svalue_of elt)`. Early
     # returns via `Return_<variant>`. isinstance_op = 0. Verbatim body port of the LIVE method.
-    # (run #5 lvG2) RE-TRUSTED, route #567: `elt.value.id` is read on a path an `isinstance(.., ast.Constant)`
-    # of this body narrows to a non-IR class (the mirror exemption was rejected); no equivalent
-    # rewrite avoids the read.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # (run #6 lvL) CONVERTED again (capability R1, the receiver-typed narrowing view, annotations §7.566):
+    # `isinstance(elt, ast.Constant)` lowers to `is_constant elt`; only its `.kind` stays refused (residual),
+    # and `elt.value.id` is read under `isinstance(elt, ast.Subscript)` as `name_of (avalue_of elt)`.
+    # (run #6 u37) re-trusted by lvL (route #583: its `ast.Attribute` arm read `elt.value` with the Subscript
+    # projector, `IrOther ""` on an IrAttr, so the arm was dead in the model); VERIFIED again after the #583
+    # repair, `.value` on an emit_ir value lowers to the unified `avalue_of` (IrAttr -> object, IrSub -> value).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -2905,6 +2908,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if elt.id in ("int", "bool", "float", "str", "bytes",
                           "list", "dict", "set", "frozenset", "tuple", "bytearray"):
                 return "int" if elt.id in ("int", "bool") else elt.id
+            # W8 capability (v): a DECLARED RECORD CLASS arm (`Optional[_Tok]`)
+            # is a REAL arm carrying that record, not an `Any` to be dropped.
+            # Dropping it collapsed the synthesized variant to the vacuous
+            # `Arm_<i>_None`-only type, so `return <record>` could not be
+            # injected into any constructor and the file failed L3-tc. The tag
+            # is the class name; Module6's `_fmt_variant` resolves it to the
+            # record's WhyML type (the same resolution it already does for a
+            # payload naming another VARIANT). Gated on the record registry, so
+            # a non-record class arm still degrades to `Any` exactly as before.
+            #
             # The gate is the EMITTED `record` type_decl set — deliberately
             # narrower than `_m5_declared_record_names()` (which also carries the
             # pre-`generic_visit` class pre-scan). A class in the pre-scan but
@@ -3021,17 +3034,51 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return self._m5_get_type_name_legacy(ann_expr.slice)
         return None
 
-    # (run #5 lvG2) RE-TRUSTED, route #567: `sub.target.value.id` is read on a path an `isinstance(.., ast.AnnAssign)`
-    # of this body narrows to a non-IR class (the mirror exemption was rejected); no equivalent
-    # rewrite avoids the read.
-    # Body STUBBED like every `\trusted` stub: its variant-less loop would count against the
-    # trusted-termination ratchet (bin/check-trusted-termination-honesty.py).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # (run #6 lvL) CONVERTED again (capability R1, the receiver-typed narrowing view, annotations §7.566):
+    # `stmt` / `cstmt` / `sub` are `pyast_stmt` loop locals (one binding each), so their `ast.AnnAssign` /
+    # `ast.ClassDef` / `ast.FunctionDef` tests lower to the stmt discriminants and their `.target` /
+    # `.annotation` reads are the node's own children (`stmt_target0` / `stmt_annotation`).
+    # (run #6 u37) re-trusted by lvL (route #583: `sub.target.value` read the Subscript projector, `IrOther ""` on
+    # the IrAttr target, so the `self.<attr>: Final[T]` branch was dead in the model); VERIFIED again after the
+    # #583 repair: `.value` on an emit_ir value lowers to the unified `avalue_of` (IrAttr -> object).
     #@ requires True
     #@ ensures True
     #@ assigns self._final_registry
     def _collect_final_registry(self, module_node: ast.Module) -> None:
-        pass
+        for stmt in module_node.body:
+            # F1: module-level Final (`x: Final[int] = 5` or `x: Final[int]`).
+            if (isinstance(stmt, ast.AnnAssign)
+                    and isinstance(stmt.target, ast.Name)
+                    and self._is_final_annotation(stmt.annotation)):
+                self._final_registry.append({
+                    "name": stmt.target.id, "kind": "module",
+                    "class": None, "allowed_writer": None,
+                })
+            # F2: class-body Final instance-attribute declarations.
+            if isinstance(stmt, ast.ClassDef):
+                for cstmt in stmt.body:
+                    # `attr: Final[T]` (with or without value) in the class body.
+                    if (isinstance(cstmt, ast.AnnAssign)
+                            and isinstance(cstmt.target, ast.Name)
+                            and self._is_final_annotation(cstmt.annotation)):
+                        self._final_registry.append({
+                            "name": cstmt.target.id, "kind": "class_attr",
+                            "class": stmt.name, "allowed_writer": "__init__",
+                        })
+                    # `self.attr: Final[T]` inside the class's own __init__.
+                    if (isinstance(cstmt, ast.FunctionDef)
+                            and cstmt.name == "__init__"):
+                        for sub in ast.walk(cstmt):
+                            if (isinstance(sub, ast.AnnAssign)
+                                    and isinstance(sub.target, ast.Attribute)
+                                    and isinstance(sub.target.value, ast.Name)
+                                    and sub.target.value.id == "self"
+                                    and self._is_final_annotation(sub.annotation)):
+                                self._final_registry.append({
+                                    "name": sub.target.attr, "kind": "class_attr",
+                                    "class": stmt.name,
+                                    "allowed_writer": "__init__",
+                                })
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

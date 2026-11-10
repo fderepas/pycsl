@@ -5810,8 +5810,9 @@ RULES (emitter, `statements.py::_handle_array_set_stmt` / `expressions.py::_hand
   `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (run #5 lvG2; `_csl_in` was already) --
   and `_const_int_value`, `_collect_typevar_registry`, `_m5_get_type_name_legacy` are VERIFIED again under the
   receiver-typed view below (run #6 lvL), with `_collect_type_params` (§7.574); `_collect_final_registry` and
-  `_union_arm_tag` stay `\trusted`: each has a branch the model decides dead while CPython takes it (route #583,
-  `.value` of an `ast.Attribute` read by the Subscript projector).
+  `_union_arm_tag`, re-trusted by lvL because each had a branch the model decided dead while CPython takes it (route
+  #583, `.value` of an `ast.Attribute` read by the Subscript projector), are VERIFIED again after the #583 repair
+  (§7.583, run #6 u37; every leaf block live).
 - (run #6, capability R1) THE RECEIVER-TYPED NARROWING VIEW. An `isinstance(p, ast.<X>)` test, `ast` RESOLVED
   (§7.579) and the class not inside a tuple, is an IR class ON THIS RECEIVER -- it does not narrow `p` -- exactly when
   `_handle_isinstance` lowers that very test to a constructor discriminant of `p`'s model type: a `pyast_stmt` loop
@@ -6179,6 +6180,37 @@ names a CLASS of this file, `X.n(...)`, which looks `n` up in `X`'s file MRO onl
 its `def`, or give the name its own `def` (with a contract) that calls it.
 
 MEASUREMENTS: `getting-better/open-routes/route582-rt55-r55-f8.md`.
+
+### 7.583 `.value` of an IR node value reads the Attribute object or the Subscript value, whichever the node is (route #583, run #6)
+
+Executor lvL (run #6, capability R1) measured `Verification SUCCESS` for a false `ensures \result == 0` in the default
+model (PRE-EXISTING, present at run6-int54): inside a `@mutable_state` class, `.value` on a value the emitter types as
+an IR node (`emit_ir`) fell through `_handle_attribute_expr`'s projector tables to the default `svalue_of`, the
+SUBSCRIPT projector (`IrSub v _ -> v`, `IrOther ""` on every other node). An `ast.Attribute` is an IR class
+(`_AST_CLASS_TO_IR_KIND`, modelled `IrAttr o a`) whose `.value` is the OBJECT `o`, so after `isinstance(x,
+ast.Attribute)` (`is_attribute x`) the test `isinstance(x.value, ast.Name)` lowered to `is_var (IrOther "")` = false
+and `x.value.id` to `""`: `if isinstance(x, ast.Attribute) and isinstance(x.value, ast.Name): if x.value.id ==
+"self": return 1` / `return 0` PROVED `\result == 0`; CPython returns 1 for `self.a`. The same dead path made two
+mirror functions' branches unreachable in the model (`Module5_IREmitter.py` `_collect_final_registry`'s
+`self.<attr>: Final[T]` branch, `_union_arm_tag`'s `ast.expr` / `ast.stmt` / `ast.AST` arm), so they were re-trusted.
+
+RULE (Module 6, `expressions.py::_handle_attribute_expr`, its mirror twin `\trusted`; inline, no new def, no new
+projector, no axiom): `.value` on an emit_ir value, when no handler-scoped projector applies
+(`_EMIT_IR_HANDLER_ATTR_PROJ`: `_py_stmt_augassign`, `_classify_literal_value`, the swap-family ghost handlers), lowers
+to the UNIFIED `avalue_of` (`IrAttr o _ -> o | IrSub v _ -> v | _ -> IrOther ""`), the projector `_py_stmt_augassign`
+already used. It agrees with `svalue_of` on every node that is not an IrAttr, so every Subscript read keeps its
+meaning; on an IrAttr it reads the object, CPython's `ast.Attribute.value`. (An `ir_schema.AttributeExpr` has no
+`.value` field: CPython raises `AttributeError` there, which this partial-correctness model does not claim.) The
+truthiness of `if <x>.value:` stays the always-present `true` (`_to_bool`'s sub-node prefixes now include
+`avalue_of`).
+
+MEASUREMENTS: `getting-better/open-routes/route583-emitir-attribute-value-read-as-subscript.md` (witness table per
+model, corpus 9430-9435 / 9440-9441, byte-diff, mirror sweep, the two re-conversions).
+Residuals (named, findings of the same class; the route doc records each measurement, the `pyast_stmt` one being unmeasurable in a user program today): the DICT view `.get("value")` of a
+`Starred` / `NamedExpr` / `SliceAccess` / `MapSet` node (the reflection table `_EMIT_IR_PROJ["value"]` is
+`svalue_of`, `IrOther ""` on those constructors); `.slice` on an emit_ir value outside the handler-scoped entries
+(the `svalue_of` catch-all reads the Subscript VALUE, not its index); `.value` of a `pyast_stmt` whose class the model
+does not carry (`ast.Expr`, `ast.Return`, `ast.AugAssign`: `stmt_value` reads `IrOther ""` on `PSOther`).
 
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
