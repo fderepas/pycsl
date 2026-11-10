@@ -991,3 +991,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-10T13:54Z | 717 | STATUS (run hour 44.0; 52 h left). stmt_control_flow + expressions in progress (0 non-Valid so far). Executors queued behind them. oom_kill 75. |
 2026-11-10T14:50Z | 718 | STATUS (run hour 44.9; 51 h left). stmt_control_flow + expressions in vacuity / proof phases; executors queued. oom_kill 75. |
 2026-11-10T15:43Z | 719 | STATUS (run hour 45.8; 50.2 h left). stmt_control_flow + expressions vacuity phases running. oom_kill 75. |
+2026-11-10T16:10Z | 720 | Throughput (supervisor suggestion): slice at ~2 GB with both big jobs in vacuity at 2 workers; jobs not yet started move to PYTHON_CPU_COUNT=6 (3 workers): driver after_f.sh re-armed (small re-proofs), RULES.md rule 21 for the executors; running stmt_control_flow / expressions and queued pycsl / Module5 (stream B env already fixed) NOT touched. If oom_kill rises above 75: back to 2 workers. |
