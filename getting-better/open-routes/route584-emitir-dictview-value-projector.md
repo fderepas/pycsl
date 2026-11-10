@@ -1,0 +1,2 @@
+# OPEN ROUTE #584 — THE DICT-VIEW `.get("value")` OF AN emit_ir NODE WHOSE `.value` IS NOT THE SUBSCRIPT ONE (Starred, NamedExpr, SliceAccess, MapSet) USES `_EMIT_IR_PROJ["value"]` = `svalue_of`
+**Status: OPEN, Severity 1, pre-existing (found by run #6 executor u37 as finding F1 of route #583; false proofs at the int55 base and head).** Witnesses witnesses-r583/u37/d01-d04 (FALSE proofs); d05 the Subscript control. See route583 doc F1. `_EMIT_IR_PROJ` also maps `guard` / `lower` / `upper` to `svalue_of` (unmeasured).

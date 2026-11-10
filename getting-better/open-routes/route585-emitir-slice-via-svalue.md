@@ -1,0 +1,2 @@
+# OPEN ROUTE #585 — `.slice` OF AN emit_ir VALUE OUTSIDE THE HANDLER-SCOPED ENTRIES FALLS TO THE `svalue_of` CATCH-ALL (a Subscript projector) SO THE MODEL DECIDES BRANCHES CPYTHON TAKES
+**Status: OPEN, Severity 1, pre-existing (run #6 executor u37 finding F2 of route #583; false proof at base and head).** Witness witnesses-r583/u37/a05_slice_default.py. See route583 doc F2. Related: F3 `.value` of a `pyast_stmt` whose class the model does not carry (not measurable while user programs fail L3 'unbound type symbol option').
