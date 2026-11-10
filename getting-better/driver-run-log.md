@@ -999,3 +999,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-10T17:31Z | 725 | STATUS (run hour 47.6; 48.4 h left). int55 expressions + Module5 proving; rt56 proofs (PRIO) and after_f queue waiting for slots. Driver skill carve-outs for run #6 committed. u38 / lvP working. oom_kill 75. |
 2026-11-10T18:27Z | 726 | STATUS (run hour 48.5; 47.5 h left). int55 expressions + Module5 proving. oom_kill 75. |
 2026-11-10T19:18Z | 727 | STATUS (run hour 49.4; 46.6 h left). int55 expressions + Module5 proving. oom_kill 75. |
+2026-11-10T19:48Z | 728 | int55 tip Module5_IREmitter 2636/2636 SUCCESS (11831 s; nothing 'could not be checked'; = u37's count; oom_kill 75). Remaining for L5: expressions (running ~10 h), Module1 / Module3 / __init__ / ir_resolve re-proofs (after_f.sh, starting now), battery v52, rt56 pending proofs. |
