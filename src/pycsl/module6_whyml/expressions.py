@@ -577,8 +577,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (isinstance(ir_expr, dict) and ir_expr.get("type") == "Call"
                 and isinstance(ir_expr.get("func"), str)
                 and ir_expr["func"].endswith(".group")
-                and ir_expr["func"][:-len(".group")] in (getattr(self, "_re_m_locals", None)
-                                                          or {})
+                and ir_expr["func"][:-len(".group")] in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})
                 and isinstance(whyml_str, str)
                 and whyml_str.startswith("(begin assert { [@expl:PyCSL re.Match.group")):
             if "IndexError" in whyml_str:
@@ -3567,10 +3566,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return False
         fn = expr.get("func")
         # lvO (re.Match model): `m.group(<int literal>)` on a MATCH LOCAL
-        # (`_reset_function_state`: `_re_m_locals`) is a `str` read of the law-free match
+        # (`_reset_function_state`) is a `str` read of the law-free match
         # model (`_handle_re_str_call`), so a receiving local types as a string.
         if (isinstance(fn, str) and fn.endswith(".group") and fn.count(".") == 1
-                and fn[:-len(".group")] in (getattr(self, "_re_m_locals", None) or {})
+                and fn[:-len(".group")] in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})
                 and expr.get("receiver") is None and not expr.get("keywords")):
             return True
         n = self._RE_STR_FUNCS.get(fn) if isinstance(fn, str) else None
@@ -3821,23 +3820,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # lookaround) `re_group_present_op h k` -- its value is then `None`, not a `str`,
         # so a `str` read must first prove it took part. Its TRUTH (`_to_bool`, rebuilt
         # from this lowering) is `present && len > 0`: None and "" are both falsy. A read in
-        # a spec context is not modelled (None -> the generic lowering). Only the VALUE of
-        # a match local's binding Assign lowers to a handle (`_re_m_binding`, set by
-        # `_handle_assign_stmt` for exactly that value): a match call anywhere else keeps
-        # the opaque lowering, so a handle can never escape.
-        _rmm = getattr(self, "_re_m_locals", None) or {}
+        # a spec context is not modelled (None -> the generic lowering). Only a match call
+        # whose (callee, args) signature occurs NOWHERE in the function but as a match
+        # local's binding value lowers to a handle ("sigs", `_reset_function_state`): any
+        # other match call keeps the opaque lowering, so a handle can never escape.
+        _rmst = (getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}
+        _rmm = _rmst.get("locals") or {}
         _rmf = expr.get("func") if isinstance(expr, dict) else None
         _rmc_all = ((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
         if (_rmm and isinstance(_rmf, str) and expr.get("type") == "Call"
                 and expr.get("receiver") is None and not expr.get("keywords")
                 and not getattr(self, "_in_spec", False)):
-            _rmbind = getattr(self, "_re_m_binding", None)
-            _rmb = (_rmbind[0] if isinstance(_rmbind, tuple) and isinstance(_rmbind[1], dict)
-                    and _rmbind[1].get("func") == _rmf
-                    and (_rmbind[1].get("args") or []) == (expr.get("args") or [])
-                    else None)
-            if isinstance(_rmb, str) and _rmb in _rmm:
-                self._re_m_binding = None
+            _rmsig = (_rmf, tuple((_y.get("type"), _y.get("name"), _y.get("value"))
+                                  for _y in (expr.get("args") or []) if isinstance(_y, dict)))
+            if _rmsig in (_rmst.get("sigs") or set()):
                 _rma = expr.get("args") or []
                 _rmc = ((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
                 _rmp, _rms, _rmpos = None, None, "0"
@@ -3855,14 +3851,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # kept fail-safe: the generic opaque binding is an ARBITRARY handle,
                     # which the law-free reads (pattern fixed or copy-tagged) stay sound on.
                     return None
-                self._re_m_cur[_rmb] = _rmp
                 self._add_abstract_op(
                     "val function re_match_op (pat: string) (s: string) (pos: int) : int")
                 _rmpw = self._expr_to_whyml({"type": "String", "value": _rmp}, set())
                 return f"(re_match_op {_rmpw} {_rmsw} {_rmpos})"
             _rmo = _rmf.rsplit(".", 1)[0] if _rmf.count(".") == 1 else None
             if _rmo in _rmm and _rmf[len(_rmo):] in (".group", ".end"):
-                _rmp = (getattr(self, "_re_m_cur", None) or {}).get(_rmo)
+                _rmp = (_rmst.get("cur") or {}).get(_rmo)
                 if _rmm[_rmo][0] == "rx":
                     # an unrolled copy's read carries its constant (`_handle_for_stmt`)
                     _rmt2 = (expr.get("args") or [None, None])[-1]
@@ -19159,18 +19154,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         obj_ir = expr.get("object", {})
         attr = expr.get("attr", "unknown")
         # lvO (re.Match model): `m.re.groups` of a MATCH LOCAL is the group count of the
-        # pattern of its reaching binding (`_re_m_cur`), computed by CPython's own
+        # pattern of its binding ("cur", or the unrolled copy's tag), computed by CPython's own
         # `re.compile` -- an int literal, after the `m <> 0` VC (AttributeError on None).
         if (attr == "groups" and isinstance(obj_ir, dict) and obj_ir.get("type") == "Attribute"
                 and isinstance(obj_ir.get("attr"), str)
                 and (obj_ir["attr"] == "re" or obj_ir["attr"].startswith("re:"))
                 and isinstance(obj_ir.get("object"), dict)
                 and obj_ir["object"].get("type") == "Var"
-                and obj_ir["object"].get("name") in (getattr(self, "_re_m_locals", None) or {})
+                and obj_ir["object"].get("name") in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})
                 and not invariant_ctx and not getattr(self, "_in_spec", False)):
             _rgm = obj_ir["object"]["name"]
-            _rgp = (getattr(self, "_re_m_cur", None) or {}).get(_rgm)
-            if self._re_m_locals[_rgm][0] == "rx":
+            _rgst = (getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}
+            _rgp = (_rgst.get("cur") or {}).get(_rgm)
+            if (_rgst.get("locals") or {})[_rgm][0] == "rx":
                 # an unrolled copy's read carries its constant (`_handle_for_stmt`)
                 _rgp = (((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
                         .get(obj_ir["attr"][len("re:"):])

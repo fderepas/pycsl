@@ -1242,7 +1242,7 @@ class ControlFlowStmtMixin:
                                     and _rxu_x.get("func") == _rxu_rx + ".match"):
                                 _rxu_x["func"] = _rxu_c + ".match"
                             # The reads of a match local bound in this copy by `rx.match`
-                            # (`_re_m_locals` source ("rx", rx)) are TAGGED with this copy's
+                            # (`_reset_function_state` source ("rx", rx)) are TAGGED with this copy's
                             # constant, so their lowering never depends on emission order:
                             # `m.group(k)` gains a trailing String argument (a user
                             # `m.group(k, ..)` is never a match-local read) and `m.re.groups`
@@ -1251,7 +1251,7 @@ class ControlFlowStmtMixin:
                             _rxu_o = _rxu_x.get("object")
                             if (_rxu_x.get("type") == "Call" and isinstance(_rxu_f, str)
                                     and _rxu_f.endswith(".group")
-                                    and (getattr(self, "_re_m_locals", None) or {}).get(
+                                    and (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {}).get(
                                         _rxu_f[:-len(".group")]) == ("rx", _rxu_rx)
                                     and len(_rxu_x.get("args") or []) == 1):
                                 _rxu_x["args"] = list(_rxu_x["args"]) + [
@@ -1262,7 +1262,7 @@ class ControlFlowStmtMixin:
                                     and _rxu_o.get("type") == "Attribute"
                                     and _rxu_o.get("attr") == "re"
                                     and isinstance(_rxu_o.get("object"), dict)
-                                    and (getattr(self, "_re_m_locals", None) or {}).get(
+                                    and (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {}).get(
                                         _rxu_o["object"].get("name")) == ("rx", _rxu_rx)):
                                 _rxu_o["attr"] = "re:" + _rxu_c
                             _rxu_w.extend(_rxu_x.values())

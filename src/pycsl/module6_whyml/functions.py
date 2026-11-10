@@ -414,10 +414,18 @@ class FunctionEmissionMixin:
         # statement of that loop body, with no occurrence before it in the body and none
         # outside the loop, so each unrolled copy's reads see that copy's binding; the
         # unroll TAGS those reads with the copy's constant (`_handle_for_stmt`), so their
-        # lowering never depends on emission order. `_re_m_cur` maps a "lit" / "const"
-        # local to its one pattern.
-        self._re_m_locals = {}
-        self._re_m_cur = {}
+        # lowering never depends on emission order. "cur" maps a "lit" / "const" local to
+        # its one pattern. "sigs" are the (callee, args) signatures of the bindings (an
+        # unrolled one under each pair constant's name) that occur NOWHERE in the function
+        # but as a match local's binding value: only a call with such a signature lowers
+        # to a handle (`_handle_re_str_call`), so a handle never escapes.
+        # The state rides on the EXISTING `_re_compiled_locals` field under the reserved
+        # (non-identifier) key "<re_m>", which no `<v>.sub` lookup can name: a new self
+        # field written here would widen this method's mirror frame, and declaring it would
+        # move the functions/statements mirror emissions (both frame planes ratchet).
+        _rxm_locals: Dict[str, Any] = {}
+        _rxm_cur: Dict[str, str] = {}
+        _rxm_sigs: Set[Any] = set()
         _rxm_ir = getattr(self, "ir", None)
         _rxm_consts = ((_rxm_ir.get("module_const_regexes") or {})
                        if isinstance(_rxm_ir, dict) else {})
@@ -579,11 +587,39 @@ class FunctionEmissionMixin:
                                                           or _rxm_x.startswith(_rxm_m + ".")):
                             _rxm_ok = False
             if _rxm_ok:
-                self._re_m_locals[_rxm_m] = _rxm_src0[:2]
+                _rxm_locals[_rxm_m] = _rxm_src0[:2]
                 if _rxm_src0[0] == "lit":
-                    self._re_m_cur[_rxm_m] = _rxm_src0[1]
+                    _rxm_cur[_rxm_m] = _rxm_src0[1]
                 elif _rxm_src0[0] == "const":
-                    self._re_m_cur[_rxm_m] = _rxm_consts[_rxm_src0[1]]
+                    _rxm_cur[_rxm_m] = _rxm_consts[_rxm_src0[1]]
+                for _d in _rxm_defs:
+                    _rxm_v = _d[0]["value"]
+                    _rxm_a = tuple((_x.get("type"), _x.get("name"), _x.get("value"))
+                                   for _x in (_rxm_v.get("args") or []))
+                    if _rxm_src0[0] == "rx":
+                        _rxm_pr = (_rxm_pairs.get(_rxm_src0[2]["iter"]["name"]) or {})
+                        for _rxm_pc in (_rxm_pr.get("pairs") or []):
+                            _rxm_sigs.add((_rxm_pc[1] + ".match", _rxm_a))
+                    else:
+                        _rxm_sigs.add((_rxm_v["func"], _rxm_a))
+        if _rxm_sigs:
+            # a signature that ALSO occurs other than as a binding value is not safe
+            _rxm_bvals = {id(_d[0]["value"]) for _m in _rxm_locals for _d in _rxm_cand[_m]}
+            _rxm_w4: List[Any] = [body_stmts]
+            while _rxm_w4:
+                _rxm_x = _rxm_w4.pop()
+                if isinstance(_rxm_x, dict):
+                    if (_rxm_x.get("type") == "Call" and id(_rxm_x) not in _rxm_bvals
+                            and isinstance(_rxm_x.get("func"), str)):
+                        _rxm_sigs.discard((_rxm_x["func"], tuple(
+                            (_y.get("type"), _y.get("name"), _y.get("value"))
+                            for _y in (_rxm_x.get("args") or []) if isinstance(_y, dict))))
+                    _rxm_w4.extend(_rxm_x.values())
+                elif isinstance(_rxm_x, (list, tuple)):
+                    _rxm_w4.extend(_rxm_x)
+        if _rxm_locals:
+            self._re_compiled_locals["<re_m>"] = {"locals": _rxm_locals, "cur": _rxm_cur,
+                                                  "sigs": _rxm_sigs}
         # (#49) ROUTE #232 — A READ `**kwargs` PARAMETER IN AN EMITTED BODY. The parameter
         # is not modelled (it is not in the signature), so the read would lower to an
         # auto-declared opaque `val constant <name> : int` SHARED by every call: measured,
