@@ -35,4 +35,30 @@ Advice (audited FOLLOWABLE, see below): pass the argument explicitly; make the p
 
 ## Witnesses and measurements
 
-RESULTS_PLACEHOLDER
+- PROBE `witnesses-r592/hc1762_cl_isinstance_dict.py` (rt56): EMITTED at base fe057a6c1 (driver: PROVED), REFUSED
+  R592 at HEAD.
+- CORPUS witnesses (expected FAIL; CPython breaks each claim): 9630 (`isinstance`, module function), 9631 (the
+  `self.g(3)` site), 9632 (truthiness vs `len`), 9633 (`len`, `self.` site), 9634 (a keyword-bound later argument
+  `g(3, y=1)` skipping `d`): all EMITTED at base, all REFUSED R592 at HEAD (`--no-proof` triage). Base proof verdicts:
+  BASE_PROOFS.
+- CONTROLS (expected PASS): 9640 (callee `#@ \trusted`, `h() == g(3) + 1`), 9641 (verified callee, `d` passed
+  explicitly): EMITTED at base and HEAD. Proof verdicts: CTL_PROOFS.
+- 9390 (lvN's own witness, expected PASS): its callees were VERIFIED bodies, so it is REFUSED R592 at HEAD as written
+  (correctly: its subject is the fill, and the fill reached verified bodies). REWRITTEN with both callees `#@ \trusted`
+  (contracts that hold for `d = None`; they never read `d`), keeping its subject (both fill sites still emit
+  `pycsl_none_map`). Its emission MOVES exactly by the two callees becoming `val`s.
+- OTHER USES (u40 probes `witnesses-r592/u40/`, the callee omitted-default call `g(3)` in each): under an `ensures`
+  claim `bool(d) == (len(d) != 0)` (p_bool), `len(d) + x >= 3` (p_lenens), `if d: ...` (p_ifd) reach the fill and
+  are REFUSED R592; under `#@ no_exception \all` `len(d)` (p_len), `list(d)` (p_list), `sorted(d)` (p_sorted),
+  `d.keys()` (p_keys), `dict(d)` (p_dictcopy) are refused on the CALLEE side by pre-existing rules (the parameter
+  may be `None` there), at base and HEAD alike; `d.get(..)` / `d[k]` / `for k in d` likewise (first-draft witnesses).
+  A spec-context call (`#@ requires g(3) == 1`) fills too and is refused; a non-Optional `d: Dict[..] = None` was
+  refused at base by the default-type rule and is now refused R592 first. A receiver-variable call `c.g(3)`, a
+  static method `C.g(3)` and a constructor `C()` omitting the argument do NOT fill `pycsl_none_map` (an opaque `val`
+  without the callee's contract / an unconstrained field), so nothing is decided there (emission unchanged).
+- INERTNESS (own base = `git archive fe057a6c1`, same scripts): corpus root 3097 -> 3099 .mlw, 1 MOVED (9390, the
+  declared source rewrite), 0 GONE, 0 APPEARED (+2 controls; the 5 witnesses refused); python-reference 2185 0 / 0 /
+  0. Mirror: MIRROR_RESULT.
+- ADVICE (`witnesses-r592/advice/`): a592_pass_explicit (= 9641), a592_required_param, a592_trusted_callee (= 9640):
+  ADVICE_PROOFS.
+- PLANES / LEDGERS: PLANES_RESULT.
