@@ -17900,6 +17900,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         (lambda _r: (_blk506.setdefault(_st506[-1], []).append("\n".join(
             str(_l) for _l in (_r if isinstance(_r, list) else [_r]))), _st506.pop(), _r)[2])(
             _ofb506(_f, *_a, **_k)))[1])
+    # (run #6) ROUTE #592 -- AN OMITTED `None` DEFAULT OF A MAP PARAMETER MUST NOT REACH A
+    # VERIFIED BODY. cap-none-default-map-param (lvN, c9ef6badd) fills a call that omits an
+    # `Optional[Dict[..]] = None` argument (the param's WhyML type is `map ..`) with the opaque
+    # `pycsl_none_map` (`_handle_dotted_call` for `self.m(..)`, `_handle_call_expr` for a
+    # module function; the only two `_add_abstract_op` sites of that `val`). The callee's
+    # body, when VERIFIED, reads that parameter as a MAP (`isinstance(d, dict)` is true,
+    # `len(d)` / `d.get(k)` / `d[k]` / `for k in d` / `bool(d)` are map operations), so its
+    # contract, proved for every map, is applied at a call where CPython passes `None`:
+    # `def g(x, d: Optional[Dict[str, str]] = None)` with `return 1 if isinstance(d, dict)
+    # else 0` and `#@ ensures \result == 1`, then `h() = g(3)`, PROVED `\result == 1`
+    # (CPython: 0; red team rt56 hc1762; before lvN the fill was ill-typed `0`, refused at
+    # L3). So the fill is observed here (an instance attribute over `_add_abstract_op`, the
+    # filling frame read for its callee key: emission byte-identical) and REFUSED unless
+    # every binding of the callee has no verified body: `\abstract`, `\trusted`, or a mirror
+    # `#@ declared_in` whose DEFINITION is `\trusted` / `\abstract` (its body is never proved
+    # against the constant). INLINE: `_run_pipeline`'s mirror twin is `\trusted`.
+    import sys as _sys592
+    _hit592: List[Any] = []
+    _oao592 = transpiler._add_abstract_op
+    transpiler._add_abstract_op = (lambda *_a, **_k: (
+        (lambda _fr: _hit592.append((
+            _fr.f_code.co_name,
+            _fr.f_locals.get("_dk") if _fr.f_code.co_name == "_handle_dotted_call"
+            else _fr.f_locals.get("func_name"),
+            _fr.f_locals.get("_nm") if _fr.f_code.co_name == "_handle_dotted_call"
+            else _fr.f_locals.get("nm"),
+            _st506[-1] if _st506 else "",
+            (_fr.f_locals.get("expr").get("lineno") or _fr.f_locals.get("expr").get("line")
+             or 0) if isinstance(_fr.f_locals.get("expr"), dict) else 0)))(
+                _sys592._getframe(1))
+        if str(_a[0] if _a else _k.get("decl", "")).startswith(
+            "val function pycsl_none_map ") else None,
+        _oao592(*_a, **_k))[1])
     # (#49) ROUTE #460 -- a refusal Module 6 raises inside a REACHED def says "this function
     # claims `#@ no_exception`" of a def that claims nothing itself: name the reached defs.
     try:
@@ -17921,6 +17954,80 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                    "_handle_fstring_expr", "_emit_function_block",
                    "_maybe_emit_no_exception_assert"):
         transpiler.__dict__.pop(_hn506, None)
+    # ROUTE #592 (see the observer above): judge every `pycsl_none_map` fill by its callee.
+    transpiler.__dict__.pop("_add_abstract_op", None)
+    if _hit592:
+        import re as _re592
+        from module6_whyml.identifiers import whyml_ident as _wid592
+        _fns592 = [_f for _f in ((getattr(transpiler, "ir", None) or {}).get("functions")
+                                 or []) if isinstance(_f, dict)]
+        _mir592 = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))), "src", "self-annotate", "src")
+        for _co592, _ky592, _pn592, _cl592, _ln592 in _hit592:
+            _bd592 = [_f for _f in _fns592 if _ky592 is not None and (
+                str(_f.get("name", "")) == str(_ky592)
+                or _wid592(str(_f.get("name", ""))) == str(_ky592))]
+            _why592 = None if _bd592 else "no def of it is visible to the checker"
+            for _f592 in _bd592:
+                if _f592.get("abstract"):
+                    continue
+                _rv592 = str(_f592.get("reviewer") or "")
+                if _f592.get("trusted") and not _rv592.startswith("declared_in:"):
+                    continue
+                if _f592.get("trusted"):
+                    # a mirror `#@ declared_in <relpath>::<Class.m>`: the DEFINITION decides
+                    _rl592, _, _q592 = _rv592[len("declared_in:"):].strip().partition("::")
+                    _dc592, _, _dm592 = _q592.rpartition(".")
+                    try:
+                        with open(os.path.join(_mir592, _rl592), encoding="utf-8") as _h592:
+                            _tx592 = _h592.read().splitlines()
+                    except OSError:
+                        _tx592 = []
+                    _ci592 = next((_i for _i, _l in enumerate(_tx592) if _dc592 and _re592.match(
+                        r"class\s+" + _re592.escape(_dc592) + r"\b", _l)), None)
+                    _di592 = None
+                    if _ci592 is not None and _dm592:
+                        for _i592 in range(_ci592 + 1, len(_tx592)):
+                            if _re592.match(r"class\s", _tx592[_i592]):
+                                break
+                            if _re592.match(r"\s+(async\s+)?def\s+" + _re592.escape(_dm592)
+                                            + r"\s*\(", _tx592[_i592]):
+                                _di592 = _i592
+                                break
+                    _ok592 = False
+                    _j592 = (_di592 or 0) - 1
+                    while _di592 is not None and _j592 > _ci592 and (
+                            _tx592[_j592].strip().startswith("#@")
+                            or _tx592[_j592].strip().startswith("@")):
+                        if _re592.match(r"#@\s*\\(trusted|abstract)\b", _tx592[_j592].strip()):
+                            _ok592 = True
+                        _j592 -= 1
+                    if _ok592:
+                        continue
+                    _why592 = ("it is a `#@ declared_in` declaration whose definition `"
+                               + _rv592[len("declared_in:"):].strip()
+                               + "` is not `\\trusted` / `\\abstract` (or was not found)")
+                else:
+                    _why592 = "its body is verified"
+                break
+            if _why592 is not None:
+                from errors import PyCSLSemanticError as _PyCSLSemErr592
+                raise _PyCSLSemErr592(
+                    f"PYCSL-R592-NONE-DEFAULT-MAP-CONCRETE: in `{_cl592}`"
+                    + (f" (line {_ln592})" if _ln592 else "")
+                    + f", a call of `{_ky592}` omits the argument `{_pn592}`, whose default is "
+                    f"`None` and whose type is a dict (`Optional[Dict[..]]`, modelled as a map). "
+                    f"The model can only pass an opaque map there, and {_why592}: its proof treats "
+                    f"`{_pn592}` as a dict (`isinstance(.., dict)`, `len`, `.get`, `[k]`, "
+                    f"iteration, truthiness are all map operations), so the callee's contract, "
+                    f"proved for every dict, would be applied to a call where CPython passes "
+                    f"`None` (route #592; measured: `return 1 if isinstance(d, dict) else 0` "
+                    f"under `#@ ensures \\result == 1` proved `g(3) == 1`, CPython returns 0). "
+                    f"Pass the argument explicitly at this call (the dict you mean, e.g. "
+                    f"`{{}}`), or make `{_pn592}` a required parameter of the callee (no `None` "
+                    f"default), or mark the callee `#@ \\trusted` (counted in the trusted "
+                    f"base) only if its contract genuinely holds when `{_pn592}` is `None`.",
+                    stage="whyml", code="PYCSL-R592-NONE-DEFAULT-MAP-CONCRETE")
     # (#49) ROUTE #506 -- THE CENSUS. A site is every `TRIGGERS`-shaped expression of
     # `exception_model.TRIGGER_EXPR_SHAPES` (BinOp `/` `//` `%` `div` `mod` `<<` `>>` `**`,
     # any Subscript, a call of `divmod` / `chr` / `str` / `repr` / `format` / `print` /

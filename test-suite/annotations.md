@@ -6250,6 +6250,24 @@ catch-all lowers to `iratt_<attr>_of` (§7.584): the per-constructor arms of `_E
 function` when no constructor carries the attribute as a node (`lineno`, `col_offset`, `params`, ...), so no branch is
 decided from a sentinel. Measurements: `getting-better/open-routes/route585-emitir-slice-via-svalue.md`.
 
+### 7.592 An omitted `None` default of a dict parameter reaches only a callee with no verified body (route #592, run #6)
+
+Run #6 capability cap-none-default-map-param (lvN, c9ef6badd) fills a call that OMITS an argument whose default is
+`None` and whose parameter is dict-typed (`Optional[Dict[K, V]] = None`, WhyML type `map K (option V)`) with the
+opaque `val function pycsl_none_map : map 'k (option 'v)` (before: the int `0`, ill-typed, refused at L3). A VERIFIED
+callee body reads that parameter as a map, so its contract holds for every map, and the call inherits it where
+CPython passes `None`: `def g(x, d: Optional[Dict[str, str]] = None)` returning `1 if isinstance(d, dict) else 0`
+under `#@ ensures \result == 1`, then `h() = g(3)`, PROVED `\result == 1` (CPython 0; red team rt56 hc1762). RULE
+(`pycsl.py::_run_pipeline`, twin `\trusted`; inline, no new def, no axiom): every `pycsl_none_map` fill Module 6
+makes (`_handle_dotted_call` for `self.m(..)`, `_handle_call_expr` for a module function, a keyword-bound later
+argument included) is observed with its callee, and REFUSED, `PYCSL-R592-NONE-DEFAULT-MAP-CONCRETE`, unless every
+binding of the callee has no verified body: `\abstract`, `\trusted`, or a mirror `#@ declared_in` whose definition
+is `\trusted` / `\abstract`. The refusal is at the call site, so it covers every use the body makes of the parameter
+(`isinstance`, `len`, truthiness, `.get`, `[k]`, iteration, in contracts too). Advice: pass the argument explicitly,
+make the parameter required, or mark the callee `#@ \trusted` only if its contract holds for `None`. Witnesses
+9630-9634 (FAIL), controls 9640 (trusted callee) / 9641 (explicit argument), 9390 (lvN's witness, callees now
+trusted). Measurements: `getting-better/open-routes/route592-none-default-map-concrete-callee.md`.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
