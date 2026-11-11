@@ -15,13 +15,10 @@ class B:
         self.i = 0
 
     #@ \trusted reviewer: lvp-witness
-    #@ requires True
-    #@ ensures True
     #@ assigns self.i
     def pair(self) -> Tuple[str, List[Tuple[str, "ExprIR"]]]:
         pass
 
-    #@ requires True
     #@ ensures \result == "x"
     #@ assigns self.i
     def name(self) -> str:

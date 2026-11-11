@@ -11,16 +11,12 @@ def mutable_state(cls): return cls
 
 @mutable_state
 class B:
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def rules(self, n: str, e: "ExprIR") -> List[Tuple[str, "ExprIR"]]:
         rs = []
         rs.append((n, e))
         return rs
 
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def members(self, n: str, e: "ExprIR") -> List[Tuple[str, str, List[Tuple[str, "ExprIR"]]]]:
         out = []

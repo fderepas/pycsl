@@ -15,16 +15,12 @@ def mutable_state(cls): return cls
 @mutable_state
 class B:
     #@ sibling_concrete
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def build(self, n: str, e: "ExprIR") -> List[Tuple[str, "ExprIR"]]:
         rules = []
         rules.append((n, e))
         return rules
 
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def first(self, n: str, e: "ExprIR") -> int:
         rs = self.build(n, e)

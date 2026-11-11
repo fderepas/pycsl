@@ -11,13 +11,11 @@ def mutable_state(cls): return cls
 @mutable_state
 class B:
     #@ sibling_concrete
-    #@ requires True
     #@ ensures \result == n
     #@ assigns \nothing
     def name_of(self, n: str) -> str:
         return n
 
-    #@ requires True
     #@ ensures \result[0] == "zz"
     #@ assigns \nothing
     def variant(self, n: str, k: int) -> Tuple[str, List[str]]:

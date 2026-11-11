@@ -18,13 +18,10 @@ class B:
         self.i = 0
 
     #@ \trusted reviewer: lvp-witness
-    #@ requires True
-    #@ ensures True
     #@ assigns self.i
     def pair(self) -> Tuple[str, List[Tuple[str, "ExprIR"]]]:
         pass
 
-    #@ requires True
     #@ ensures \result >= 0
     #@ assigns self.i
     def count(self) -> int:
