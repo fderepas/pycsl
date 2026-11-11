@@ -6250,6 +6250,41 @@ catch-all lowers to `iratt_<attr>_of` (§7.584): the per-constructor arms of `_E
 function` when no constructor carries the attribute as a node (`lineno`, `col_offset`, `params`, ...), so no branch is
 decided from a sentinel. Measurements: `getting-better/open-routes/route585-emitir-slice-via-svalue.md`.
 
+### 7.589 A `raise` constructor argument after the first must not be able to raise where it matters (route #589, run #6)
+
+Module 5 keeps the exception class and the FIRST constructor argument of `raise E(a, ...)` (the payload model lowers
+that one); every later positional argument and every keyword value is dropped. Route #310 refuses a dropped part
+holding a call (an effect); its implicit exception went with it: red team rt56 measured PROVED `no_exception \all`
++ `\result == 1` for `try: raise E("a", xs[9]) except E: return 1`, `E("a", 1 // k)` and `E("a", f"{xs[9]}")`
+(CPython raises IndexError / ZeroDivisionError). RULE (`PYCSL-R589-RAISE-ARGUMENT-UNEVALUATED`, `_run_pipeline`, the
+source AST): in a VERIFIED def that claims any `no_exception` (declared or reached, route #460) or that a handler may
+catch from (route #506's relevance: a handler of the def, or of a def whose protected body calls it, transitively;
+a module-level raise and a def the IR does not name are relevant), a dropped part may hold only literals, tuple /
+list displays of them, a negated number, and names BOUND on entry to the raise (a parameter, a module-level binding,
+a builtin, or a local assigned by a plain assignment that precedes the raise, or an enclosing statement of it, in
+the same statement block). Anything else is refused: bind it to a local first. The same holds for a builtin
+exception (`raise ValueError("a", 1, d["k"])`). Measurements: `getting-better/open-routes/route589-raise-extra-ctor-args-dropped.md`.
+
+### 7.590 What a `raise` raises must be an exception (route #590, run #6)
+
+A raise lowers to a Why3 exception tag named after the raised class whatever that name is bound to: `raise E("a")`
+of a `@dataclass class E` or of a plain class, caught by `except E`, PROVED `no_exception \all` + `\result == 1`
+(rt56; CPython raises TypeError). RULE (`PYCSL-R590-RAISE-NON-EXCEPTION`, the main file, classes resolved over it and
+the modules it imports): the raised name (`raise X(...)` / `raise X`) must not be a class whose bases do not reach a
+builtin `BaseException` subclass through the classes in view (a base that cannot be placed is refused too), a
+non-exception builtin, or a `def` (`raise mk()` raises whatever `mk` returns, which the model does not know); a
+raised literal, display, f-string, operator or comprehension is refused. Aliases (`A = E`) and import aliases
+(`from m import E as _E`) are followed; the `except ... as` name of an enclosing handler is an exception. A name
+neither file binds is left to the name rules. Measurements: `getting-better/open-routes/route590-raise-non-exception-instance.md`.
+
+### 7.591 A `raise ... from` cause must be an exception or `None` (route #591, run #6)
+
+The `from` cause is dropped by Module 5: `raise E("a") from 1` and `from k` (an int) PROVED `no_exception \all` under
+`except E` (rt56; CPython raises TypeError, "exception causes must derive from BaseException"). RULE
+(`PYCSL-R591-RAISE-FROM-NON-EXCEPTION`): the cause is `None`, a name of an exception class (resolved as in §7.590),
+or the `except ... as` name of a handler enclosing the raise and never rebound in it (a read of that name is route
+#233's refusal today); anything else is refused. Measurements: `getting-better/open-routes/route591-raise-from-non-exception.md`.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
