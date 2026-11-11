@@ -1029,3 +1029,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-11T08:12Z | 755 | STATUS (run hour 62.3; 33.7 h left). int56 statements (A) + Module5 (B) proving; u39 working. oom_kill 75. |
 2026-11-11T09:04Z | 756 | STATUS (run hour 63.1; 32.9 h left). int56 statements 30431 Valid / 0 non-Valid so far; Module5 proving. oom_kill 75. |
 2026-11-11T09:57Z | 757 | STATUS (run hour 64.0; 32 h left). int56 statements (vacuity) + Module5 proving; battery v53 armed after stream B; u39 working. oom_kill 75. |
+2026-11-11T10:32Z | 758 | int56 Module5 2636/2636 SUCCESS (nothing unchecked); stream B -> Module2, Module3, types, 2 ghost files. u39: refusals committed (f6920b616), gating. oom_kill 75. |
