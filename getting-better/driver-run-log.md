@@ -1010,3 +1010,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-10T22:52Z | 736 | v52 M1 re-proof on int55 tip of the 13 payload-model corpus movers: 3726-3729 expected FAIL -> Verification FAILED; 4061 4404 4405 5460 expected PASS -> SUCCESS; 1610 1642 3733 3787 3788 (controls without a header) -> SUCCESS; verdicts as at base. M1 accepted. Waiting: expressions, v52 F (--slow). |
 2026-11-10T23:35Z | 737 | STATUS (run hour 53.7; 42.3 h left). expressions (int55 tip) still proving; v52 F --slow running (64 ok). rt56 pending rounds queued. oom_kill 75. |
 2026-11-11T00:27Z | 738 | STATUS (run hour 54.5; 41.5 h left). expressions: 24951 Valid, 0 non-Valid so far (vacuity phase); v52 F --slow 74 ok. oom_kill 75. |
+2026-11-11T01:18Z | 739 | STATUS (run hour 55.4; 40.6 h left). expressions vacuity phase; v52 F --slow 77 ok, 0 red. oom_kill 75. |
