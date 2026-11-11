@@ -9,7 +9,8 @@ from module6_whyml.scc import sort_functions_by_scc
 from module6_whyml.auto_trust import AutoTrustMixin
 from module6_whyml.abstract_ops import AbstractOpsMixin
 from module6_whyml.types import TypeInferenceMixin
-from module6_whyml.expressions import ExpressionEmissionMixin
+from module6_whyml.expressions import (ExpressionEmissionMixin, _EMIT_IR_FIELD_SLOT,
+                                       _EMIT_IR_FIELD_PROJ_DEFS, _EMIT_IR_ATTR_ARMS)
 from module6_whyml.statements import StatementEmissionMixin
 from module6_whyml.preamble import PreambleEmissionMixin
 from module6_whyml.functions import FunctionEmissionMixin
@@ -1240,7 +1241,9 @@ class Module6_WhyMLTranspiler(
                 # single-letter pattern binders like `i` — every one a false positive that
                 # would spuriously force the full theory on a purely-opaque body). A
                 # node-reader only PROJECTS, so a projector-name match is the exact signal.
-                _rich = self._opaque_accessor_symbols(_full) - self._opaque_accessor_symbols(_minimal)
+                _rich = (self._opaque_accessor_symbols(_full) - self._opaque_accessor_symbols(_minimal)
+                         | set(_EMIT_IR_FIELD_PROJ_DEFS)
+                         | {f"iratt_{_a}_of" for _a in _EMIT_IR_ATTR_ARMS})
                 self._opaque_theory_deferred = (
                     _OPAQUE_THEORY_SLOT, _full, _minimal, _rich)
                 out.append(_OPAQUE_THEORY_SLOT)
@@ -1744,6 +1747,23 @@ class Module6_WhyMLTranspiler(
         self._insert_late_content_ops(out)
         self._resolve_deferred_exprir_theory(out)
         self._resolve_deferred_opaque_theory(out)
+        # routes #584/#585: splice the per-constructor field projectors the emitted text
+        # uses into the theory's slot (none used -> the slot goes, byte-identical).
+        if _EMIT_IR_FIELD_SLOT in out:
+            _i584 = out.index(_EMIT_IR_FIELD_SLOT)
+            _rest584 = "\n".join(out[_i584 + 1:])
+            _defs584 = [_l584 for _n584, _d584 in _EMIT_IR_FIELD_PROJ_DEFS.items()
+                        if re.search(r"\b" + _n584 + r"\b", _rest584)
+                        for _l584 in _d584]
+            for _a584 in sorted(set(re.findall(r"\biratt_(\w+?)_of\b", _rest584))):
+                _arms584 = [_t584 for _t584, _g584 in _EMIT_IR_ATTR_ARMS.get(_a584, [])
+                            if _g584 is None or getattr(self, _g584)()]
+                _defs584 += ([f"  let function iratt_{_a584}_of (e: emit_ir) : emit_ir =",
+                              "    match e with " + " | ".join(_arms584)
+                              + " | _ -> IrOther \"\" end", ""]
+                             if _arms584
+                             else [f"  val function iratt_{_a584}_of (e: emit_ir) : emit_ir", ""])
+            out[_i584:_i584 + 1] = _defs584
         self._insert_array_init_use(out)
         return "\n".join(out)
 
@@ -1864,6 +1884,8 @@ class Module6_WhyMLTranspiler(
         rest = re.sub(r'"[^"]*"', ' ', rest)
         used = bool(rich) and bool(re.search(
             r"\b(?:" + "|".join(re.escape(n) for n in sorted(rich)) + r")\b", rest))
+        # routes #584/#585: an `iratt_<attr>_of` read (spliced into the slot of the FULL theory)
+        used = used or bool(re.search(r"\biratt_\w+_of\b", rest))
         out[idx:idx + 1] = full if used else minimal
 
     # ------------------------------------------------------------------

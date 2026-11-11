@@ -6149,6 +6149,7 @@ class PreambleEmissionMixin:
             "  let function svalue_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub v _ -> v | _ -> IrOther \"\" end",
             "",
+            "(*__pycsl_field_proj_slot__*)",
             "  let function sindex_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub _ i -> i | _ -> IrOther \"\" end",
             "",
