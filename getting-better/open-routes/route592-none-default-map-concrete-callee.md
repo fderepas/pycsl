@@ -61,7 +61,7 @@ Advice (audited FOLLOWABLE, see below): pass the argument explicitly; make the p
   0. Mirror: the full 53-file sweep did NOT RUN before the time box (heavy queue).
   Measured instead: `module6_whyml/statements.py`, the ONLY mirror file whose emission contains `pycsl_none_map`
   (grep of the driver's int56 mirror sweep: 20 occurrences, no other file), emitted byte-IDENTICAL at base and HEAD (and
-  identical to the int56 sweep): its fills call the `#@ declared_in` `_expr_to_whyml`, whose definition is `\\trusted`.
+  identical to the int56 sweep): its fills call the `#@ declared_in` `_expr_to_whyml`, whose definition is `\trusted`.
   Every other mirror file cannot move (the observer returns the emitter's own result; only a fill can refuse). The
   53/53 sweep is OWED.
 - ADVICE (`witnesses-r592/advice/`): a592_pass_explicit (= 9641), a592_required_param, a592_trusted_callee (= 9640):
