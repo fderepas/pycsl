@@ -1046,3 +1046,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-11T16:27Z | 772 | STATUS (run hour 70.5; 25.5 h left). int56 expressions proving (last L6 proof); v53 F --slow running; u39 (#589-#591) and u40 (#592) working; rt56 base classification of 7 candidates queued (all 7 emit at base on QUICK). oom_kill 75. |
 2026-11-11T17:23Z | 773 | STATUS (run hour 71.5; 24.5 h left). u40 committed the #592 repair (a0784bad2: an omitted None default of a dict parameter may reach only a callee with no verified body), gating. int56 expressions + v53 F running. oom_kill 75. |
 2026-11-11T18:20Z | 774 | STATUS (run hour 72.4; 23.6 h left). v53 F --slow 75 ok so far; int56 expressions proving; u39 / u40 gating. oom_kill 75. |
+2026-11-11T19:15Z | 775 | STATUS (run hour 73.3; 22.7 h left). v53 F 80 ok; expressions proving; u39 / u40 gating. oom_kill 75. |
