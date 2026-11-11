@@ -3904,7 +3904,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and not getattr(self, "_in_spec", False)):
             _rmsig = (_rmf, tuple((_y.get("type"), _y.get("name"), _y.get("value"))
                                   for _y in (expr.get("args") or []) if isinstance(_y, dict)))
-            if _rmsig in (_rmst.get("sigs") or set()):
+            # (lvP) a slot whose `value` is an IR node (a Subscript / Attribute argument)
+            # makes the signature unhashable; it cannot be a recorded binding signature
+            # (those hash), so it keeps the opaque lowering instead of crashing the run.
+            if (all(not isinstance(_y2, (dict, list)) for _y1 in _rmsig[1] for _y2 in _y1)
+                    and _rmsig in (_rmst.get("sigs") or set())):
                 _rma = expr.get("args") or []
                 _rmc = ((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
                 _rmp, _rms, _rmpos = None, None, "0"
@@ -9347,6 +9351,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      # `scc.find_self_method_calls` supplies the ordering edge.
                      or (isinstance(ret_type, str) and ret_type.startswith("(")
                          and ret_type.endswith(")") and "," in ret_type)
+                     # cap-vm-unerase-tuple (run #6 lvP): a TUPLE-ELEMENT LIST sibling
+                     # (`-> List[Tuple[..]]` returning its `seq (t1, .., tn)` accumulator)
+                     # is the same case: without this arm `rules =
+                     # self._parse_inductive_rules()` bound the UNCONSTRAINED `val
+                     # self__parse_inductive_rules_0`, and the conversion bought the caller
+                     # nothing. Same soundness argument and the same ordering edge.
+                     or (isinstance(ret_type, str) and ret_type.startswith("seq (")
+                         and ret_type.endswith(")"))
                      or ret_type in {_ri["whyml_name"]
                                      for _ri in getattr(self, "_record_types", {}).values()})):
             if _concrete in getattr(self, "_module_func_names", set()):
@@ -17882,6 +17894,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             and _r36[1:] in getattr(self, "_seq_locals", set())
                             and (getattr(self, "_seq_value_types", {}) or {}).get(
                                 _r36[1:]) == "string"):
+                        init_map[fn] = _r36
+                        continue
+                    # cap-vm-unerase-tuple (run #6 lvP): a `List[Tuple[..]]` field typed the
+                    # pure `seq (t1, .., tn)` (its record decl, `_emit_type_decls`) bound to a
+                    # `!<x>` deref of a TUPLE-ELEMENT seq local of the SAME element type
+                    # (`_seq_value_types[x]`, set by `_reset_function_state`) IS that seq:
+                    # bind it as-is instead of the unconstrained `any_array ()` (#235), which
+                    # dropped every rule. A mismatched element type keeps the old path.
+                    _tq_fv = (rec_info.get("field_value_types") or {}).get(fn)
+                    if (field_types.get(fn) == "list" and isinstance(_tq_fv, str)
+                            and _tq_fv.startswith("(")
+                            and _r36.startswith("!") and _r36[1:].isidentifier()
+                            and _r36[1:] in getattr(self, "_seq_locals", set())
+                            and (getattr(self, "_seq_value_types", {}) or {}).get(
+                                _r36[1:]) == _tq_fv):
                         init_map[fn] = _r36
                         continue
                     _lv = self._bind_listfield_from_seq(rec_info, fn, ent, arg_nodes,

@@ -611,9 +611,19 @@ class FunctionEmissionMixin:
                 if isinstance(_rxm_x, dict):
                     if (_rxm_x.get("type") == "Call" and id(_rxm_x) not in _rxm_bvals
                             and isinstance(_rxm_x.get("func"), str)):
-                        _rxm_sigs.discard((_rxm_x["func"], tuple(
+                        # (lvP) an argument whose `value` is itself a node (an f-string
+                        # `rf"..{re.escape(o)}.."`, a nested call) makes the signature
+                        # unhashable: it cannot EQUAL a recorded binding signature (those
+                        # hash, so their slots are scalars), so there is nothing to
+                        # discard -- skip it rather than crash the pipeline (was
+                        # `UNEXPECTED PIPELINE ERROR: cannot use 'tuple' as a set element`
+                        # on proof2why3/normalize.py::_alpha_rename's verbatim port).
+                        _rxm_dsig = (_rxm_x["func"], tuple(
                             (_y.get("type"), _y.get("name"), _y.get("value"))
-                            for _y in (_rxm_x.get("args") or []) if isinstance(_y, dict))))
+                            for _y in (_rxm_x.get("args") or []) if isinstance(_y, dict)))
+                        if all(not isinstance(_y2, (dict, list))
+                               for _y1 in _rxm_dsig[1] for _y2 in _y1):
+                            _rxm_sigs.discard(_rxm_dsig)
                     _rxm_w4.extend(_rxm_x.values())
                 elif isinstance(_rxm_x, (list, tuple)):
                     _rxm_w4.extend(_rxm_x)
@@ -4839,6 +4849,270 @@ class FunctionEmissionMixin:
             _rv = self._returned_var_name(body_stmts)
             if _rv is not None:
                 self._pyval_seq_locals.add(_rv)
+        # cap-vm-unerase-tuple (run #6 lvP): TUPLE-ELEMENT LIST LOCALS. A seq-promoted list
+        # local whose elements are native Why3 tuples `(t1, .., tn)` -- the element type
+        # Module5 read off a `-> List[Tuple[..]]` return / a `List[Tuple[..]]` record field
+        # with an IR-node or nested-list slot -- is recorded in `_seq_value_types[x]` as
+        # that tuple type, so its `.append((a, b))` snocs the REAL tuple (statements
+        # `_handle_expr_stmt`) instead of `(any int)`. Two flows mark a local, both read off
+        # the IR here, before any statement is lowered: (1) the local the function RETURNS
+        # when its declared element type is such a tuple (it then returns the seq as-is,
+        # `!x`: the `_pyval_seq_locals` direct-return arm of `_handle_return_stmt`, whose
+        # only other member is the K4 `seq hval` local); (2) a local passed by NAME,
+        # positionally or by keyword, to a record constructor at a field typed by such a
+        # tuple (the constructor binds the seq as-is, expressions `_call_record_constructor`).
+        # Every other list local keeps its lowering, so the corpus and every mirror without
+        # such an annotation emit byte-identically.
+        _tq_rvt = func.get("return_value_type")
+        if (func.get("return_annotation") == "list" and isinstance(_tq_rvt, str)
+                and _tq_rvt.startswith("(") and _tq_rvt.endswith(")")):
+            _tq_rv = self._returned_var_name(body_stmts)
+            # the arity of the element type (top-level commas) and of every `.append(..)`
+            # of the local must agree; a non-tuple / other-arity append keeps the old
+            # (erased) lowering of the whole local -- the call-site map applies the same
+            # test, so callers and the declaration still agree.
+            _tq_dp1, _tq_ar1 = 0, 1
+            for _tq_ch1 in _tq_rvt[1:-1]:
+                if _tq_ch1 == "(":
+                    _tq_dp1 += 1
+                elif _tq_ch1 == ")":
+                    _tq_dp1 -= 1
+                elif _tq_ch1 == "," and _tq_dp1 == 0:
+                    _tq_ar1 += 1
+            _tq_ok1 = _tq_rv is not None
+            _tq_st1: List[Any] = [body_stmts]
+            while _tq_st1 and _tq_ok1:
+                _tq_y1 = _tq_st1.pop()
+                if isinstance(_tq_y1, dict):
+                    if (_tq_y1.get("type") == "Call"
+                            and _tq_y1.get("func") == f"{_tq_rv}.append"):
+                        _tq_a1 = _tq_y1.get("args") or []
+                        _tq_ok1 = (len(_tq_a1) == 1 and isinstance(_tq_a1[0], dict)
+                                   and _tq_a1[0].get("type") == "Tuple"
+                                   and len(_tq_a1[0].get("elts") or []) == _tq_ar1)
+                    _tq_st1.extend(_tq_y1.values())
+                elif isinstance(_tq_y1, (list, tuple)):
+                    _tq_st1.extend(_tq_y1)
+            # NO ESCAPE (value semantics is exact only for an unaliased list): every
+            # occurrence of the local is a `return` value, a `for` iterable, an `if` / `while`
+            # test, a `not` operand or a `len(..)` argument; anything else (passed to
+            # a call, stored, re-bound) keeps the old lowering.
+            _tq_ste: List[Any] = [(body_stmts, None, None)]
+            while _tq_ste and _tq_ok1:
+                _tq_ne, _tq_pe, _tq_ke = _tq_ste.pop()
+                if isinstance(_tq_ne, dict):
+                    if _tq_ne.get("type") == "Var" and _tq_ne.get("name") == _tq_rv:
+                        _tq_ok1 = isinstance(_tq_pe, dict) and (
+                            (_tq_pe.get("stmt") == "Return" and _tq_ke == "value")
+                            or (_tq_pe.get("stmt") == "For" and _tq_ke == "iter")
+                            or (_tq_pe.get("stmt") in ("If", "While") and _tq_ke == "test")
+                            or (_tq_pe.get("type") == "UnaryOp" and _tq_pe.get("op") == "not")
+                            or (_tq_pe.get("type") == "Call" and _tq_pe.get("func") == "len"))
+                    for _tq_kk, _tq_vv in _tq_ne.items():
+                        _tq_ste.append((_tq_vv, _tq_ne, _tq_kk))
+                elif isinstance(_tq_ne, (list, tuple)):
+                    for _tq_vv in _tq_ne:
+                        _tq_ste.append((_tq_vv, _tq_pe, _tq_ke))
+            if _tq_ok1 and _tq_rv in self._seq_locals:
+                self._pyval_seq_locals.add(_tq_rv)
+                self._seq_value_types[_tq_rv] = _tq_rvt
+        # (3) a local bound ONLY by `x = <call>` of a function whose call sites the
+        # return-type map gives a `seq (t1, .., tn)` of tuples (flow (1) of the callee)
+        # is that seq: a seq local of that element type, read `!x`, never an `int`.
+        # (4) the same for a slot of a TUPLE-UNPACK of such a call whose slot type is a
+        # `seq (..)` (a `\trusted` `-> Tuple[.., List[Tuple[..]]]` stub announced with its
+        # native tuple type, cap-trusted-val-unit-return).
+        _tq_asg: Dict[str, List[Any]] = {}
+        _tq_stack0: List[Any] = [body_stmts]
+        while _tq_stack0:
+            _tq_x0 = _tq_stack0.pop()
+            if isinstance(_tq_x0, dict):
+                if _tq_x0.get("stmt") == "Assign" and isinstance(_tq_x0.get("target"), str):
+                    _tq_asg.setdefault(_tq_x0["target"], []).append(_tq_x0.get("value"))
+                if (_tq_x0.get("stmt") == "TupleUnpack"
+                        and isinstance(_tq_x0.get("targets"), list)
+                        and isinstance(_tq_x0.get("value"), dict)
+                        and _tq_x0["value"].get("type") == "Call"
+                        and isinstance(_tq_x0["value"].get("func"), str)
+                        and _tq_x0["value"]["func"].startswith("self.")
+                        and _tq_x0["value"]["func"].count(".") == 1
+                        and func.get("self_type")):
+                    _tq_tt = (getattr(self, "_module_method_return_types", {}) or {}).get(
+                        whyml_ident(str(func["self_type"]).lower()) + "__"
+                        + _tq_x0["value"]["func"][len("self."):])
+                    if isinstance(_tq_tt, str) and _tq_tt.startswith("(") and _tq_tt.endswith(")"):
+                        _tq_sl0: List[str] = []
+                        _tq_dp0, _tq_cur0 = 0, ""
+                        for _tq_ch0 in _tq_tt[1:-1]:
+                            if _tq_ch0 == "," and _tq_dp0 == 0:
+                                _tq_sl0.append(_tq_cur0.strip())
+                                _tq_cur0 = ""
+                                continue
+                            if _tq_ch0 == "(":
+                                _tq_dp0 += 1
+                            elif _tq_ch0 == ")":
+                                _tq_dp0 -= 1
+                            _tq_cur0 += _tq_ch0
+                        _tq_sl0.append(_tq_cur0.strip())
+                        if len(_tq_sl0) == len(_tq_x0["targets"]):
+                            for _tq_tg0, _tq_st0 in zip(_tq_x0["targets"], _tq_sl0):
+                                if (isinstance(_tq_tg0, str) and _tq_st0.startswith("seq (")
+                                        and _tq_st0.endswith(")")
+                                        and "," in _tq_st0
+                                        and _tq_tg0 not in self._formal_params):
+                                    self._seq_locals.add(_tq_tg0)
+                                    self._seq_value_types[_tq_tg0] = _tq_st0[len("seq "):]
+                _tq_stack0.extend(_tq_x0.values())
+            elif isinstance(_tq_x0, (list, tuple)):
+                _tq_stack0.extend(_tq_x0)
+        # record-constructor calls that ARE a `return` value (nothing runs after them)
+        _tq_retc: Set[int] = set()
+        _tq_str: List[Any] = [body_stmts]
+        while _tq_str:
+            _tq_xr = _tq_str.pop()
+            if isinstance(_tq_xr, dict):
+                if (_tq_xr.get("stmt") == "Return" and isinstance(_tq_xr.get("value"), dict)
+                        and _tq_xr["value"].get("type") == "Call"
+                        and _tq_xr["value"].get("func") in (getattr(self, "_record_types", {}) or {})):
+                    _tq_retc.add(id(_tq_xr["value"]))
+                _tq_str.extend(_tq_xr.values())
+            elif isinstance(_tq_xr, (list, tuple)):
+                _tq_str.extend(_tq_xr)
+        for _tq_n0, _tq_vs0 in sorted(_tq_asg.items()):
+            _tq_ts0 = set()
+            for _tq_v0 in _tq_vs0:
+                _tq_r0 = None
+                if (isinstance(_tq_v0, dict) and _tq_v0.get("type") == "Call"
+                        and isinstance(_tq_v0.get("func"), str)):
+                    # resolved like `_call_return_whyml_type`, but for THIS function's
+                    # class (`_current_self_type` is set further down this method)
+                    _tq_rm = getattr(self, "_module_method_return_types", {}) or {}
+                    _tq_fn0 = _tq_v0["func"]
+                    if "." not in _tq_fn0:
+                        _tq_r0 = _tq_rm.get(_tq_fn0)
+                    elif _tq_fn0.startswith("self.") and _tq_fn0.count(".") == 1:
+                        _tq_r0 = (_tq_rm.get(whyml_ident(str(func["self_type"]).lower())
+                                             + "__" + _tq_fn0[len("self."):])
+                                  if func.get("self_type") else None)
+                _tq_ts0.add(_tq_r0)
+            _tq_ok3 = (len(_tq_ts0) == 1 and isinstance(next(iter(_tq_ts0)), str)
+                       and next(iter(_tq_ts0)).startswith("seq (")
+                       and next(iter(_tq_ts0)).endswith(")")
+                       and _tq_n0 not in self._formal_params)
+            if _tq_ok3:
+                # a TUPLE element: top-level arity >= 2 (a parenthesised non-tuple element
+                # type, e.g. `seq (map ..)`, is not this model)
+                _tq_dp3, _tq_ar3 = 0, 1
+                for _tq_ch3 in next(iter(_tq_ts0))[len("seq ("):-1]:
+                    if _tq_ch3 == "(":
+                        _tq_dp3 += 1
+                    elif _tq_ch3 == ")":
+                        _tq_dp3 -= 1
+                    elif _tq_ch3 == "," and _tq_dp3 == 0:
+                        _tq_ar3 += 1
+                _tq_ok3 = _tq_ar3 >= 2
+            # NEVER MUTATED, NO ESCAPE but into a tuple display / a record constructor in a
+            # `return` (both value positions of the same model): an occurrence anywhere else,
+            # or any method call on it (`x.append(..)`), keeps the old lowering.
+            _tq_ste3: List[Any] = [(body_stmts, None, None)]
+            while _tq_ste3 and _tq_ok3:
+                _tq_ne3, _tq_pe3, _tq_ke3 = _tq_ste3.pop()
+                if isinstance(_tq_ne3, dict):
+                    if (_tq_ne3.get("type") == "Call" and isinstance(_tq_ne3.get("func"), str)
+                            and _tq_ne3["func"].startswith(_tq_n0 + ".")):
+                        _tq_ok3 = False
+                    if _tq_ne3.get("type") == "Var" and _tq_ne3.get("name") == _tq_n0:
+                        _tq_ok3 = isinstance(_tq_pe3, dict) and (
+                            (_tq_pe3.get("stmt") == "Return" and _tq_ke3 == "value")
+                            or (_tq_pe3.get("stmt") == "For" and _tq_ke3 == "iter")
+                            or (_tq_pe3.get("stmt") in ("If", "While") and _tq_ke3 == "test")
+                            or (_tq_pe3.get("type") == "UnaryOp" and _tq_pe3.get("op") == "not")
+                            or (_tq_pe3.get("type") == "Call" and _tq_pe3.get("func") == "len")
+                            or (_tq_pe3.get("type") == "Tuple" and _tq_ke3 == "elts")
+                            or (_tq_pe3.get("type") == "Call" and id(_tq_pe3) in _tq_retc))
+                    for _tq_kk3, _tq_vv3 in _tq_ne3.items():
+                        _tq_ste3.append((_tq_vv3, _tq_ne3, _tq_kk3))
+                elif isinstance(_tq_ne3, (list, tuple)):
+                    for _tq_vv3 in _tq_ne3:
+                        _tq_ste3.append((_tq_vv3, _tq_pe3, _tq_ke3))
+            if _tq_ok3:
+                self._seq_locals.add(_tq_n0)
+                self._seq_value_types[_tq_n0] = next(iter(_tq_ts0))[len("seq "):]
+        _tq_recs = getattr(self, "_record_types", {}) or {}
+        _tq_stack: List[Any] = [body_stmts]
+        while _tq_stack:
+            _tq_x = _tq_stack.pop()
+            if isinstance(_tq_x, dict):
+                if (_tq_x.get("stmt") == "Return" and isinstance(_tq_x.get("value"), dict)
+                        and _tq_x["value"].get("type") == "Call"
+                        and isinstance(_tq_x["value"].get("func"), str)
+                        and _tq_x["value"].get("func") in _tq_recs):
+                    _tq_x = _tq_x["value"]
+                    _tq_ri = _tq_recs[_tq_x["func"]]
+                    _tq_fvt = _tq_ri.get("field_value_types") or {}
+                    _tq_ip = list(_tq_ri.get("init_params") or [])
+                    _tq_bind: List[Any] = []
+                    for _tq_k, _tq_a in enumerate(_tq_x.get("args") or []):
+                        if _tq_k < len(_tq_ip):
+                            _tq_bind.append((_tq_ip[_tq_k], _tq_a))
+                    for _tq_kw in (_tq_x.get("keywords") or []):
+                        if isinstance(_tq_kw, dict):
+                            _tq_bind.append((_tq_kw.get("arg"), _tq_kw.get("value")))
+                    for _tq_f, _tq_a in _tq_bind:
+                        _tq_t = _tq_fvt.get(_tq_f)
+                        if (isinstance(_tq_t, str) and _tq_t.startswith("(")
+                                and isinstance(_tq_a, dict) and _tq_a.get("type") == "Var"
+                                and _tq_a.get("name") in self._seq_locals):
+                            # same arity agreement as flow (1)
+                            _tq_dp2, _tq_ar2 = 0, 1
+                            for _tq_ch2 in _tq_t[1:-1]:
+                                if _tq_ch2 == "(":
+                                    _tq_dp2 += 1
+                                elif _tq_ch2 == ")":
+                                    _tq_dp2 -= 1
+                                elif _tq_ch2 == "," and _tq_dp2 == 0:
+                                    _tq_ar2 += 1
+                            _tq_ok2 = True
+                            _tq_st2: List[Any] = [body_stmts]
+                            while _tq_st2 and _tq_ok2:
+                                _tq_y2 = _tq_st2.pop()
+                                if isinstance(_tq_y2, dict):
+                                    if (_tq_y2.get("type") == "Call"
+                                            and _tq_y2.get("func") == f"{_tq_a['name']}.append"):
+                                        _tq_a2 = _tq_y2.get("args") or []
+                                        _tq_ok2 = (len(_tq_a2) == 1 and isinstance(_tq_a2[0], dict)
+                                                   and _tq_a2[0].get("type") == "Tuple"
+                                                   and len(_tq_a2[0].get("elts") or []) == _tq_ar2)
+                                    _tq_st2.extend(_tq_y2.values())
+                                elif isinstance(_tq_y2, (list, tuple)):
+                                    _tq_st2.extend(_tq_y2)
+                            # NO ESCAPE (value semantics is exact only for an unaliased list): every
+                            # occurrence of the local is a `return` value, a `for` iterable, an `if` / `while`
+                            # test, a `not` operand or a `len(..)` argument, or an argument of
+                            # this record constructor (the `return` above: nothing runs after it); anything else (passed to
+                            # a call, stored, re-bound) keeps the old lowering.
+                            _tq_ste: List[Any] = [(body_stmts, None, None)]
+                            while _tq_ste and _tq_ok2:
+                                _tq_ne, _tq_pe, _tq_ke = _tq_ste.pop()
+                                if isinstance(_tq_ne, dict):
+                                    if _tq_ne.get("type") == "Var" and _tq_ne.get("name") == _tq_a["name"]:
+                                        _tq_ok2 = isinstance(_tq_pe, dict) and (
+                                            (_tq_pe.get("stmt") == "Return" and _tq_ke == "value")
+                                            or (_tq_pe.get("stmt") == "For" and _tq_ke == "iter")
+                                            or (_tq_pe.get("stmt") in ("If", "While") and _tq_ke == "test")
+                                            or (_tq_pe.get("type") == "UnaryOp" and _tq_pe.get("op") == "not")
+                                            or (_tq_pe.get("type") == "Call" and _tq_pe.get("func") == "len")
+                                or (_tq_pe.get("type") == "Call" and _tq_pe.get("func") == _tq_x.get("func")))
+                                    for _tq_kk, _tq_vv in _tq_ne.items():
+                                        _tq_ste.append((_tq_vv, _tq_ne, _tq_kk))
+                                elif isinstance(_tq_ne, (list, tuple)):
+                                    for _tq_vv in _tq_ne:
+                                        _tq_ste.append((_tq_vv, _tq_pe, _tq_ke))
+                            if _tq_ok2:
+                                self._seq_value_types[_tq_a["name"]] = _tq_t
+                _tq_stack.extend(_tq_x.values())
+            elif isinstance(_tq_x, (list, tuple)):
+                _tq_stack.extend(_tq_x)
         # dict-value-wall ch30: a READ-ONLY `List[Dict[str, PyVal]]` / `List[PyVal]`
         # PARAMETER (Module5 `param_list_elem_types[p] == "hval"`) is the by-value
         # `seq hval` (the K1 self-field / K4 return carrier), NOT the int-erased `array
@@ -11301,9 +11575,36 @@ class FunctionEmissionMixin:
         # every caller agree. The value stays unconstrained (no ensures added).
         if (func.get("trusted") and return_type == "unit"
                 and isinstance(_tss, str) and _tss != "unit"
-                and func.get("return_annotation") not in (None, "None", "tuple")
+                and (func.get("return_annotation") not in (None, "None", "tuple")
+                     # (run #6 lvP) a `-> Tuple[..]` stub whose slots Module5 typed: the
+                     # call-site half recorded exactly that native tuple type
+                     or (func.get("return_annotation") == "tuple"
+                         and str(func.get("return_value_type") or "").startswith("(")
+                         and _tss == func.get("return_value_type")))
                 and not func.get("lemma") and not func.get("is_noreturn")):
             return_type = _tss
+        # cap-vm-unerase-tuple (run #6 lvP), DECLARATION: a `-> List[Tuple[..]]` function
+        # whose returned accumulator `_reset_function_state` marked as a TUPLE-ELEMENT seq
+        # local returns that `seq (t1, .., tn)` as-is (no `materialize` to an `array int`
+        # of erased elements). The call-site map (`_build_method_return_type_map`) applies
+        # the same predicate, so declaration and callers agree.
+        _tq_rvt = func.get("return_value_type")
+        # ... and a `-> Tuple[..]` function of that slot shape (a `List[str]` slot is the
+        # `array string` the tail-return bridge `materialize_str` builds) returns its
+        # DECLARED native tuple type, not the body-inferred `(int, ..)` of call-valued
+        # slots; a body of another type is a Why3 type error (fail-closed). The call-site
+        # map (`transpile`) records the same type.
+        if (func.get("return_annotation") == "tuple" and not func.get("trusted")
+                and isinstance(_tq_rvt, str) and _tq_rvt.startswith("(")
+                and _tq_rvt.endswith(")")):
+            return_type = _tq_rvt
+        if (func.get("return_annotation") == "list" and not func.get("trusted")
+                and isinstance(_tq_rvt, str) and _tq_rvt.startswith("(")
+                and _tq_rvt.endswith(")")):
+            _tq_rv = self._returned_var_name(body_stmts)
+            if (_tq_rv is not None and _tq_rv in getattr(self, "_pyval_seq_locals", set())
+                    and (getattr(self, "_seq_value_types", {}) or {}).get(_tq_rv) == _tq_rvt):
+                return_type = f"seq {_tq_rvt}"
         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`): its
         # `Tuple[Set[str], str]` return is the `(seq string, string)` pair — the
         # `seq string` ref-params (the set modelled as a sequence, matching the body's
@@ -11326,6 +11627,18 @@ class FunctionEmissionMixin:
         self._current_tuple_arity = (
             return_type.count(",") + 1 if return_type.startswith("(") else 0
         )
+        if return_type.startswith("(") and "seq (" in return_type:
+            # (run #6 lvP) a cap-vm-unerase-tuple slot `seq (t1, .., tn)` carries inner
+            # commas that are not slots: count the TOP-LEVEL ones (no other type has it)
+            _tq_dpa, _tq_ara = 0, 1
+            for _tq_cha in return_type[1:-1]:
+                if _tq_cha == "(":
+                    _tq_dpa += 1
+                elif _tq_cha == ")":
+                    _tq_dpa -= 1
+                elif _tq_cha == "," and _tq_dpa == 0:
+                    _tq_ara += 1
+            self._current_tuple_arity = _tq_ara
 
         func_variants = func.get("function_variants", [])
         func_diverges = func.get("diverges", False)

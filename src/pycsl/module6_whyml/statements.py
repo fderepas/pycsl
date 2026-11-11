@@ -1854,6 +1854,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if (f.startswith("IRScanner.find_") or f.startswith("IRScanner.collect_")
                     or f.endswith(".split")):
                 return True
+            # cap-vm-unerase-tuple (run #6 lvP): a call of a `-> List[Tuple[..]]` function
+            # that returns its tuple-element accumulator as a `seq (t1, .., tn)` (the
+            # return-type map's entry) is already a seq -- no `snapshot`.
+            _tq_rt = self._call_return_whyml_type(f)
+            if isinstance(_tq_rt, str) and _tq_rt.startswith("seq ("):
+                return True
             if f == "sorted" and v.get("args"):
                 _a0 = v["args"][0]
                 return (isinstance(_a0, dict) and _a0.get("type") == "Var"
@@ -2487,8 +2493,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # resync-campaign.md R2: UNIQUE throwaway names (not `_, _`, which both
                     # lower to `_tu_py_underscore` → a Why3 duplicate-variable in the unpack).
                     _crt, _cpt, _re3, _re4 = self._resolve_dotted_signature(func_name)
+                    # (run #6 lvP) a cap-vm-unerase-tuple slot `seq (string, emit_ir)` has
+                    # inner commas that are not slots: for such a type the TOP-LEVEL comma
+                    # count decides (every other type keeps the plain count, byte-identical).
+                    _tq_dp, _tq_ar = 0, 1
+                    for _tq_ch in (_crt[1:-1] if _crt else ""):
+                        if _tq_ch == "(":
+                            _tq_dp += 1
+                        elif _tq_ch == ")":
+                            _tq_dp -= 1
+                        elif _tq_ch == "," and _tq_dp == 0:
+                            _tq_ar += 1
                     if (_crt and _crt.startswith("(")
-                            and _crt.count(",") + 1 == len(targets)):
+                            and (_crt.count(",") + 1 == len(targets)
+                                 or ("seq (" in _crt and _tq_ar == len(targets)))):
                         tuple_ret = _crt
                 else:
                     # (#49) gen #36: the val `_handle_dotted_call` JUST registered for this
@@ -2522,8 +2540,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _recv_pfx, _decl_tail = self._abstract_val_receiver_and_tail(
                     self._abstract_ops.get(arity_fn, ""), arity_fn)
                 if nargs == 0:
+                    # (run #6 lvP) with a receiver binder the receiver IS the argument the
+                    # call site passes (`(self__m_0 self)`); the extra `()` made the val
+                    # curried, so every zero-argument tuple-returning self-call unpack was
+                    # an L3 type error (`() -> (int, int)` vs the tuple pattern).
                     self._abstract_ops[arity_fn] = (
-                        f"val {arity_fn} {_recv_pfx}() : {tuple_ret}{_decl_tail}"
+                        f"val {arity_fn} {_recv_pfx}: {tuple_ret}{_decl_tail}"
                         if _recv_pfx else f"val {arity_fn} () : {tuple_ret}{_decl_tail}")
                 elif len(_cpt) == nargs:
                     params = " ".join(f"(x{i}: {_cpt[i]})" for i in range(nargs))
@@ -4414,6 +4436,41 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     code = (f"{indent}self.{safe_field} <- "
                             f"Seq.snoc self.{safe_field} "
                             f"{self._pyval_wrap(raw_arg, local_refs)}")
+                elif (arr_name in getattr(self, "_seq_locals", set())
+                      and isinstance((getattr(self, "_seq_value_types", {}) or {}).get(arr_name), str)
+                      and (getattr(self, "_seq_value_types", {}) or {}).get(arr_name).startswith("(")
+                      and isinstance(val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                                     else val["args"][0], dict)
+                      and (val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                           else val["args"][0]).get("type") == "Tuple"):
+                    # cap-vm-unerase-tuple (run #6 lvP): a TUPLE-ELEMENT list local
+                    # (`_reset_function_state` recorded its element type `(t1, .., tn)` in
+                    # `_seq_value_types`) grows by the REAL native tuple of the appended
+                    # display, each slot lowered as itself -- `rules := Seq.snoc !rules
+                    # (!rname, (p___parse_expr self))` -- not the `(any int)` the int
+                    # coercion turned it into. The display's arity must equal the element
+                    # type's (top-level commas); otherwise the generic arm runs and Why3
+                    # rejects the mixture (fail-closed).
+                    _tq_av = (val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                              else val["args"][0])
+                    _tq_vt = self._seq_value_types[arr_name]
+                    _tq_ar = 1
+                    _tq_dp = 0
+                    for _tq_ch in _tq_vt[1:-1]:
+                        if _tq_ch == "(":
+                            _tq_dp += 1
+                        elif _tq_ch == ")":
+                            _tq_dp -= 1
+                        elif _tq_ch == "," and _tq_dp == 0:
+                            _tq_ar += 1
+                    _tq_el = list(_tq_av.get("elts") or [])
+                    if len(_tq_el) == _tq_ar:
+                        _tq_txt = ", ".join(self._expr_to_whyml(_tq_e, local_refs)
+                                            for _tq_e in _tq_el)
+                        code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} ({_tq_txt})"
+                    else:
+                        code = (f"{indent}{safe_arr} := Seq.snoc !{safe_arr} "
+                                f"{self._coerce_to_int(self._expr_to_whyml(_tq_av, local_refs))}")
                 elif arr_name in getattr(self, "_pyval_seq_locals", set()):
                     # K4 (local/return-position seq-pyval, self-tcb-reduction Tier-5): a
                     # `List[Dict[str, PyVal]]`/`List[PyVal]` LOCAL that is appended to and
@@ -9654,6 +9711,29 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         for _sv in sorted(getattr(self, "_seq_locals", set())):
             _svt = getattr(self, "_seq_value_types", {}).get(_sv)
             if (_svt in _rec_whyml_names
+                    and _sv not in ghost_vars and _sv not in ref_params
+                    and _sv not in self._formal_params and _sv not in _uput
+                    and _sv not in struct_array_targets
+                    and _sv not in struct_pack_targets):
+                _seqrec_predecl[_sv] = _svt
+        # cap-trusted-val-unit-return (run #6 lvP): a TUPLE-ELEMENT seq local bound ONLY as
+        # a tuple-unpack slot (`n, rs = self.pair()`, `_reset_function_state` flow (4)) has
+        # no `let` of its own -- the unpack assigns `rs := _tu_rs` -- so it is pre-declared
+        # `ref (Seq.empty: seq (t1, .., tn))` like the record-element seq locals above.
+        _tq_assigned: Set[str] = set()
+        _tq_st: List[Any] = [body_stmts]
+        while _tq_st:
+            _tq_x = _tq_st.pop()
+            if isinstance(_tq_x, dict):
+                if _tq_x.get("stmt") == "Assign" and isinstance(_tq_x.get("target"), str):
+                    _tq_assigned.add(_tq_x["target"])
+                _tq_st.extend(_tq_x.values())
+            elif isinstance(_tq_x, (list, tuple)):
+                _tq_st.extend(_tq_x)
+        for _sv in sorted(getattr(self, "_seq_locals", set())):
+            _svt = (getattr(self, "_seq_value_types", {}) or {}).get(_sv)
+            if (isinstance(_svt, str) and _svt.startswith("(") and _svt.endswith(")")
+                    and _sv not in _tq_assigned and _sv in local_refs
                     and _sv not in ghost_vars and _sv not in ref_params
                     and _sv not in self._formal_params and _sv not in _uput
                     and _sv not in struct_array_targets

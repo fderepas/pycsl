@@ -1398,6 +1398,70 @@ class Module6_WhyMLTranspiler(
         # against it. Empty for non-mixin modules → maps unchanged → byte-identical.
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # cap-vm-unerase-tuple (run #6 lvP): a `-> List[Tuple[..]]` function (element
+        # type `(t1, .., tn)` from Module5) that returns its seq-promoted accumulator
+        # is emitted returning `seq (t1, .., tn)` (`_emit_function_block`); its call
+        # sites must see the same type (set here, in the map's \trusted producer, so the
+        # verified `_build_method_return_type_map` mirror stays verbatim). The SAME
+        # predicate as the declaration: the last top-level `return <Var>` names a
+        # `seq_promoted_vars` local, every `.append` of it is a tuple display of the
+        # element's arity, and it does not escape.
+        for _tq_fm in funcs_for_maps:
+            _tq_rvt = _tq_fm.get("return_value_type")
+            if (_tq_fm.get("return_annotation") == "tuple" and not _tq_fm.get("trusted")
+                    and isinstance(_tq_rvt, str) and _tq_rvt.startswith("(")
+                    and _tq_rvt.endswith(")")):
+                self._module_method_return_types[_tq_fm["name"]] = _tq_rvt
+            if (_tq_fm.get("return_annotation") == "list" and not _tq_fm.get("trusted")
+                    and self._module_method_return_types.get(_tq_fm.get("name")) in ("int", "unit", "array int")
+                    and isinstance(_tq_rvt, str) and _tq_rvt.startswith("(")
+                    and _tq_rvt.endswith(")")):
+                _tq_rv = self._returned_var_name(_tq_fm.get("body") or [])
+                _tq_dp1, _tq_ar1 = 0, 1
+                for _tq_ch1 in _tq_rvt[1:-1]:
+                    if _tq_ch1 == "(":
+                        _tq_dp1 += 1
+                    elif _tq_ch1 == ")":
+                        _tq_dp1 -= 1
+                    elif _tq_ch1 == "," and _tq_dp1 == 0:
+                        _tq_ar1 += 1
+                _tq_ok1 = _tq_rv is not None
+                _tq_st1: List[Any] = [_tq_fm.get("body") or []]
+                while _tq_st1 and _tq_ok1:
+                    _tq_y1 = _tq_st1.pop()
+                    if isinstance(_tq_y1, dict):
+                        if (_tq_y1.get("type") == "Call"
+                                and _tq_y1.get("func") == f"{_tq_rv}.append"):
+                            _tq_a1 = _tq_y1.get("args") or []
+                            _tq_ok1 = (len(_tq_a1) == 1 and isinstance(_tq_a1[0], dict)
+                                       and _tq_a1[0].get("type") == "Tuple"
+                                       and len(_tq_a1[0].get("elts") or []) == _tq_ar1)
+                        _tq_st1.extend(_tq_y1.values())
+                    elif isinstance(_tq_y1, (list, tuple)):
+                        _tq_st1.extend(_tq_y1)
+                # NO ESCAPE (value semantics is exact only for an unaliased list): every
+                # occurrence of the local is a `return` value, a `for` iterable, an `if` / `while`
+                # test, a `not` operand or a `len(..)` argument; anything else (passed to
+                # a call, stored, re-bound) keeps the old lowering.
+                _tq_ste: List[Any] = [(_tq_fm.get("body") or [], None, None)]
+                while _tq_ste and _tq_ok1:
+                    _tq_ne, _tq_pe, _tq_ke = _tq_ste.pop()
+                    if isinstance(_tq_ne, dict):
+                        if _tq_ne.get("type") == "Var" and _tq_ne.get("name") == _tq_rv:
+                            _tq_ok1 = isinstance(_tq_pe, dict) and (
+                                (_tq_pe.get("stmt") == "Return" and _tq_ke == "value")
+                                or (_tq_pe.get("stmt") == "For" and _tq_ke == "iter")
+                                or (_tq_pe.get("stmt") in ("If", "While") and _tq_ke == "test")
+                                or (_tq_pe.get("type") == "UnaryOp" and _tq_pe.get("op") == "not")
+                                or (_tq_pe.get("type") == "Call" and _tq_pe.get("func") == "len"))
+                        for _tq_kk, _tq_vv in _tq_ne.items():
+                            _tq_ste.append((_tq_vv, _tq_ne, _tq_kk))
+                    elif isinstance(_tq_ne, (list, tuple)):
+                        for _tq_vv in _tq_ne:
+                            _tq_ste.append((_tq_vv, _tq_pe, _tq_ke))
+                if _tq_ok1 and _tq_rv in set(_tq_fm.get("seq_promoted_vars", [])):
+                    self._module_method_return_types[_tq_fm["name"]] = f"seq {_tq_rvt}"
+
         # cap-trusted-val-unit-return (run #5, lvF), CALL-SITE half. A `\trusted` stub whose
         # placeholder body is a bare `pass` has `find_return_type -> "unit"`, so the map above
         # abstracted its call sites as `unit` for EVERY annotation outside the scalar GAP #2
@@ -1418,7 +1482,28 @@ class Module6_WhyMLTranspiler(
             _ua = _f.get("return_annotation")
             if (not _f.get("trusted") or _f.get("lemma") or _f.get("is_noreturn")
                     or self._module_method_return_types.get(_uf) != "unit"
-                    or not isinstance(_ua, str) or _ua in ("None", "tuple")):
+                    or not isinstance(_ua, str) or _ua == "None"
+                    or (_ua == "tuple"
+                        and not (str(_f.get("return_value_type") or "").startswith("(")
+                                 and ("emit_ir" in str(_f.get("return_value_type"))
+                                      or "seq (" in str(_f.get("return_value_type")))))):
+                continue
+            # cap-trusted-val-unit-return + cap-vm-unerase-tuple (run #6 lvP): a `pass`-body
+            # stub declared `-> Tuple[..]` / `-> List[Tuple[..]]` whose slots Module5 typed
+            # (`return_value_type` `(t1, .., tn)`: str / int / bool / IR-node slots or one
+            # nested `List[Tuple[..]]`, at least one non-scalar) announces exactly the type
+            # a CONVERTED body of that shape returns -- the native tuple, or the
+            # `seq (t1, .., tn)` of tuples -- as an UNCONSTRAINED value (no ensures added),
+            # instead of `unit` (a tuple) or an `array int` of erased elements (a list).
+            # Every other tuple annotation stays unpromoted (arity / slots unknown).
+            _tq_uvt = _f.get("return_value_type")
+            # (a `List[str]`-slot-only tuple -- `_resolve_dotted_signature` -- stays
+            # unpromoted: only an IR-node or nested tuple-list slot is this model)
+            if (isinstance(_tq_uvt, str) and _tq_uvt.startswith("(")
+                    and _tq_uvt.endswith(")") and _ua in ("tuple", "list")
+                    and ("emit_ir" in _tq_uvt or "seq (" in _tq_uvt)):
+                self._module_method_return_types[_uf] = (
+                    _tq_uvt if _ua == "tuple" else f"seq {_tq_uvt}")
                 continue
             if _ua in ("list", "bytes", "bytearray"):
                 _ut = ("array string" if _f.get("return_value_type") == "string"
@@ -1931,6 +2016,70 @@ class Module6_WhyMLTranspiler(
                for m in ind.get("members", [])})
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # cap-vm-unerase-tuple (run #6 lvP): a `-> List[Tuple[..]]` function (element
+        # type `(t1, .., tn)` from Module5) that returns its seq-promoted accumulator
+        # is emitted returning `seq (t1, .., tn)` (`_emit_function_block`); its call
+        # sites must see the same type (set here, in the map's \trusted producer, so the
+        # verified `_build_method_return_type_map` mirror stays verbatim). The SAME
+        # predicate as the declaration: the last top-level `return <Var>` names a
+        # `seq_promoted_vars` local, every `.append` of it is a tuple display of the
+        # element's arity, and it does not escape.
+        for _tq_fm in funcs_for_maps:
+            _tq_rvt = _tq_fm.get("return_value_type")
+            if (_tq_fm.get("return_annotation") == "tuple" and not _tq_fm.get("trusted")
+                    and isinstance(_tq_rvt, str) and _tq_rvt.startswith("(")
+                    and _tq_rvt.endswith(")")):
+                self._module_method_return_types[_tq_fm["name"]] = _tq_rvt
+            if (_tq_fm.get("return_annotation") == "list" and not _tq_fm.get("trusted")
+                    and self._module_method_return_types.get(_tq_fm.get("name")) in ("int", "unit", "array int")
+                    and isinstance(_tq_rvt, str) and _tq_rvt.startswith("(")
+                    and _tq_rvt.endswith(")")):
+                _tq_rv = self._returned_var_name(_tq_fm.get("body") or [])
+                _tq_dp1, _tq_ar1 = 0, 1
+                for _tq_ch1 in _tq_rvt[1:-1]:
+                    if _tq_ch1 == "(":
+                        _tq_dp1 += 1
+                    elif _tq_ch1 == ")":
+                        _tq_dp1 -= 1
+                    elif _tq_ch1 == "," and _tq_dp1 == 0:
+                        _tq_ar1 += 1
+                _tq_ok1 = _tq_rv is not None
+                _tq_st1: List[Any] = [_tq_fm.get("body") or []]
+                while _tq_st1 and _tq_ok1:
+                    _tq_y1 = _tq_st1.pop()
+                    if isinstance(_tq_y1, dict):
+                        if (_tq_y1.get("type") == "Call"
+                                and _tq_y1.get("func") == f"{_tq_rv}.append"):
+                            _tq_a1 = _tq_y1.get("args") or []
+                            _tq_ok1 = (len(_tq_a1) == 1 and isinstance(_tq_a1[0], dict)
+                                       and _tq_a1[0].get("type") == "Tuple"
+                                       and len(_tq_a1[0].get("elts") or []) == _tq_ar1)
+                        _tq_st1.extend(_tq_y1.values())
+                    elif isinstance(_tq_y1, (list, tuple)):
+                        _tq_st1.extend(_tq_y1)
+                # NO ESCAPE (value semantics is exact only for an unaliased list): every
+                # occurrence of the local is a `return` value, a `for` iterable, an `if` / `while`
+                # test, a `not` operand or a `len(..)` argument; anything else (passed to
+                # a call, stored, re-bound) keeps the old lowering.
+                _tq_ste: List[Any] = [(_tq_fm.get("body") or [], None, None)]
+                while _tq_ste and _tq_ok1:
+                    _tq_ne, _tq_pe, _tq_ke = _tq_ste.pop()
+                    if isinstance(_tq_ne, dict):
+                        if _tq_ne.get("type") == "Var" and _tq_ne.get("name") == _tq_rv:
+                            _tq_ok1 = isinstance(_tq_pe, dict) and (
+                                (_tq_pe.get("stmt") == "Return" and _tq_ke == "value")
+                                or (_tq_pe.get("stmt") == "For" and _tq_ke == "iter")
+                                or (_tq_pe.get("stmt") in ("If", "While") and _tq_ke == "test")
+                                or (_tq_pe.get("type") == "UnaryOp" and _tq_pe.get("op") == "not")
+                                or (_tq_pe.get("type") == "Call" and _tq_pe.get("func") == "len"))
+                        for _tq_kk, _tq_vv in _tq_ne.items():
+                            _tq_ste.append((_tq_vv, _tq_ne, _tq_kk))
+                    elif isinstance(_tq_ne, (list, tuple)):
+                        for _tq_vv in _tq_ne:
+                            _tq_ste.append((_tq_vv, _tq_pe, _tq_ke))
+                if _tq_ok1 and _tq_rv in set(_tq_fm.get("seq_promoted_vars", [])):
+                    self._module_method_return_types[_tq_fm["name"]] = f"seq {_tq_rvt}"
+
         # cap-trusted-val-unit-return (run #5, lvF), CALL-SITE half. A `\trusted` stub whose
         # placeholder body is a bare `pass` has `find_return_type -> "unit"`, so the map above
         # abstracted its call sites as `unit` for EVERY annotation outside the scalar GAP #2
@@ -1951,7 +2100,28 @@ class Module6_WhyMLTranspiler(
             _ua = _f.get("return_annotation")
             if (not _f.get("trusted") or _f.get("lemma") or _f.get("is_noreturn")
                     or self._module_method_return_types.get(_uf) != "unit"
-                    or not isinstance(_ua, str) or _ua in ("None", "tuple")):
+                    or not isinstance(_ua, str) or _ua == "None"
+                    or (_ua == "tuple"
+                        and not (str(_f.get("return_value_type") or "").startswith("(")
+                                 and ("emit_ir" in str(_f.get("return_value_type"))
+                                      or "seq (" in str(_f.get("return_value_type")))))):
+                continue
+            # cap-trusted-val-unit-return + cap-vm-unerase-tuple (run #6 lvP): a `pass`-body
+            # stub declared `-> Tuple[..]` / `-> List[Tuple[..]]` whose slots Module5 typed
+            # (`return_value_type` `(t1, .., tn)`: str / int / bool / IR-node slots or one
+            # nested `List[Tuple[..]]`, at least one non-scalar) announces exactly the type
+            # a CONVERTED body of that shape returns -- the native tuple, or the
+            # `seq (t1, .., tn)` of tuples -- as an UNCONSTRAINED value (no ensures added),
+            # instead of `unit` (a tuple) or an `array int` of erased elements (a list).
+            # Every other tuple annotation stays unpromoted (arity / slots unknown).
+            _tq_uvt = _f.get("return_value_type")
+            # (a `List[str]`-slot-only tuple -- `_resolve_dotted_signature` -- stays
+            # unpromoted: only an IR-node or nested tuple-list slot is this model)
+            if (isinstance(_tq_uvt, str) and _tq_uvt.startswith("(")
+                    and _tq_uvt.endswith(")") and _ua in ("tuple", "list")
+                    and ("emit_ir" in _tq_uvt or "seq (" in _tq_uvt)):
+                self._module_method_return_types[_uf] = (
+                    _tq_uvt if _ua == "tuple" else f"seq {_tq_uvt}")
                 continue
             if _ua in ("list", "bytes", "bytearray"):
                 _ut = ("array string" if _f.get("return_value_type") == "string"
