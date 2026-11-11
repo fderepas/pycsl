@@ -1481,7 +1481,9 @@ class Module6_WhyMLTranspiler(
                     or self._module_method_return_types.get(_uf) != "unit"
                     or not isinstance(_ua, str) or _ua == "None"
                     or (_ua == "tuple"
-                        and not str(_f.get("return_value_type") or "").startswith("("))):
+                        and not (str(_f.get("return_value_type") or "").startswith("(")
+                                 and ("emit_ir" in str(_f.get("return_value_type"))
+                                      or "seq (" in str(_f.get("return_value_type")))))):
                 continue
             # cap-trusted-val-unit-return + cap-vm-unerase-tuple (run #6 lvP): a `pass`-body
             # stub declared `-> Tuple[..]` / `-> List[Tuple[..]]` whose slots Module5 typed
@@ -1492,8 +1494,11 @@ class Module6_WhyMLTranspiler(
             # instead of `unit` (a tuple) or an `array int` of erased elements (a list).
             # Every other tuple annotation stays unpromoted (arity / slots unknown).
             _tq_uvt = _f.get("return_value_type")
+            # (a `List[str]`-slot-only tuple -- `_resolve_dotted_signature` -- stays
+            # unpromoted: only an IR-node or nested tuple-list slot is this model)
             if (isinstance(_tq_uvt, str) and _tq_uvt.startswith("(")
-                    and _tq_uvt.endswith(")") and _ua in ("tuple", "list")):
+                    and _tq_uvt.endswith(")") and _ua in ("tuple", "list")
+                    and ("emit_ir" in _tq_uvt or "seq (" in _tq_uvt)):
                 self._module_method_return_types[_uf] = (
                     _tq_uvt if _ua == "tuple" else f"seq {_tq_uvt}")
                 continue
@@ -2075,7 +2080,9 @@ class Module6_WhyMLTranspiler(
                     or self._module_method_return_types.get(_uf) != "unit"
                     or not isinstance(_ua, str) or _ua == "None"
                     or (_ua == "tuple"
-                        and not str(_f.get("return_value_type") or "").startswith("("))):
+                        and not (str(_f.get("return_value_type") or "").startswith("(")
+                                 and ("emit_ir" in str(_f.get("return_value_type"))
+                                      or "seq (" in str(_f.get("return_value_type")))))):
                 continue
             # cap-trusted-val-unit-return + cap-vm-unerase-tuple (run #6 lvP): a `pass`-body
             # stub declared `-> Tuple[..]` / `-> List[Tuple[..]]` whose slots Module5 typed
@@ -2086,8 +2093,11 @@ class Module6_WhyMLTranspiler(
             # instead of `unit` (a tuple) or an `array int` of erased elements (a list).
             # Every other tuple annotation stays unpromoted (arity / slots unknown).
             _tq_uvt = _f.get("return_value_type")
+            # (a `List[str]`-slot-only tuple -- `_resolve_dotted_signature` -- stays
+            # unpromoted: only an IR-node or nested tuple-list slot is this model)
             if (isinstance(_tq_uvt, str) and _tq_uvt.startswith("(")
-                    and _tq_uvt.endswith(")") and _ua in ("tuple", "list")):
+                    and _tq_uvt.endswith(")") and _ua in ("tuple", "list")
+                    and ("emit_ir" in _tq_uvt or "seq (" in _tq_uvt)):
                 self._module_method_return_types[_uf] = (
                     _tq_uvt if _ua == "tuple" else f"seq {_tq_uvt}")
                 continue
