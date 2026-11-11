@@ -1036,3 +1036,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-11T12:54Z | 762 | STATUS (run hour 66.9; 29.1 h left). int56 statements vacuity; battery v53 A (full proofs of all run #6 corpus files) running. u39 gating. oom_kill 75. |
 2026-11-11T13:49Z | 763 | STATUS (run hour 67.9; 28.1 h left). v53 (int56): A 114 run #6 corpus files 0 unexpected; B 201 witness runs, 177 EMITTED (u37 / u38 repairs are lowerings, not refusals) -> full default proofs of the 59 witness files queued; C sweep queued. statements vacuity continuing. oom_kill 75. |
 2026-11-11T14:39Z | 764 | v53 C: corpus root vs L5 tip: 12 MOVED = exactly u38's declared M1 movers (0748 0880 9310 9311 9430-9435 9440 9441); pyref 0/0/0; driver M1 re-proof of the 12 queued. |
+2026-11-11T14:49Z | 765 | STATUS (run hour 68.8; 27.2 h left). v53: full default proofs of the 59 u37/u38/#583 witness files running (12 done); M1 re-proofs queued; statements vacuity. oom_kill 75. |
