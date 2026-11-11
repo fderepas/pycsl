@@ -6206,11 +6206,49 @@ truthiness of `if <x>.value:` stays the always-present `true` (`_to_bool`'s sub-
 
 MEASUREMENTS: `getting-better/open-routes/route583-emitir-attribute-value-read-as-subscript.md` (witness table per
 model, corpus 9430-9435 / 9440-9441, byte-diff, mirror sweep, the two re-conversions).
-Residuals (named, findings of the same class; the route doc records each measurement, the `pyast_stmt` one being unmeasurable in a user program today): the DICT view `.get("value")` of a
+Residuals (named, findings of the same class; the route doc records each measurement, the `pyast_stmt` one being unmeasurable in a user program today; the first two are REPAIRED by §7.584 / §7.585, run #6 u38): the DICT view `.get("value")` of a
 `Starred` / `NamedExpr` / `SliceAccess` / `MapSet` node (the reflection table `_EMIT_IR_PROJ["value"]` is
 `svalue_of`, `IrOther ""` on those constructors); `.slice` on an emit_ir value outside the handler-scoped entries
 (the `svalue_of` catch-all reads the Subscript VALUE, not its index); `.value` of a `pyast_stmt` whose class the model
 does not carry (`ast.Expr`, `ast.Return`, `ast.AugAssign`: `stmt_value` reads `IrOther ""` on `PSOther`).
+
+### 7.584 A reflection read on an IR node value is chosen by the node's constructor (routes #584 / #585, run #6)
+
+Route #583 (§7.583) fixed one read of the class; executor u37 measured the others. Inside a `@mutable_state` class,
+a reflection read on a value the emitter types as an IR node (`emit_ir`) was lowered through a single projector,
+whatever the node's class: the dict view `.get("value"[, {}])` / `["value"]` read `svalue_of` (the Subscript
+projector, `IrOther ""` on every other constructor), the attribute view fell through `_handle_attribute_expr`'s tables
+to the same `svalue_of` catch-all (`.slice`, `.lower`, `.upper`, every attribute no table named) or to the
+Attribute/Subscript-only `avalue_of` (`.value`). After a test pinning the class (`x.get("type") == "Starred"`,
+`x.kind == "SliceAccess"`, `isinstance(x, ast.Slice)`) the read was the sentinel, its kind never `"Var"`, and a false
+`ensures \result == 0` PROVED where CPython returns 1.
+
+RULE (Module 6; every mirror twin `\trusted` or absent; inline; no new ADT arm, no axiom):
+- Each such read is chosen by the receiver's CONSTRUCTOR, by total `let function`s over the existing constructors,
+  spliced into the emit_ir theory only when the emitted text uses them (a slot resolved at the end of `transpile`, so
+  every file that does not read them keeps a byte-identical theory):
+  - dict view (wire keys): `irget_value_of` (Subscript / Starred / NamedExpr / SliceAccess / MapSet -- an Attribute
+    wire node carries `object`, not `value`), `irget_lower_of` / `irget_upper_of` (Slice, SliceN).
+  - attribute view (`_handle_attribute_expr`'s catch-all, `_EMIT_IR_ATTR_ARMS`): `iratt_<attr>_of`, one arm per
+    constructor carrying `<attr>` as an emit_ir child (generated from the constructor table and the ADT; gated
+    constructors keep their gate), plus the Python-ast names (`ast.Attribute.value` the object, `ast.Subscript.slice`
+    the index, `ast.UnaryOp.operand`).
+- A field no constructor carries as a node, a match case's `guard` and `pattern`: an OPAQUE `val function` (the model
+  does not decide the read); nothing is decided from a sentinel.
+- `_py_stmt_augassign`'s scoped `avalue_of`, and the other handler-scoped tables, are unchanged (their receivers are
+  pinned by the handler's own tests).
+Truthiness of such a read (`if x.get("value"):`) is unchanged (a sibling finding, see the route doc).
+Measurements: `getting-better/open-routes/route584-emitir-dictview-value-projector.md`.
+
+### 7.585 `.slice`, `.lower`, `.upper` and every other attribute of an IR node value read the field of the node's class (route #585, run #6)
+
+The attribute half of §7.584. `_handle_attribute_expr`'s catch-all (an attribute no projector table names) lowered to
+`svalue_of`, the Subscript VALUE: `.slice` of an `ast.Subscript` read its value head, not its index; `.slice` of a
+`SliceAccess`, `.lower` / `.upper` of a `Slice` (`isinstance(x, ast.Slice)` included), `.expr` of an `Old` /
+`UnaryOp`, `.operand`, ... read `IrOther ""`, and after the class test a false `\result == 0` PROVED. RULE: the
+catch-all lowers to `iratt_<attr>_of` (§7.584): the per-constructor arms of `_EMIT_IR_ATTR_ARMS`, or an opaque `val
+function` when no constructor carries the attribute as a node (`lineno`, `col_offset`, `params`, ...), so no branch is
+decided from a sentinel. Measurements: `getting-better/open-routes/route585-emitir-slice-via-svalue.md`.
 
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
