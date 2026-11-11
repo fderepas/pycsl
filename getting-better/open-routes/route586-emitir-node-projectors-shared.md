@@ -1,0 +1,2 @@
+# OPEN ROUTE #586 — emit_ir NODE PROJECTORS SHARED ACROSS CLASSES (left_of / right_of for .dict / .key / .head / .left; sindex_of for .index) DECIDE CPYTHON-LIVE READS
+**Status: OPEN, Severity 1, pre-existing (run #6 executor u38 finding while repairing #584/#585; false proofs at base and head).** Witnesses witnesses-r584/u38/f01-f06 (on run6-u38 / int56). Same class as #583-#585: choose the projector by the receiver's constructor. Left out of u38 because the fix moves every mirror handler.

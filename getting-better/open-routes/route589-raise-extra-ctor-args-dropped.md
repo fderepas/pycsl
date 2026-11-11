@@ -1,0 +1,2 @@
+# OPEN ROUTE #589 — raise E(a, <expr>): CONSTRUCTOR ARGUMENTS AFTER THE FIRST ARE NOT EVALUATED, SO THEIR EXCEPTIONS (IndexError / ZeroDivisionError / in f-strings) ARE DROPPED UNDER no_exception
+**Status: OPEN, Severity 1, pre-existing (red team rt56 R56-A; Verification SUCCESS on the run #6 base 822621340 and on int55 while CPython raises; scratchpad/run6/rt56-base6.tsv).** Witnesses witnesses-r589/ (ha1758 xs[9], ha1759 1 // k, ha1760 f-string).
