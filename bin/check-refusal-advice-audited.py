@@ -1049,6 +1049,13 @@ AUDITED = {
         "`\\result == 5` (getting-better/open-routes/witnesses-r582/advice/a582_call_def_name; control 9293) VERIFIES; 'or "
         "define `n` with its own `def` (and contract) that calls it': a582_own_def (control 9294, `def n(self, v): "
         "self.m(v)` with `ensures self.a == v`) VERIFIES `\\result == 5`. Both at base and HEAD."),
+    # driver run #6 -- routes #589 / #590 / #591 (u39, red team rt56 R56-A / B / C).
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr589(f\'line {_r589.lineno}\' + (\'\' if _main589 else f" of {os.path.relpath(_pp589, _dirs589[0])} (a module this file imports, whos'): (FOLLOWABLE,
+        "Route #589. 'rewrite the raise: bind the operand to a local in a plain statement before the `raise` (`v = xs[9]` then `raise E(\"a\", v)`)': control 9610 (`v = xs[0]` under `requires len(xs) >= 1`, then `raise E(\"a\", v)` under `except E`, `no_exception \\all`, `\\result == xs[0] + 1`) VERIFIES at HEAD; the same text with `xs[9]` is then the ordinary subscript obligation (not provable without a precondition, as it must be). 'or pass only the first argument': the payload model's own control 9350/9354 shape."),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr590(f'line {_r590.lineno}: PYCSL-R590-RAISE-NON-EXCEPTION: `raise {_ast175.unparse(_e590)[:50]}`: {_why590}. CPython raises Type"): (FOLLOWABLE,
+        "Route #590. 'declare the class as an exception (`class E(Exception)`)': control 9612 (`class B(Exception)`, `class E(B)`, raised through an alias and bare, caught by name, `no_exception \\all`, `\\result == 2 * k + 3`) VERIFIES at HEAD; 'or raise an exception class instead': its `raise ValueError(\"v\")` arm."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr590(f"""line {_r590.lineno}: PYCSL-R591-RAISE-FROM-NON-EXCEPTION: `raise ... from {_ast175.unparse(_e590)[:50]}`: {_why590}. The'): (FOLLOWABLE,
+        "Route #591. 'write `from None`, `from <ExceptionClass>`': control 9613 (`raise E(\"a\") from None`, `raise E(\"b\") from ValueError`, and `from None` inside a handler; `no_exception \\all`, `\\result == k + 3`) VERIFIES at HEAD. The `from e` disjunct passes R591 but every read of `e` is route #233's refusal (measured), recorded in the route doc."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1450,6 +1457,10 @@ AUDITED_HASH = {
     ('src/pycsl/module6_whyml/expressions.py', "_R579('PYCSL-R579-IR-CLASS-NOT-RESOLVED: `' + str(_k567) + '.' + str(attr) + '` (in `' + str(getattr(self, '_current_emitting_func', None) o"): 'd49ebfa1849d',
     ('src/pycsl/module6_whyml/functions.py', 'PyCSLSemanticError(f"PYCSL-R580-OVERRIDE-FRAME-AFTER-BASE-STUB: the method `{func[\'name\']}` writes object state (`_pyobj_state`: an attribut'): '5da2b2273691',
     ('src/pycsl/pycsl.py', '_R582Err("line %d: PYCSL-R582-CLASS-BODY-ALIAS-CALL: in function \'%s\', the call `.%s(...)` may run a method bound to `%s` by a class-body st'): 'f6e3c11983c0',
+    # driver run #6 -- routes #589 / #590 / #591 (u39).
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr589(f\'line {_r589.lineno}\' + (\'\' if _main589 else f" of {os.path.relpath(_pp589, _dirs589[0])} (a module this file imports, whos'): '9ab1b9cbf999',
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr590(f'line {_r590.lineno}: PYCSL-R590-RAISE-NON-EXCEPTION: `raise {_ast175.unparse(_e590)[:50]}`: {_why590}. CPython raises Type"): '945dde7f1b47',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr590(f"""line {_r590.lineno}: PYCSL-R591-RAISE-FROM-NON-EXCEPTION: `raise ... from {_ast175.unparse(_e590)[:50]}`: {_why590}. The'): 'be0ddc9e22bf',
 }
 
 
