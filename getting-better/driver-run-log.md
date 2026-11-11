@@ -1033,3 +1033,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-11T11:00Z | 759 | STATUS (run hour 65.1; 30.9 h left). int56 statements (vacuity) + stream B small files proving. oom_kill 75. |
 2026-11-11T11:57Z | 760 | STATUS (run hour 66.0; 30 h left). int56: statements vacuity (7.6 h in), stream B: Module2 1287/1287, Module3 312/312 SUCCESS, types proving. oom_kill 75. |
 2026-11-11T12:08Z | 761 | int56 stream B done: types 3692/3692, expr_ghost_collections 254/254, expr_ghost_spec_ops 149/149 SUCCESS (with pure_ast, Module5, Module2, Module3 before). Battery v53 (int56) started; statements -> expressions still to finish (stream A). oom_kill 75. |
+2026-11-11T12:54Z | 762 | STATUS (run hour 66.9; 29.1 h left). int56 statements vacuity; battery v53 A (full proofs of all run #6 corpus files) running. u39 gating. oom_kill 75. |
