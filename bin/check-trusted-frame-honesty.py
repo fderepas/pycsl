@@ -298,7 +298,7 @@ CONVERTED_TOTAL_RATCHET = 63  # run #3 (z1, 2026-10-30): 93 -> 63, route #488 --
 # `_r188_stub_names` / `_r55_subsumed_name` / `r417_obls` / `r434_ok` / `ir` of the
 # expressions.py `_e` family). Both may only SHRINK.
 DECL_OWN_VISIBLE_RATCHET = 0
-DECL_OWN_RATCHET = 7          # all unmodelled (see docstring); may only SHRINK
+DECL_OWN_RATCHET = 6          # all unmodelled (see docstring); may only SHRINK (7 -> 6: run #6 lvN, _track_collection_metadata now names _rebound_collections)
 DECL_INHERITED_RATCHET = 13
 MIN_DECLARATIONS = 20          # measured 26 (24 stubs + 2 requires_method windows)
 EXTERNAL_EFFECT_CALLS = {

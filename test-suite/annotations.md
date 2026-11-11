@@ -5806,13 +5806,39 @@ RULES (emitter, `statements.py::_handle_array_set_stmt` / `expressions.py::_hand
   a first placement that cached the table in a new emitter field tripped `check-assigns-underdeclaration`), closed
   under plain assignment of the path or of a prefix of it. EVERYWHERE, the mirror included (no file-path special
   case): the mirror functions whose `ast.<Node>` tests outside the recognizer map narrow a path they then read a
-  projector attribute on are `\trusted` -- `Module5_IREmitter.py` `_const_int_value`, `_collect_final_registry`,
-  `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (run #5 lvG2; `_csl_in` was already).
+  projector attribute on were `\trusted` -- `Module5_IREmitter.py` `_const_int_value`, `_collect_final_registry`,
+  `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (run #5 lvG2; `_csl_in` was already) --
+  and `_const_int_value`, `_collect_typevar_registry`, `_m5_get_type_name_legacy` are VERIFIED again under the
+  receiver-typed view below (run #6 lvL), with `_collect_type_params` (§7.574); `_collect_final_registry` and
+  `_union_arm_tag`, re-trusted by lvL because each had a branch the model decided dead while CPython takes it (route
+  #583, `.value` of an `ast.Attribute` read by the Subscript projector), are VERIFIED again after the #583 repair
+  (§7.583, run #6 u37; every leaf block live).
+- (run #6, capability R1) THE RECEIVER-TYPED NARROWING VIEW. An `isinstance(p, ast.<X>)` test, `ast` RESOLVED
+  (§7.579) and the class not inside a tuple, is an IR class ON THIS RECEIVER -- it does not narrow `p` -- exactly when
+  `_handle_isinstance` lowers that very test to a constructor discriminant of `p`'s model type: a `pyast_stmt` loop
+  local and X in `_AST_CLASS_TO_STMT_KIND` (`is_assign_node` / `is_annassign_node` / `is_classdef_node` /
+  `is_functiondef_node`), a `TParamNode` parameter and X = `ClassDef` (`is_classdef_of`), an emit_ir value and X =
+  `Constant` under the const-reflect model (`is_constant`), an emit_ir value and X = `UnaryOp` in `_const_int_value`
+  (`is_unaryop`); the pyval arm, which precedes them in `_handle_isinstance`, excludes the test. The receiver's root
+  name must have ONE binding in the body (a parameter never rebound, or the target of exactly one `for`), so its model
+  type -- the gate's input -- is the same wherever the name is bound and the test is lowered where it is judged. The
+  value then IS the modelled node: the emit_ir values read off its fields (`stmt_value`, `stmt_target0`,
+  `stmt_annotation`, `bases_of`, `unaryop_operand_of`) are that node's children, not values of an unknown class. The
+  attributes X carries that the projectors MISREAD stay refused through the whole #574 alias closure, as a separate
+  RESIDUAL narrowing (`.kind` of an `ast.Constant`, its own `str | None` field, not the `kind_of` tag; `.op` of an
+  `ast.UnaryOp`, an operator object, which `op_of` reads as `""`); the residual keeps its set across the two
+  exact-match coarse edges (an element of a container that may hold an X may be an X) and widens like the main table
+  everywhere else. One residual read is not a projector read: `<x>.op` when EVERY occurrence of `<x>.op` in the body is
+  the subject of `isinstance(<x>.op, ast.USub)`, which `_handle_isinstance` lowers over the object (`str_eq_op
+  (unaryop_op_of x) "-"`), the projector's own lowering of the subject being computed with the call's arguments and
+  discarded. A class decided by a spelling (§7.579), by the file, by a TUPLE of classes, or tested on any other
+  receiver narrows exactly as before. Applies identically to every file (no file-path special case); every read it
+  admits was refused before (it only removes refusals), and the emission of every admitted body is unchanged.
 
 MEASUREMENTS: see the route docs (route566 / route567) for the witness tables, the corpus files, the byte-diff and the
 mirror sweep.
-Residuals (named): the six mirror re-trusts above (convertible once an emit_ir item store / a narrowing view is
-modelled; getting-better/driver-backlog.md "routes #566 / #567 mirror re-trusts"); the closure ran FORWARD only and
+Residuals (named): `_handle_match_stmt`'s #566 re-trust (convertible once an emit_ir item store is modelled;
+getting-better/driver-backlog.md "routes #566 / #567 mirror re-trusts"; the five #567 re-trusts converted with R1); the closure ran FORWARD only and
 missed an alias through a container (`xs = [d]`): both REPAIRED by route #574 (§7.574); `type(x) is C` /
 `x.__class__` tests are not narrowings for #567; the int-erased `typed` / `store` emission of these programs fails
 L3 (`unbound type symbol 'array'`) at the base, so the refusals there replace an L3 failure, not a proof.
@@ -6154,6 +6180,37 @@ names a CLASS of this file, `X.n(...)`, which looks `n` up in `X`'s file MRO onl
 its `def`, or give the name its own `def` (with a contract) that calls it.
 
 MEASUREMENTS: `getting-better/open-routes/route582-rt55-r55-f8.md`.
+
+### 7.583 `.value` of an IR node value reads the Attribute object or the Subscript value, whichever the node is (route #583, run #6)
+
+Executor lvL (run #6, capability R1) measured `Verification SUCCESS` for a false `ensures \result == 0` in the default
+model (PRE-EXISTING, present at run6-int54): inside a `@mutable_state` class, `.value` on a value the emitter types as
+an IR node (`emit_ir`) fell through `_handle_attribute_expr`'s projector tables to the default `svalue_of`, the
+SUBSCRIPT projector (`IrSub v _ -> v`, `IrOther ""` on every other node). An `ast.Attribute` is an IR class
+(`_AST_CLASS_TO_IR_KIND`, modelled `IrAttr o a`) whose `.value` is the OBJECT `o`, so after `isinstance(x,
+ast.Attribute)` (`is_attribute x`) the test `isinstance(x.value, ast.Name)` lowered to `is_var (IrOther "")` = false
+and `x.value.id` to `""`: `if isinstance(x, ast.Attribute) and isinstance(x.value, ast.Name): if x.value.id ==
+"self": return 1` / `return 0` PROVED `\result == 0`; CPython returns 1 for `self.a`. The same dead path made two
+mirror functions' branches unreachable in the model (`Module5_IREmitter.py` `_collect_final_registry`'s
+`self.<attr>: Final[T]` branch, `_union_arm_tag`'s `ast.expr` / `ast.stmt` / `ast.AST` arm), so they were re-trusted.
+
+RULE (Module 6, `expressions.py::_handle_attribute_expr`, its mirror twin `\trusted`; inline, no new def, no new
+projector, no axiom): `.value` on an emit_ir value, when no handler-scoped projector applies
+(`_EMIT_IR_HANDLER_ATTR_PROJ`: `_py_stmt_augassign`, `_classify_literal_value`, the swap-family ghost handlers), lowers
+to the UNIFIED `avalue_of` (`IrAttr o _ -> o | IrSub v _ -> v | _ -> IrOther ""`), the projector `_py_stmt_augassign`
+already used. It agrees with `svalue_of` on every node that is not an IrAttr, so every Subscript read keeps its
+meaning; on an IrAttr it reads the object, CPython's `ast.Attribute.value`. (An `ir_schema.AttributeExpr` has no
+`.value` field: CPython raises `AttributeError` there, which this partial-correctness model does not claim.) The
+truthiness of `if <x>.value:` stays the always-present `true` (`_to_bool`'s sub-node prefixes now include
+`avalue_of`).
+
+MEASUREMENTS: `getting-better/open-routes/route583-emitir-attribute-value-read-as-subscript.md` (witness table per
+model, corpus 9430-9435 / 9440-9441, byte-diff, mirror sweep, the two re-conversions).
+Residuals (named, findings of the same class; the route doc records each measurement, the `pyast_stmt` one being unmeasurable in a user program today): the DICT view `.get("value")` of a
+`Starred` / `NamedExpr` / `SliceAccess` / `MapSet` node (the reflection table `_EMIT_IR_PROJ["value"]` is
+`svalue_of`, `IrOther ""` on those constructors); `.slice` on an emit_ir value outside the handler-scoped entries
+(the `svalue_of` catch-all reads the Subscript VALUE, not its index); `.value` of a `pyast_stmt` whose class the model
+does not carry (`ast.Expr`, `ast.Return`, `ast.AugAssign`: `stmt_value` reads `IrOther ""` on `PSOther`).
 
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
@@ -6596,6 +6653,34 @@ inside `and` / `or`, an `assert`, a comprehension filter, a return value. Measur
 route #329: `x = 1; return 7 if x is True else 0` and `if not (x is True): return 0`
 PROVED the branch CPython does not take. Witnesses `4300`-`4308`, `4315`-`4323`; controls
 `4309`, `4310`, `4326`, `4327`.
+
+### 7.320 A match object of a literal pattern is a law-free handle; a `(str, pattern)` constant loop unrolls (lvO, run #6)
+
+A MATCH LOCAL `m` is a local every binding of which is `m = re.match(<str literal>, s)` (with
+`re` the stdlib module), `m = NAME.match(s[, pos])` (NAME a module constant
+`NAME = re.compile(<str literal>)`, bound once, no flags, `import re` the only binding of `re`),
+or `m = rx.match(s)` inside an unrolled `for kw, rx in PAIRS` (below), all with ONE pattern,
+`s` a `str`-declared name and `pos` a name or an int literal; and whose every other
+occurrence is the truth test `if m:` / `if not m:`, `m.group(<int literal>)`, `m.end()` or
+`m.re.groups`. The binding lowers to the int HANDLE `re_match_op <pattern> s pos` (`0` is
+CPython's `None`, so the int truth test is exact) and each read to a law-free `val function`
+of the handle: `re_group_op h k : string`, `re_end_op h : int`, `m.re.groups` the group count
+CPython's own `re.compile` reports. NO regex semantics is claimed (no axiom, no `ensures`):
+only that a match is a deterministic function of (pattern, subject, pos), which is exact
+because a match local never escapes (no `==` / `is` / argument / return / container), so the
+fresh-object identity CPython gives each call is unobservable; a match object that escapes is
+not a match local and keeps the opaque lowering. Every read carries the VCs CPython's
+exceptions need: `h <> 0` (AttributeError on `None`), an `assert false` for `group(k)` with `k`
+above the group count (IndexError), and for a group CPython's parser places under a min-0
+repeat, an alternation, a conditional or a lookaround, `re_group_present_op h k` (such a
+group is `None` when it does not take part, not a `str`). The TRUTH of `m.group(k)` is
+`present && len > 0` (None and "" are both falsy). A module constant list / tuple of
+`(str literal, NAME)` pairs read only as `for kw, rx in PAIRS` is unrolled one copy per pair
+(`kw` -> its literal, typed `str`; `rx.match` -> `NAME.match`; a `return` in the body is kept,
+`break` / `continue` refuse the unroll). Termination of a loop over `m.end()` is NOT given by
+the model (no width law): write the defensive `if e <= pos: <stop>` guard. Witnesses (must
+FAIL) `9471`-`9474`, `9476`, `9478`, `9480`, `9482`, `9483`, `9485`; controls (PASS) `9470`,
+`9475`, `9477`, `9479`, `9481`, `9484`.
 
 ---
 

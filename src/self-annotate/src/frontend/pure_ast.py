@@ -326,6 +326,7 @@ class _Parser:
     #@ requires True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def expect_op(self, val: str) -> _Tok:
         if not self.at_op(val):
             self.error(f"expected {val!r}")
@@ -351,12 +352,17 @@ class _Parser:
     #@ requires True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def expect_kw(self, val: str) -> _Tok:
         if not self.at_kw(val):
             self.error(f"expected keyword {val!r}")
         return self.advance()
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # (#49) run #6 lvM — CONVERTED by cap-exception-payload-model: `exception PyCSLSyntaxError
+    # string` carries the first constructor argument (the message), so the body reads its
+    # argument and `self.cur()`; `#@ sibling_concrete` + the `#@ raises PyCSLSyntaxError when
+    # True` fixpoint make the callers see it. The location tuple (2nd argument) is not part of
+    # the payload. History of the earlier attempt:
     # (#49) gen #31 — RE-TRUSTED, and the marker's own comment below predicted this in the
     # exact words the plane printed. `a109a51d` retired this marker by porting the live body,
     # measured seven instruments, and every one was green. The instrument that says no is
@@ -371,6 +377,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ sibling_concrete
     # DIVERGENCE MODEL (the `Module2_Parser._ContractParser._err` precedent): the LIVE
     # `error` body is `t = self.cur(); raise PyCSLSyntaxError(...)` — an UNCONDITIONAL
     # raise, so it NEVER returns normally. `-> "NoReturn"` records that faithfully: Module5
@@ -396,7 +403,11 @@ class _Parser:
             (self.filename, t.start[0], t.start[1] + 1, t.string),
         )
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # (#49) run #6 lvM — CONVERTED by cap-exception-payload-model: `exception PyCSLSyntaxError
+    # string` carries the first constructor argument (the message), so the body reads its
+    # argument and `self.cur()`; `#@ sibling_concrete` + the `#@ raises PyCSLSyntaxError when
+    # True` fixpoint make the callers see it. The location tuple (2nd argument) is not part of
+    # the payload. History of the earlier attempt:
     # (#49) gen #31 — RE-TRUSTED. Same two planes, same session, and the comment below had
     # already written down the verdict: "converting emits `_parser__unsupported
     # erased=['what'] of ['what']` — input-blind." That is, to the character, what
@@ -405,6 +416,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ sibling_concrete
     # DIVERGENCE MODEL (see `error`): an UNCONDITIONAL raise, so `-> "NoReturn"` is the
     # faithful interface. Stays trusted for the SAME measured reason as `error`, and it is
     # the vacuity plane, not the count, that says so: converting emits
@@ -471,6 +483,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def parse_module(self) -> "ExprIR":
         body = []
         #@ ghost i15 = self.i
@@ -495,6 +508,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def parse_eval(self) -> "Expression":
         node = self.testlist()
         e = _N("Expression")(body=node)
@@ -526,6 +540,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 2
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def statement(self) -> "List[ExprIR]":
         t = self.cur()
         if t.type == _tokenize.NAME and t.string in _keyword.kwlist:
@@ -623,6 +638,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _parse_type_params(self) -> "List[ExprIR]":
         self.expect_op("[")
         params = []
@@ -669,6 +685,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def type_alias_stmt(self) -> "ExprIR":
          # PEP 695: type NAME [type-params] = expr
         t = self.advance()                             # consume 'type' soft keyword
@@ -691,6 +708,7 @@ class _Parser:
     #@ ensures self.i >= \old(self.i)
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def simple_stmt(self) -> "List[ExprIR]":
         stmts = [self.small_stmt()]
         #@ ghost i11 = self.i
@@ -741,6 +759,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def small_stmt(self) -> "ExprIR":
         if self.at_kw("pass"):
             t = self.advance(); return self.node("Pass", t)
@@ -779,6 +798,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def return_stmt(self) -> "ExprIR":
         t = self.advance()
         val: Optional["ExprIR"] = None
@@ -800,6 +820,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def raise_stmt(self) -> "ExprIR":
         t = self.advance()
         exc: Optional["ExprIR"] = None
@@ -832,6 +853,7 @@ class _Parser:
     #@ ensures self.i >= \old(self.i)
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def del_stmt(self) -> "ExprIR":
         t = self.advance()
         raw = self.exprlist()
@@ -856,6 +878,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def assert_stmt(self) -> "ExprIR":
         t = self.advance()
         test = self.test()
@@ -868,6 +891,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def global_stmt(self, kind: str) -> "ExprIR":
         t = self.advance()
         names = [self._name_str()]
@@ -904,6 +928,7 @@ class _Parser:
     #@ ensures self.i > \old(self.i)
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _name_str(self) -> str:
         if self.cur().type != _tokenize.NAME:
             self.error("expected name")
@@ -918,6 +943,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def import_stmt(self) -> "ExprIR":
         t = self.advance()
         names = [self._dotted_as_name()]
@@ -948,6 +974,7 @@ class _Parser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _dotted_as_name(self) -> "ExprIR":
         parts = [self._name_str()]
         # GHOST cursor snapshot (lesson (xx)): the loop's `assigns self.i` says nothing about
@@ -970,6 +997,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def import_from(self) -> "ExprIR":
         t = self.advance()
         level = 0
@@ -1030,6 +1058,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _import_as_names(self) -> "List[ExprIR]":
         names = [self._import_as_name()]
         #@ ghost i43 = self.i
@@ -1045,6 +1074,7 @@ class _Parser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _import_as_name(self) -> "ExprIR":
         name = self._name_str()
         asname: Optional[str] = None
@@ -1091,6 +1121,7 @@ class _Parser:
     #@ ensures self.i >= \old(self.i)
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def expr_stmt(self) -> "ExprIR":
         t = self.cur()
         first = self.testlist_star_expr()
@@ -1146,6 +1177,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def testlist_star_expr_or_yield(self) -> "ExprIR":
         if self.at_kw("yield"):
             return self.yield_expr()
@@ -1160,6 +1192,7 @@ class _Parser:
     #@ ensures self.i >= \old(self.i)
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def testlist_star_expr(self) -> "ExprIR":
         t = self.cur()
         elts = [self.test_or_star()]
@@ -1199,6 +1232,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def exprlist(self) -> "List[ExprIR]":
         elts = [self.expr_or_star()]
         #@ ghost i12 = self.i
@@ -1227,6 +1261,7 @@ class _Parser:
     # This member is at depth 8. Full assignment recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 32
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def expr_or_star(self) -> "ExprIR":
         if self.at_op("*"):
             t = self.advance()
@@ -1250,6 +1285,7 @@ class _Parser:
     # bracket `advance`, a full 16-unit drop that pays the 14-unit rise.
     #@ \variant 64 * (\length(self.toks) - self.i) + 56
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def test_or_star(self) -> "ExprIR":
         if self.at_op("*"):
             t = self.advance()
@@ -1274,6 +1310,7 @@ class _Parser:
     # (`yield_expr`), so the 13-unit rise is paid by the full 16-unit cursor drop.
     #@ \variant 64 * (\length(self.toks) - self.i) + 52
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def testlist(self) -> "ExprIR":
         t = self.cur()
         first = self.test()
@@ -1312,6 +1349,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def block(self) -> "List[ExprIR]":
         if self.cur().type == _tokenize.NEWLINE:
             self.advance()
@@ -1359,6 +1397,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def if_stmt(self) -> "ExprIR":
         t = self.advance()
         test = self.namedexpr_test()
@@ -1377,6 +1416,7 @@ class _Parser:
     #@ ensures self.i >= \old(self.i)
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _if_tail(self) -> "List[ExprIR]":
         if self.at_kw("elif"):
             t = self.advance()
@@ -1410,6 +1450,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def while_stmt(self) -> "ExprIR":
         t = self.advance()
         test = self.namedexpr_test()
@@ -1440,6 +1481,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _else_block(self) -> "List[ExprIR]":
         if self.at_kw("else"):
             self.advance(); self.expect_op(":")
@@ -1478,6 +1520,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def match_stmt(self) -> "ExprIR":
         t = self.advance()                       # 'match' (soft keyword)
         subject = self._match_subject()
@@ -1511,6 +1554,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _match_subject(self) -> "ExprIR":
         t = self.cur()
         first = self.namedexpr_test()
@@ -1550,6 +1594,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def case_block(self) -> "ExprIR":
         if not self.at_name("case"):
             self.error("expected a 'case' clause inside 'match'")
@@ -1587,6 +1632,7 @@ class _Parser:
     # depth 3.
     #@ \variant 4 * (\length(self.toks) - self.i) + 3
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def pattern(self) -> "ExprIR":
         t = self.cur()
         p = self.or_pattern()
@@ -1612,6 +1658,7 @@ class _Parser:
     # depth 2.
     #@ \variant 4 * (\length(self.toks) - self.i) + 2
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def or_pattern(self) -> "ExprIR":
         t = self.cur()
         first = self.closed_pattern()
@@ -1638,6 +1685,7 @@ class _Parser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _capture_name(self, ctx: str) -> str:
         tk = self.cur()
         if (tk.type != _tokenize.NAME or tk.string in _keyword.kwlist
@@ -1693,6 +1741,7 @@ class _Parser:
     # depth 1.
     #@ \variant 4 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def closed_pattern(self) -> "ExprIR":
         t = self.cur()
         ty = t.type
@@ -1767,6 +1816,7 @@ class _Parser:
     # `advance` (monotone by its own postcondition) and the `-> "NoReturn"` `error`.
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _pattern_number(self) -> "ExprIR":
         t = self.cur()
         sign = self.advance().string if self.at_op("-", "+") else None
@@ -1790,6 +1840,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _dotted_value(self) -> "ExprIR":
         t = self.cur()
         nm = self.advance()                       # NAME
@@ -1832,6 +1883,7 @@ class _Parser:
     # depth 0.
     #@ \variant 4 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _sequence_pattern(self, openp: str, closep: str, t: _Tok) -> "ExprIR":
         self.advance()                            # consume opener
         elts = []
@@ -1894,6 +1946,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def for_stmt(self, async_) -> "ExprIR":
         t = self.advance()
         target = self._for_target()
@@ -1929,6 +1982,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _for_target(self) -> "ExprIR":
         elts = [self.expr_or_star()]
         trailing = False
@@ -1983,6 +2037,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def with_stmt(self, async_) -> "ExprIR":
         t = self.advance()
         items = []
@@ -2056,6 +2111,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _with_item(self) -> "ExprIR":
         ctx = self.test()
         optional: Optional["ExprIR"] = None
@@ -2098,6 +2154,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def try_stmt(self) -> "ExprIR":
         t = self.advance()
         self.expect_op(":")
@@ -2160,6 +2217,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def decorated(self) -> "ExprIR":
         decorators = []
         #@ ghost i21 = self.i
@@ -2210,6 +2268,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def async_stmt(self) -> "ExprIR":
         t = self.advance()
         if self.at_kw("def"):
@@ -2248,6 +2307,7 @@ class _Parser:
     #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def funcdef(self, decorators: List["ExprIR"], async_, start: Optional[_Tok] = None) -> "ExprIR":
         t = start if start is not None else self.cur()
         self.expect_kw("def")
@@ -2295,6 +2355,7 @@ class _Parser:
     # phase-offset argument).
     #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def classdef(self, decorators: List["ExprIR"]) -> "ExprIR":
         t = self.cur()
         self.expect_kw("class")
@@ -2326,6 +2387,7 @@ class _Parser:
     # later merge cannot silently invert it.
     #@ \variant 64 * (\length(self.toks) - self.i) + 40
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def parse_parameters(self, close: str) -> "ExprIR":
         posonly = []; args = []; defaults = []
         vararg = None; kwonly = []; kw_defaults = []; kwarg = None
@@ -2379,6 +2441,7 @@ class _Parser:
     #@ ensures self.i > \old(self.i)
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _param_arg(self) -> "ExprIR":
         t = self.cur()
         name = self._name_str()
@@ -2442,6 +2505,7 @@ class _Parser:
     # invariant `self.i >= i0` to give the cursor term a full drop of 16.
     #@ \variant 64 * (\length(self.toks) - self.i) + 40
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def lambda_parameters(self) -> "ExprIR":
         posonly = []; args = []; defaults = []
         vararg = None; kwonly = []; kw_defaults = []; kwarg = None
@@ -2488,6 +2552,7 @@ class _Parser:
     #@ ensures self.i > \old(self.i)
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _lambda_arg(self) -> "ExprIR":
         t = self.cur()
         name = self._name_str()
@@ -2522,6 +2587,7 @@ class _Parser:
     # multiplier is unchanged. Full assignment recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 52
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def namedexpr_test(self) -> "ExprIR":
         t = self.cur()
         first = self.test()
@@ -2554,6 +2620,7 @@ class _Parser:
     # member sits at depth 11. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 48
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def test(self) -> "ExprIR":
         if self.at_kw("lambda"):
             return self.lambdef()
@@ -2580,6 +2647,7 @@ class _Parser:
     # member sits at depth 10. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 44
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def lambdef(self) -> "ExprIR":
         t = self.advance()  # 'lambda'
         if self.at_op(":"):
@@ -2613,6 +2681,7 @@ class _Parser:
     # member sits at depth 10. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 44
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def or_test(self) -> "ExprIR":
         t = self.cur()
         left = self.and_test()
@@ -2641,6 +2710,7 @@ class _Parser:
     # member sits at depth 9. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 40
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def and_test(self) -> "ExprIR":
         t = self.cur()
         left = self.not_test()
@@ -2673,6 +2743,7 @@ class _Parser:
     # member sits at depth 8. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 36
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def not_test(self) -> "ExprIR":
         if self.at_kw("not"):
             t = self.advance()
@@ -2697,6 +2768,7 @@ class _Parser:
     # member sits at depth 7. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 32
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def comparison(self) -> "ExprIR":
         t = self.cur()
         left = self.expr()
@@ -2745,6 +2817,7 @@ class _Parser:
     # member sits at depth 6. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 28
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def expr(self) -> "ExprIR":
         return self._binop(0)
 
@@ -2795,6 +2868,7 @@ class _Parser:
     # member sits at depth 5. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 24
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _binop(self, min_prec: int) -> "ExprIR":
         t = self.cur()
         left = self.factor()
@@ -2829,6 +2903,7 @@ class _Parser:
     # member sits at depth 4. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 20
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def factor(self) -> "ExprIR":
         if self.cur().type == _tokenize.OP and self.cur().string in _UNARY:
             t = self.advance()
@@ -2860,6 +2935,7 @@ class _Parser:
     # member sits at depth 3. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 16
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def power(self) -> "ExprIR":
         t = self.cur()
         base = self.await_expr()
@@ -2891,6 +2967,7 @@ class _Parser:
     # member sits at depth 2. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 12
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def await_expr(self) -> "ExprIR":
         if self.at_kw("await"):
             t = self.advance()
@@ -2913,6 +2990,7 @@ class _Parser:
     # member sits at depth 1. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 8
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def unary_postfix(self) -> "ExprIR":
         atom = self.atom()
         return self.trailers(atom)
@@ -2932,6 +3010,7 @@ class _Parser:
     # member sits at depth 0. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def trailers(self, atom: "ExprIR") -> "ExprIR":
         start_line = atom.lineno; start_col = atom.col_offset
         #@ ghost i0 = self.i
@@ -2982,6 +3061,7 @@ class _Parser:
     # member sits at depth 14. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 60
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _subscript(self) -> "ExprIR":
         t = self.cur()
         elts = [self._subscript_item()]
@@ -3049,6 +3129,7 @@ class _Parser:
     # member sits at depth 13. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 56
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _subscript_item(self) -> "ExprIR":
         t = self.cur()
         lower = upper = step = None
@@ -3079,6 +3160,7 @@ class _Parser:
     # member sits at depth 12. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 52
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def test_or_star_slice(self) -> "ExprIR":
         if self.at_op("*"):
             t = self.advance(); v = self.expr()
@@ -3118,6 +3200,7 @@ class _Parser:
     # is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 56
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _call_args(self, close: str) -> "Tuple[List[ExprIR], List[ExprIR]]":
         args = []; keywords = []
         #@ ghost i0 = self.i
@@ -3189,6 +3272,7 @@ class _Parser:
     # (depth 2), which reaches it without advancing. Full assignment recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 4
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def atom(self) -> "ExprIR":
         t = self.cur()
         ty = t.type
@@ -3242,6 +3326,7 @@ class _Parser:
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
     #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def atom_paren(self) -> "ExprIR":
         t = self.advance()  # '('
         if self.at_op(")"):
@@ -3317,6 +3402,7 @@ class _Parser:
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
     #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def atom_list(self) -> "ExprIR":
         t = self.advance()  # '['
         if self.at_op("]"):
@@ -3357,6 +3443,7 @@ class _Parser:
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
     #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def atom_brace(self) -> "ExprIR":
         t = self.advance()  # '{'
         if self.at_op("}"):
@@ -3431,6 +3518,7 @@ class _Parser:
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
     #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _dict_rest(self, t: _Tok, first_key) -> "ExprIR":
         self.advance()  # '**'
         keys = [None]; values = [self.test()]
@@ -3471,6 +3559,7 @@ class _Parser:
     # member sits at depth 11. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 48
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def comp_for(self) -> "List[ExprIR]":
         gens = []
         #@ ghost i_out = self.i
@@ -3526,6 +3615,7 @@ class _Parser:
     # member sits at depth 11. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 48
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def or_test_no_cond(self) -> "ExprIR":
         # comprehension 'if' uses or_test (no ternary, no walrus per grammar uses test_nocond)
         if self.at_kw("lambda"):
@@ -3550,6 +3640,7 @@ class _Parser:
     # This member is at depth 9. Full assignment recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 36
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _comp_target(self) -> "ExprIR":
         elts = [self.expr_or_star()]
         trailing = False
@@ -3594,6 +3685,7 @@ class _Parser:
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
     #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def yield_expr(self) -> "ExprIR":
         t = self.advance()  # 'yield'
         if self.accept_kw("from"):
@@ -3692,6 +3784,7 @@ class _Parser:
     #@ ensures self.i > \old(self.i)
     #@ \variant 64 * (\length(self.toks) - self.i) + 3
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def strings(self) -> "ExprIR":
         t = self.cur()
         parts = []
@@ -3762,6 +3855,7 @@ class _Parser:
     #@ ensures self.i > \old(self.i)
     #@ \variant 64 * (\length(self.toks) - self.i) + 2
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _fstring(self) -> "ExprIR":
         start = self.advance()  # FSTRING_START
         is_raw = _fstring_prefix_raw(start.string)
@@ -3830,6 +3924,7 @@ class _Parser:
     #@ ensures self.i > \old(self.i)
     #@ \variant 64 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _fstring_replacement(self, is_raw: bool = False) -> "List[ExprIR]":
         lb = self.advance()  # '{'
         expr = self.testlist_for_fstring()
@@ -3877,6 +3972,7 @@ class _Parser:
     #@ ensures self.i >= \old(self.i)
     #@ \variant 64 * (\length(self.toks) - self.i) + 53
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def testlist_for_fstring(self) -> "ExprIR":
         t = self.cur()
         first = self.namedexpr_test()
@@ -3909,6 +4005,7 @@ class _Parser:
     #@ ensures self.i >= \old(self.i)
     #@ \variant 64 * (\length(self.toks) - self.i) + 3
     #@ assigns self.i
+    #@ raises PyCSLSyntaxError when True
     def _fstring_format_spec(self, is_raw: bool = False) -> "ExprIR":
         t = self.cur()
         values = []

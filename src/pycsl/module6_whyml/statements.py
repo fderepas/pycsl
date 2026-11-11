@@ -5347,6 +5347,58 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # evaluated, and only the exception object stays unmodelled.
             _v310 = (stmt.exc_value.to_dict() if hasattr(stmt.exc_value, "to_dict")
                      else stmt.exc_value)
+            # (#49) cap-exception-payload-model: a USER exception tag (outside the builtin
+            # hierarchy; see `_emit_preamble_exceptions`, which declares it `exception E
+            # string`) carries its FIRST CONSTRUCTOR ARGUMENT. A string argument is lowered
+            # as the payload itself, so it is evaluated exactly once, at its Python position
+            # (before the raise), with every effect and obligation of its lowering; any other
+            # argument keeps the route #310 treatment below and the payload is an
+            # unconstrained string. Not readable from Python (route #233).
+            from exception_model import handler_catches as _hc_px
+            _px = (not _hc_px("BaseException", exc_type)
+                   and exc_type not in ("EnvironmentError", "IOError")
+                   and not exc_type.startswith("PyCSL_"))
+            if _px and isinstance(_v310, dict) and self._is_string_expr(_v310):
+                if _v310.get("type") != "FString":
+                    return (f"{indent}raise ({exc_type} "
+                            f"({self._expr_to_whyml(_v310, local_refs)}))")
+                # An f-string payload is built SEGMENT BY SEGMENT: a string-typed segment
+                # is lowered (its effects and obligations included), any other segment is an
+                # unconstrained `(any string)` -- the mixed f-string lowering is not used
+                # here, because its int / opaque arms are ill-typed on a non-int segment
+                # (`type(node).__name__` on an `emit_ir`, `{xs!r}` on a `seq string`), which
+                # a dropped message never exercised. A non-string segment that may have an
+                # effect (a call / walrus / yield / await) keeps the route #310 path below.
+                _fp_px = list(_v310.get("parts") or [])
+                if _fp_px and not any(
+                        not self._is_string_expr(_q_px)
+                        and any(_k_px in repr(_q_px) for _k_px in
+                                ("'Call'", "'NamedExpr'", "'Yield", "'Await'"))
+                        for _q_px in _fp_px):
+                    _acc_px = ""
+                    for _q_px in _fp_px:
+                        # a conversion / format-spec segment (`{v!r}`, `{b:02x}`) is a
+                        # string only when it formats a STRING without a spec: its opaque
+                        # `pycsl_format_*` lowering is int-typed on any other value
+                        _s_px = self._is_string_expr(_q_px) and not (
+                            isinstance(_q_px, dict) and _q_px.get("type") == "FormattedValue"
+                            and (_q_px.get("format_spec") is not None
+                                 or not isinstance(_q_px.get("value"), dict)
+                                 or not self._is_string_expr(_q_px["value"])))
+                        _w_px = (self._expr_to_whyml(_q_px, local_refs)
+                                 if _s_px else "(any string)")
+                        if not _acc_px:
+                            _acc_px = _w_px
+                        else:
+                            self._add_abstract_op(
+                                "val str_concat_op (a: string) (b: string) : string\n"
+                                "    ensures { result = (concat a b) }\n"
+                                "    ensures { String.length result = String.length a + "
+                                "String.length b }")
+                            _acc_px = f"(str_concat_op {_acc_px} {_w_px})"
+                    return f"{indent}raise ({exc_type} ({_acc_px}))"
+            if _px:
+                exc_type = f"({exc_type} (any string))"
             if isinstance(_v310, dict):
                 _a310 = [_v310]
                 _t310 = {"type": "Tuple", "elts": _a310}

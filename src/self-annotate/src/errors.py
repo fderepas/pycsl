@@ -34,6 +34,12 @@ class PyCSLError(Exception):
     # goal or precondition can be CHECKED. The route #226 polarity flip refuses an invariant
     # whose constructor goal is not stated unless `__init__` is `\trusted`: the establishment
     # is declared TCB here (every raise site in src/pycsl passes the default 0 or an AST line).
+    # (#49) run #6 lvM — STAYS `\trusted` after cap-exception-payload-model, MEASURED: with the
+    # marker removed the verbatim body emits TC-OK, and route #226 then states the constructor
+    # goal `forall pycslerror_line line. pycslerror_line = line -> pycslerror_line >= 0`, which
+    # is FALSE (`PyCSLError("m", line=-1)` stores -1; CPython accepts it). The payload model is
+    # not the blocker here; the invariant is. Converting needs `#@ requires line >= 0` — an OPEN
+    # USER DECISION (it strengthens every caller's obligation), so it is not taken here.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

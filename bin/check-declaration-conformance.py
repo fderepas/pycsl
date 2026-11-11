@@ -74,24 +74,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lib_declarations as L  # noqa: E402
 
 # Each NON-CONFORMING declaration is NAMED here with why it is not repaired in the landing
-# commit; an unnamed one is RED, a named one that conforms again is a STALE entry (RED). Three
-# are SIGNATURE residuals and one a composite-record FRAME residual; each repair moves the
+# commit; an unnamed one is RED, a named one that conforms again is a STALE entry (RED). One
+# is a SIGNATURE residual and one a base-override residual (run #6 lvN repaired two); each repair moves the
 # emission of a big mirror file (a whole-file proof each). None is eligible for
 # `#@ declared_in` while it is listed.
 KNOWN_NONCONFORMING = {
     "module6_whyml/expressions.py::ExpressionEmissionMixin._field_type_of":
         "requires_method window declares `-> str`; the definition (types.py, VERIFIED) returns "
         "Optional[str]. Repair = `-> Optional[str]` in the window (expressions.py emission moves).",
-    "module6_whyml/statements.py::StatementEmissionMixin._expr_to_whyml":
-        "declares `subst: int = None` (an erasure on the DECLARING side); the definition says "
-        "Optional[Dict[str, str]]. Repair = the definition's annotation (statements.py moves).",
-    "module6_whyml/statements.py::StatementEmissionMixin._track_collection_metadata":
-        "FRAME (a), MRO-selected in the mirror composite Module6_WhyMLTranspiler, whose record "
-        "carries `_rebound_collections`: the declaration omits it because naming it raises "
-        "check-assigns-writes-survival TRAP (StatementEmissionMixin's record lacks it) and "
-        "DECLARING it on StatementEmissionMixin exposes 3 under-declared frames (verified "
-        "_handle_seq_assign; check-assigns-underdeclaration RED, measured). The composite val "
-        "is unapplied. Repair = the 3 frames + the field, or a TRAP ratchet decision.",
     "module6_whyml/statements.py::StatementEmissionMixin._handle_return_stmt":
         "BASE-CLASS declaration (census row 16): `stmt: ExprIR` over the verified base's "
         "`ReturnStmt`; routes #277/#278 do not reach it (no refines goal is emitted: the base is "
@@ -102,16 +92,11 @@ KNOWN_FAILURES = {
     "module6_whyml/expressions.py::ExpressionEmissionMixin._field_type_of":
         ["(e) return annotation: decl str / def Optional[str] (the declaration may not claim a "
          "narrower result type)"],
-    "module6_whyml/statements.py::StatementEmissionMixin._expr_to_whyml":
-        ["(e) `subst` annotation: decl int / def Optional[Dict[str, str]] (not a documented "
-         "type-layer pair)"],
-    "module6_whyml/statements.py::StatementEmissionMixin._track_collection_metadata":
-        ["(a) frame misses 1 target(s) of the definition: self._rebound_collections"],
     "module6_whyml/statements.py::StatementEmissionMixin._handle_return_stmt":
         ["(e) `stmt` annotation: decl ExprIR / def ReturnStmt (not a documented type-layer "
          "pair)"],
 }
-FAIL_RATCHET = len(KNOWN_NONCONFORMING)   # 5 at landing, 4 after lvI (run #5); may only SHRINK
+FAIL_RATCHET = len(KNOWN_NONCONFORMING)   # 5 at landing, 4 after lvI (run #5), 3 -> 2 after lvN (run #6); may only SHRINK
 R2B_RATCHET = 0
 MIN_DECLARATIONS = 20        # measured 26 at 8fdfce794 (24 stubs + 2 windows)
 

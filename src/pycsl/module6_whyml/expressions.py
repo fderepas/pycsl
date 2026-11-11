@@ -570,6 +570,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "object / field-less class) value runs a user __bool__ or __len__ that "
                     "may raise] false }; %s end)"
                     % self._to_bool(whyml_str, dict(ir_expr, _pycsl_r358n=True)))
+        # lvO (re.Match model): the TRUTH of `m.group(k)` (a match local's group read,
+        # `_handle_re_str_call`) is Python's truth of `str | None`: participated AND
+        # non-empty -- never the value read's presence VC (a None group is a legitimate
+        # falsy value here). Rebuilt from the value lowering this emitter produced.
+        if (isinstance(ir_expr, dict) and ir_expr.get("type") == "Call"
+                and isinstance(ir_expr.get("func"), str)
+                and ir_expr["func"].endswith(".group")
+                and ir_expr["func"][:-len(".group")] in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})
+                and isinstance(whyml_str, str)
+                and whyml_str.startswith("(begin assert { [@expl:PyCSL re.Match.group")):
+            if "IndexError" in whyml_str:
+                return whyml_str.rsplit(";", 1)[0] + "; false end)"
+            _rtm = re.search(r"\(re_group_op (.+) (\d+)\) end\)$", whyml_str)
+            if _rtm:
+                _rth, _rtk = _rtm.group(1), _rtm.group(2)
+                _rtg = f"(re_group_op {_rth} {_rtk})"
+                self._add_abstract_op(
+                    "val str_length_op (s: string) : int\n"
+                    "    ensures { result = (String.length s) }")
+                if "re_group_present_op" in whyml_str:
+                    return (f"(begin assert {{ [@expl:PyCSL re.Match.group on None] "
+                            f"{_rth} <> 0 }}; (re_group_present_op {_rth} {_rtk} "
+                            f"&& str_length_op {_rtg} > 0) end)")
+                return (f"(begin assert {{ [@expl:PyCSL re.Match.group on None] "
+                        f"{_rth} <> 0 }}; str_length_op {_rtg} > 0 end)")
         # ROUTE #487: a BoolOp over a non-bool / non-int operand is emitted inside the
         # `pycsl_r487_truth_only` marker (`_handle_binop`); its int form's truthiness IS the
         # selected operand's, so a TRUTH test strips the marker (after route #358's erased-value guard above,
@@ -776,7 +801,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `true` is a sound over-approx for the type-safety+frame contract. @mutable_state.
         if (getattr(self, "_current_self_type", None) in getattr(self, "_mutable_state_classes", set())
                 and any(whyml_str.startswith(p) for p in
-                        ("(svalue_of ", "(object_of ", "(sindex_of ", "(arg0_of "))):
+                        ("(svalue_of ", "(avalue_of ", "(object_of ", "(sindex_of ",
+                         "(arg0_of "))):
             return "true"
         # cf6.md M1.6: `if existing_caps:` on an emit_ir-element ARRAY LOCAL is array-emptiness.
         if (t == "Var"
@@ -3540,6 +3566,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not isinstance(expr, dict) or expr.get("type") != "Call":
             return False
         fn = expr.get("func")
+        # lvO (re.Match model): `m.group(<int literal>)` on a MATCH LOCAL
+        # (`_reset_function_state`) is a `str` read of the law-free match
+        # model (`_handle_re_str_call`), so a receiving local types as a string.
+        if (isinstance(fn, str) and fn.endswith(".group") and fn.count(".") == 1
+                and fn[:-len(".group")] in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})
+                and expr.get("receiver") is None and not expr.get("keywords")):
+            return True
         n = self._RE_STR_FUNCS.get(fn) if isinstance(fn, str) else None
         if n is not None and expr.get("receiver") is None and not expr.get("keywords"):
             a = expr.get("args") or []
@@ -3763,7 +3796,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(f"val {op} ({params}: string) : int")
         return "(" + op + " " + " ".join(args[:n]) + ")"
 
-    def _handle_re_str_call(self, expr, args):
+    def _handle_re_str_call(self, expr, args, local_refs=None):
         """Lower a recognized `re` string function to a faithful `string`-typed op.
 
         NO content law is claimed — a regex substitution is not expressible in the string
@@ -3773,6 +3806,133 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         pure function of (pattern, replacement, subject), so equal arguments give equal
         results. `re.escape` additionally never SHORTENS its input (it only inserts
         backslashes), which is a sound length lower bound. None if not applicable."""
+        # lvO (re.Match model): the LAW-FREE match object of a MATCH LOCAL `m`
+        # (`_reset_function_state`). `m = P.match(s, pos)` binds the int HANDLE
+        # `re_match_op <pattern> s pos` (0 <-> CPython `None`: the existing int truth test
+        # `m <> 0` is then exact); every read is a law-free `val function` of the handle:
+        # `m.group(k)` -> `re_group_op h k` (a `str`), `m.end()` -> `re_end_op h`, and
+        # `m.re.groups` -> the pattern's group count, computed by CPython's own parser.
+        # NOTHING about regex semantics is claimed (no axiom, no `ensures`): only that a
+        # match is a deterministic function of (pattern, subject, pos), which is exact
+        # because the match local never escapes (identity is unobservable). Every read
+        # carries the VCs CPython's exceptions need: `h <> 0` (AttributeError on None),
+        # `k <= groups` (IndexError, an `assert false`), and for a group the parser shows
+        # may NOT participate (under a min-0 repeat, an alternation, a conditional or a
+        # lookaround) `re_group_present_op h k` -- its value is then `None`, not a `str`,
+        # so a `str` read must first prove it took part. Its TRUTH (`_to_bool`, rebuilt
+        # from this lowering) is `present && len > 0`: None and "" are both falsy. A read in
+        # a spec context is not modelled (None -> the generic lowering). Only a match call
+        # whose (callee, args) signature occurs NOWHERE in the function but as a match
+        # local's binding value lowers to a handle ("sigs", `_reset_function_state`): any
+        # other match call keeps the opaque lowering, so a handle can never escape.
+        _rmst = (getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}
+        _rmm = _rmst.get("locals") or {}
+        _rmf = expr.get("func") if isinstance(expr, dict) else None
+        _rmc_all = ((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
+        if (_rmm and isinstance(_rmf, str) and expr.get("type") == "Call"
+                and expr.get("receiver") is None and not expr.get("keywords")
+                and not getattr(self, "_in_spec", False)):
+            _rmsig = (_rmf, tuple((_y.get("type"), _y.get("name"), _y.get("value"))
+                                  for _y in (expr.get("args") or []) if isinstance(_y, dict)))
+            if _rmsig in (_rmst.get("sigs") or set()):
+                _rma = expr.get("args") or []
+                _rmc = ((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
+                _rmp, _rms, _rmpos = None, None, "0"
+                if _rmf == "re.match" and len(_rma) == 2 and len(args) == 2:
+                    _rmp, _rms = _rma[0].get("value"), _rma[1]
+                    _rmsw = args[1]
+                elif (_rmf.endswith(".match") and _rmf[:-len(".match")] in _rmc
+                        and 1 <= len(_rma) <= 2 and len(args) == len(_rma)):
+                    _rmp, _rms = _rmc[_rmf[:-len(".match")]], _rma[0]
+                    _rmsw = args[0]
+                    if len(_rma) == 2:
+                        _rmpos = args[1]
+                if not (isinstance(_rmp, str) and self._is_string_expr(_rms)):
+                    # Unreachable by `_reset_function_state`'s str-declared-subject test;
+                    # kept fail-safe: the generic opaque binding is an ARBITRARY handle,
+                    # which the law-free reads (pattern fixed or copy-tagged) stay sound on.
+                    return None
+                self._add_abstract_op(
+                    "val function re_match_op (pat: string) (s: string) (pos: int) : int")
+                _rmpw = self._expr_to_whyml({"type": "String", "value": _rmp}, set())
+                return f"(re_match_op {_rmpw} {_rmsw} {_rmpos})"
+            _rmo = _rmf.rsplit(".", 1)[0] if _rmf.count(".") == 1 else None
+            if _rmo in _rmm and _rmf[len(_rmo):] in (".group", ".end"):
+                _rmp = (_rmst.get("cur") or {}).get(_rmo)
+                if _rmm[_rmo][0] == "rx":
+                    # an unrolled copy's read carries its constant (`_handle_for_stmt`)
+                    _rmt2 = (expr.get("args") or [None, None])[-1]
+                    _rmp = (_rmc_all.get(_rmt2.get("value"))
+                            if _rmf.endswith(".group") and len(expr.get("args") or []) == 2
+                            and isinstance(_rmt2, dict) and _rmt2.get("type") == "String"
+                            else (None if _rmf.endswith(".group") else ""))
+                if not isinstance(_rmp, str):
+                    # Unreachable (a "lit"/"const" pattern is set at function entry, an
+                    # unrolled read carries its tag): the generic lowering is an opaque int
+                    # where the classifier said `str`, so Why3 rejects it -- fail-closed.
+                    return None
+                _rmh = self._expr_to_whyml({"type": "Var", "name": _rmo}, local_refs or set())
+                self._add_abstract_op(
+                    "val function re_match_op (pat: string) (s: string) (pos: int) : int")
+                if _rmf.endswith(".end"):
+                    self._add_abstract_op("val function re_end_op (h: int) : int")
+                    return (f"(begin assert {{ [@expl:PyCSL re.Match.end on None] "
+                            f"{_rmh} <> 0 }}; (re_end_op {_rmh}) end)")
+                _rmk = expr["args"][0]["value"]
+                _rmng, _rmopt = 0, None
+                try:
+                    try:
+                        import re._parser as _rmsp
+                    except ImportError:
+                        import sre_parse as _rmsp
+                    _rmt = _rmsp.parse(_rmp)
+                    _rmng = _rmt.state.groups - 1
+                    _rmopt, _rmseen = set(), set()
+                    _rmw = [(_rmt, False)]
+                    while _rmw:
+                        _rmsub, _rmo2 = _rmw.pop()
+                        for _rmop, _rmav in _rmsub:
+                            _rmon = str(_rmop)
+                            if _rmon == "SUBPATTERN":
+                                if _rmav[0] is not None:
+                                    _rmseen.add(_rmav[0])
+                                    if _rmo2:
+                                        _rmopt.add(_rmav[0])
+                                _rmw.append((_rmav[3], _rmo2))
+                            elif _rmon in ("MAX_REPEAT", "MIN_REPEAT", "POSSESSIVE_REPEAT"):
+                                _rmw.append((_rmav[2], _rmo2 or _rmav[0] == 0))
+                            elif _rmon == "BRANCH":
+                                _rmw.extend((_a, _rmo2 or len(_rmav[1]) > 1)
+                                            for _a in _rmav[1])
+                            elif _rmon == "GROUPREF_EXISTS":
+                                _rmw.extend((_a, True) for _a in _rmav[1:] if _a is not None)
+                            elif _rmon in ("ASSERT", "ASSERT_NOT"):
+                                _rmw.append((_rmav[1], True))
+                            elif _rmon == "ATOMIC_GROUP":
+                                _rmw.append((_rmav, _rmo2))
+                            elif _rmon not in ("LITERAL", "NOT_LITERAL", "ANY", "IN", "AT",
+                                               "GROUPREF", "CATEGORY", "RANGE",
+                                               "RANGE_UNI_IGNORE", "NEGATE", "CHARSET",
+                                               "BIGCHARSET", "FAILURE", "SUCCESS"):
+                                raise ValueError(_rmon)
+                    _rmopt |= set(range(1, _rmng + 1)) - _rmseen
+                except Exception:
+                    import re as _rmre
+                    _rmng = _rmre.compile(_rmp).groups
+                    _rmopt = set(range(1, _rmng + 1))
+                if _rmk > _rmng:
+                    return ("(begin assert { [@expl:PyCSL re.Match.group IndexError: no "
+                            f"group {_rmk}] false }}; \"\" end)")
+                self._add_abstract_op("val function re_group_op (h: int) (k: int) : string")
+                _rmg = f"(re_group_op {_rmh} {_rmk})"
+                if _rmk in _rmopt:
+                    self._add_abstract_op(
+                        "val function re_group_present_op (h: int) (k: int) : bool")
+                    return (f"(begin assert {{ [@expl:PyCSL re.Match.group on None or a "
+                            f"non-participating group (a None value, not a str)] {_rmh} <> 0 "
+                            f"/\\ re_group_present_op {_rmh} {_rmk} }}; {_rmg} end)")
+                return (f"(begin assert {{ [@expl:PyCSL re.Match.group on None] "
+                        f"{_rmh} <> 0 }}; {_rmg} end)")
         if not self._is_re_str_call(expr):
             return None
         fn = expr.get("func")
@@ -8670,6 +8830,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _dir = _ddefs[_nm]
                     _pwt = _dptypes.get(_nm, "int")
                     if (isinstance(_dir, dict) and _dir.get("type") == "None"
+                            and _pwt.startswith("map ")):
+                        # (#49) cap-none-default-map-param (run #6 lvN): an omitted `None`
+                        # default of an `Optional[Dict[..]]` param (`map κ (option ν)`) was
+                        # filled with the int witness `0` (L3-tc `int` vs `κ -> option ν`).
+                        # Python's `None` is NOT the empty dict (`None == {}` is False), so
+                        # the empty map would let a callee contract decide what CPython does
+                        # not: fill the OPAQUE `pycsl_none_map` (route #44/#236's "this is
+                        # None, nothing is decidable about it"), the same at every site.
+                        self._add_abstract_op(
+                            "val function pycsl_none_map : map 'k (option 'v)")
+                        args = args + ["pycsl_none_map"]
+                    elif (isinstance(_dir, dict) and _dir.get("type") == "None"
                             and _pwt != "int"):
                         args = args + [{"string": '""', "real": "0.0"}.get(_pwt, "0")]
                     else:
@@ -9885,7 +10057,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             for _e176 in sorted(_esc176):
                 if any(_hc176(_hn176, _e176) or _hn176 in ("Exception", "BaseException")
                        for _hn176 in _hs176):
-                    _pre176 += f"if (any bool) then raise {_sen176(_e176)}; "
+                    # (#49) cap-exception-payload-model: a USER exception tag carries a
+                    # `string` payload; this havoc raise has no modelled argument.
+                    _x176px = _sen176(_e176)
+                    if not (_hc176("BaseException", _x176px)
+                            or _x176px in ("EnvironmentError", "IOError")
+                            or _x176px.startswith("PyCSL_")):
+                        _x176px = f"({_x176px} (any string))"
+                    _pre176 += f"if (any bool) then raise {_x176px}; "
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{writes_clause}{ensures_suffix}")
             _call = self._wrap_call_with_callee_raises_assert(
@@ -11216,7 +11395,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # lowered: its value is not part of the model (`_handle_re_str_call`), exactly as
         # the dropped `sorted(key=<lambda>)` body (route #275).
         _rcs_idx = -1
-        if self._is_re_str_call(expr) and isinstance(func_name, str):
+        if (self._is_re_str_call(expr) and isinstance(func_name, str)
+                and not func_name.endswith(".group")):
             _rcs_i = 1 if func_name in ("re.sub", "_re.sub") else 0
             if (len(expr["args"]) > _rcs_i
                     and not self._is_string_expr(expr["args"][_rcs_i])):
@@ -11379,7 +11559,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
         # #31: `re.sub` / `re.escape` -> a faithful `string` op, BEFORE the generic
         # dotted-call fallback that would mint an opaque int `re_sub_3`.
-        _rsc = self._handle_re_str_call(expr, args)
+        _rsc = self._handle_re_str_call(expr, args, local_refs)
         if _rsc is not None:
             return _rsc
         # lv6: `unicodedata.normalize(<literal form>, <str>)` -> a `string` op, BEFORE the
@@ -12059,8 +12239,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                 _w176c.extend(_x176c)
                     if _hs176c:
                         from module6_whyml.identifiers import safe_exc_name as _sen176c
+                        # (#49) cap-exception-payload-model: a USER exception tag carries a
+                        # `string` payload; this havoc raise has no modelled argument.
+                        from exception_model import handler_catches as _hc176px
                         inner = ("begin " + "".join(
-                            f"if (any bool) then raise {_sen176c(_h)}; " for _h in sorted(_hs176c))
+                            f"if (any bool) then raise "
+                            f"{_sen176c(_h) if (_hc176px('BaseException', _sen176c(_h)) or _sen176c(_h) in ('EnvironmentError', 'IOError') or _sen176c(_h).startswith('PyCSL_')) else '(' + _sen176c(_h) + ' (any string))'}; "
+                            for _h in sorted(_hs176c))
                             + inner + " end")
             return self._wrap_unannotated_call_with_strict_assert(inner)
         # 1111-spec R7 (no-more-int): if the call passes fewer args than the callee
@@ -12164,7 +12349,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     dflt_ir = defaults[nm]
                     pwt = getattr(self, "_module_method_param_whyml_types", {}).get(
                         func_name, {}).get(nm, "int")
-                    if dflt_ir.get("type") == "None" and pwt != "int":
+                    if dflt_ir.get("type") == "None" and pwt.startswith("map "):
+                        # (#49) cap-none-default-map-param: the module-function twin of
+                        # `_handle_dotted_call`'s fill — `None` is not the empty dict, so
+                        # an omitted `Optional[Dict[..]]` default is the opaque
+                        # `pycsl_none_map`, never the int witness `0` (ill-typed).
+                        self._add_abstract_op(
+                            "val function pycsl_none_map : map 'k (option 'v)")
+                        filled = "pycsl_none_map"
+                    elif dflt_ir.get("type") == "None" and pwt != "int":
                         filled = {"string": '""', "real": "0.0"}.get(pwt, "0")
                     else:
                         filled = self._expr_to_whyml(dflt_ir, local_refs,
@@ -18961,6 +19154,34 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         obj_ir = expr.get("object", {})
         attr = expr.get("attr", "unknown")
+        # lvO (re.Match model): `m.re.groups` of a MATCH LOCAL is the group count of the
+        # pattern of its binding ("cur", or the unrolled copy's tag), computed by CPython's own
+        # `re.compile` -- an int literal, after the `m <> 0` VC (AttributeError on None).
+        if (attr == "groups" and isinstance(obj_ir, dict) and obj_ir.get("type") == "Attribute"
+                and isinstance(obj_ir.get("attr"), str)
+                and (obj_ir["attr"] == "re" or obj_ir["attr"].startswith("re:"))
+                and isinstance(obj_ir.get("object"), dict)
+                and obj_ir["object"].get("type") == "Var"
+                and obj_ir["object"].get("name") in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})
+                and not invariant_ctx and not getattr(self, "_in_spec", False)):
+            _rgm = obj_ir["object"]["name"]
+            _rgst = (getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}
+            _rgp = (_rgst.get("cur") or {}).get(_rgm)
+            if (_rgst.get("locals") or {})[_rgm][0] == "rx":
+                # an unrolled copy's read carries its constant (`_handle_for_stmt`)
+                _rgp = (((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
+                        .get(obj_ir["attr"][len("re:"):])
+                        if obj_ir["attr"].startswith("re:") else None)
+            elif obj_ir["attr"] != "re":
+                _rgp = None
+            if not isinstance(_rgp, str):
+                # Unreachable (see `_handle_re_str_call`): keep the pattern unknown out of
+                # the model -- an opaque, unconstrained group count, never a guessed one.
+                return "(any int)"
+            import re as _rgre
+            _rgh = self._expr_to_whyml(obj_ir["object"], local_refs, invariant_ctx, subst)
+            return (f"(begin assert {{ [@expl:PyCSL re.Match.re on None] {_rgh} <> 0 }}; "
+                    f"{_rgre.compile(_rgp).groups} end)")
         # `@property` SUPPORT (relaunch #16), the READ half. A decorated getter is now
         # EMITTED as an ordinary nullary method (`let box__area (self: box) : int`), so a
         # `<recv>.<prop>` read must be the APPLICATION `(box__area <recv>)` — otherwise
@@ -19224,11 +19445,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if attr in _EMIT_IR_STR_ATTRS:
                 _cef567 = getattr(self, "_current_emitting_func", None) or ""
                 _body567: Any = []
+                _pp567: Set[str] = set()
                 for _fn567 in (self.ir.get("functions", []) or []):
                     if (isinstance(_fn567, dict) and _cef567
                             and (_fn567.get("name") == _cef567
                                  or whyml_ident(str(_fn567.get("name", ""))) == _cef567)):
                         _body567 = [_fn567.get("body") or [], _fn567.get("contracts") or {}]
+                        _pp567 = {str(_q) for _q in (_fn567.get("formal_params") or [])}
                         break
                 # The narrowing table, computed here from the IR body of the function being
                 # emitted (`_current_emitting_func`, read-only: no new emitter field). The
@@ -19279,6 +19502,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             _names567 = list(_cls567.get("elts") or [])
                         _bad567 = not _names567
                         _f567: Optional[Set[str]] = set()
+                        # (run #6, R1) the attributes a RECEIVER-admitted `ast` class (below) carries
+                        # that the emit_ir projectors do NOT read faithfully (the residual narrowing)
+                        _u567: Set[str] = set()
                         if _bad567:
                             _f567 = None
                         for _e567 in _names567:
@@ -19323,6 +19549,96 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                            and _rs579.get("ast") in ("ast", "frontend.pure_ast"))
                                 _ok567 = _ast579 and (_e567.get("attr")
                                                       in (getattr(self, "_AST_CLASS_TO_IR_KIND", None) or {}))
+                                # (run #6) R1 -- THE RECEIVER-TYPED NARROWING VIEW. A resolved `ast.<X>`
+                                # (route #579: `ast` bound only by the import of the standard-library
+                                # `ast` / pycsl's `frontend.pure_ast`, so X IS that genuine node class)
+                                # tested ALONE (not in a tuple) is an IR class ON THIS RECEIVER exactly
+                                # when `_handle_isinstance` lowers this very test to a constructor
+                                # discriminant of the receiver's model type (the same gates, in the
+                                # same order; the pyval arm precedes them all): a `pyast_stmt` local
+                                # with X in `_AST_CLASS_TO_STMT_KIND` (`is_<x>_node`), a `py_tparam_node`
+                                # parameter with X = ClassDef (`is_classdef_of`), an emit_ir value with
+                                # X = Constant under the const-reflect model (`is_constant`), an emit_ir
+                                # value with X = UnaryOp in `_const_int_value` (`is_unaryop`). The value
+                                # then IS the modelled node, so the fields it carries are not values of
+                                # an unknown class. The attributes X carries that the emit_ir projectors
+                                # misread stay refused through the whole alias closure (the RESIDUAL
+                                # narrowing, keyed apart): an `ast.Constant`'s `.kind` (its `str | None`
+                                # field, not the `kind_of` tag), an `ast.UnaryOp`'s `.op` (an operator
+                                # object; `op_of` reads only a BinOp's string). A class decided by the
+                                # FILE, by a spelling, or by any other receiver is untouched (#567 / #579).
+                                if not _ok567 and _ast579 and _e567 is _cls567:
+                                    _a0r1 = _x567["args"][0]
+                                    _cr1 = _e567.get("attr")
+                                    _ur1: Optional[Set[str]] = None
+                                    # the receiver's ROOT name must have ONE binding in this body (a
+                                    # parameter never rebound, or the target of exactly one `for`),
+                                    # so its model type -- the gate's input -- is the same wherever
+                                    # the name is bound: the test is lowered where it is judged
+                                    _rr1 = _a0r1
+                                    while isinstance(_rr1, dict) and _rr1.get("type") in (
+                                            "Attribute", "FieldGet"):
+                                        _rr1 = _rr1.get("object")
+                                    _rn1 = (_rr1.get("name") if isinstance(_rr1, dict)
+                                            and _rr1.get("type") == "Var" else None)
+                                    _bf1 = 0
+                                    _bo1 = 0
+                                    if isinstance(_rn1, str) and _rn1:
+                                        _sk1: List[Any] = [_body567[0] if _body567 else []]
+                                        while _sk1:
+                                            _y1 = _sk1.pop()
+                                            if isinstance(_y1, list):
+                                                _sk1.extend(_y1)
+                                                continue
+                                            if not isinstance(_y1, dict):
+                                                continue
+                                            for _ky1, _vy1 in _y1.items():
+                                                if isinstance(_vy1, (dict, list)):
+                                                    _sk1.append(_vy1)
+                                                if not (_vy1 == _rn1 or (isinstance(_vy1, list)
+                                                                         and _rn1 in _vy1)):
+                                                    continue
+                                                if _y1.get("type") == "Var" and _ky1 == "name":
+                                                    continue
+                                                if _ky1 == "object" and _y1.get("type") in (
+                                                        "Attribute", "FieldGet"):
+                                                    continue
+                                                # an attribute / field NAME, a literal's text, a
+                                                # callee: not a binding of the name
+                                                if _ky1 in ("attr", "field") or (
+                                                        _ky1 == "value" and _y1.get("type") in (
+                                                            "String", "Str", "Bytes", "Number",
+                                                            "Constant")) or (
+                                                        _ky1 == "func" and _y1.get("type") == "Call"):
+                                                    continue
+                                                if (_y1.get("stmt") in ("For", "ForStmt")
+                                                        and _ky1 == "target"):
+                                                    _bf1 += 1
+                                                else:
+                                                    _bo1 += 1
+                                    _pm1 = isinstance(_rn1, str) and _rn1 in _pp567
+                                    _one1 = _bo1 == 0 and (_bf1 == 1 if not _pm1 else _bf1 == 0)
+                                    if _one1 and not self._expr_is_pyval(_a0r1):
+                                        if (_cr1 in (getattr(self, "_AST_CLASS_TO_STMT_KIND", None) or {})
+                                                and not _pm1
+                                                and self._pyast_stmt_child_var(_a0r1) is not None):
+                                            _ur1 = set()
+                                        elif (_cr1 == "ClassDef" and _pm1 and isinstance(_a0r1, dict)
+                                                and _a0r1.get("type") == "Var"
+                                                and _a0r1.get("name") in getattr(
+                                                    self, "_current_tparam_node_params", set())):
+                                            _ur1 = set()
+                                        elif (_cr1 == "Constant" and self._uses_const_reflect()
+                                                and self._is_emit_ir_expr(_a0r1)):
+                                            _ur1 = {"kind"}
+                                        elif (_cr1 == "UnaryOp"
+                                                and (_cef567 == "_const_int_value"
+                                                     or _cef567.endswith("___const_int_value"))
+                                                and self._is_emit_ir_expr(_a0r1)):
+                                            _ur1 = {"op"}
+                                    if _ur1 is not None:
+                                        _ok567 = True
+                                        _u567 |= _ur1
                                 if not _ok567 and _ast579:
                                     import ast as _ast567
                                     _ac567 = getattr(_ast567, str(_e567.get("attr")), None)
@@ -19348,7 +19664,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                     _f567 = None
                                 else:
                                     _f567 |= _fs567
-                        if _bad567:
+                        if _bad567 or _u567:
                             _p567: List[str] = []
                             _r567 = _x567["args"][0]
                             # (route #574) `isinstance(dv := node, C)` narrows the walrus target
@@ -19369,12 +19685,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             if (isinstance(_r567, dict) and _r567.get("type") == "Var"
                                     and isinstance(_r567.get("name"), str)):
                                 _k567 = ".".join([_r567["name"]] + _p567[::-1])
-                                if _sub567:
+                                if _u567:
+                                    # (R1) the residual: the key MAY be (a container of) the admitted
+                                    # class; a subscript keeps the set (the element's misread
+                                    # attributes are the same)
+                                    _zk567 = "\x00" + _k567
+                                    if _zk567 not in _nar567 or _nar567[_zk567] is not None:
+                                        _nar567[_zk567] = (_nar567.get(_zk567) or set()) | _u567
+                                if _bad567 and _sub567:
                                     # a subscript coarsens the path to its base: the tested value
                                     # is SOME element, whose own fields the key no longer tells
                                     # apart, so every attribute under the key is refused
                                     _f567 = None
-                                if _k567 in _nar567 and (_nar567[_k567] is None or _f567 is None):
+                                if not _bad567:
+                                    pass
+                                elif _k567 in _nar567 and (_nar567[_k567] is None or _f567 is None):
                                     _nar567[_k567] = None
                                 elif _k567 in _nar567:
                                     _nar567[_k567] = (_nar567[_k567] or set()) | (_f567 or set())
@@ -19504,29 +19829,41 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                                      _vc567 or _sub567))
                         for _vk567, _vc567 in _alts567:
                             for _n567, _nf567 in list(_nar567.items()):
+                                # (R1) a residual key: same edges, its own key space; the exact-match
+                                # coarse edges keep its set
+                                _z567 = _n567.startswith("\x00")
+                                _zp567 = "\x00" if _z567 else ""
+                                if _z567:
+                                    _n567 = _n567[1:]
                                 # forward: the value is, extends, or is a prefix of a narrowed path
                                 if _vk567 == _n567:
-                                    _prop567.append((_t567, None if _vc567 else _nf567))
+                                    _prop567.append((_zp567 + _t567,
+                                                     None if (_vc567 and not _z567) else _nf567))
                                 elif _vk567.startswith(_n567 + "."):
                                     # the alias holds a FIELD value of the narrowed object: its class
                                     # is unknown (all attributes) when that field is one the class
                                     # may carry
                                     _seg567 = _vk567[len(_n567) + 1:].split(".")[0]
                                     if _nf567 is None or _seg567 in _nf567:
-                                        _prop567.append((_t567, None))
+                                        _prop567.append((_zp567 + _t567, None))
                                 elif _n567.startswith(_vk567 + "."):
-                                    _prop567.append((_t567 if _vc567 else _t567 + _n567[len(_vk567):],
+                                    _prop567.append((_zp567 + (_t567 if _vc567
+                                                               else _t567 + _n567[len(_vk567):]),
                                                      None if _vc567 else _nf567))
                                 # backward: the target is, or is a prefix of, a narrowed path
-                                if _t567 == _n567 or _n567.startswith(_t567 + "."):
-                                    _prop567.append((_vk567 if _vc567 else _vk567 + _n567[len(_t567):],
+                                if _t567 == _n567:
+                                    _prop567.append((_zp567 + _vk567,
+                                                     None if (_vc567 and not _z567) else _nf567))
+                                elif _n567.startswith(_t567 + "."):
+                                    _prop567.append((_zp567 + (_vk567 if _vc567
+                                                               else _vk567 + _n567[len(_t567):]),
                                                      None if _vc567 else _nf567))
                                 elif _t567.startswith(_n567 + "."):
                                     # a field store into the narrowed object: the stored value is a
                                     # field value of it (unknown class when the class may carry it)
                                     _seg567 = _t567[len(_n567) + 1:].split(".")[0]
                                     if _nf567 is None or _seg567 in _nf567:
-                                        _prop567.append((_vk567, None))
+                                        _prop567.append((_zp567 + _vk567, None))
                     for _new567, _nf567 in _prop567:
                         if len(_new567.split(".")) > 5:
                             _new567 = ".".join(_new567.split(".")[:5])
@@ -19559,13 +19896,88 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # `attr`, or EXTENDS one through a field that class may carry (unknown class:
                 # every attribute)
                 _hit567 = False
+                _rhit567 = False
                 for _n567, _nf567 in _nar567.items():
-                    if _k567 == _n567 and (_nf567 is None or attr in _nf567):
-                        _hit567 = True
-                    elif _k567 is not None and _k567.startswith(_n567 + ".") and (
-                            _nf567 is None
-                            or _k567[len(_n567) + 1:].split(".")[0] in _nf567):
-                        _hit567 = True
+                    _z567 = _n567.startswith("\x00")
+                    if _z567:
+                        _n567 = _n567[1:]
+                    if (_k567 == _n567 and (_nf567 is None or attr in _nf567)) or (
+                            _k567 is not None and _k567.startswith(_n567 + ".") and (
+                                _nf567 is None
+                                or _k567[len(_n567) + 1:].split(".")[0] in _nf567)):
+                        if _z567:
+                            _rhit567 = True
+                        else:
+                            _hit567 = True
+                # (R1) a residual-only hit is NOT a projector read when it is `<x>.op` and every
+                # occurrence of `<x>.op` in this body is the SUBJECT of `isinstance(<x>.op, ast.USub)`
+                # that `_handle_isinstance` lowers over the OBJECT (`str_eq_op (unaryop_op_of x)
+                # "-"`, its `_const_int_value` arm, `ast` resolved): the projector's lowering of the
+                # subject is computed with the call's arguments and discarded, never read.
+                if (_rhit567 and not _hit567 and attr == "op" and _k567 is not None
+                        and (_cef567 == "_const_int_value" or _cef567.endswith("___const_int_value"))
+                        and ((getattr(self, "ir_class_targets_r579", None) or {}).get("ast")
+                             in ("ast", "frontend.pure_ast"))):
+                    _occ567 = 0
+                    _sbj567 = 0
+                    _stk567 = [_body567]
+                    while _stk567:
+                        _x567 = _stk567.pop()
+                        if isinstance(_x567, list):
+                            _stk567.extend(_x567)
+                            continue
+                        if not isinstance(_x567, dict):
+                            continue
+                        _stk567.extend(_x567.values())
+                        _ss567: List[Any] = []
+                        if (_x567.get("type") == "Call" and _x567.get("func") == "isinstance"
+                                and len(_x567.get("args") or []) == 2
+                                and isinstance(_x567["args"][1], dict)
+                                and _x567["args"][1].get("type") == "Attribute"
+                                and _x567["args"][1].get("attr") == "USub"
+                                and isinstance(_x567["args"][1].get("object"), dict)
+                                and _x567["args"][1]["object"].get("type") == "Var"
+                                and _x567["args"][1]["object"].get("name") == "ast"):
+                            _ss567 = [_x567["args"][0]]
+                        if _x567.get("type") == "Attribute" and _x567.get("attr") == "op":
+                            _ss567.append(None)
+                        for _s567 in _ss567:
+                            _q567 = _x567 if _s567 is None else _s567
+                            if not (isinstance(_q567, dict) and _q567.get("type") == "Attribute"
+                                    and _q567.get("attr") == "op"):
+                                continue
+                            # the receiver path, collapsed at a subscript exactly as the judged
+                            # read's; a subject must be a plain field path
+                            _p567 = []
+                            _pure567 = True
+                            _r567 = _q567.get("object")
+                            while isinstance(_r567, dict) and _r567.get("type") in (
+                                    "Attribute", "FieldGet", "Subscript", "SliceAccess"):
+                                if _r567.get("type") in ("Attribute", "FieldGet"):
+                                    _p567.append(str(_r567.get("attr") or _r567.get("field")))
+                                else:
+                                    _p567 = []
+                                    _pure567 = False
+                                _r567 = _r567.get("object") or _r567.get("value")
+                            if isinstance(_r567, str) and _r567:
+                                _r567 = {"type": "Var", "name": _r567}
+                            _kq567 = (".".join([str(_r567.get("name"))] + _p567[::-1])
+                                      if isinstance(_r567, dict) and _r567.get("type") == "Var"
+                                      else None)
+                            if _kq567 != _k567:
+                                continue
+                            if _s567 is None:
+                                _occ567 += 1
+                            elif _pure567:
+                                _sbj567 += 1
+                    # the judged read itself must be a plain field path
+                    _r567 = obj_ir
+                    while isinstance(_r567, dict) and _r567.get("type") in ("Attribute", "FieldGet"):
+                        _r567 = _r567.get("object")
+                    if (_occ567 > 0 and _occ567 == _sbj567
+                            and ((isinstance(_r567, dict) and _r567.get("type") == "Var")
+                                 or (isinstance(_r567, str) and _r567))):
+                        _rhit567 = False
                 if _hit567 and _sp579:
                     from errors import PyCSLSemanticError as _R579
                     raise _R579(
@@ -19584,6 +19996,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         "import pure_ast as ast`, `from frontend.Module2_Parser import "
                         "FieldAccess as CSLFieldAccess`, `from ir_schema import <Node>`).",
                         stage="module6-whyml", code="PYCSL-R579-IR-CLASS-NOT-RESOLVED")
+                if _rhit567 and not _hit567:
+                    from errors import PyCSLSemanticError as _R567
+                    raise _R567(
+                        "PYCSL-R567-EMITIR-ATTR-ON-NONIR: `" + str(_k567) + "." + str(attr)
+                        + "` (in `" + str(getattr(self, "_current_emitting_func", None) or "?")
+                        + "`) reads a field of a value this function tests with `isinstance` "
+                        "against an `ast` node class the model represents as an IR node, but this "
+                        "field is not one the IR projectors read faithfully (an `ast.Constant`'s "
+                        "`.kind` is its own `str | None` field, not the constructor tag; an "
+                        "`ast.UnaryOp`'s `.op` is an operator object) (route #567, the receiver-"
+                        "typed view R1). Test the field's value directly (`isinstance(x.op, "
+                        "ast.USub)`), or keep the value in a local of the class it really has.",
+                        stage="module6-whyml", code="PYCSL-R567-EMITIR-ATTR-ON-NONIR")
                 if _hit567:
                     from errors import PyCSLSemanticError as _R567
                     raise _R567(
@@ -19624,6 +20049,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # of the SAME node (e.g. `_handle_map_get_expr`'s `node.dict` and `node.key`).
             if attr in _EMIT_IR_NODE_ATTRS:
                 return f"({_EMIT_IR_NODE_ATTRS[attr]} {_os})"
+            # (run #6 u37) ROUTE #583: `.value` is a field of BOTH IR classes an emit_ir
+            # value can be -- `ast.Attribute.value` (the OBJECT, IrAttr's 1st child) and
+            # `ast.Subscript.value` (the ARRAY, IrSub's 1st child). The Subscript-only
+            # `svalue_of` read `IrOther ""` on an IrAttr, so `isinstance(x.value, ast.Name)`
+            # after `isinstance(x, ast.Attribute)` was decided FALSE where CPython takes the
+            # branch (a false proof). Lower it with the UNIFIED `avalue_of` (IrAttr -> object,
+            # IrSub -> value), the projector `_py_stmt_augassign` already used: it agrees with
+            # `svalue_of` on every non-IrAttr node, so the Subscript path keeps its meaning.
+            if attr == "value":
+                return f"(avalue_of {_os})"
             return f"(svalue_of {_os})"
         # CARRIER-FIELD PROJECTION (L13): `<optional-union local>.<field>` reads the
         # carrier record's field directly, instead of the opaque int-hash `get_<attr>`

@@ -35,3 +35,26 @@ Exemplar witnesses-r567/w567_kind_misproj.py: `is_keys_view(DictView("d", "keys"
   node.kind == "keys": return 1` is NOT refused and lowers `node.kind` to `kind_of node` (measured `--no-proof` at the
   lvG2 tip; the forward form `if isinstance(node, DictView): dv = node; if dv.kind ...` is refused). The same misprojection
   as w567 is reachable through a backward alias.
+
+## R1 — THE RECEIVER-TYPED NARROWING VIEW (driver run #6, executor lvL, base run6-int54 c914766a6, branch run6-lvL)
+
+The capability `cap-vm-irnode-R1-narrowing-view` (cv11 census §4.2): the non-IR narrowing of an `ast.*`-tested `emit_ir`
+value is decided PER RECEIVER, never per file path (the #566 / #567 mirror exemption stays rejected). Annotations §7.566
+(the R1 bullet) carries the normative rule; in short:
+
+- RULE (`expressions.py::_handle_attribute_expr`, the #567 judge; mirror twin `\trusted`; inline, no new def, no new
+  emitter field, no axiom). `isinstance(p, ast.<X>)`, `ast` resolved (#579's table), X alone (not in a tuple), is an
+  IR class ON THIS RECEIVER exactly when `_handle_isinstance` lowers that test to a constructor discriminant of `p`'s
+  model type -- `pyast_stmt` loop local + X in `_AST_CLASS_TO_STMT_KIND`; `TParamNode` parameter + `ClassDef`; emit_ir
+  + `Constant` under the const-reflect model; emit_ir + `UnaryOp` in `_const_int_value` -- and the receiver's root name
+  has ONE binding (a never-rebound parameter, or the target of exactly one `for`). The misread attributes of X
+  (`Constant.kind`, `UnaryOp.op`) stay refused as a RESIDUAL narrowing closed under #574's edges (the set survives the
+  two exact-match coarse edges, widens everywhere else); `<x>.op` whose every occurrence is the subject of
+  `isinstance(<x>.op, ast.USub)` is not a projector read (lowered over the object, the subject's projection discarded).
+- WHY IT CANNOT REPRODUCE #567's MISPROJECTION. #567 needs a value of a class the model does NOT represent (a record, a
+  user class, an unresolved spelling) whose own field a projector reads as the emit_ir tag / name. R1 admits only a
+  genuine standard-library / `frontend.pure_ast` node class (resolution, #579), only on a receiver whose test the
+  emitter lowers to that node's discriminant (so the value IS the modelled node), and keeps refusing exactly the
+  attributes the projectors misread (measured: without the residual, the spike tree `spnr` emits `Constant.kind` as
+  `kind_of elt` and PROVES the false claim of 9312 / witness r01; with it, refused). Every read R1 admits was refused
+  before (the residual is a subset of the old narrowing); the emission of every admitted body is unchanged.

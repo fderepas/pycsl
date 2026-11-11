@@ -399,6 +399,227 @@ class FunctionEmissionMixin:
                     _rc_ok = False
             if _rc_ok:
                 self._re_compiled_locals[_rc_n] = _rc_defs[0]["value"]["args"][0]
+        # lvO (re.Match model): MATCH LOCALS -- a local `m` every binding of which is
+        # `m = re.match(<str literal>, s)` / `m = NAME.match(s[, pos])` (NAME a module
+        # constant `re.compile(<literal>)`, `module_const_regexes`) / `m = rx.match(..)`
+        # (rx the regex slot of a `for kw, rx in PAIRS` over a "seq_rx" constant, the
+        # loop the `_handle_for_stmt` unroll replaces by one copy per pair), all with ONE
+        # pattern source, and whose EVERY other occurrence is a read the law-free model
+        # lowers: the bare truth test `if m:` / `if not m:`, `m.group(<int literal>)`,
+        # `m.end()`, `m.re.groups` (`_handle_re_str_call`, `_to_bool`,
+        # `_handle_attribute_expr`). No escape (argument, return, alias, `==` / `is`,
+        # container), so CPython's fresh-object identity is unobservable and a `val
+        # function` handle over (pattern, subject, pos) is exact. Fail-closed: anything
+        # else keeps the opaque lowering. An "rx" local must be bound by ONE top-level
+        # statement of that loop body, with no occurrence before it in the body and none
+        # outside the loop, so each unrolled copy's reads see that copy's binding; the
+        # unroll TAGS those reads with the copy's constant (`_handle_for_stmt`), so their
+        # lowering never depends on emission order. "cur" maps a "lit" / "const" local to
+        # its one pattern. "sigs" are the (callee, args) signatures of the bindings (an
+        # unrolled one under each pair constant's name) that occur NOWHERE in the function
+        # but as a match local's binding value: only a call with such a signature lowers
+        # to a handle (`_handle_re_str_call`), so a handle never escapes.
+        # The state rides on the EXISTING `_re_compiled_locals` field under the reserved
+        # (non-identifier) key "<re_m>", which no `<v>.sub` lookup can name: a new self
+        # field written here would widen this method's mirror frame, and declaring it would
+        # move the functions/statements mirror emissions (both frame planes ratchet).
+        _rxm_locals: Dict[str, Any] = {}
+        _rxm_cur: Dict[str, str] = {}
+        _rxm_sigs: Set[Any] = set()
+        _rxm_ir = getattr(self, "ir", None)
+        _rxm_consts = ((_rxm_ir.get("module_const_regexes") or {})
+                       if isinstance(_rxm_ir, dict) else {})
+        _rxm_pairs = ((_rxm_ir.get("module_const_str_pair_loops") or {})
+                      if isinstance(_rxm_ir, dict) else {})
+        _rxm_imps = ((_rxm_ir.get("imports") or []) if isinstance(_rxm_ir, dict) else [])
+        _rxm_st = func.get("symbol_table") or {}
+        _rxm_re_ok = ("re" not in (getattr(self, "_module_method_return_types", {}) or {})
+                      and "re" not in _rxm_st
+                      and bool([_i for _i in _rxm_imps if isinstance(_i, (list, tuple))
+                                and len(_i) >= 5 and _i[0] == "re"])
+                      and all(_i[2] == "re" and _i[4] and _i[1] == "re" for _i in _rxm_imps
+                              if isinstance(_i, (list, tuple)) and len(_i) >= 5
+                              and _i[0] == "re"))
+        _rxm_cand: Dict[str, List[Any]] = {}
+        # `re` must RESOLVE to the stdlib module (route #323's import test, as for
+        # `_is_re_str_call`) for every source, the module constants included.
+        if _rxm_re_ok:
+            _rxm_w: List[Any] = [(body_stmts, None)]
+            while _rxm_w:
+                _rxm_x, _rxm_enc = _rxm_w.pop()
+                if isinstance(_rxm_x, dict):
+                    _rxm_it = _rxm_x.get("iter")
+                    _rxm_tt = _rxm_x.get("tuple_targets")
+                    if (_rxm_x.get("stmt") == "For" and isinstance(_rxm_it, dict)
+                            and _rxm_it.get("type") == "Var"
+                            and (_rxm_pairs.get(_rxm_it.get("name")) or {}).get("kind")
+                            == "seq_rx"
+                            and isinstance(_rxm_tt, list) and len(_rxm_tt) == 2
+                            and isinstance(_rxm_tt[1], str)):
+                        _rxm_w.append((_rxm_x.get("body"), (_rxm_tt[1], _rxm_x)))
+                        _rxm_w.extend((_v, _rxm_enc) for _k, _v in _rxm_x.items()
+                                      if _k != "body")
+                        continue
+                    _rxm_v = _rxm_x.get("value")
+                    if (_rxm_x.get("stmt") == "Assign" and isinstance(_rxm_x.get("target"), str)
+                            and isinstance(_rxm_v, dict) and _rxm_v.get("type") == "Call"
+                            and _rxm_v.get("receiver") is None and not _rxm_v.get("keywords")
+                            and isinstance(_rxm_v.get("func"), str)):
+                        _rxm_fn = _rxm_v["func"]
+                        _rxm_a = _rxm_v.get("args") or []
+                        _rxm_src = None
+                        # The subject must be a `str`-DECLARED name (a `str` parameter or
+                        # annotated local) and `pos` a name or an int literal (an int in
+                        # the model either way; a non-int `pos` is a CPython TypeError, an
+                        # abnormal exit): the model is a function of the subject STRING,
+                        # and an `Any` subject (narrowed only by an `isinstance`) keeps the
+                        # opaque lowering.
+                        _rxm_pa = func.get("param_annotations") or {}
+                        _rxm_sa = (_rxm_a[1:] if _rxm_fn == "re.match" else _rxm_a)
+                        if not (_rxm_sa and isinstance(_rxm_sa[0], dict)
+                                and _rxm_sa[0].get("type") == "Var"
+                                and (_rxm_st.get(_rxm_sa[0].get("name")) == "str"
+                                     or _rxm_pa.get(_rxm_sa[0].get("name")) == "str")
+                                and all(isinstance(_p, dict)
+                                        and ((_p.get("type") == "Number"
+                                              and type(_p.get("value")) is int)
+                                             or _p.get("type") == "Var")
+                                        for _p in _rxm_sa[1:])):
+                            _rxm_a = []
+                        if (_rxm_fn == "re.match" and _rxm_re_ok and len(_rxm_a) == 2
+                                and isinstance(_rxm_a[0], dict)
+                                and _rxm_a[0].get("type") == "String"
+                                and type(_rxm_a[0].get("value")) is str):
+                            try:
+                                import re as _rxm_re
+                                _rxm_re.compile(_rxm_a[0]["value"])
+                                _rxm_src = ("lit", _rxm_a[0]["value"])
+                            except Exception:
+                                _rxm_src = None
+                        elif (_rxm_fn.endswith(".match") and _rxm_fn.count(".") == 1
+                                and 1 <= len(_rxm_a) <= 2):
+                            _rxm_b = _rxm_fn[:-len(".match")]
+                            if _rxm_b in _rxm_consts and _rxm_b not in _rxm_st:
+                                _rxm_src = ("const", _rxm_b)
+                            elif _rxm_enc is not None and _rxm_b == _rxm_enc[0]:
+                                _rxm_src = ("rx", _rxm_b, _rxm_enc[1])
+                        _rxm_cand.setdefault(_rxm_x["target"], []).append(
+                            (_rxm_x, _rxm_src))
+                    _rxm_w.extend((_v, _rxm_enc) for _v in _rxm_x.values())
+                elif isinstance(_rxm_x, (list, tuple)):
+                    _rxm_w.extend((_v, _rxm_enc) for _v in _rxm_x)
+        for _rxm_m, _rxm_defs in _rxm_cand.items():
+            _rxm_src0 = _rxm_defs[0][1]
+            if (_rxm_src0 is None or _rxm_st.get(_rxm_m) not in (None, "Any")
+                    or any(_d[1] is None or _d[1][:2] != _rxm_src0[:2]
+                           or (len(_d[1]) > 2 and _d[1][2] is not _rxm_src0[2])
+                           for _d in _rxm_defs)):
+                continue
+            _rxm_bind_ids = {id(_d[0]) for _d in _rxm_defs}
+            _rxm_ok = True
+            # parameters / declarations / `global` / `nonlocal` / `with` bindings
+            _rxm_w2: List[Any] = [func.get(_rxm_pk) for _rxm_pk in (
+                "formal_params", "kwonly_params", "posonly_params", "kwarg_param",
+                "vararg_param", "params", "args", "nonlocal_writes", "global_writes",
+                "with_bindings")]
+            _rxm_w2.append(body_stmts)
+            while _rxm_w2 and _rxm_ok:
+                _rxm_x = _rxm_w2.pop()
+                if isinstance(_rxm_x, dict):
+                    if id(_rxm_x) in _rxm_bind_ids:
+                        _rxm_w2.append(_rxm_x["value"].get("args"))
+                        continue
+                    _rxm_t = _rxm_x.get("test")
+                    if (_rxm_x.get("stmt") == "If" and isinstance(_rxm_t, dict)
+                            and ((_rxm_t.get("type") == "Var" and _rxm_t.get("name") == _rxm_m)
+                                 or (_rxm_t.get("type") == "UnaryOp"
+                                     and _rxm_t.get("op") == "not"
+                                     and isinstance(_rxm_t.get("expr"), dict)
+                                     and _rxm_t["expr"].get("type") == "Var"
+                                     and _rxm_t["expr"].get("name") == _rxm_m
+                                     and set(_rxm_t["expr"]) == {"type", "name"}))):
+                        _rxm_w2.extend(_v for _k, _v in _rxm_x.items() if _k != "test")
+                        continue
+                    _rxm_a = _rxm_x.get("args")
+                    if (_rxm_x.get("type") == "Call" and _rxm_x.get("receiver") is None
+                            and not _rxm_x.get("keywords")
+                            and ((_rxm_x.get("func") == _rxm_m + ".group"
+                                  and isinstance(_rxm_a, list) and len(_rxm_a) == 1
+                                  and isinstance(_rxm_a[0], dict)
+                                  and _rxm_a[0].get("type") == "Number"
+                                  and type(_rxm_a[0].get("value")) is int
+                                  and _rxm_a[0]["value"] >= 0)
+                                 or (_rxm_x.get("func") == _rxm_m + ".end" and not _rxm_a))):
+                        continue
+                    _rxm_o = _rxm_x.get("object")
+                    if (_rxm_x.get("type") == "Attribute" and _rxm_x.get("attr") == "groups"
+                            and isinstance(_rxm_o, dict) and _rxm_o.get("type") == "Attribute"
+                            and _rxm_o.get("attr") == "re"
+                            and isinstance(_rxm_o.get("object"), dict)
+                            and _rxm_o["object"].get("type") == "Var"
+                            and _rxm_o["object"].get("name") == _rxm_m):
+                        continue
+                    _rxm_w2.extend(_rxm_x.values())
+                elif isinstance(_rxm_x, (list, tuple)):
+                    _rxm_w2.extend(_rxm_x)
+                elif isinstance(_rxm_x, str) and (_rxm_x == _rxm_m
+                                                  or _rxm_x.startswith(_rxm_m + ".")):
+                    _rxm_ok = False
+            if _rxm_ok and _rxm_src0[0] == "rx":
+                # ONE binding, a top-level statement of the loop body; no occurrence of
+                # the name before it in the body, none outside the loop body.
+                _rxm_for = _rxm_src0[2]
+                _rxm_body = _rxm_for.get("body") or []
+                _rxm_j = [_i for _i, _s in enumerate(_rxm_body) if id(_s) in _rxm_bind_ids]
+                if len(_rxm_defs) != 1 or len(_rxm_j) != 1:
+                    _rxm_ok = False
+                else:
+                    _rxm_w3: List[Any] = [_rxm_body[:_rxm_j[0]], body_stmts]
+                    while _rxm_w3 and _rxm_ok:
+                        _rxm_x = _rxm_w3.pop()
+                        if _rxm_x is _rxm_body:
+                            continue
+                        if isinstance(_rxm_x, dict):
+                            _rxm_w3.extend(_rxm_x.values())
+                        elif isinstance(_rxm_x, (list, tuple)):
+                            _rxm_w3.extend(_rxm_x)
+                        elif isinstance(_rxm_x, str) and (_rxm_x == _rxm_m
+                                                          or _rxm_x.startswith(_rxm_m + ".")):
+                            _rxm_ok = False
+            if _rxm_ok:
+                _rxm_locals[_rxm_m] = _rxm_src0[:2]
+                if _rxm_src0[0] == "lit":
+                    _rxm_cur[_rxm_m] = _rxm_src0[1]
+                elif _rxm_src0[0] == "const":
+                    _rxm_cur[_rxm_m] = _rxm_consts[_rxm_src0[1]]
+                for _d in _rxm_defs:
+                    _rxm_v = _d[0]["value"]
+                    _rxm_a = tuple((_x.get("type"), _x.get("name"), _x.get("value"))
+                                   for _x in (_rxm_v.get("args") or []))
+                    if _rxm_src0[0] == "rx":
+                        _rxm_pr = (_rxm_pairs.get(_rxm_src0[2]["iter"]["name"]) or {})
+                        for _rxm_pc in (_rxm_pr.get("pairs") or []):
+                            _rxm_sigs.add((_rxm_pc[1] + ".match", _rxm_a))
+                    else:
+                        _rxm_sigs.add((_rxm_v["func"], _rxm_a))
+        if _rxm_sigs:
+            # a signature that ALSO occurs other than as a binding value is not safe
+            _rxm_bvals = {id(_d[0]["value"]) for _m in _rxm_locals for _d in _rxm_cand[_m]}
+            _rxm_w4: List[Any] = [body_stmts]
+            while _rxm_w4:
+                _rxm_x = _rxm_w4.pop()
+                if isinstance(_rxm_x, dict):
+                    if (_rxm_x.get("type") == "Call" and id(_rxm_x) not in _rxm_bvals
+                            and isinstance(_rxm_x.get("func"), str)):
+                        _rxm_sigs.discard((_rxm_x["func"], tuple(
+                            (_y.get("type"), _y.get("name"), _y.get("value"))
+                            for _y in (_rxm_x.get("args") or []) if isinstance(_y, dict))))
+                    _rxm_w4.extend(_rxm_x.values())
+                elif isinstance(_rxm_x, (list, tuple)):
+                    _rxm_w4.extend(_rxm_x)
+        if _rxm_locals:
+            self._re_compiled_locals["<re_m>"] = {"locals": _rxm_locals, "cur": _rxm_cur,
+                                                  "sigs": _rxm_sigs}
         # (#49) ROUTE #232 — A READ `**kwargs` PARAMETER IN AN EMITTED BODY. The parameter
         # is not modelled (it is not in the signature), so the read would lower to an
         # auto-declared opaque `val constant <name> : int` SHARED by every call: measured,
@@ -5625,15 +5846,24 @@ class FunctionEmissionMixin:
                 # not in func_exceptions), the declared arm is emitted as
                 # before — preserving the pre-existing behaviour.
                 summary_only = (base_raw not in func_exceptions) and bool(raised_subs)
+                # (#49) cap-exception-payload-model: a USER exception tag carries a `string`
+                # payload (`_emit_preamble_exceptions`); the conditioned arm binds it with a
+                # wildcard (Why3 rejects a payload exception's arm without its argument).
+                _pat_px = ("" if (handler_catches("BaseException", base)
+                                  or base in ("EnvironmentError", "IOError")
+                                  or base.startswith("PyCSL_")) else " _")
                 if not summary_only:
-                    lines.append(f"    raises {{ {base} -> {cond_str} }}")
+                    lines.append(f"    raises {{ {base}{_pat_px} -> {cond_str} }}")
                     declared_exc.add(base)
                     covered_raw.add(base_raw)
                 # conditioned arms for each subclass actually raised
                 for raw in raised_subs:
                     sub = safe_exc_name(raw)
                     if sub not in declared_exc:
-                        lines.append(f"    raises {{ {sub} -> {cond_str} }}")
+                        _spat_px = ("" if (handler_catches("BaseException", sub)
+                                           or sub in ("EnvironmentError", "IOError")
+                                           or sub.startswith("PyCSL_")) else " _")
+                        lines.append(f"    raises {{ {sub}{_spat_px} -> {cond_str} }}")
                         declared_exc.add(sub)
                     covered_raw.add(raw)
             # Any raised exception NOT covered by a declared (base or
@@ -7210,7 +7440,7 @@ class FunctionEmissionMixin:
             f" (ir_stmts: ref (seq stmt_ir)) : unit",
             "    requires { true }",
             "    ensures  { true }",
-            "    raises { PyCSLSemanticError -> true }",
+            "    raises { PyCSLSemanticError _ -> true }",
             "    writes { ir_stmts }",
             "  =",
             "    let ts = del_targets_ast stmt in",
@@ -7225,7 +7455,7 @@ class FunctionEmissionMixin:
             # raise carries the exception NAME only, and the raise path never reaches
             # `ensures`).
             "      (if is_sub tgt && is_slice (sindex_of tgt) then begin",
-            "         raise PyCSLSemanticError",
+            "         raise (PyCSLSemanticError (any string))",
             "       end);",
             # (#49) ROUTE #80 — the ATTRIBUTE arm is the second err-divergence arm.
             # `_py_stmt_delete` now REFUSES `del <obj>.<attr>` instead of dropping it to
@@ -7235,7 +7465,7 @@ class FunctionEmissionMixin:
             # total `is_attribute` projector (IrAttr arm); no isinstance_op, no new
             # preamble construct.
             "      (if is_attribute tgt then begin",
-            "         raise PyCSLSemanticError",
+            "         raise (PyCSLSemanticError (any string))",
             "       end);",
             "      (if is_sub tgt && not (is_slice (sindex_of tgt)) then",
             f"         ir_stmts := Seq.snoc !ir_stmts (SDelSubscript"
@@ -7325,7 +7555,7 @@ class FunctionEmissionMixin:
             "         ir_stmts := Seq.snoc !ir_stmts"
             " (SFieldAssign (name_of (avalue_of target)) (name_of target) value)",
             "       else if not (is_var (avalue_of target)) then",
-            "         raise PyCSLSemanticError",
+            "         raise (PyCSLSemanticError (any string))",
             # (#44) ROUTE #28 — the module-global arm, previously `else ()`.
             "       else",
             "         ir_stmts := Seq.snoc !ir_stmts"
@@ -7665,14 +7895,14 @@ class FunctionEmissionMixin:
             # keep the historical preamble fold (their record and `_csl_to_ir` stub are
             # int-erased — the #64 seam), byte-identical.
             "    diverges",
-            "    raises { PyCSLIRError -> true }",
-            "    raises { PyCSLSemanticError -> true }",
+            "    raises { PyCSLIRError _ -> true }",
+            "    raises { PyCSLSemanticError _ -> true }",
         ] + _frame74 + [
             "  =",
             "    let rec synth_local (guard: emit_ir) (ens: List.list ens_node) : Seq.seq emit_ir",
             "      diverges",
-            "      raises { PyCSLIRError -> true }",
-            "      raises { PyCSLSemanticError -> true }",
+            "      raises { PyCSLIRError _ -> true }",
+            "      raises { PyCSLSemanticError _ -> true }",
             "    =",
             "      match ens with",
             "      | Nil -> Seq.empty",
@@ -8130,8 +8360,8 @@ class FunctionEmissionMixin:
         if _lbls74 is not None:
             _c2i = f"{cls}___csl_to_ir self"
             L += ["    diverges",
-                  "    raises { PyCSLIRError -> true }",
-                  "    raises { PyCSLSemanticError -> true }"] + _frame74
+                  "    raises { PyCSLIRError _ -> true }",
+                  "    raises { PyCSLSemanticError _ -> true }"] + _frame74
         else:
             _c2i = "csl_to_ir"
         L += [
@@ -8457,7 +8687,14 @@ class FunctionEmissionMixin:
                 return []
             L.append(f"    | {pfx}{ast_cls} _p -> {emitted} self _p")
         if default[0] == "raise":
-            L.append(f"    | {pfx}Unknown -> raise {safe_exc_name(default[1])}")
+            # (#49) cap-exception-payload-model: a USER exception tag carries a `string`
+            # payload; this synthesized raise has no modelled argument -> unconstrained.
+            from exception_model import handler_catches as _hc_px
+            _d_px = safe_exc_name(default[1])
+            if not (_hc_px("BaseException", _d_px) or _d_px in ("EnvironmentError", "IOError")
+                    or _d_px.startswith("PyCSL_")):
+                _d_px = f"({_d_px} (any string))"
+            L.append(f"    | {pfx}Unknown -> raise {_d_px}")
         else:
             L.append(f"    | {pfx}Unknown -> IrOther \"{default[1]}\"")
         L.append("    end")
@@ -11692,8 +11929,12 @@ class FunctionEmissionMixin:
         if _r304_tags:
             # (#49) ROUTE #304 — see the escaping-set computation above: each own raise
             # covered by the declared `no_exception` is a reachability obligation.
+            # (#49) cap-exception-payload-model: a USER exception tag carries a `string`
+            # payload, so its arm binds it with a wildcard.
+            from exception_model import handler_catches as _hc_px
             _r304_arms = " | ".join(
-                f"{_t304} -> (assert {{ [@expl:no_exception: own raise {_t304} reachable] "
+                f"{_t304}{'' if (_hc_px('BaseException', _t304) or _t304 in ('EnvironmentError', 'IOError') or _t304.startswith('PyCSL_')) else ' _'}"
+                f" -> (assert {{ [@expl:no_exception: own raise {_t304} reachable] "
                 f"false }}; absurd)" for _t304 in sorted(set(_r304_tags)))
             _r304_body = f"    try (\n{_r304_body}\n    ) with {_r304_arms} end"
         lines.append(_r304_body)
