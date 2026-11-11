@@ -39,10 +39,10 @@ Advice (audited FOLLOWABLE, see below): pass the argument explicitly; make the p
   R592 at HEAD.
 - CORPUS witnesses (expected FAIL; CPython breaks each claim): 9630 (`isinstance`, module function), 9631 (the
   `self.g(3)` site), 9632 (truthiness vs `len`), 9633 (`len`, `self.` site), 9634 (a keyword-bound later argument
-  `g(3, y=1)` skipping `d`): all EMITTED at base, all REFUSED R592 at HEAD (`--no-proof` triage). Base proof verdicts:
-  BASE_PROOFS.
+  `g(3, y=1)` skipping `d`): all EMITTED at base, all REFUSED R592 at HEAD (`--no-proof` triage). Full-proof verdicts at base NOT
+  MEASURED (proof slots saturated until the time box; the driver measured hc1762, 9630's shape, PROVED at run6-int56).
 - CONTROLS (expected PASS): 9640 (callee `#@ \trusted`, `h() == g(3) + 1`), 9641 (verified callee, `d` passed
-  explicitly): EMITTED at base and HEAD. Proof verdicts: CTL_PROOFS.
+  explicitly): EMITTED at base and HEAD. Full-proof verdicts NOT MEASURED (same reason): OWED.
 - 9390 (lvN's own witness, expected PASS): its callees were VERIFIED bodies, so it is REFUSED R592 at HEAD as written
   (correctly: its subject is the fill, and the fill reached verified bodies). REWRITTEN with both callees `#@ \trusted`
   (contracts that hold for `d = None`; they never read `d`), keeping its subject (both fill sites still emit
@@ -58,7 +58,17 @@ Advice (audited FOLLOWABLE, see below): pass the argument explicitly; make the p
   without the callee's contract / an unconstrained field), so nothing is decided there (emission unchanged).
 - INERTNESS (own base = `git archive fe057a6c1`, same scripts): corpus root 3097 -> 3099 .mlw, 1 MOVED (9390, the
   declared source rewrite), 0 GONE, 0 APPEARED (+2 controls; the 5 witnesses refused); python-reference 2185 0 / 0 /
-  0. Mirror: MIRROR_RESULT.
+  0. Mirror: the full 53-file sweep did NOT RUN before the time box (heavy queue).
+  Measured instead: `module6_whyml/statements.py`, the ONLY mirror file whose emission contains `pycsl_none_map`
+  (grep of the driver's int56 mirror sweep: 20 occurrences, no other file), emitted byte-IDENTICAL at base and HEAD (and
+  identical to the int56 sweep): its fills call the `#@ declared_in` `_expr_to_whyml`, whose definition is `\\trusted`.
+  Every other mirror file cannot move (the observer returns the emitter's own result; only a fill can refuse). The
+  53/53 sweep is OWED.
 - ADVICE (`witnesses-r592/advice/`): a592_pass_explicit (= 9641), a592_required_param, a592_trusted_callee (= 9640):
-  ADVICE_PROOFS.
-- PLANES / LEDGERS: PLANES_RESULT.
+  not yet RUN under full proof (OWED; the advice
+  audit entry is not written until they are).
+- LEDGERS: refusal-witness census +5 rows (tool `_census_row`, interpreter wrapper adding `--no-proof`: R592 is
+  raised in Module 6 emission before any proof), all REFUSAL R592. Fidelity x3 rc 0 / 0 / 0 (check-self-annotate-sync,
+  self-annotate-mirror-check, doc-coherency --check). run-soundness-planes, check-vacuous-drivers, claim-vacuity,
+  refusal-witness-coverage, open-route-carriers and the rule-18 planes: OWED (queue). check-refusal-advice-audited
+  (run before the census append): rc 0, R592 listed as unaudited.
