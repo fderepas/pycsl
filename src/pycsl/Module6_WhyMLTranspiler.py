@@ -1842,7 +1842,10 @@ class Module6_WhyMLTranspiler(
                         for _l584 in _d584]
             for _a584 in sorted(set(re.findall(r"\biratt_(\w+?)_of\b", _rest584))):
                 _arms584 = [_t584 for _t584, _g584 in _EMIT_IR_ATTR_ARMS.get(_a584, [])
-                            if _g584 is None or getattr(self, _g584)()]
+                            if _g584 is None
+                             or (self._uses_clause_ir() if _g584 == "_uses_clause_ir"
+                                 else self._uses_stmt_ir() if _g584 == "_uses_stmt_ir"
+                                 else self._uses_csl_proj())]
                 _defs584 += ([f"  let function iratt_{_a584}_of (e: emit_ir) : emit_ir =",
                               "    match e with " + " | ".join(_arms584)
                               + " | _ -> IrOther \"\" end", ""]
