@@ -14,7 +14,6 @@ def mutable_state(cls): return cls
 
 @mutable_state
 class B:
-    #@ requires True
     #@ ensures \length(\result) == 2
     #@ assigns \nothing
     def build(self, n: str, e: "ExprIR") -> List[Tuple[str, "ExprIR"]]:
