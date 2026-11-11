@@ -73,16 +73,12 @@ frontend/Module2_Parser.py	_lex_contract	unclassified	-
 frontend/Module2_Parser.py	_ContractParser.__init__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/Module2_Parser.py	_ContractParser._try	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_contract	unclassified	-
-frontend/Module2_Parser.py	_ContractParser._grab_reviewer_id	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_assigns	cost-scale:family-b-list-boundary	THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
 frontend/Module2_Parser.py	_ContractParser._parse_assigns_target	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_act_block	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_happy	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_happy_targets	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_datatype	unclassified	-
-frontend/Module2_Parser.py	_ContractParser._parse_variant_def	unclassified	-
-frontend/Module2_Parser.py	_ContractParser._parse_inductive	unclassified	-
-frontend/Module2_Parser.py	_ContractParser._parse_inductive_rules	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_quantifier	cost-scale:family-b-list-boundary	THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
 frontend/Module2_Parser.py	_ContractParser._parse_atom_primary	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_atom_name	unclassified	-

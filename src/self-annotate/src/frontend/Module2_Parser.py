@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Union, Any, Optional, NoReturn
+from typing import List, Union, Any, Optional, NoReturn, Tuple
 from errors import PyCSLParseError
 ""  # pycsl
 @dataclass
@@ -682,8 +682,8 @@ class InductiveDecl(CSLNode):
     'Represents an `#@ inductive p(params):` least-fixpoint relation (inductive.md).\n    `signature` is the rendered param string `"(n: int)"`; `rules` is a list of\n    `(rule_name, horn_clause_expr)` parsed inline from the indentation block. `members`\n    (inductive.md P2) holds any `with q(params): …` mutually-inductive group members as\n    `(name, signature, rules)` tuples. Lowers to a Why3 `inductive p (params) = | Rule :\n    clause … [with q … = | …]` (no closing `end`).'
     name: str
     signature: str
-    rules: list = None
-    members: list = None
+    rules: List[Tuple[str, "ExprIR"]] = None
+    members: List[Tuple[str, str, List[Tuple[str, "ExprIR"]]]] = None
 
 @dataclass
 class MixinDecl(CSLNode):
@@ -767,6 +767,7 @@ def _csl_to_str(node: "ExprIR") -> str:
 
 import os as _os
 import re as _re
+import re
 class _ContractSyntaxError(Exception):
     'Internal syntax error raised by `_ContractParser`; converted to\n    `PyCSLParseError` at the `Module2_Parser` boundary.'
 
@@ -836,6 +837,7 @@ class _ContractParser:
     def __init__(self, source: str):
         toks, raw = _lex_contract(source)
         self.toks: List[_Tok] = toks
+        self.source: str = raw
         self.i: int = 0
 
     #@ requires True
@@ -927,6 +929,11 @@ class _ContractParser:
     # `_parse_dotted_path`) discharge their `\length(self.toks) - self.i` variant,
     # exactly as the expression-chain RHS helpers (`_parse_impl_rhs`, …) do.
     #@ ensures self.i >= \old(self.i)
+    # STRICT progress (run #6 lvP), read off the body: a normal return passed the
+    # `at_name()` test, so the current token is a NAME, hence not the final EOF sentinel
+    # (class invariant), so `advance` increments. The `while self.at_name() ...:
+    # self.expect_name() ...` loops (`_parse_inductive_rules`) need it for their variant.
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     #@ raises ContractSyntaxError when True
     def expect_name(self, val: str = "") -> str:
@@ -1079,12 +1086,31 @@ class _ContractParser:
             reviewer = self._grab_reviewer_id()
         return Trusted(reviewer=reviewer)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _grab_reviewer_id(self) -> str:
-        pass
+        tok = self.cur()
+        pos = tok.start
+        # (run #6 lvP) behaviour-identical respelling for the verified mirror: the subject
+        # slice bound to a `str` local, `re` for `_re` (one module), and `not m` for
+        # `m is None` (a match object is always truthy).
+        rest: str = self.source[pos:]
+        m = re.match(r"[A-Za-z0-9._@-]+", rest)
+        if not m:
+            self._err("expected reviewer id")
+        reviewer = m.group(0)
+        end_pos = pos + len(reviewer)
+        # advance past every token fully inside the matched span
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.i < len(self.toks) and self.toks[self.i].type != "EOF" \
+                and self.toks[self.i].start < end_pos:
+            self.i += 1
+        return reviewer
 
     #@ requires True
     #@ ensures True
@@ -1379,26 +1405,77 @@ class _ContractParser:
     def _parse_datatype(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_variant_def(self):
-        pass
+    #@ raises ContractSyntaxError when True
+    def _parse_variant_def(self) -> Tuple[str, List[str]]:
+        ctor = self.expect_name()
+        types: List[str] = []
+        if self.at_op("("):
+            self.advance()
+            types = [self.expect_name()]
+            #@ loop invariant self.i >= \old(self.i)
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_op(","):
+                types.append(self.expect_name())
+            self.expect_op(")")
+        return (ctor, types)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_inductive(self):
-        pass
+    #@ raises ContractSyntaxError when True
+    def _parse_inductive(self) -> InductiveDecl:
+        self.expect_name("inductive")
+        name = self.expect_name()
+        self.expect_op("(")
+        params = None
+        if not self.at_op(")"):
+            params = self._parse_mixin_params()
+        self.expect_op(")")
+        self.expect_op(":")
+        rules = self._parse_inductive_rules()
+        members = []
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_name("with"):
+            self.advance()
+            wname = self.expect_name()
+            self.expect_op("(")
+            wparams = None
+            if not self.at_op(")"):
+                wparams = self._parse_mixin_params()
+            self.expect_op(")")
+            self.expect_op(":")
+            wrules = self._parse_inductive_rules()
+            wsig = f"({wparams})" if wparams else "()"
+            members.append((wname, wsig, wrules))
+        sig = f"({params})" if params else "()"
+        return InductiveDecl(name, sig, rules, members)
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ sibling_concrete
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_inductive_rules(self):
-        pass
+    #@ raises ContractSyntaxError when True
+    def _parse_inductive_rules(self) -> List[Tuple[str, "ExprIR"]]:
+        rules = []
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_name() and not self.at_name("with"):
+            rname = self.expect_name()
+            self.expect_op(":")
+            rules.append((rname, self._parse_expr()))
+        if not rules:
+            self._err("inductive block requires at least one rule")
+        return rules
 
     #@ requires True
     #@ ensures True

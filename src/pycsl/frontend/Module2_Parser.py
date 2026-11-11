@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Union, Any, Optional
+from typing import List, Union, Any, Optional, Tuple
 from errors import PyCSLParseError
 
 # ---------------------------------------------------------
@@ -1046,8 +1046,8 @@ class InductiveDecl(CSLNode):
     clause … [with q … = | …]` (no closing `end`)."""
     name: str
     signature: str
-    rules: list = None
-    members: list = None
+    rules: List[Tuple[str, "ExprIR"]] = None
+    members: List[Tuple[str, str, List[Tuple[str, "ExprIR"]]]] = None
 
 # --- Mixin composition nodes (mixin.md / mixin-ready.md, Tier 1) ---
 # S0 surface: these parse and attach to their class/method node; Module3 weaves
@@ -1166,6 +1166,10 @@ def _csl_to_str(node: CSLNode) -> str:
 
 import os as _os
 import re as _re
+# (run #6 lvP) the plain stdlib binding too: `_grab_reviewer_id` matches through `re.match`
+# so the verified mirror reads it with the law-free re.Match model (lvO), which recognizes
+# the stdlib module only under its own name. Same module object as `_re`.
+import re
 
 
 class _ContractSyntaxError(Exception):
@@ -1445,8 +1449,12 @@ class _ContractParser:
         # the matched string is byte-identical to Lark's terminal.
         tok = self.cur()
         pos = tok.start
-        m = _re.match(r"[A-Za-z0-9._@-]+", self.source[pos:])
-        if m is None:
+        # (run #6 lvP) behaviour-identical respelling for the verified mirror: the subject
+        # slice bound to a `str` local, `re` for `_re` (one module), and `not m` for
+        # `m is None` (a match object is always truthy).
+        rest: str = self.source[pos:]
+        m = re.match(r"[A-Za-z0-9._@-]+", rest)
+        if not m:
             self._err("expected reviewer id")
         reviewer = m.group(0)
         end_pos = pos + len(reviewer)
@@ -1723,15 +1731,18 @@ class _ContractParser:
         return DatatypeDecl(name, variants, type_params)
 
     def _parse_variant_def(self):
+        # (run #6 lvP) behaviour-identical respelling for the verified mirror: one tail
+        # `return` (the no-payload variant's list is the `[]` bound before the test, a
+        # fresh list exactly as the old second `return (ctor, [])` built).
         ctor = self.expect_name()
+        types: List[str] = []
         if self.at_op("("):
             self.advance()
             types = [self.expect_name()]
             while self.accept_op(","):
                 types.append(self.expect_name())
             self.expect_op(")")
-            return (ctor, types)
-        return (ctor, [])
+        return (ctor, types)
 
     def _parse_inductive(self):
         self.expect_name("inductive")

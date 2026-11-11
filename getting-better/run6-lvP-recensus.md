@@ -148,3 +148,10 @@ refactor) from cv11's chain needs; it is cv11's knowledge, refined by the new li
 - Unbuilt and still blocking: `cap-exception-object-read` (s015, s340), the re.Match surface beyond lvO (lastgroup /
   start / group() / `Any` subject / an `_re` alias: s066, s314, s161, s338), R567/R566 for record-modelled receivers
   (the R1 DEPTH-STOP rows), route #301 nested unpack targets (s084, s176, s257, s262).
+
+## 4. Outcome (Part 2, same branch)
+
+Converted in lvP increment (3): `_ContractParser._grab_reviewer_id` (the near miss), `_ContractParser._parse_inductive_rules`,
+`_ContractParser._parse_inductive` (cap-vm-unerase-tuple, lvP increment (2)), and `_ContractParser._parse_variant_def`
+(its `(str, List[str])` return through the declared-tuple return of increment (2), after a behaviour-identical single-`return`
+respelling of the live body). The `_alpha_rename` crash is fixed in increment (2) (witness 9510).
