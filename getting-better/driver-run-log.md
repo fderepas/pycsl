@@ -1093,3 +1093,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-12T13:17Z | 819 | v56 (int59 = L7 + u42): A 16 new corpus files 0 unexpected; B 15 witness runs all refused (R597 9, R598 6); C root 3109 -> 3112 0/0/0 + pyref 0/0/0; D mirror 53/53 identical; E fidelity rc 0. F --slow running (ETA ~16:30Z). |
 2026-11-12T13:41Z | 820 | STATUS (run hour 91.7; 4.3 h left). v56 F --slow 60 ok, 0 RED. oom_kill 75. |
 2026-11-12T14:29Z | 821 | STATUS (run hour 92.6; 3.4 h left). v56 F 68 ok, 0 RED. oom_kill 75. |
+2026-11-12T15:18Z | 822 | STATUS (run hour 93.4; 2.6 h left). v56 F 75 ok, 0 RED. oom_kill 75. |
