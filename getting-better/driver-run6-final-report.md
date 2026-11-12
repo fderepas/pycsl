@@ -22,8 +22,8 @@ slot layout superseded by the 2-slot heavy queue. COMMIT-ONLY: nothing was pushe
     truthfully [2 `\trusted -> declared_in` swaps].
   - lvO — law-free re.Match model + constant-pair loop unroll [1].
   - lvP — List[Tuple]/Tuple returns as pure seqs of native tuples + typed pass-body trusted tuple stubs [4].
-- **Repair executors (one at a time on the backlog, plus mandatory ones).** u36 (#579 #580 #582), u37 (#583 + the 2
-  re-conversions), u38 (#584 #585), u39 (#589 #590 #591), u40 (#592, introduced by run #6 — mandatory), u41 (#593 #595, wrap-up).
+- **Repair executors (one at a time on the backlog, plus mandatory ones; u42 went dormant after its gates and the driver committed its tree).** u36 (#579 #580 #582), u37 (#583 + the 2
+  re-conversions), u38 (#584 #585), u39 (#589 #590 #591), u40 (#592, introduced by run #6 — mandatory), u41 (#593 #595, wrap-up), u42 (#597 #598, wrap-up).
 - **Red team.**
   - rt56 (scope = run #6's capabilities and routes): 1068 probes, 966 CPython-breaching; its proofs were starved by
     the batch proofs and completed by the driver. 15 confirmed false proofs in 6 families: 14 PRE-EXISTING (#589-#591,
@@ -40,6 +40,7 @@ slot layout superseded by the 2-slot heavy queue. COMMIT-ONLY: nothing was pushe
   | L5 57ca7b58c | int55 | lvM + lvN + lvL + u37 (#583) + lvO | v52 85/85 + 22 mirror movers proved (proof map) |
   | L6 f02f79c32 | int57 (int56 + u39 + u40) | u38 (#584 #585) + lvP + u39 (#589-#591) + u40 (#592) + 2 driver fixes | v53 + v54 (F 84/85 -> fixed, fast 62/62) + 9 mirror movers proved |
   | L7 ca5516027 | int58 | u41 (#593 #595, mirror-inert refusals) | v55 85/85 |
+  | L8 f8e7918e0 | int59 | u42 (#597 #598, mirror-inert refusals; salvaged by the driver from the dormant executor) | v56 85/85 |
 
 ## 2. Stubs converted and trusted count
 - **`\trusted` grep count: 405 -> 393 (L5) -> 389 (L6, final).** 16 conversions, 0 net re-trusts (2 temporary
@@ -77,12 +78,13 @@ slot layout superseded by the 2-slot heavy queue. COMMIT-ONLY: nothing was pushe
 
 ## 5. Routes
 - **Opened this run:** #583-#598 (16).
-- **Repaired and landed (12):** #579 #580 #582 (L4), #583 (L5), #584 #585 #589 #590 #591 #592 (L6), #593 #595 (L7).
+- **Repaired and landed (14):** #579 #580 #582 (L4), #583 (L5), #584 #585 #589 #590 #591 #592 (L6), #593 #595 (L7),
+  #597 #598 (L8).
   All refuse-by-default or faithful lowerings, witnesses in default / typed / store, corpus FAIL + control files,
   census / advice / annotations §7 entries, route docs.
 - **Open for run #7:** #586 #587 #588 (u38 findings: shared node / string projectors, `_to_bool` truthiness), #594
-  (AnnAssign `.value is None` decided), #596 (unarmed child reads -> placeholder; 44 probes), #597 (R590 local
-  rebinding; 30), #598 (exception-ctor kwargs; 8), route #583's F3; the documented residuals of #579-#595
+  (AnnAssign `.value is None` decided), #596 (unarmed child reads -> placeholder; 44 probes), route #583's F3; the
+  residuals of #597 (raises in dependency modules) and #598 (kwargs via `super().__init__`); the documented residuals of #579-#598
   (annotations §7). All pre-existing. No route introduced by run #6 is left open.
 
 ## 6. Infrastructure incidents
@@ -122,10 +124,13 @@ slot layout superseded by the 2-slot heavy queue. COMMIT-ONLY: nothing was pushe
 - A capability that turns an ill-typed (fail-closed) lowering into a well-typed one can EXPOSE a latent model gap
   (#592): red-team the boundary the old type error was guarding.
 - Red-team proofs starve behind batch proofs: the driver must reserve proof time for them.
+- Agents that end their turn "waiting on background work" can stay dormant for hours (rt57 5 h, u42 1.5 h): brief
+  them never to do it, and check their outputs against `ps` rather than trusting silence; salvage = commit the tree.
+- A watch loop must sleep: `read -t N < /dev/zero` returns at once (a 100% CPU busy loop).
 
 ## 10. End state
-- `ghost-assign-bc6` at the L7 landing + log / report commits; `\trusted` 389 (from 405), proof-axiom ledger 3.
-- Last full battery on the landed tree: v55 85/85 (--slow), corpus root 3109 / pyref 2185 byte-inert vs L6, mirror
+- `ghost-assign-bc6` at the L8 landing + log / report commits; `\trusted` 389 (from 405), proof-axiom ledger 3.
+- Last full battery on the landed tree: v56 85/85 (--slow), corpus root 3112 / pyref 2185 byte-inert vs L7, mirror
   53/53 byte-identical to the L6 tip whose 9 movers were proved whole-file.
 - Slice oom_kill 75 since 2026-11-09T16:53Z (5 kills, all in one voided statements run).
-- Run-log entries 644-81x; ~245 commits since 822621340; none pushed.
+- Run-log entries 644-~826; ~245 commits since 822621340; none pushed.
