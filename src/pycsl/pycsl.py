@@ -16703,6 +16703,216 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _ok579[_mod579]:
                     _rs579[_l579] = _tg579
     transpiler.ir_class_targets_r579 = _rs579
+    # (run #6) ROUTE #593 -- A USER SUBCLASS OF AN IR NODE CLASS. The emit_ir model decides
+    # `isinstance(<emit_ir>, ast.Name)` by the IR discriminant (`is_var`), so the node
+    # classes are DISJOINT constructors there; `class B(ast.Name, ast.Call)` makes one
+    # CPython object both, so `isinstance(x, ast.Name) and isinstance(x, ast.Call)` -> 1
+    # PROVED `ensures \result == 0` (witnesses-r593; a one-base subclass may also override
+    # a field with a property). THE RULE (fail-closed, only where the narrowing can fire:
+    # some name of this source RESOLVES as an IR class / namespace, route #579): (a) every
+    # class statement's bases and keywords (type arguments `[...]` aside) may name only
+    # builtins, classes of this file, and imports of modules that are not IR modules
+    # (`ast` / `_ast` / `pure_ast` / `ir_schema` / `Module2_Parser`, however spelled or
+    # aliased); of an IR module only its visitors `NodeVisitor` / `NodeTransformer`; a
+    # name bound otherwise (an alias, a parameter, an `importlib` result) may hold an IR
+    # class; a `metaclass=` keyword may rewrite the bases; (b) no class is built another
+    # way: `type` used other than as `type(x)`, a call through `__new__` / `__class__` /
+    # `new_class`, a store to `__class__` / `__bases__`, a `__mro_entries__` definition.
+    if _t579 is not None and _rs579:
+        _k593: Dict[str, Set[str]] = {}
+        _why593: Optional[Tuple[int, str]] = None
+        _ty593: List[Any] = []
+        _im593: Dict[str, List[Tuple[str, int]]] = {}
+        for _n593 in _ast579.walk(_t579):
+            if isinstance(_n593, _ast579.Import):
+                for _al593 in _n593.names:
+                    _lc593 = _al593.asname or _al593.name.split(".")[0]
+                    _k593.setdefault(_lc593, set()).add(
+                        "I:" + (_al593.name if _al593.asname else _al593.name.split(".")[0]))
+                    _im593.setdefault(_lc593, []).append((_al593.name, 0))
+            elif isinstance(_n593, _ast579.ImportFrom):
+                for _al593 in _n593.names:
+                    _lc593 = _al593.asname or _al593.name
+                    _k593.setdefault(_lc593, set()).add(
+                        "I:" + "." * (_n593.level or 0) + (_n593.module or "") + "."
+                        + _al593.name)
+                    _im593.setdefault(_lc593, []).extend([
+                        (_n593.module or "", _n593.level or 0),
+                        (((_n593.module + ".") if _n593.module else "") + _al593.name,
+                         _n593.level or 0)])
+            elif isinstance(_n593, _ast579.ClassDef):
+                _k593.setdefault(_n593.name, set()).add("C")
+            elif isinstance(_n593, (_ast579.FunctionDef, _ast579.AsyncFunctionDef)):
+                _k593.setdefault(_n593.name, set()).add("L")
+                if _n593.name == "__mro_entries__" and _why593 is None:
+                    _why593 = (_n593.lineno, "a `__mro_entries__` definition (an object "
+                               "that substitutes bases)")
+            elif isinstance(_n593, _ast579.Name) and not isinstance(_n593.ctx, _ast579.Load):
+                _k593.setdefault(_n593.id, set()).add("L")
+            elif isinstance(_n593, _ast579.arg):
+                _k593.setdefault(_n593.arg, set()).add("L")
+            elif isinstance(_n593, (_ast579.Global, _ast579.Nonlocal)):
+                for _g593 in _n593.names:
+                    _k593.setdefault(_g593, set()).add("L")
+            elif (isinstance(_n593, (_ast579.ExceptHandler, _ast579.MatchAs, _ast579.MatchStar))
+                    and isinstance(_n593.name, str)):
+                _k593.setdefault(_n593.name, set()).add("L")
+            elif isinstance(_n593, _ast579.MatchMapping) and _n593.rest:
+                _k593.setdefault(_n593.rest, set()).add("L")
+            elif type(_n593).__name__ in ("TypeVar", "ParamSpec", "TypeVarTuple", "TypeAlias"):
+                _tn593 = getattr(_n593, "name", None)
+                _tn593 = _tn593.id if isinstance(_tn593, _ast579.Name) else _tn593
+                if isinstance(_tn593, str):
+                    _k593.setdefault(_tn593, set()).add("L")
+            # (b) a class built without a class statement
+            if _why593 is None:
+                if (isinstance(_n593, _ast579.Attribute)
+                        and _n593.attr in ("__class__", "__bases__")
+                        and not isinstance(_n593.ctx, _ast579.Load)):
+                    _why593 = (getattr(_n593, "lineno", 0), "a store to `.%s`" % _n593.attr)
+                elif isinstance(_n593, _ast579.Call):
+                    _fs593: List[str] = []
+                    _fx593: Any = _n593.func
+                    while isinstance(_fx593, _ast579.Attribute):
+                        _fs593.append(_fx593.attr)
+                        _fx593 = _fx593.value
+                    if isinstance(_fx593, _ast579.Name):
+                        _fs593.append(_fx593.id)
+                    if any(_p in ("__new__", "__class__", "new_class") for _p in _fs593):
+                        _why593 = (getattr(_n593, "lineno", 0),
+                                   "a call through `%s`" % ".".join(reversed(_fs593)))
+                if ((isinstance(_n593, _ast579.Name) and _n593.id == "type"
+                     and isinstance(_n593.ctx, _ast579.Load))
+                        or (isinstance(_n593, _ast579.Attribute) and _n593.attr == "type"
+                            and isinstance(_n593.value, _ast579.Name)
+                            and _n593.value.id in ("builtins", "__builtins__"))):
+                    _ty593.append(_n593)
+        # `type` is admitted as `type(x)`, inside an annotation or a `[...]` type argument,
+        # and as the class argument of `isinstance` / `issubclass`
+        if _why593 is None and _ty593:
+            _ok593: Set[int] = set()
+            _no593: Set[int] = set()
+            for _p593 in _ast579.walk(_t579):
+                if isinstance(_p593, _ast579.Call):
+                    if len(_p593.args) == 1 and not _p593.keywords:
+                        _ok593.add(id(_p593.func))
+                    else:
+                        _no593.add(id(_p593.func))
+                    if (isinstance(_p593.func, _ast579.Name)
+                            and _p593.func.id in ("isinstance", "issubclass")
+                            and len(_p593.args) == 2):
+                        _ok593.add(id(_p593.args[1]))
+                        if isinstance(_p593.args[1], _ast579.Tuple):
+                            _ok593.update(id(_x) for _x in _p593.args[1].elts)
+                elif isinstance(_p593, _ast579.Attribute):
+                    _no593.add(id(_p593.value))
+                _an593: List[Any] = []
+                if isinstance(_p593, _ast579.arg) and _p593.annotation is not None:
+                    _an593.append(_p593.annotation)
+                elif isinstance(_p593, (_ast579.FunctionDef, _ast579.AsyncFunctionDef)):
+                    _an593.append(_p593.returns)
+                elif isinstance(_p593, _ast579.AnnAssign):
+                    _an593.append(_p593.annotation)
+                elif isinstance(_p593, _ast579.Subscript):
+                    _an593.append(_p593.slice)
+                for _a593 in _an593:
+                    if _a593 is not None:
+                        _ok593.update(id(_x) for _x in _ast579.walk(_a593))
+            for _n593 in _ty593:
+                if id(_n593) in _no593 or id(_n593) not in _ok593:
+                    _why593 = (getattr(_n593, "lineno", 0), "`type` used other than as "
+                               "`type(x)` (`type(name, bases, ns)` builds a class)")
+                    break
+        _irm593 = ("ast", "_ast", "pure_ast", "ir_schema", "Module2_Parser")
+        _vis593 = ("NodeVisitor", "NodeTransformer")
+        for _c593 in _ast579.walk(_t579):
+            if _why593 is not None:
+                break
+            if not isinstance(_c593, _ast579.ClassDef):
+                continue
+            for _kw593 in _c593.keywords:
+                if _kw593.arg == "metaclass" or _kw593.arg is None:
+                    _why593 = (_c593.lineno, "class `%s` has a `metaclass=` / `**` keyword "
+                               "(a metaclass may rewrite the bases)" % _c593.name)
+            _sk593: List[Any] = list(_c593.bases) + [_kw.value for _kw in _c593.keywords]
+            while _sk593 and _why593 is None:
+                _e593 = _sk593.pop()
+                if isinstance(_e593, _ast579.Subscript):
+                    _sk593.append(_e593.value)
+                    continue
+                if isinstance(_e593, _ast579.Attribute):
+                    # `<module>.<Class>`: the root must be an import (a visitor of an IR
+                    # module is admitted); `<Class>.<Inner>` of a file class only names a
+                    # nested class statement (`class m: X = ast.Name` makes `m.X` an alias)
+                    _r593: Any = _e593
+                    _ch593: List[str] = []
+                    while isinstance(_r593, _ast579.Attribute):
+                        _ch593.append(_r593.attr)
+                        _r593 = _r593.value
+                    if isinstance(_r593, _ast579.Name):
+                        _kr593 = _k593.get(_r593.id, set())
+                        if _kr593 and all(_q.startswith("I:") for _q in _kr593):
+                            if _e593.attr in _vis593 and len(_ch593) == 1:
+                                continue
+                        elif _kr593 == {"C"} and all(_a in _k593 and _k593[_a] == {"C"}
+                                                     for _a in _ch593):
+                            continue
+                        else:
+                            _why593 = (_c593.lineno, "class `%s`: base `%s....` is not an "
+                                       "import or a nested class of this file"
+                                       % (_c593.name, _r593.id))
+                            continue
+                    _sk593.append(_r593)
+                    continue
+                if isinstance(_e593, _ast579.Name):
+                    _ks593 = _k593.get(_e593.id, set())
+                    _bad593: Optional[str] = None
+                    if "L" in _ks593 or ("C" in _ks593 and len(_ks593) > 1):
+                        _bad593 = ("`%s` is bound by a non-class binding (an alias, a "
+                                   "parameter, an assignment) that may hold an IR class"
+                                   % _e593.id)
+                    for _q593 in _ks593:
+                        if _q593.startswith("I:") and _bad593 is None:
+                            _ps593 = [_p for _p in _q593[2:].split(".") if _p]
+                            if (any(_p in _irm593 for _p in _ps593)
+                                    and not (_ps593 and _ps593[-1] in _vis593
+                                             and len(_ps593) > 1)):
+                                _bad593 = ("`%s` is an import of an IR module (`%s`)"
+                                           % (_e593.id, _q593[2:]))
+                    # an import of a user module (found outside pycsl's own `src/`) may
+                    # re-export an IR class or a subclass of one
+                    if _bad593 is None:
+                        from frontend.ir_resolve import _resolve_module_path as _rmp593
+                        _src593 = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+                        for _md593, _lv593 in _im593.get(_e593.id, []):
+                            try:
+                                _h593 = _rmp593(_md593, _lv593, args.file) if _md593 else None
+                            except Exception:
+                                _h593 = None
+                            if _h593 and not os.path.realpath(_h593).startswith(
+                                    _src593 + os.sep):
+                                _bad593 = ("`%s` is imported from a module of this program "
+                                           "(`%s`), which may re-export an IR class"
+                                           % (_e593.id, _h593))
+                    if _bad593 is not None:
+                        _why593 = (_c593.lineno, "class `%s`: base %s" % (_c593.name, _bad593))
+                    continue
+                _sk593.extend(_ast579.iter_child_nodes(_e593))
+        if _why593 is not None:
+            from errors import PyCSLSemanticError as _R593Err
+            raise _R593Err(
+                "line %d: PYCSL-R593-IR-NODE-SUBCLASS: %s. This program narrows values by an "
+                "IR node class (`isinstance(x, ast.Name)` resolved, route #579), which the "
+                "model decides by the node's constructor tag, so two node classes are "
+                "DISJOINT there; a class that inherits an IR node class (`class B(ast.Name, "
+                "ast.Call)`, built through an alias, a metaclass or `type(...)`) makes one "
+                "CPython object an instance of both, or overrides a node field, and a claim "
+                "proved on the disjoint model is false (route #593). Do not subclass an "
+                "IR node class: wrap the node in a class of your own (`class B: def "
+                "__init__(self, node: ast.Name) -> None: self.node = node`), and name base "
+                "classes directly (a builtin, a class of this file, or an import)."
+                % _why593,
+                stage="ir-semantic", code="PYCSL-R593-IR-NODE-SUBCLASS")
     # (run #6) ROUTE #582 -- A METHOD CALLED THROUGH A CLASS-BODY BINDING THAT IS NOT A `def`.
     # `class C: def m(self, v): self.a = v; n = m` makes `c.n(5)` run `m`, but the method
     # tables know only `def`s: `c.n(5)` lowered to an opaque receiver-less `val c_n_1 (x0:
@@ -16726,6 +16936,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # augmented assignment, a loop / `with` target, an import) is never plain data
         _cd582: List[Tuple[str, Any, int, str]] = []
         _bs582: Dict[str, Set[str]] = {}
+        # (route #595) the (name, line) bindings only the #595 forms make possible methods
+        _l595: Set[Tuple[str, int]] = set()
         for _c582 in _ast579.walk(_t579):
             if isinstance(_c582, _ast579.ClassDef):
                 _bs582.setdefault(_c582.name, set()).update(
@@ -16752,6 +16964,20 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         for _a582 in _s582.names:
                             _cd582.append(((_a582.asname or _a582.name).split(".")[0], _s582,
                                            getattr(_s582, "lineno", 0), _c582.name))
+                    # (run #6, route #595) a `match` capture (`case n:`, `case _ as n`,
+                    # `case [*n]`, `case {**n}`) and an `except ... as n` bind `n` in the
+                    # class body too; the bound value (the subject or a part of it) is
+                    # never plain data
+                    elif (isinstance(_s582, (_ast579.MatchAs, _ast579.MatchStar,
+                                             _ast579.ExceptHandler))
+                            and isinstance(_s582.name, str)):
+                        _cd582.append((_s582.name, _s582, getattr(_s582, "lineno", 0),
+                                       _c582.name))
+                        _l595.add((_s582.name, getattr(_s582, "lineno", 0)))
+                    elif isinstance(_s582, _ast579.MatchMapping) and _s582.rest:
+                        _cd582.append((_s582.rest, _s582, getattr(_s582, "lineno", 0),
+                                       _c582.name))
+                        _l595.add((_s582.rest, getattr(_s582, "lineno", 0)))
                     for _tg582, _v582 in _bv582:
                         for _nn582 in _ast579.walk(_tg582):
                             if isinstance(_nn582, _ast579.Name):
@@ -16782,6 +17008,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             # plain data: constants, displays / arithmetic of constants, a constant f-string,
             # a dataclass `field(...)` whose `default` (if any) is plain data
             _pv582 = True
+            _ff595 = False
             _st582: List[Any] = [_v582]
             while _st582 and _pv582:
                 _x582 = _st582.pop()
@@ -16799,7 +17026,37 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _pv582 = all(isinstance(_e, _ast579.Constant) for _e in _x582.values)
                 elif (isinstance(_x582, _ast579.Call) and isinstance(_x582.func, _ast579.Name)
                         and _x582.func.id == "field" and not _x582.args):
-                    _st582.extend(_k.value for _k in _x582.keywords if _k.arg == "default")
+                    # (run #6, route #595) `field` is plain only when it IS dataclasses'
+                    # (a file `def field(**k)` may return its argument), and its value is
+                    # the `default` or what the `default_factory` returns: a builtin
+                    # container / scalar constructor not rebound here, or a no-argument
+                    # lambda of plain data (`lambda: m` makes the field the method `m`);
+                    # a `**` keyword or any other factory is not plain
+                    if _b579.get("field") != {"dataclasses.field"}:
+                        _pv582 = False
+                        _ff595 = True
+                    for _k582 in _x582.keywords:
+                        if _k582.arg is None:
+                            _pv582 = False
+                            _ff595 = True
+                        elif _k582.arg == "default":
+                            _st582.append(_k582.value)
+                        elif _k582.arg == "default_factory":
+                            _df582 = _k582.value
+                            if (isinstance(_df582, _ast579.Name) and _df582.id in (
+                                    "list", "dict", "set", "tuple", "frozenset", "str", "int",
+                                    "float", "bool", "bytes", "bytearray", "complex")
+                                    and _df582.id not in _b579):
+                                continue
+                            if (isinstance(_df582, _ast579.Lambda)
+                                    and not (_df582.args.args or _df582.args.posonlyargs
+                                             or _df582.args.kwonlyargs or _df582.args.vararg
+                                             or _df582.args.kwarg)):
+                                _st582.append(_df582.body)
+                                _ff595 = True
+                                continue
+                            _pv582 = False
+                            _ff595 = True
                 else:
                     _pv582 = False
             # an alias of a `def` whose verified (or declared-trusted) frame is `#@ assigns
@@ -16840,6 +17097,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                    for _a in _as582)):
                     _pv582 = True
             if not _pv582:
+                if _ff595:
+                    _l595.add((_nm582, _ln582))
                 _al582.setdefault(_nm582, _ln582)
                 _ac582.setdefault(_cc582, {}).setdefault(_nm582, _ln582)
         if _al582:
@@ -16872,6 +17131,25 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             continue
                     else:
                         _ln582 = _al582.get(_an582, _al582.get("*", 0))
+                    if (_an582, _ln582) in _l595:
+                        from errors import PyCSLSemanticError as _R595Err
+                        raise _R595Err(
+                            "line %d: PYCSL-R595-CLASS-BODY-BINDING-CALL: in function '%s', "
+                            "the call `.%s(...)` may run a method bound to `%s` in a class "
+                            "body (line %d) by a `match` capture (`case n:`, `case _ as n`, "
+                            "`case [*n]`, `case {**n}`), an `except ... as n`, or a "
+                            "`field(...)` whose `default_factory` may return a method "
+                            "(`lambda: m`, any factory other than a builtin constructor, or "
+                            "a `field` that is not `dataclasses.field`). PyCSL's method "
+                            "tables know only `def`s, so the call would be modelled as an "
+                            "opaque function with no receiver and no effect, and a field "
+                            "the real method writes would stay unchanged in the proof "
+                            "(route #595, a gap of route #582). Call the method by the name "
+                            "of its `def` (`c.m(...)`), or define `%s` with its own `def` "
+                            "(and contract) that calls it."
+                            % (getattr(_cl582, "lineno", 0), _f582.name, _an582, _an582,
+                               _ln582, _an582),
+                            stage="ir-semantic", code="PYCSL-R595-CLASS-BODY-BINDING-CALL")
                     from errors import PyCSLSemanticError as _R582Err
                     raise _R582Err(
                         "line %d: PYCSL-R582-CLASS-BODY-ALIAS-CALL: in function '%s', the "
