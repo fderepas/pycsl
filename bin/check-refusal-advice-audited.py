@@ -1061,6 +1061,11 @@ AUDITED = {
         "Route #593. 'wrap the node in a class of your own (`class B: def __init__(self, node): self.node = node`) instead of subclassing': witness hd1767 with `class B` holding the node (getting-better/open-routes/witnesses-r593/advice/a593_wrap_node; control 9664) VERIFIES the disjoint-narrowing claim `\\result == 0` at base and HEAD; 'name base classes directly (a builtin, a class of this file, or an import)': control 9663 (`ast.NodeVisitor`, `Exception`, a file class) VERIFIES the same claim."),
     ('src/pycsl/pycsl.py', '_R595Err("line %d: PYCSL-R595-CLASS-BODY-BINDING-CALL: in function \'%s\', the call `.%s(...)` may run a method bound to `%s` in a class body '): (FOLLOWABLE,
         "Route #595. 'Call the method by the name of its `def` (`c.m(...)`)': a595_call_def_name (getting-better/open-routes/witnesses-r595/advice/; control 9666; the class body keeps its `match` capture) VERIFIES `\\result == 5`; 'or define `n` with its own `def` (and contract) that calls it': a595_own_def (control 9667) VERIFIES `\\result == 5`. Both at base and HEAD."),
+    # driver run #6 -- routes #597 / #598 (u42, red team rt57).
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr597(f"""line {_r590.lineno}: PYCSL-R597-RAISE-NAME-REBOUND: `raise {_ast175.unparse(_e590)[:50]}`{(\' (as the cause)\' if _role590'): (FOLLOWABLE,
+        "Route #597. 'Rename the local / parameter / import that rebinds `E`, and raise the exception class by its own name': rt57 hs1930 with `E = int` renamed `T = int` and `raise E(\"a\")` under `except E` (getting-better/open-routes/witnesses-r597/advice/a597_rename_local; control 9684) VERIFIES `no_exception \\all` and `\\result == k + 1` at base and HEAD."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr598(f\'line {_r589.lineno}\' + (\'\' if _main589 else f" of {os.path.relpath(_pp589, _dirs589[0])} (a module this file imports, whos'): (FOLLOWABLE,
+        "Route #598. 'pass only the arguments the constructor accepts (... bind the extra data to a local ...)': rt57 hr1840 as `q = 1` then `raise ValueError(\"a\")` (getting-better/open-routes/witnesses-r598/advice/a598_first_argument_only; control 9685) VERIFIES `no_exception \\all` and `\\result == k + 1` at base and HEAD; a builtin whose constructor accepts the keyword (`ImportError(\"a\", name=\"m\")`, control 9686) VERIFIES too."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1469,6 +1474,9 @@ AUDITED_HASH = {
     # driver run #6 -- routes #593 / #595 (u41).
     ('src/pycsl/pycsl.py', '_R593Err("line %d: PYCSL-R593-IR-NODE-SUBCLASS: %s. This program narrows values by an IR node class (`isinstance(x, ast.Name)` resolved, rou'): '66656f5d8df2',
     ('src/pycsl/pycsl.py', '_R595Err("line %d: PYCSL-R595-CLASS-BODY-BINDING-CALL: in function \'%s\', the call `.%s(...)` may run a method bound to `%s` in a class body '): '9a5d04c1e446',
+    # driver run #6 -- routes #597 / #598 (u42).
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr597(f"""line {_r590.lineno}: PYCSL-R597-RAISE-NAME-REBOUND: `raise {_ast175.unparse(_e590)[:50]}`{(\' (as the cause)\' if _role590'): 'a21384a372bc',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr598(f\'line {_r589.lineno}\' + (\'\' if _main589 else f" of {os.path.relpath(_pp589, _dirs589[0])} (a module this file imports, whos'): 'a0e98c1768d4',
 }
 
 

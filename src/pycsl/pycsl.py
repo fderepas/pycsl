@@ -18682,10 +18682,134 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if (isinstance(_x589, _ast589.Raise) and isinstance(_x589.exc, _ast589.Call)
                     and isinstance(_x589.exc.func, _ast589.Name)):
                 _rs589.append((_x589, _d589, _c589))
+            elif isinstance(_x589, _ast589.Raise) and isinstance(_x589.exc, _ast589.Name):
+                # (#598) a bare `raise E` instantiates `E()`: judged for its arity only
+                _rs589.append((_x589, _d589, _c589))
             _wk589.extend((_y, _d589, _c589) for _y in _ast589.iter_child_nodes(_x589))
+        # (#598) ROUTE #598 -- THE CONSTRUCTOR CALL OF A RAISED EXCEPTION MUST BIND. The model
+        # keeps the class and the first argument; the arity of the call was never checked.
+        # MEASURED (red team rt57 F3, pre-existing at 822621340): `raise ValueError("a",
+        # q=1)` / `OSError("a", q=1)` / `KeyError(q="a")` under `except ValueError` PROVED
+        # `no_exception \all` + `\result == 1`; CPython raises TypeError ("ValueError() takes
+        # no keyword arguments"). REFUSED, with route #589's relevance below: a raised class
+        # (`raise X(...)`, or a bare `raise X`, which calls `X()`) whose constructor does not
+        # accept the call: a builtin exception (directly, through a plain alias / `from ...
+        # import ... as`, or as the visible base of a user class without `__init__`) is CALLED
+        # here with the literal arguments (`None` for a non-literal one, so a non-literal
+        # argument a builtin type-checks is refused too, fail-closed); a user `__init__` is
+        # bound against its signature (too many positionals, an unknown / duplicate / pos-only
+        # keyword, a missing required parameter); a class whose constructor we cannot read (a
+        # decorated class without `__init__`, a `__new__`) and any `*` / `**` argument are
+        # refused when the call passes keywords or more than one positional argument.
+        _cn598: Dict[str, List[Any]] = {}
+        _al598: Dict[str, str] = {}
+        for _tt598, _pp598, _main598 in _trees589:
+            for _x598 in _ast589.walk(_tt598):
+                if isinstance(_x598, _ast589.ClassDef):
+                    _cn598.setdefault(_x598.name, []).append(_x598)
+                elif isinstance(_x598, _ast589.ImportFrom):
+                    for _a598 in _x598.names:
+                        if _a598.asname and _a598.asname != _a598.name:
+                            _al598.setdefault(_a598.asname, _a598.name)
+                elif (isinstance(_x598, _ast589.Assign) and len(_x598.targets) == 1
+                      and isinstance(_x598.targets[0], _ast589.Name)
+                      and isinstance(_x598.value, _ast589.Name)
+                      and _x598.targets[0].id != _x598.value.id):
+                    _al598.setdefault(_x598.targets[0].id, _x598.value.id)
         for _r589, _d589, _c589 in _rs589:
-            _dr589 = list(_r589.exc.args[1:]) + [_k.value for _k in _r589.exc.keywords]
-            if not _dr589:
+            _ca598 = _r589.exc if isinstance(_r589.exc, _ast589.Call) else None
+            _fn598 = _r589.exc.func.id if _ca598 is not None else _r589.exc.id
+            _dr589 = ([] if _ca598 is None else
+                      list(_ca598.args[1:]) + [_k.value for _k in _ca598.keywords])
+            _ag598 = [] if _ca598 is None else list(_ca598.args)
+            _kw598 = [] if _ca598 is None else list(_ca598.keywords)
+            _st598 = (any(isinstance(_a, _ast589.Starred) for _a in _ag598)
+                      or any(_k.arg is None for _k in _kw598))
+            _sg598: List[Any] = []
+            _q598: List[str] = [_fn598]
+            _sn598: Set[str] = set()
+            while _q598:
+                _n598 = _q598.pop(0)
+                if _n598 in _sn598:
+                    continue
+                _sn598.add(_n598)
+                if _n598 in _cn598:
+                    for _k598 in _cn598[_n598]:
+                        _in598 = [_s for _s in _k598.body if isinstance(
+                            _s, (_ast589.FunctionDef, _ast589.AsyncFunctionDef))
+                            and _s.name in ("__init__", "__new__")]
+                        if any(_s.name == "__new__" or _s.decorator_list for _s in _in598):
+                            _sg598.append(("?", f"`{_k598.name}` defines `__new__` or a "
+                                           f"decorated `__init__`"))
+                        elif _in598:
+                            _sg598.append(("fn", _in598[0], _k598.name))
+                        elif _k598.decorator_list:
+                            _sg598.append(("?", f"`{_k598.name}` is a decorated class whose "
+                                           f"generated `__init__` is not read"))
+                        else:
+                            _q598.extend(_b.id for _b in _k598.bases
+                                         if isinstance(_b, _ast589.Name))
+                            if any(not isinstance(_b, _ast589.Name) for _b in _k598.bases):
+                                _sg598.append(("?", f"a base of `{_k598.name}` is not a "
+                                               f"plain name"))
+                elif _n598 in _al598:
+                    _q598.append(_al598[_n598])
+                else:
+                    _bc598 = getattr(_bi589, _n598, None)
+                    if isinstance(_bc598, type) and issubclass(_bc598, BaseException):
+                        _sg598.append(("bi", _bc598, _n598))
+            _ar598 = None
+            for _sv598 in _sg598:
+                if _ar598 is not None:
+                    break
+                if _sv598[0] == "?" or _st598:
+                    if _st598 or _kw598 or len(_ag598) > 1:
+                        _ar598 = (_sv598[1] if _sv598[0] == "?" else
+                                  "a `*` / `**` argument hides the arity of the call")
+                elif _sv598[0] == "bi":
+                    try:
+                        _sv598[1](*[(_a.value if isinstance(_a, _ast589.Constant) else None)
+                                    for _a in _ag598],
+                                  **{str(_k.arg): (_k.value.value if isinstance(
+                                      _k.value, _ast589.Constant) else None) for _k in _kw598})
+                    except TypeError as _te598:
+                        _ar598 = (f"the builtin `{_sv598[2]}` rejects it (CPython: "
+                                  f"\"{str(_te598)[:80]}\")")
+                    except Exception:
+                        pass
+                else:
+                    _ia598 = _sv598[1].args
+                    _ps598 = list(_ia598.posonlyargs) + list(_ia598.args)
+                    _ps598 = _ps598[1:]
+                    _np598 = max(len(_ia598.posonlyargs) - 1, 0)
+                    _nd598 = len(_ps598) - len(_ia598.defaults)
+                    _fl598 = set(range(min(len(_ag598), len(_ps598))))
+                    if len(_ag598) > len(_ps598) and _ia598.vararg is None:
+                        _ar598 = (f"`{_sv598[2]}.__init__` takes {len(_ps598)} positional "
+                                  f"argument(s), the call passes {len(_ag598)}")
+                    _ko598 = {_a.arg for _a in _ia598.kwonlyargs}
+                    _kg598: Set[str] = set()
+                    for _k598 in _kw598:
+                        _ix598 = [_i for _i, _p in enumerate(_ps598) if _p.arg == _k598.arg]
+                        if _ix598 and _ix598[0] >= _np598 and _ix598[0] not in _fl598:
+                            _fl598.add(_ix598[0])
+                        elif _k598.arg in _ko598 and _k598.arg not in _kg598:
+                            _kg598.add(str(_k598.arg))
+                        elif (_ia598.kwarg is not None and _k598.arg not in _ko598
+                              and (not _ix598 or _ix598[0] < _np598)):
+                            pass
+                        elif _ar598 is None:
+                            _ar598 = (f"`{_sv598[2]}.__init__` does not accept the keyword "
+                                      f"`{_k598.arg}` here")
+                    _ms598 = [_p.arg for _i, _p in enumerate(_ps598)
+                              if _i < _nd598 and _i not in _fl598]
+                    _ms598 += [_a.arg for _a, _dv in zip(_ia598.kwonlyargs,
+                                                         _ia598.kw_defaults)
+                               if _dv is None and _a.arg not in _kg598]
+                    if _ms598 and _ar598 is None:
+                        _ar598 = (f"`{_sv598[2]}.__init__` is missing the required "
+                                  f"argument(s) {', '.join(_ms598)}")
+            if not _dr589 and _ar598 is None:
                 continue
             _bd589: Set[str] = set()
             if _d589 is not None:
@@ -18743,7 +18867,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     continue
                 _bad589 = _y589
                 break
-            if _bad589 is None:
+            if _bad589 is None and _ar598 is None:
                 continue
             # another module's def: judged when the main file's sensitive defs reach its name
             if not _main589:
@@ -18773,6 +18897,27 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if not _rel589:
                 continue
             from errors import PyCSLSemanticError as _PyCSLSemErr589
+            if _ar598 is not None:
+                from errors import PyCSLSemanticError as _PyCSLSemErr598
+                raise _PyCSLSemErr598(
+                    f"line {_r589.lineno}"
+                    + ("" if _main589 else f" of {os.path.relpath(_pp589, _dirs589[0])} (a "
+                       f"module this file imports, whose `{getattr(_d589, 'name', '')}` a "
+                       f"claimed or handler-covered def of this file calls)")
+                    + f": PYCSL-R598-RAISE-CONSTRUCTOR-ARITY: `raise "
+                    f"{_ast589.unparse(_r589.exc)[:60]}`: the exception constructor does not "
+                    f"accept this call: {_ar598}. CPython raises TypeError INSTEAD of "
+                    f"`{_fn598}` here, while the model keeps only the class and its first "
+                    f"argument and drops the rest unchecked; this def claims `no_exception` "
+                    f"or a handler may catch from it, so the proof would be of an exception "
+                    f"that is never raised (route #598; measured: `raise ValueError(\"a\", "
+                    f"q=1)` under `except ValueError` proved `no_exception \\all`, CPython "
+                    f"raises TypeError). FIX: pass only the arguments the constructor "
+                    f"accepts (a builtin exception takes positional arguments only; bind the "
+                    f"extra data to a local, or define `class E(Exception)` with an "
+                    f"`__init__` whose signature accepts the call), with literal or plain-"
+                    f"name arguments and no `*` / `**`.",
+                    stage="whyml", code="PYCSL-R598-RAISE-CONSTRUCTOR-ARITY")
             raise _PyCSLSemErr589(
                 f"line {_r589.lineno}"
                 + ("" if _main589 else f" of {os.path.relpath(_pp589, _dirs589[0])} (a module "
@@ -25627,6 +25772,178 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _nm590 is not None:
                     if isinstance(_e590, _ast175.Name) and _nm590 in _as590:
                         continue
+                    # (#597) ROUTE #597 -- THE RAISED NAME IS JUDGED BY EVERY BINDING THAT CAN
+                    # REACH THE RAISE, not by the module-level class alone. MEASURED (red team
+                    # rt57 F2, pre-existing at 822621340): `E = int` / a parameter `E` /
+                    # `import os as E` / `from os import getcwd as E` / a walrus / an annotated
+                    # assignment, with a module-level `class E(Exception)`, then `raise E("a")`
+                    # under `except E`, PROVED `no_exception \all`; CPython raises TypeError.
+                    # Every binding of the name in each enclosing def and in the module scope
+                    # (parameters, assignment / augmented / annotated / walrus / `for` / `with`
+                    # / `except ... as` / comprehension / match targets, `del`, imports, nested
+                    # `def` / `class`) must resolve to an exception class: a class whose verdict
+                    # is "exc", `X = <exception class>`, or `from m import <exception class>`
+                    # (a stdlib module is imported to look, a dependency file's class by name).
+                    # Python's scoping: the innermost enclosing def that binds the name (and does
+                    # not declare it `global` / `nonlocal`) owns it; `global` goes to the module.
+                    _sc597 = []
+                    _cu597 = _r590
+                    while id(_cu597) in _pa590:
+                        _cu597 = _pa590[id(_cu597)]
+                        if isinstance(_cu597, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                            _sc597.append(_cu597)
+                    _sc597.append(_t175)
+                    _bad597 = None
+                    _sk597 = False
+                    for _s597 in _sc597:
+                        if _bad597 is not None:
+                            break
+                        if _sk597 and _s597 is not _t175:
+                            continue
+                        _ok597 = set()
+                        _bn597 = False
+                        _dc597 = None
+                        if _s597 is _t175:
+                            _wk597 = list(_t175.body)
+                        else:
+                            _wk597 = list(_s597.body)
+                            if any(_a.arg == _nm590 for _a in (
+                                    _s597.args.posonlyargs + _s597.args.args
+                                    + _s597.args.kwonlyargs
+                                    + [_z for _z in (_s597.args.vararg, _s597.args.kwarg)
+                                       if _z is not None])):
+                                _bad597 = (f"a parameter of `{_s597.name}`", _s597.lineno)
+                                break
+                        while _wk597 and _bad597 is None:
+                            _x597 = _wk597.pop()
+                            _rv597 = None
+                            if isinstance(_x597, (_ast175.Assign, _ast175.AnnAssign)):
+                                _tg597 = (_x597.targets if isinstance(_x597, _ast175.Assign)
+                                          else [_x597.target])
+                                _rv597 = _x597.value
+                                if (len(_tg597) == 1 and isinstance(_tg597[0], _ast175.Name)
+                                        and _tg597[0].id == _nm590 and _rv597 is not None):
+                                    _rn597 = _rv597
+                                    # `raise X` (no call) may raise an instance: `X = Cls(..)`
+                                    if (isinstance(_e590, _ast175.Name)
+                                            and isinstance(_rn597, _ast175.Call)):
+                                        _rn597 = _rn597.func
+                                    _at597 = []
+                                    while isinstance(_rn597, _ast175.Attribute):
+                                        _at597.insert(0, _rn597.attr)
+                                        _rn597 = _rn597.value
+                                    _ex597 = False
+                                    if isinstance(_rn597, _ast175.Name) and not _at597:
+                                        _bb597 = getattr(_bi590, _rn597.id, None)
+                                        _ex597 = (_vd590.get(_rn597.id) == "exc" or (
+                                            _rn597.id not in _cls590 and _rn597.id not in _def590
+                                            and isinstance(_bb597, type)
+                                            and issubclass(_bb597, BaseException)))
+                                    elif (isinstance(_rn597, _ast175.Name) and _rn597.id in
+                                          sys.stdlib_module_names and _rn597.id not in (
+                                              "antigravity", "this", "turtle", "tkinter")):
+                                        try:
+                                            _bb597 = __import__("importlib").import_module(
+                                                _rn597.id)
+                                            for _y597 in _at597:
+                                                _bb597 = getattr(_bb597, _y597)
+                                            _ex597 = (isinstance(_bb597, type)
+                                                      and issubclass(_bb597, BaseException))
+                                        except Exception:
+                                            _ex597 = False
+                                    if _ex597:
+                                        _ok597.add(id(_tg597[0]))
+                            if isinstance(_x597, (_ast175.FunctionDef, _ast175.AsyncFunctionDef,
+                                                  _ast175.ClassDef)):
+                                # a `class` binding is judged by the class verdict below
+                                _bn597 = _bn597 or _x597.name == _nm590
+                                if _x597.name == _nm590 and not isinstance(_x597,
+                                                                           _ast175.ClassDef):
+                                    _bad597 = (f"a `def {_nm590}`", _x597.lineno)
+                                _wk597.extend(_x597.decorator_list)
+                                if isinstance(_x597, _ast175.ClassDef):
+                                    _wk597.extend(_x597.bases)
+                                    _wk597.extend(_k.value for _k in _x597.keywords)
+                                else:
+                                    _wk597.extend(_x597.args.defaults)
+                                    _wk597.extend(_z for _z in _x597.args.kw_defaults
+                                                  if _z is not None)
+                                continue
+                            if isinstance(_x597, _ast175.Lambda):
+                                _wk597.extend(_x597.args.defaults)
+                                _wk597.extend(_z for _z in _x597.args.kw_defaults
+                                              if _z is not None)
+                                continue
+                            if (isinstance(_x597, (_ast175.Global, _ast175.Nonlocal))
+                                    and _nm590 in _x597.names):
+                                _dc597 = ("global" if isinstance(_x597, _ast175.Global)
+                                          else "nonlocal")
+                            elif (isinstance(_x597, _ast175.Name) and _x597.id == _nm590
+                                    and isinstance(_x597.ctx, (_ast175.Store, _ast175.Del))):
+                                _bn597 = True
+                                if id(_x597) not in _ok597:
+                                    _bad597 = (f"an assignment / target / `del` of `{_nm590}`",
+                                               getattr(_x597, "lineno", 0))
+                            elif isinstance(_x597, _ast175.Import) and any(
+                                    (_a.asname or _a.name.split(".")[0]) == _nm590
+                                    for _a in _x597.names):
+                                _bad597 = (f"`{_ast175.unparse(_x597)[:50]}` (a module)",
+                                           _x597.lineno)
+                            elif isinstance(_x597, _ast175.ImportFrom):
+                                for _a597 in _x597.names:
+                                    if (_a597.asname or _a597.name) != _nm590:
+                                        continue
+                                    _bn597 = True
+                                    _ex597 = _vd590.get(_a597.name) == "exc"
+                                    _md597 = _x597.module or ""
+                                    if (not _ex597 and not _x597.level and _md597.split(".")[0]
+                                            in sys.stdlib_module_names
+                                            and _md597.split(".")[0] not in (
+                                                "antigravity", "this", "turtle", "tkinter")):
+                                        try:
+                                            _bb597 = getattr(__import__("importlib")
+                                                             .import_module(_md597), _a597.name)
+                                            _ex597 = (isinstance(_bb597, type)
+                                                      and issubclass(_bb597, BaseException))
+                                        except Exception:
+                                            _ex597 = False
+                                    if not _ex597:
+                                        _bad597 = (f"`{_ast175.unparse(_x597)[:50]}`, which "
+                                                   f"does not import an exception class",
+                                                   _x597.lineno)
+                            elif (isinstance(_x597, _ast175.ExceptHandler)
+                                  and _x597.name == _nm590):
+                                _bad597 = (f"`except ... as {_nm590}` (an exception instance)",
+                                           _x597.lineno)
+                            elif (isinstance(_x597, (_ast175.MatchAs, _ast175.MatchStar))
+                                  and _x597.name == _nm590) or (
+                                      isinstance(_x597, _ast175.MatchMapping)
+                                      and _x597.rest == _nm590):
+                                _bad597 = (f"a `match` capture `{_nm590}`",
+                                           getattr(_x597, "lineno", 0))
+                            _wk597.extend(_ast175.iter_child_nodes(_x597))
+                        if _dc597 == "global":
+                            _sk597 = True
+                        elif _bn597 and _dc597 is None:
+                            break
+                    if _bad597 is not None:
+                        from errors import PyCSLSemanticError as _PyCSLSemErr597
+                        raise _PyCSLSemErr597(
+                            f"line {_r590.lineno}: PYCSL-R597-RAISE-NAME-REBOUND: `raise "
+                            f"{_ast175.unparse(_e590)[:50]}`"
+                            f"{' (as the cause)' if _role590 == 'cause' else ''}: the name "
+                            f"`{_nm590}` is bound by {_bad597[0]} (line {_bad597[1]}), which "
+                            f"the model does not place as an exception class: it raises a tag "
+                            f"named `{_nm590}` whatever the name holds at the raise, while "
+                            f"CPython raises TypeError (\"exceptions must derive from "
+                            f"BaseException\") when it is not one, so a handler / "
+                            f"`no_exception` claim would be proved of an exception that is "
+                            f"never raised (route #597; measured: `E = int` inside the def, "
+                            f"with a module-level `class E(Exception)`, then `raise E(\"a\")` "
+                            f"under `except E`, proved `no_exception \\all`). Rename the local / "
+                            f"parameter / import that rebinds `{_nm590}`, and raise the "
+                            f"exception class by its own name.",
+                            stage="whyml-emit", code="PYCSL-R597-RAISE-NAME-REBOUND")
                     _v590 = _vd590.get(_nm590)
                     if _v590 is None and _nm590 not in _cls590 and _nm590 not in _def590:
                         _bb590 = getattr(_bi590, _nm590, None)
