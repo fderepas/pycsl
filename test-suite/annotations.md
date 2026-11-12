@@ -6340,6 +6340,39 @@ call `<x>.n(...)` of a name made a possible method only by these forms is refuse
 name of its `def`, or give the name its own `def` (with a contract) that calls it. Measurements:
 `getting-better/open-routes/route595-classbody-alias-match-capture.md`.
 
+### 7.597 A raised name is judged by every binding that can reach the raise (route #597, run #6)
+
+§7.590 resolved the raised name by the module-level classes only, so a name rebound inside the function to a
+non-exception passed it: `E = int` (or a parameter `E`, `import os as E`, `from os import getcwd as E`, a walrus, an
+annotated assignment, a tuple target), with a module-level `class E(Exception)`, then `raise E("a")` under `except E`,
+PROVED `no_exception \all` + `\result == 1` (rt57; CPython raises TypeError). RULE (`PYCSL-R597-RAISE-NAME-REBOUND`,
+the main file, the raised name and a `from` cause name, after §7.590's enclosing-handler exemption): every binding of
+the name in each enclosing `def` and in the module scope must be an exception class: parameters, assignment /
+augmented / annotated / walrus / `for` / `with` / comprehension / `match` capture targets, `del`, `except ... as`,
+`import` (always a module), a nested `def`, and `from m import X` are refused unless the binding is `N = <exception
+class>` (a name whose §7.590 verdict is an exception, a builtin exception, or a stdlib `module.Attr` that is one; for
+a bare `raise N`, also `N = <exception class>(...)`) or `from m import <exception class>` (a class of a dependency
+file, or a stdlib module, imported to look). A `class` binding is judged by §7.590's class verdict. Advice: rename the
+local / parameter / import and raise the exception class by its own name. Measurements:
+`getting-better/open-routes/route597-r590-local-rebinding.md`.
+
+### 7.598 The constructor call of a raised exception must bind (route #598, run #6)
+
+The model keeps the raised class and its first argument; the arity of the call was never checked: `raise
+ValueError("a", q=1)` / `OSError("a", q=1)` / `KeyError(q="a")` under the matching handler PROVED `no_exception \all`
+(rt57; CPython raises TypeError "takes no keyword arguments"). RULE (`PYCSL-R598-RAISE-CONSTRUCTOR-ARITY`, with
+§7.589's relevance and population: a raise in a verified def that claims or reaches a `no_exception`, or that a
+handler may catch from, the module level, and the dependency defs those reach): the class of `raise X(...)` -- or of a
+bare `raise X`, which calls `X()` -- resolved through plain aliases, `from ... import ... as`, and the bases of user
+classes without `__init__`, must accept the call: a builtin exception is CALLED by the front end with the literal
+arguments (`None` for a non-literal one, so a non-literal argument the builtin type-checks is refused, fail-closed);
+a user `__init__` is bound against its signature (too many positionals, an unknown / duplicate / positional-only
+keyword, a missing required parameter); a class whose constructor is not read (decorated without `__init__`, or with
+`__new__`) and any `*` / `**` argument are refused when the call passes keywords or more than one positional
+argument. (A direct `E(..)` construction of a user class is also route #369's.) Advice: pass only the arguments the
+constructor accepts, binding extra data to a local first. Measurements:
+`getting-better/open-routes/route598-exception-ctor-kwargs.md`.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
