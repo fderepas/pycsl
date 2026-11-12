@@ -1095,3 +1095,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-12T14:29Z | 821 | STATUS (run hour 92.6; 3.4 h left). v56 F 68 ok, 0 RED. oom_kill 75. |
 2026-11-12T15:18Z | 822 | STATUS (run hour 93.4; 2.6 h left). v56 F 75 ok, 0 RED. oom_kill 75. |
 2026-11-12T16:10Z | 823 | STATUS (run hour 94.2; 1.8 h left). v56 F 82 ok, 0 RED; landing cut-off for L8 ~17:30Z. oom_kill 75. |
+2026-11-12T16:37Z | 824 | L8 LANDED: merge f8e7918e0 (run6-int59 = L7 tip + u42 7171a207f: routes #597 #598 REPAIRED as mirror-inert refusals R597 / R598; residuals: raises in dependency modules, kwargs via super().__init__). Battery v56: A 16 new corpus files 0 unexpected; B 15 witness runs all refused; C root 3109 -> 3112 0/0/0 + pyref 0/0/0; D mirror 53/53 identical; E fidelity rc 0; F --slow 85/85 GREEN. src/bin/test-suite == int59. \trusted 389, ledger 3. int59 worktree removed; only the main worktree remains. |
