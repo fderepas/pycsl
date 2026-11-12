@@ -127,7 +127,7 @@ _TYPED_EXPR_HANDLERS = {
 # ("field" is the FieldGet member-name — a string, routed like "attr"/"name".)
 _EMIT_IR_PROJ = {
     "type": "kind_of", "name": "name_of", "attr": "name_of", "field": "name_of",
-    "func": "func_of", "value": "svalue_of", "object": "object_of", "index": "sindex_of",
+    "func": "func_of", "value": "irget_value_of", "object": "object_of", "index": "sindex_of",
     "args": "args_of",   # resync-campaign.md R1: the args LIST → `array emit_ir`
     # cf6.md M1.1: match pattern/case keys — `pattern` (KIND) / `ctor` (NAME) are strings;
     # `captures` is a reflected node list (`args_of`); `body` is an OPAQUE stmt-list
@@ -142,8 +142,8 @@ _EMIT_IR_PROJ = {
     # projector (emit_ir → emit_ir; see preamble.py). Byte-inert: no corpus program
     # nor other mirror reflects `.get("test")` on an emit_ir node.
     "test": "test_of",
-    "body": "stmts_of", "guard": "svalue_of", "parts": "args_of", "elts": "args_of",
-    "lower": "svalue_of", "upper": "svalue_of",   # 07-03-refactor R4: SliceExpr bound sub-nodes
+    "body": "stmts_of", "guard": "irget_guard_of", "parts": "args_of", "elts": "args_of",
+    "lower": "irget_lower_of", "upper": "irget_upper_of",   # 07-03-refactor R4: SliceExpr bound sub-nodes
     # tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections — `op` is the operator
     # STRING (`op_of`); `left`/`right` are the SUB-NODES (`left_of`/`right_of`, → emit_ir).
     "op": "op_of", "left": "left_of", "right": "right_of",
@@ -231,6 +231,76 @@ _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
 # through to the `svalue_of` default) so no attr on a single node collides. `default`/`size`
 # extend the table too: GhostMakeExpr's only 2 declared fields, `size` at index 0 → left_of,
 # `default` at index 1 → right_of — the same 2-slot shape as dict/key, no 3rd field to route.
+# ROUTES #584/#585 (driver run #6, executor u38; the class of route #583): a reflection key /
+# attribute read on an emit_ir value is chosen by the receiver's CONSTRUCTOR, so a key shared by
+# several IR classes reads the field the node really carries instead of one constructor's
+# projector (`svalue_of`, the Subscript one, read `IrOther ""` on every other class, deciding
+# branches CPython takes). The definitions are spliced into the emit_ir theory ONLY when the
+# emitted text uses them (`transpile`), so every other file's theory is byte-identical. Total
+# `let function`s over the existing constructors -- no axiom, no new ADT arm.
+_EMIT_IR_FIELD_SLOT = "(*__pycsl_field_proj_slot__*)"
+_EMIT_IR_FIELD_PROJ_DEFS = {
+    # dict view: `.get("value"[, {}])` / `["value"]` (the wire keys; an Attribute node carries `object`, not `value`).
+    "irget_value_of": ["  let function irget_value_of (e: emit_ir) : emit_ir =",
+                       "    match e with IrSub v _ -> v | IrStarred v -> v | IrNamedExpr _ v -> v"
+                       " | IrSliceAccess v _ -> v | IrMapSet _ _ v -> v | _ -> IrOther \"\" end",
+                       # the Subscript size-decrease law `size_svalue_dec` gave the old read (a
+                       # recursion on `node.get("value")` under a Subscript test terminates). PROVEN.
+                       "  lemma size_irget_value_dec : forall e: emit_ir. is_sub e ->"
+                       " size (irget_value_of e) < size e", ""],
+    "irget_lower_of": ["  let function irget_lower_of (e: emit_ir) : emit_ir =",
+                       "    match e with IrSlice l _ -> l | IrSliceN l _ _ ->"
+                       " (match l with IrOSome x -> x | IrONone -> IrNone end)"
+                       " | _ -> IrOther \"\" end", ""],
+    "irget_upper_of": ["  let function irget_upper_of (e: emit_ir) : emit_ir =",
+                       "    match e with IrSlice _ u -> u | IrSliceN _ u _ ->"
+                       " (match u with IrOSome x -> x | IrONone -> IrNone end)"
+                       " | _ -> IrOther \"\" end", ""],
+    # a match-case's `guard` has no constructor in the sum: an OPAQUE read (the model does not decide it).
+    "irget_guard_of": ["  val function irget_guard_of (e: emit_ir) : emit_ir", ""],
+    # `c["pattern"]`: a match-case's pattern sub-node, likewise no constructor: opaque.
+    "irget_pattern_of": ["  val function irget_pattern_of (e: emit_ir) : emit_ir", ""],
+}
+# ATTRIBUTE view (`x.value`, `x.slice`, ... on an emit_ir value, the catch-all of
+# `_handle_attribute_expr`): for each field name, the arms of the constructors that carry it
+# as an emit_ir sub-node (generated from the constructor table / ADT, positions per
+# constructor; gated constructors carry their theory gate), so the read is chosen by the
+# receiver's constructor. `transpile` splices `iratt_<attr>_of` for each one the emitted text
+# uses; a name no constructor carries as a node is an opaque `val` (the model does not decide
+# it). `ast.Attribute.value` is the object, `ast.Subscript.slice` the index, `ast.UnaryOp`
+# keeps `operand`.
+_EMIT_IR_ATTR_ARMS = {
+    'arg': [('IrFootprint _ v -> v', '_uses_clause_ir')],
+    'body': [('IrForallItems _ _ _ v -> v', None), ('IrTer3 _ v _ -> v', None), ('IrIfExpr v _ -> v', None), ('IrLambda _ v -> v', '_uses_stmt_ir')],
+    'col': [('IrValid2D _ _ v -> v', None)],
+    'collection': [('IrCSLIn _ v -> v', '_uses_clause_ir'), ('IrCSLNotIn _ v -> v', '_uses_clause_ir')],
+    'cols': [('IrLength2D _ _ v -> v', None)],
+    'condition': [('IrRaisesDecl _ v -> v', '_uses_clause_ir')],
+    'elem': [('IrSetAdd _ v -> v', None), ('IrSetRemove _ v -> v', None), ('IrSetMem v _ -> v', None), ('IrMem v _ -> v', None)],
+    'element': [('IrCSLIn v _ -> v', '_uses_clause_ir'), ('IrCSLNotIn v _ -> v', '_uses_clause_ir')],
+    'expr': [('IrOld v -> v', None), ('IrUnaryOp _ v -> v', None), ('IrAt v _ -> v', None), ('IrClassInvariant v -> v', '_uses_clause_ir'), ('IrLoopInvariant v -> v', '_uses_clause_ir'), ('IrLoopVariant v -> v', '_uses_clause_ir'), ('IrEnsures v -> v', '_uses_clause_ir'), ('IrRequires v -> v', '_uses_clause_ir'), ('IrFunctionVariant v _ -> v', None), ('IrMutexInvariant _ v -> v', '_uses_clause_ir')],
+    'high': [('IrAssignsRegion _ _ v -> v', None)],
+    'index': [('IrSub _ v -> v', None), ('IrNth _ v -> v', None), ('IrGhostArraySetDecl _ v _ -> v', '_uses_clause_ir')],
+    'len1': [('IrSeparated _ v _ _ -> v', None)],
+    'len2': [('IrSeparated _ _ _ v -> v', None)],
+    'length': [('IrValid _ v -> v', None)],
+    'list': [('IrHd v -> v', None), ('IrTl v -> v', None), ('IrListLength v -> v', None), ('IrNth v _ -> v', None), ('IrMem _ v -> v', None)],
+    'low': [('IrAssignsRegion _ v _ -> v', None)],
+    'lower': [('IrSlice v _ -> v', None), ('IrSliceN l _ _ -> (match l with IrOSome v -> v | IrONone -> IrNone end)', None)],
+    'object': [('IrAttr v _ -> v', None)],
+    'operand': [('IrUnaryOp _ v -> v', None)],
+    'orelse': [('IrTer3 _ _ v -> v', None), ('IrIfExpr _ v -> v', None)],
+    'payload': [('IrInterfaceClause _ v -> v', '_uses_clause_ir')],
+    'row': [('IrValid2D _ v _ -> v', None)],
+    'rows': [('IrLength2D _ v _ -> v', None)],
+    'set': [('IrSetAdd v _ -> v', None), ('IrSetRemove v _ -> v', None), ('IrSetMem _ v -> v', None), ('IrSetCard v _ _ -> v', None)],
+    'slice': [('IrSub _ v -> v', None), ('IrSliceAccess _ v -> v', None)],
+    'string': [('IrStrLength v -> v', None), ('IrStrSub v _ _ -> v', None)],
+    'test': [('IrTer3 v _ _ -> v', None)],
+    'tuple': [('IrFst v -> v', None), ('IrSnd v -> v', None), ('IrProj v _ -> v', '_uses_csl_proj')],
+    'upper': [('IrSlice _ v -> v', None), ('IrSliceN _ u _ -> (match u with IrOSome v -> v | IrONone -> IrNone end)', None)],
+    'value': [('IrAttr v _ -> v', None), ('IrSub v _ -> v', None), ('IrMapSet _ _ v -> v', None), ('IrSliceAccess v _ -> v', None), ('IrStarred v -> v', None), ('IrNamedExpr _ v -> v', None), ('IrGhostAssignDecl _ v _ _ -> v', '_uses_clause_ir'), ('IrGhostArraySetDecl _ _ v -> v', '_uses_clause_ir')],
+}
 _EMIT_IR_NODE_ATTRS = {"dict": "left_of", "key": "right_of", "head": "left_of", "tail": "right_of",
                        "left": "left_of", "right": "right_of",
                        "lo": "left_of", "hi": "right_of",
@@ -802,7 +872,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (getattr(self, "_current_self_type", None) in getattr(self, "_mutable_state_classes", set())
                 and any(whyml_str.startswith(p) for p in
                         ("(svalue_of ", "(avalue_of ", "(object_of ", "(sindex_of ",
-                         "(arg0_of "))):
+                         "(arg0_of ", "(irget_", "(iratt_"))):
             return "true"
         # cf6.md M1.6: `if existing_caps:` on an emit_ir-element ARRAY LOCAL is array-emptiness.
         if (t == "Var"
@@ -3834,7 +3904,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and not getattr(self, "_in_spec", False)):
             _rmsig = (_rmf, tuple((_y.get("type"), _y.get("name"), _y.get("value"))
                                   for _y in (expr.get("args") or []) if isinstance(_y, dict)))
-            if _rmsig in (_rmst.get("sigs") or set()):
+            # (lvP) a slot whose `value` is an IR node (a Subscript / Attribute argument)
+            # makes the signature unhashable; it cannot be a recorded binding signature
+            # (those hash), so it keeps the opaque lowering instead of crashing the run.
+            if (all(not isinstance(_y2, (dict, list)) for _y1 in _rmsig[1] for _y2 in _y1)
+                    and _rmsig in (_rmst.get("sigs") or set())):
                 _rma = expr.get("args") or []
                 _rmc = ((getattr(self, "ir", None) or {}).get("module_const_regexes") or {})
                 _rmp, _rms, _rmpos = None, None, "0"
@@ -9277,6 +9351,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      # `scc.find_self_method_calls` supplies the ordering edge.
                      or (isinstance(ret_type, str) and ret_type.startswith("(")
                          and ret_type.endswith(")") and "," in ret_type)
+                     # cap-vm-unerase-tuple (run #6 lvP): a TUPLE-ELEMENT LIST sibling
+                     # (`-> List[Tuple[..]]` returning its `seq (t1, .., tn)` accumulator)
+                     # is the same case: without this arm `rules =
+                     # self._parse_inductive_rules()` bound the UNCONSTRAINED `val
+                     # self__parse_inductive_rules_0`, and the conversion bought the caller
+                     # nothing. Same soundness argument and the same ordering edge.
+                     or (isinstance(ret_type, str) and ret_type.startswith("seq (")
+                         and ret_type.endswith(")"))
                      or ret_type in {_ri["whyml_name"]
                                      for _ri in getattr(self, "_record_types", {}).values()})):
             if _concrete in getattr(self, "_module_func_names", set()):
@@ -15124,7 +15206,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not self._is_emit_ir_expr(recv_ir):
             return None
         _rw = self._expr_to_whyml(recv_ir, local_refs or set(), invariant_ctx, subst)
-        return f"(avalue_of {_rw})"
+        return f"(iratt_value_of {_rw})"
 
     def _lower_dict_get_call(self, expr: Dict[str, Any], args: List[str],
                               func_name: str, local_refs: Optional[Set[str]],
@@ -15582,7 +15664,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _scoped_val = None
                 if (_scoped2 is not None and _k2 == "value"
                         and not self._get_default_is_str_literal(expr)):
-                    _scoped_val = ("svalue_of" if self._get_default_is_empty_dict(expr)
+                    _scoped_val = ("irget_value_of" if self._get_default_is_empty_dict(expr)
                                    else "num_of")
                 # self-tcb-reduction _typeddict_field_access (gap-1): `<emit_ir>.get("value",
                 # "<str>")` (STRING default) reads a String IR node's CONTENT -> `value_of`
@@ -17814,6 +17896,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                 _r36[1:]) == "string"):
                         init_map[fn] = _r36
                         continue
+                    # cap-vm-unerase-tuple (run #6 lvP): a `List[Tuple[..]]` field typed the
+                    # pure `seq (t1, .., tn)` (its record decl, `_emit_type_decls`) bound to a
+                    # `!<x>` deref of a TUPLE-ELEMENT seq local of the SAME element type
+                    # (`_seq_value_types[x]`, set by `_reset_function_state`) IS that seq:
+                    # bind it as-is instead of the unconstrained `any_array ()` (#235), which
+                    # dropped every rule. A mismatched element type keeps the old path.
+                    _tq_fv = (rec_info.get("field_value_types") or {}).get(fn)
+                    if (field_types.get(fn) == "list" and isinstance(_tq_fv, str)
+                            and _tq_fv.startswith("(")
+                            and _r36.startswith("!") and _r36[1:].isidentifier()
+                            and _r36[1:] in getattr(self, "_seq_locals", set())
+                            and (getattr(self, "_seq_value_types", {}) or {}).get(
+                                _r36[1:]) == _tq_fv):
+                        init_map[fn] = _r36
+                        continue
                     _lv = self._bind_listfield_from_seq(rec_info, fn, ent, arg_nodes,
                                                         func_name)
                     if _lv is not None:
@@ -18480,7 +18577,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _kv == "object":
                 _rv = self._expr_to_whyml(value, local_refs or set(), invariant_ctx, subst)
                 return f"(name_of (object_of {_rv}))"
-            _proj = "svalue_of" if _kv == "pattern" else _EMIT_IR_PROJ.get(_kv)
+            _proj = "irget_pattern_of" if _kv == "pattern" else _EMIT_IR_PROJ.get(_kv)
             if _proj:
                 return f"({_proj} {self._expr_to_whyml(value, local_refs or set(), invariant_ctx, subst)})"
         # self-tcb-reduction _typeddict_field_access (b): a subscript `rec_info["whyml_name"]`
@@ -20049,17 +20146,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # of the SAME node (e.g. `_handle_map_get_expr`'s `node.dict` and `node.key`).
             if attr in _EMIT_IR_NODE_ATTRS:
                 return f"({_EMIT_IR_NODE_ATTRS[attr]} {_os})"
-            # (run #6 u37) ROUTE #583: `.value` is a field of BOTH IR classes an emit_ir
-            # value can be -- `ast.Attribute.value` (the OBJECT, IrAttr's 1st child) and
-            # `ast.Subscript.value` (the ARRAY, IrSub's 1st child). The Subscript-only
-            # `svalue_of` read `IrOther ""` on an IrAttr, so `isinstance(x.value, ast.Name)`
-            # after `isinstance(x, ast.Attribute)` was decided FALSE where CPython takes the
-            # branch (a false proof). Lower it with the UNIFIED `avalue_of` (IrAttr -> object,
-            # IrSub -> value), the projector `_py_stmt_augassign` already used: it agrees with
-            # `svalue_of` on every non-IrAttr node, so the Subscript path keeps its meaning.
-            if attr == "value":
-                return f"(avalue_of {_os})"
-            return f"(svalue_of {_os})"
+            # ROUTES #583/#584/#585 (run #6 u37, u38): the catch-all read of an attribute on an
+            # emit_ir value is chosen by the receiver's CONSTRUCTOR. `(iratt_<attr>_of x)` reads
+            # the sub-node each constructor carrying that field holds, IrOther "" elsewhere
+            # (`_EMIT_IR_ATTR_ARMS`, spliced by `transpile` when used; an unmodelled field is an
+            # opaque `val`, so the model does not decide it). The Subscript-only `svalue_of`
+            # this replaced read `IrOther ""` on every other class and decided branches CPython
+            # takes (false proofs); `.value` on an IrAttr reads its object.
+            return f"(iratt_{attr}_of {_os})"
         # CARRIER-FIELD PROJECTION (L13): `<optional-union local>.<field>` reads the
         # carrier record's field directly, instead of the opaque int-hash `get_<attr>`
         # (which is both ill-typed against a record carrier and value-blind).

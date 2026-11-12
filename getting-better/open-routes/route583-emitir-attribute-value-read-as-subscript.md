@@ -111,6 +111,7 @@ Lower `.value` on an emit_ir receiver with the unified `avalue_of` (IrAttr -> ob
   refusal added). Proof-axiom ledger 3 (no axiom).
 
 ## FINDINGS (same defect class, measured, NOT repaired here -- each a false proof in the default model at base AND HEAD)
+(F1 = route #584 and F2 = route #585: both REPAIRED by run #6 executor u38, commit 79d02263b, annotations §7.584 / §7.585; `.value` on an emit_ir value now reads `iratt_value_of`, which extends this route's `avalue_of` to the Starred / NamedExpr / SliceAccess / MapSet constructors. F3 stays open.)
 - F1 DICT VIEW `.get("value")` on a node whose `.value` is not the Subscript one: `_EMIT_IR_PROJ["value"]` /
   the `.get("value", {})` site read `svalue_of` (`IrOther ""` on `IrStarred` / `IrNamedExpr` / `IrSliceAccess` /
   `IrMapSet`), so after `x.get("type") == "Starred"` the read value's kind is never `"Var"`: witnesses

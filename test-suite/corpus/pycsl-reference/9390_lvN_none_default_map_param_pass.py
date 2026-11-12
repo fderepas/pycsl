@@ -1,4 +1,4 @@
-r"""Test 9390 -- cap-none-default-map-param (run #6 lvN, expected PASS): a call that OMITS an `Optional[Dict[str, str]] = None` argument, on a method (`self.g(3)`) and on a module function (`mg(3)`), is filled with the opaque `pycsl_none_map` (route #44's "this is None, nothing is decidable about it"), not the int witness `0`. Before the fix both call sites were ill-typed (L3-tc `int` vs `string -> option string`) and the whole file was refused; the callees never read `d`, so `\result == 3` / `\result == 4` are TRUE and now prove (CPython: 3 and 4).
+r"""Test 9390 -- cap-none-default-map-param (run #6 lvN, expected PASS): a call that OMITS an `Optional[Dict[str, str]] = None` argument, on a method (`self.g(3)`) and on a module function (`mg(3)`), is filled with the opaque `pycsl_none_map` (route #44's "this is None, nothing is decidable about it"), not the int witness `0`. Before lvN both call sites were ill-typed (L3-tc `int` vs `string -> option string`) and the whole file was refused. Since route #592 (run #6 u40) such a fill is admitted only when the callee has no VERIFIED body (a verified body proves its contract for every map, and CPython passes `None`: PYCSL-R592-NONE-DEFAULT-MAP-CONCRETE, witnesses 9630-9634), so both callees are `#@ \trusted` here, with contracts that hold for `d = None` (they never read `d`): `\result == 3` / `\result == 4` follow from them and now prove (CPython: 3 and 4).
 """
 # pycsl-expected: PASS
 from typing import Dict, Optional
@@ -9,6 +9,7 @@ class C:
     def __init__(self) -> None:
         self.k: int = 0
 
+    #@ \trusted reviewer: test-9390
     #@ ensures \result == x
     #@ assigns \nothing
     def g(self, x: int, d: Optional[Dict[str, str]] = None) -> int:
@@ -20,6 +21,7 @@ class C:
         return self.g(3)
 
 
+#@ \trusted reviewer: test-9390
 #@ ensures \result == x + 1
 #@ assigns \nothing
 def mg(x: int, d: Optional[Dict[str, str]] = None) -> int:

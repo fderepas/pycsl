@@ -4348,6 +4348,84 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         if _le2 is None and self._cf6_is_cases_list_of_dict(
                                 stmt.target.id, stmt.annotation):
                             _le2 = "emit_ir"
+                        # cap-vm-unerase-tuple (run #6 lvP): a `List[Tuple[..]]` field whose
+                        # slots are `str` / `int` / `bool` / an IR-node tag, or ONE nested
+                        # `List[Tuple[..]]` of those, with at least one IR / nested slot,
+                        # carries the element WhyML type `(t1, .., tn)` (the same rule as the
+                        # `-> List[Tuple[..]]` return in `_build_function_ir`); Module6 types
+                        # the field `seq (t1, .., tn)`. Inline (\trusted mirror twin).
+                        if _le2 is None:
+                            _tq_ann = stmt.annotation
+                            _tq_sl = (_tq_ann.slice if (isinstance(_tq_ann, ast.Subscript)
+                                                        and isinstance(_tq_ann.value, ast.Name)
+                                                        and _tq_ann.value.id in ("List", "list"))
+                                      else None)
+                            if isinstance(_tq_sl, ast.Index):
+                                _tq_sl = _tq_sl.value
+                            _tq_deep = False
+                            if (isinstance(_tq_sl, ast.Subscript)
+                                    and isinstance(_tq_sl.value, ast.Name)
+                                    and _tq_sl.value.id in ("Tuple", "tuple")):
+                                _tq_e = _tq_sl.slice
+                                if isinstance(_tq_e, ast.Index):
+                                    _tq_e = _tq_e.value
+                                _tq_elts = (list(_tq_e.elts) if isinstance(_tq_e, ast.Tuple)
+                                            else [])
+                                _tq_parts: List[str] = []
+                                for _tq_x in _tq_elts:
+                                    _tq_n = (_tq_x.id if isinstance(_tq_x, ast.Name)
+                                             else _tq_x.value if (isinstance(_tq_x, ast.Constant)
+                                                                 and isinstance(_tq_x.value, str))
+                                             else None)
+                                    if _tq_n == "str":
+                                        _tq_parts.append("string")
+                                    elif _tq_n in ("int", "bool"):
+                                        _tq_parts.append("int")
+                                    elif _tq_n in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                                        _tq_parts.append("emit_ir")
+                                        _tq_deep = True
+                                    elif (isinstance(_tq_x, ast.Subscript)
+                                            and isinstance(_tq_x.value, ast.Name)
+                                            and _tq_x.value.id in ("List", "list")):
+                                        _tq_i = _tq_x.slice
+                                        if isinstance(_tq_i, ast.Index):
+                                            _tq_i = _tq_i.value
+                                        _tq_ip: List[str] = []
+                                        if (isinstance(_tq_i, ast.Subscript)
+                                                and isinstance(_tq_i.value, ast.Name)
+                                                and _tq_i.value.id in ("Tuple", "tuple")):
+                                            _tq_ie = _tq_i.slice
+                                            if isinstance(_tq_ie, ast.Index):
+                                                _tq_ie = _tq_ie.value
+                                            for _tq_y in (list(_tq_ie.elts)
+                                                          if isinstance(_tq_ie, ast.Tuple) else []):
+                                                _tq_m = (_tq_y.id if isinstance(_tq_y, ast.Name)
+                                                         else _tq_y.value if (
+                                                             isinstance(_tq_y, ast.Constant)
+                                                             and isinstance(_tq_y.value, str))
+                                                         else None)
+                                                if _tq_m == "str":
+                                                    _tq_ip.append("string")
+                                                elif _tq_m in ("int", "bool"):
+                                                    _tq_ip.append("int")
+                                                elif _tq_m in ("ExprIR", "StmtIR", "IRNode",
+                                                               "ContractExprIR"):
+                                                    _tq_ip.append("emit_ir")
+                                                else:
+                                                    _tq_ip = []
+                                                    break
+                                        if len(_tq_ip) >= 2:
+                                            _tq_parts.append("seq (" + ", ".join(_tq_ip) + ")")
+                                            _tq_deep = True
+                                        else:
+                                            _tq_parts = []
+                                            break
+                                    else:
+                                        _tq_parts = []
+                                        break
+                                if (_tq_deep and len(_tq_parts) >= 2
+                                        and len(_tq_parts) == len(_tq_elts)):
+                                    _le2 = "(" + ", ".join(_tq_parts) + ")"
                         if _le2 is not None:
                             _fld2["value_type"] = _le2
                     # cleared-hash S4: the field's KEY type κ (`Dict[str,ν]`/`Set[str]`
@@ -7361,6 +7439,162 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 _rre = self._m5_get_list_record_elem(node.returns)
                                 if _rre is not None:
                                     return_value_type = _rre
+                            # cap-vm-unerase-tuple (run #6 lvP): a `-> List[Tuple[..]]` whose
+                            # slots are `str` / `int` / `bool` / an IR-node tag, or ONE level
+                            # of a nested `List[Tuple[..]]` of those, AND at least one slot is
+                            # an IR node or a nested list (a scalar-only tuple keeps WL-03's
+                            # `pytuple_*` record path), carries its element WhyML type
+                            # `(t1, .., tn)` (a nested list slot is the pure `seq (..)`).
+                            # Module6 lowers the function to return the `seq (t1, .., tn)` of
+                            # native Why3 tuples its `.append((a, b))` accumulator builds,
+                            # instead of the `array int` whose every element was `any int`.
+                            # Inline (no helper: the mirror twin of this method is \trusted).
+                            if return_value_type is None:
+                                _tq_sl = node.returns.slice
+                                if isinstance(_tq_sl, ast.Index):
+                                    _tq_sl = _tq_sl.value
+                                _tq_out: Optional[str] = None
+                                _tq_deep = False
+                                if (isinstance(_tq_sl, ast.Subscript)
+                                        and isinstance(_tq_sl.value, ast.Name)
+                                        and _tq_sl.value.id in ("Tuple", "tuple")):
+                                    _tq_e = _tq_sl.slice
+                                    if isinstance(_tq_e, ast.Index):
+                                        _tq_e = _tq_e.value
+                                    _tq_elts = (list(_tq_e.elts) if isinstance(_tq_e, ast.Tuple)
+                                                else [])
+                                    _tq_parts: List[str] = []
+                                    for _tq_x in _tq_elts:
+                                        _tq_n = (_tq_x.id if isinstance(_tq_x, ast.Name)
+                                                 else _tq_x.value if (isinstance(_tq_x, ast.Constant)
+                                                                     and isinstance(_tq_x.value, str))
+                                                 else None)
+                                        if _tq_n == "str":
+                                            _tq_parts.append("string")
+                                        elif _tq_n in ("int", "bool"):
+                                            _tq_parts.append("int")
+                                        elif _tq_n in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                                            _tq_parts.append("emit_ir")
+                                            _tq_deep = True
+                                        elif (isinstance(_tq_x, ast.Subscript)
+                                                and isinstance(_tq_x.value, ast.Name)
+                                                and _tq_x.value.id in ("List", "list")):
+                                            # one nested level: `List[Tuple[<scalar / IR tag>, ..]]`
+                                            _tq_i = _tq_x.slice
+                                            if isinstance(_tq_i, ast.Index):
+                                                _tq_i = _tq_i.value
+                                            _tq_ip: List[str] = []
+                                            if (isinstance(_tq_i, ast.Subscript)
+                                                    and isinstance(_tq_i.value, ast.Name)
+                                                    and _tq_i.value.id in ("Tuple", "tuple")):
+                                                _tq_ie = _tq_i.slice
+                                                if isinstance(_tq_ie, ast.Index):
+                                                    _tq_ie = _tq_ie.value
+                                                for _tq_y in (list(_tq_ie.elts)
+                                                              if isinstance(_tq_ie, ast.Tuple) else []):
+                                                    _tq_m = (_tq_y.id if isinstance(_tq_y, ast.Name)
+                                                             else _tq_y.value if (
+                                                                 isinstance(_tq_y, ast.Constant)
+                                                                 and isinstance(_tq_y.value, str))
+                                                             else None)
+                                                    if _tq_m == "str":
+                                                        _tq_ip.append("string")
+                                                    elif _tq_m in ("int", "bool"):
+                                                        _tq_ip.append("int")
+                                                    elif _tq_m in ("ExprIR", "StmtIR", "IRNode",
+                                                                   "ContractExprIR"):
+                                                        _tq_ip.append("emit_ir")
+                                                    else:
+                                                        _tq_ip = []
+                                                        break
+                                            if len(_tq_ip) >= 2:
+                                                _tq_parts.append("seq (" + ", ".join(_tq_ip) + ")")
+                                                _tq_deep = True
+                                            else:
+                                                _tq_parts = []
+                                                break
+                                        else:
+                                            _tq_parts = []
+                                            break
+                                    if len(_tq_parts) >= 2 and len(_tq_parts) == len(_tq_elts):
+                                        _tq_out = "(" + ", ".join(_tq_parts) + ")"
+                                if _tq_out is not None and _tq_deep:
+                                    return_value_type = _tq_out
+                        # cap-trusted-val-unit-return (run #6 lvP): a `-> Tuple[..]` return
+                        # with the same slot rule (str / int / bool / IR-node tag / one
+                        # nested `List[Tuple[..]]`, at least one non-scalar) carries its
+                        # native WhyML tuple type, so a `\trusted` `pass`-body stub of that
+                        # shape is announced with it instead of `unit` (Module6 transpile).
+                        if head in ("Tuple", "tuple"):
+                            _tr_e = node.returns.slice
+                            if isinstance(_tr_e, ast.Index):
+                                _tr_e = _tr_e.value
+                            _tr_elts = (list(_tr_e.elts) if isinstance(_tr_e, ast.Tuple) else [])
+                            _tr_parts: List[str] = []
+                            _tr_deep = False
+                            for _tr_x in _tr_elts:
+                                _tr_n = (_tr_x.id if isinstance(_tr_x, ast.Name)
+                                         else _tr_x.value if (isinstance(_tr_x, ast.Constant)
+                                                             and isinstance(_tr_x.value, str))
+                                         else None)
+                                if _tr_n == "str":
+                                    _tr_parts.append("string")
+                                elif _tr_n in ("int", "bool"):
+                                    _tr_parts.append("int")
+                                elif _tr_n in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                                    _tr_parts.append("emit_ir")
+                                    _tr_deep = True
+                                elif (isinstance(_tr_x, ast.Subscript)
+                                        and isinstance(_tr_x.value, ast.Name)
+                                        and _tr_x.value.id in ("List", "list")
+                                        and isinstance(_tr_x.slice, ast.Name)
+                                        and _tr_x.slice.id == "str"):
+                                    # a `List[str]` slot: `array string`, the slot type the
+                                    # gen #36 tail-return bridge (`materialize_str`) builds
+                                    _tr_parts.append("array string")
+                                    _tr_deep = True
+                                elif (isinstance(_tr_x, ast.Subscript)
+                                        and isinstance(_tr_x.value, ast.Name)
+                                        and _tr_x.value.id in ("List", "list")):
+                                    _tr_i = _tr_x.slice
+                                    if isinstance(_tr_i, ast.Index):
+                                        _tr_i = _tr_i.value
+                                    _tr_ip: List[str] = []
+                                    if (isinstance(_tr_i, ast.Subscript)
+                                            and isinstance(_tr_i.value, ast.Name)
+                                            and _tr_i.value.id in ("Tuple", "tuple")):
+                                        _tr_ie = _tr_i.slice
+                                        if isinstance(_tr_ie, ast.Index):
+                                            _tr_ie = _tr_ie.value
+                                        for _tr_y in (list(_tr_ie.elts)
+                                                      if isinstance(_tr_ie, ast.Tuple) else []):
+                                            _tr_m = (_tr_y.id if isinstance(_tr_y, ast.Name)
+                                                     else _tr_y.value if (
+                                                         isinstance(_tr_y, ast.Constant)
+                                                         and isinstance(_tr_y.value, str))
+                                                     else None)
+                                            if _tr_m == "str":
+                                                _tr_ip.append("string")
+                                            elif _tr_m in ("int", "bool"):
+                                                _tr_ip.append("int")
+                                            elif _tr_m in ("ExprIR", "StmtIR", "IRNode",
+                                                           "ContractExprIR"):
+                                                _tr_ip.append("emit_ir")
+                                            else:
+                                                _tr_ip = []
+                                                break
+                                    if len(_tr_ip) >= 2:
+                                        _tr_parts.append("seq (" + ", ".join(_tr_ip) + ")")
+                                        _tr_deep = True
+                                    else:
+                                        _tr_parts = []
+                                        break
+                                else:
+                                    _tr_parts = []
+                                    break
+                            if (_tr_deep and len(_tr_parts) >= 2
+                                    and len(_tr_parts) == len(_tr_elts)):
+                                return_value_type = "(" + ", ".join(_tr_parts) + ")"
             elif isinstance(node.returns, ast.Attribute):
                 # `typing.NoReturn` (Attribute value=Name "typing", attr
                 # "NoReturn") — the qualified spelling of the PEP 484 marker.

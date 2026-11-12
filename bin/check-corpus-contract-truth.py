@@ -97,6 +97,15 @@ NEVER_RETURNS = {
         "route #332 CONTROL, deliberately raising: a failing `assert` under the NAMED set "
         "`no_exception IndexError` keeps the erasure — AssertionError is outside the claimed "
         "set, so the claim is true and the `ensures` is partial-correctness (annotations §7.1).",
+    ("9517_lvp_trusted_tuple_list_val_typed.py", "B.count"):
+        "run #6 lvP witness, deliberately a `pass`-body `\\trusted` stub: the subject is how a TRUSTED "
+        "`-> List[Tuple[..]]` val is announced (typed and unconstrained), so the stub has no body and "
+        "CPython's `None` makes `len(rs)` a TypeError. The `ensures` is over the trusted contract's "
+        "admitted implementations; `__main__` runs one of them.",
+    ("9519_lvp_trusted_tuple_val_unpacked.py", "B.count"):
+        "run #6 lvP witness, same species as 9517: a `pass`-body `\\trusted` `-> Tuple[..]` stub, so "
+        "unpacking its `None` is a TypeError in CPython; the claim is over the trusted contract's "
+        "admitted implementations.",
 }
 MIN_RUNNABLE = 390   # first measurement 366 (functions only); the METHOD population
                      # added 39 more runnable contracts in its first measurement

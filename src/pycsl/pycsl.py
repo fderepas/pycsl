@@ -17900,6 +17900,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         (lambda _r: (_blk506.setdefault(_st506[-1], []).append("\n".join(
             str(_l) for _l in (_r if isinstance(_r, list) else [_r]))), _st506.pop(), _r)[2])(
             _ofb506(_f, *_a, **_k)))[1])
+    # (run #6) ROUTE #592 -- AN OMITTED `None` DEFAULT OF A MAP PARAMETER MUST NOT REACH A
+    # VERIFIED BODY. cap-none-default-map-param (lvN, c9ef6badd) fills a call that omits an
+    # `Optional[Dict[..]] = None` argument (the param's WhyML type is `map ..`) with the opaque
+    # `pycsl_none_map` (`_handle_dotted_call` for `self.m(..)`, `_handle_call_expr` for a
+    # module function; the only two `_add_abstract_op` sites of that `val`). The callee's
+    # body, when VERIFIED, reads that parameter as a MAP (`isinstance(d, dict)` is true,
+    # `len(d)` / `d.get(k)` / `d[k]` / `for k in d` / `bool(d)` are map operations), so its
+    # contract, proved for every map, is applied at a call where CPython passes `None`:
+    # `def g(x, d: Optional[Dict[str, str]] = None)` with `return 1 if isinstance(d, dict)
+    # else 0` and `#@ ensures \result == 1`, then `h() = g(3)`, PROVED `\result == 1`
+    # (CPython: 0; red team rt56 hc1762; before lvN the fill was ill-typed `0`, refused at
+    # L3). So the fill is observed here (an instance attribute over `_add_abstract_op`, the
+    # filling frame read for its callee key: emission byte-identical) and REFUSED unless
+    # every binding of the callee has no verified body: `\abstract`, `\trusted`, or a mirror
+    # `#@ declared_in` whose DEFINITION is `\trusted` / `\abstract` (its body is never proved
+    # against the constant). INLINE: `_run_pipeline`'s mirror twin is `\trusted`.
+    import sys as _sys592
+    _hit592: List[Any] = []
+    _oao592 = transpiler._add_abstract_op
+    transpiler._add_abstract_op = (lambda *_a, **_k: (
+        (lambda _fr: _hit592.append((
+            _fr.f_code.co_name,
+            _fr.f_locals.get("_dk") if _fr.f_code.co_name == "_handle_dotted_call"
+            else _fr.f_locals.get("func_name"),
+            _fr.f_locals.get("_nm") if _fr.f_code.co_name == "_handle_dotted_call"
+            else _fr.f_locals.get("nm"),
+            _st506[-1] if _st506 else "",
+            (_fr.f_locals.get("expr").get("lineno") or _fr.f_locals.get("expr").get("line")
+             or 0) if isinstance(_fr.f_locals.get("expr"), dict) else 0)))(
+                _sys592._getframe(1))
+        if str(_a[0] if _a else _k.get("decl", "")).startswith(
+            "val function pycsl_none_map ") else None,
+        _oao592(*_a, **_k))[1])
     # (#49) ROUTE #460 -- a refusal Module 6 raises inside a REACHED def says "this function
     # claims `#@ no_exception`" of a def that claims nothing itself: name the reached defs.
     try:
@@ -17921,6 +17954,80 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                    "_handle_fstring_expr", "_emit_function_block",
                    "_maybe_emit_no_exception_assert"):
         transpiler.__dict__.pop(_hn506, None)
+    # ROUTE #592 (see the observer above): judge every `pycsl_none_map` fill by its callee.
+    transpiler.__dict__.pop("_add_abstract_op", None)
+    if _hit592:
+        import re as _re592
+        from module6_whyml.identifiers import whyml_ident as _wid592
+        _fns592 = [_f for _f in ((getattr(transpiler, "ir", None) or {}).get("functions")
+                                 or []) if isinstance(_f, dict)]
+        _mir592 = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))), "src", "self-annotate", "src")
+        for _co592, _ky592, _pn592, _cl592, _ln592 in _hit592:
+            _bd592 = [_f for _f in _fns592 if _ky592 is not None and (
+                str(_f.get("name", "")) == str(_ky592)
+                or _wid592(str(_f.get("name", ""))) == str(_ky592))]
+            _why592 = None if _bd592 else "no def of it is visible to the checker"
+            for _f592 in _bd592:
+                if _f592.get("abstract"):
+                    continue
+                _rv592 = str(_f592.get("reviewer") or "")
+                if _f592.get("trusted") and not _rv592.startswith("declared_in:"):
+                    continue
+                if _f592.get("trusted"):
+                    # a mirror `#@ declared_in <relpath>::<Class.m>`: the DEFINITION decides
+                    _rl592, _, _q592 = _rv592[len("declared_in:"):].strip().partition("::")
+                    _dc592, _, _dm592 = _q592.rpartition(".")
+                    try:
+                        _tx592 = __import__("pathlib").Path(os.path.join(_mir592, _rl592)).read_text(
+                            encoding="utf-8").splitlines()
+                    except OSError:
+                        _tx592 = []
+                    _ci592 = next((_i for _i, _l in enumerate(_tx592) if _dc592 and _re592.match(
+                        r"class\s+" + _re592.escape(_dc592) + r"\b", _l)), None)
+                    _di592 = None
+                    if _ci592 is not None and _dm592:
+                        for _i592 in range(_ci592 + 1, len(_tx592)):
+                            if _re592.match(r"class\s", _tx592[_i592]):
+                                break
+                            if _re592.match(r"\s+(async\s+)?def\s+" + _re592.escape(_dm592)
+                                            + r"\s*\(", _tx592[_i592]):
+                                _di592 = _i592
+                                break
+                    _ok592 = False
+                    _j592 = (_di592 or 0) - 1
+                    while _di592 is not None and _j592 > _ci592 and (
+                            _tx592[_j592].strip().startswith("#@")
+                            or _tx592[_j592].strip().startswith("@")):
+                        if _re592.match(r"#@\s*\\(trusted|abstract)\b", _tx592[_j592].strip()):
+                            _ok592 = True
+                        _j592 -= 1
+                    if _ok592:
+                        continue
+                    _why592 = ("it is a `#@ declared_in` declaration whose definition `"
+                               + _rv592[len("declared_in:"):].strip()
+                               + "` is not `\\trusted` / `\\abstract` (or was not found)")
+                else:
+                    _why592 = "its body is verified"
+                break
+            if _why592 is not None:
+                from errors import PyCSLSemanticError as _PyCSLSemErr592
+                raise _PyCSLSemErr592(
+                    f"PYCSL-R592-NONE-DEFAULT-MAP-CONCRETE: in `{_cl592}`"
+                    + (f" (line {_ln592})" if _ln592 else "")
+                    + f", a call of `{_ky592}` omits the argument `{_pn592}`, whose default is "
+                    f"`None` and whose type is a dict (`Optional[Dict[..]]`, modelled as a map). "
+                    f"The model can only pass an opaque map there, and {_why592}: its proof treats "
+                    f"`{_pn592}` as a dict (`isinstance(.., dict)`, `len`, `.get`, `[k]`, "
+                    f"iteration, truthiness are all map operations), so the callee's contract, "
+                    f"proved for every dict, would be applied to a call where CPython passes "
+                    f"`None` (route #592; measured: `return 1 if isinstance(d, dict) else 0` "
+                    f"under `#@ ensures \\result == 1` proved `g(3) == 1`, CPython returns 0). "
+                    f"Pass the argument explicitly at this call (the dict you mean, e.g. "
+                    f"`{{}}`), or make `{_pn592}` a required parameter of the callee (no `None` "
+                    f"default), or mark the callee `#@ \\trusted` (counted in the trusted "
+                    f"base) only if its contract genuinely holds when `{_pn592}` is `None`.",
+                    stage="whyml", code="PYCSL-R592-NONE-DEFAULT-MAP-CONCRETE")
     # (#49) ROUTE #506 -- THE CENSUS. A site is every `TRIGGERS`-shaped expression of
     # `exception_model.TRIGGER_EXPR_SHAPES` (BinOp `/` `//` `%` `div` `mod` `<<` `>>` `**`,
     # any Subscript, a call of `divmod` / `chr` / `str` / `repr` / `format` / `print` /
@@ -18170,6 +18277,245 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"raises at n == 0). Bind the operation to a local in a plain statement first "
             f"(`q = 10 // n` then `s = {{q}}`), where its own obligation applies.",
             stage="whyml", code="PYCSL-R506-TRIGGER-SITE-UNLOWERED")
+    # (#49) ROUTE #589 -- A CONSTRUCTOR ARGUMENT AFTER THE FIRST IS NEVER EVALUATED. Module 5
+    # keeps `exc_type` and the FIRST argument of `raise E(a, ...)` only (the payload model,
+    # cap-exception-payload-model, lowers that one); every later positional argument and
+    # every keyword value is DROPPED. Route #310 above refuses a dropped part with a CALL (an
+    # effect); an implicit exception of a dropped part went with it: MEASURED (red team rt56
+    # R56-A, pre-existing at 822621340), `try: raise E("a", xs[9]) except E: return 1` under
+    # `#@ no_exception \all` + `ensures \result == 1` PROVED, and so did `E("a", 1 // k)` and
+    # `E("a", f"{xs[9]}")`; CPython raises IndexError / ZeroDivisionError. The model raises E.
+    # REFUSED here, with route #506's relevance (the same judge, the same sets): a raise in a
+    # VERIFIED def that claims any `no_exception` (declared or REACHED, route #460) or that a
+    # handler may catch from (`_cb506`, call graph included), whose dropped part holds anything
+    # but a literal, a tuple / list display of them, a negated number, or a name that is
+    # BOUND on entry to the raise (a parameter of the def, a module-level binding, a builtin,
+    # or a local assigned by a TOP-LEVEL statement of the def that precedes the raise). A
+    # module-level raise, or one whose def the IR does not name, is judged relevant
+    # (fail-closed). Source AST, inline: `_run_pipeline`'s mirror twin is `\trusted`.
+    import ast as _ast589
+    import builtins as _bi589
+    try:
+        _t589 = _ast589.parse(source_code)
+    except Exception:
+        _t589 = None
+    # The program's OTHER modules: a def there that the main file's claimed / handler-covered
+    # defs call (by name, transitively through those modules' own calls) is judged too --
+    # its exported contract is what this file's handlers see (route #178's channel; measured:
+    # `except IndexError` around an imported `g` whose body is `raise E("a", xs[9])` proved
+    # the arm dead, CPython takes it). Resolved like route #181: this file's directory and
+    # `--import-path`, `from pkg import mod` submodules included.
+    _trees589: List[Any] = [] if _t589 is None else [(_t589, str(args.file), True)]
+    if _t589 is not None:
+        _dirs589 = [os.path.dirname(os.path.abspath(str(args.file)))]
+        _dirs589 += [str(_d) for _d in (getattr(args, "import_path", None) or [])]
+        _seen589: Set[str] = {os.path.abspath(str(args.file))}
+        _todo589: List[Any] = [(_t589, _dirs589[0])]
+        while _todo589 and len(_seen589) < 64:
+            _tr589, _here589 = _todo589.pop()
+            for _im589 in _ast589.walk(_tr589):
+                _mods589: List[Any] = []
+                if isinstance(_im589, _ast589.ImportFrom):
+                    _base589 = (_im589.module or "")
+                    if _im589.module:
+                        _mods589.append((_im589.module, _im589.level or 0))
+                    _mods589.extend(((_base589 + "." if _base589 else "") + _a.name,
+                                     _im589.level or 0) for _a in _im589.names if _a.name != "*")
+                elif isinstance(_im589, _ast589.Import):
+                    _mods589.extend((_a.name, 0) for _a in _im589.names)
+                for _mn589, _lv589 in _mods589:
+                    for _dd589 in (([_here589] if _lv589 else []) + ([] if _lv589 else
+                                                                     [_here589] + _dirs589)):
+                        for _pp589 in (os.path.join(_dd589, *_mn589.split(".")) + ".py",
+                                       os.path.join(_dd589, *_mn589.split("."), "__init__.py")):
+                            _ap589 = os.path.abspath(_pp589)
+                            if _ap589 in _seen589 or not os.path.isfile(_ap589):
+                                continue
+                            _seen589.add(_ap589)
+                            try:
+                                _dt589 = _ast589.parse(open(_ap589, encoding="utf-8",
+                                                            errors="replace").read())
+                            except Exception:
+                                continue
+                            _trees589.append((_dt589, _ap589, False))
+                            _todo589.append((_dt589, os.path.dirname(_ap589)))
+    # the names the main file's sensitive (claimed / handler-covered) verified defs call, closed
+    # over the other modules' defs by name
+    _sens589: Set[str] = set()
+    for _g589 in _ver506:
+        _gn589 = str(_g589.get("name", ""))
+        _cq589 = _g589.get("contracts") or {}
+        _rq589 = (getattr(transpiler, "reach_r460", None) or {}).get(_gn589) or ([], False)
+        if (_cq589.get("no_exception_all") or _cq589.get("no_exception") or _rq589[0]
+                or _rq589[1] or _cb506.get(_gn589)):
+            _sens589 |= set(_cg506.get(_gn589, set()))
+    _dcg589: Dict[str, Set[str]] = {}
+    for _tt589, _pp589, _main589 in _trees589:
+        if _main589:
+            continue
+        for _x589 in _ast589.walk(_tt589):
+            if isinstance(_x589, (_ast589.FunctionDef, _ast589.AsyncFunctionDef)):
+                _dcg589.setdefault(_x589.name, set()).update(
+                    (_c.func.id if isinstance(_c.func, _ast589.Name) else _c.func.attr)
+                    for _c in _ast589.walk(_x589) if isinstance(_c, _ast589.Call)
+                    and isinstance(_c.func, (_ast589.Name, _ast589.Attribute)))
+    _cl589: Set[str] = set()
+    _wq589: List[str] = sorted(_sens589)
+    while _wq589:
+        _n589 = _wq589.pop()
+        if _n589 in _cl589:
+            continue
+        _cl589.add(_n589)
+        _wq589.extend(sorted(_dcg589.get(_n589, set()) - _cl589))
+    for _tt589, _pp589, _main589 in _trees589:
+        _vn589 = {str(_f.get("name", "")) for _f in _ver506}
+        _byline589: Dict[int, List[str]] = {}
+        for _f589 in _last506.values():
+            if isinstance(_f589.get("line"), int) and _f589.get("line"):
+                _byline589.setdefault(int(_f589["line"]), []).append(str(_f589.get("name", "")))
+        _mod589: Set[str] = set()
+        for _s589 in _tt589.body:
+            for _x589 in _ast589.walk(_s589):
+                if isinstance(_x589, (_ast589.FunctionDef, _ast589.AsyncFunctionDef,
+                                      _ast589.ClassDef)):
+                    if _x589 is _s589:
+                        _mod589.add(_x589.name)
+                    continue
+                if isinstance(_x589, _ast589.Name) and isinstance(_x589.ctx, _ast589.Store):
+                    _mod589.add(_x589.id)
+                elif isinstance(_x589, (_ast589.Import, _ast589.ImportFrom)):
+                    _mod589.update((_a.asname or _a.name).split(".")[0] for _a in _x589.names)
+            if isinstance(_s589, (_ast589.FunctionDef, _ast589.AsyncFunctionDef,
+                                  _ast589.ClassDef)):
+                _mod589.add(_s589.name)
+        # (raise node, enclosing def or None, owning class name or None)
+        _wk589: List[Any] = [(_s, None, None) for _s in _tt589.body]
+        _rs589: List[Any] = []
+        while _wk589:
+            _x589, _d589, _c589 = _wk589.pop()
+            if isinstance(_x589, (_ast589.FunctionDef, _ast589.AsyncFunctionDef)):
+                _wk589.extend((_y, _x589, _c589 if _d589 is None else None)
+                              for _y in _ast589.iter_child_nodes(_x589))
+                continue
+            if isinstance(_x589, _ast589.ClassDef):
+                _wk589.extend((_y, _d589, _x589.name if _d589 is None else None)
+                              for _y in _ast589.iter_child_nodes(_x589))
+                continue
+            if (isinstance(_x589, _ast589.Raise) and isinstance(_x589.exc, _ast589.Call)
+                    and isinstance(_x589.exc.func, _ast589.Name)):
+                _rs589.append((_x589, _d589, _c589))
+            _wk589.extend((_y, _d589, _c589) for _y in _ast589.iter_child_nodes(_x589))
+        for _r589, _d589, _c589 in _rs589:
+            _dr589 = list(_r589.exc.args[1:]) + [_k.value for _k in _r589.exc.keywords]
+            if not _dr589:
+                continue
+            _bd589: Set[str] = set()
+            if _d589 is not None:
+                _bd589.update(_a.arg for _a in (_d589.args.posonlyargs + _d589.args.args
+                                                + _d589.args.kwonlyargs))
+                _bd589.update(_a.arg for _a in (_d589.args.vararg, _d589.args.kwarg)
+                              if _a is not None)
+                # a plain assignment statement PRECEDING the raise (or one of its enclosing
+                # statements) in the same statement block of the def dominates the raise
+                _pa589: Dict[int, Any] = {}
+                for _p589 in _ast589.walk(_d589):
+                    for _ch589 in _ast589.iter_child_nodes(_p589):
+                        _pa589[id(_ch589)] = _p589
+                _cu589: Any = _r589
+                while _cu589 is not _d589 and id(_cu589) in _pa589:
+                    _up589 = _pa589[id(_cu589)]
+                    for _fv589 in _ast589.iter_fields(_up589):
+                        _bl589 = _fv589[1]
+                        if not (isinstance(_bl589, list) and any(_s is _cu589 for _s in _bl589)):
+                            continue
+                        for _s589 in _bl589:
+                            if _s589 is _cu589:
+                                break
+                            if isinstance(_s589, (_ast589.Assign, _ast589.AnnAssign)) and (
+                                    getattr(_s589, "value", None) is not None):
+                                _bd589.update(_n.id for _tg in (_s589.targets if isinstance(
+                                    _s589, _ast589.Assign) else [_s589.target])
+                                    for _n in _ast589.walk(_tg) if isinstance(_n, _ast589.Name))
+                    _cu589 = _up589
+            _bad589 = None
+            for _y589 in [_z for _q in _dr589 for _z in _ast589.walk(_q)]:
+                if isinstance(_y589, (_ast589.Constant, _ast589.expr_context,
+                                      _ast589.unaryop)):
+                    continue
+                if isinstance(_y589, (_ast589.Tuple, _ast589.List)) and isinstance(
+                        _y589.ctx, _ast589.Load):
+                    continue
+                if (isinstance(_y589, _ast589.UnaryOp)
+                        and isinstance(_y589.op, (_ast589.USub, _ast589.UAdd))
+                        and isinstance(_y589.operand, _ast589.Constant)
+                        and type(_y589.operand.value) in (int, float)):
+                    continue
+                if (isinstance(_y589, _ast589.Name) and isinstance(_y589.ctx, _ast589.Load)
+                        and (_y589.id in _bd589
+                             or (_y589.id in _mod589 and _y589.id not in {
+                                 _n.id for _n in (_ast589.walk(_d589) if _d589 is not None else [])
+                                 if isinstance(_n, _ast589.Name)
+                                 and isinstance(_n.ctx, _ast589.Store)})
+                             or (hasattr(_bi589, _y589.id) and _y589.id not in _mod589
+                                 and _y589.id not in {
+                                     _n.id for _n in (_ast589.walk(_d589) if _d589 is not None
+                                                      else [])
+                                     if isinstance(_n, _ast589.Name)
+                                     and isinstance(_n.ctx, _ast589.Store)}))):
+                    continue
+                _bad589 = _y589
+                break
+            if _bad589 is None:
+                continue
+            # another module's def: judged when the main file's sensitive defs reach its name
+            if not _main589:
+                if _d589 is None or _d589.name not in _cl589:
+                    continue
+            # the IR def(s) of the enclosing source def: by its line, else by name
+            _fns589: List[str] = []
+            if not _main589:
+                pass
+            elif _d589 is not None:
+                _fns589 = list(_byline589.get(_d589.lineno, []))
+                if not _fns589:
+                    _fns589 = [_g for _g in _last506 if _g == _d589.name
+                               or _g.endswith("__" + _d589.name)]
+            _rel589 = (not _main589) or _d589 is None or not _fns589
+            for _g589 in _fns589:
+                if _g589 not in _vn589:
+                    continue
+                _cg589 = _last506[_g589].get("contracts") or {}
+                _rh589 = (getattr(transpiler, "reach_r460", None) or {}).get(_g589) or ([], False)
+                if (_cg589.get("no_exception_all") or _cg589.get("no_exception")
+                        or _rh589[0] or _rh589[1] or _cb506.get(_g589)):
+                    _rel589 = True
+            if (_main589 and _d589 is not None and _fns589
+                    and not any(_g in _vn589 for _g in _fns589)):
+                _rel589 = False
+            if not _rel589:
+                continue
+            from errors import PyCSLSemanticError as _PyCSLSemErr589
+            raise _PyCSLSemErr589(
+                f"line {_r589.lineno}"
+                + ("" if _main589 else f" of {os.path.relpath(_pp589, _dirs589[0])} (a module "
+                   f"this file imports, whose "
+                   f"`{getattr(_d589, 'name', '')}` a claimed or handler-covered def of this "
+                   f"file calls)")
+                + f": PYCSL-R589-RAISE-ARGUMENT-UNEVALUATED: "
+                f"`raise {_r589.exc.func.id}(...)` passes "
+                f"`{_ast589.unparse(_bad589)[:60]}` after its first argument (or as a keyword "
+                f"value), and the model keeps only the exception class and its FIRST "
+                f"argument, so that operand is never evaluated in the proof. Python evaluates "
+                f"it before the exception is built, and it can raise (IndexError, KeyError, "
+                f"ZeroDivisionError, AttributeError, TypeError, NameError, ...) INSTEAD of "
+                f"`{_r589.exc.func.id}`; this def claims `no_exception` or a handler may catch "
+                f"from it, so that exception would be missing from the proof (route #589; "
+                f"measured: `raise E(\"a\", xs[9])` under `except E` proved `no_exception "
+                f"\\all`, CPython raises IndexError). FIX: rewrite the raise: bind the "
+                f"operand to a local in a plain statement before the `raise` (`v = xs[9]` then `raise "
+                f"{_r589.exc.func.id}(\"a\", v)`), where its own obligation applies, or pass "
+                f"only the first argument.",
+                stage="whyml", code="PYCSL-R589-RAISE-ARGUMENT-UNEVALUATED")
     # (#49) ROUTES #507 / #508 / #509 -- THE OverflowError OBLIGATIONS OF `\all` MUST REACH
     # THEIR LOWERING TOO. Route #506's census above covers the `exception_model.TRIGGERS`
     # rows only; the OverflowError obligations the emitter attaches under `no_exception \all`
@@ -24893,6 +25239,177 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     and _al175.targets[0].id not in _bases175):
                 _bases175[_al175.targets[0].id] = [_al175.value.id]
                 _alias175[_al175.targets[0].id] = _al175.value.id
+        # (#49) ROUTES #590 / #591 -- WHAT IS RAISED, AND ITS `from` CAUSE, MUST BE AN
+        # EXCEPTION. The raise lowers to the tag named by the class (`exc_type`), declared as
+        # a Why3 exception whatever that name is bound to, and the `from` cause is dropped.
+        # MEASURED (red team rt56 R56-B / R56-C, pre-existing at 822621340): `raise E("a")`
+        # of a `@dataclass class E` or of a plain class with an `__init__`, caught by
+        # `except E`, PROVED `no_exception \all` + `\result == 1`, and so did `raise E("a")
+        # from 1` / `from k` (an int); CPython raises TypeError ("exceptions must derive from
+        # BaseException", "exception causes must derive from BaseException"). REFUSED, main
+        # file (classes resolved over it and the dependency modules it imports, `_tall175`):
+        # (#590) a raised name (`raise X(...)` / `raise X`) that is a class whose bases do not
+        # reach a builtin `BaseException` subclass through classes we can see (a base we
+        # cannot resolve is refused too), a non-exception builtin, or a `def`; a raised
+        # literal / display / f-string / operator expression; (#591) a cause that is not
+        # `None`, an exception class, or the `except ... as` name of a handler enclosing the
+        # raise (never rebound in it). A name the files do not bind is left to the name
+        # rules. Inline: `_run_pipeline`'s mirror twin is `\trusted`.
+        import builtins as _bi590
+        _cls590 = {}
+        _def590 = set()
+        _imp590 = {}
+        for _c590 in _ast175.walk(_tall175):
+            if isinstance(_c590, _ast175.ClassDef):
+                _cls590.setdefault(_c590.name, []).append(
+                    [(_b.id if isinstance(_b, _ast175.Name) else
+                      _b.attr if isinstance(_b, _ast175.Attribute) else None)
+                     for _b in _c590.bases])
+            elif isinstance(_c590, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                _def590.add(_c590.name)
+            elif isinstance(_c590, _ast175.ImportFrom):
+                for _a590 in _c590.names:
+                    if _a590.asname and _a590.asname != _a590.name:
+                        _imp590[_a590.asname] = _a590.name
+        # a name's verdict: "exc" (an exception class), "non" (resolvably not one) or "?"
+        _vd590 = {}
+        for _it590 in range(64):
+            _ch590 = False
+            for _n590 in set(_cls590) | set(_alias175) | set(_imp590):
+                _m590 = _alias175.get(_n590, _imp590.get(_n590, _n590))
+                if _m590 != _n590:
+                    _v590 = _vd590.get(_m590)
+                    if _v590 is None:
+                        _b590 = getattr(_bi590, _m590, None)
+                        _v590 = ("exc" if isinstance(_b590, type) and issubclass(
+                            _b590, BaseException) else None)
+                elif _n590 in _cls590:
+                    _vs590 = []
+                    for _bs590 in _cls590[_n590]:
+                        _w590 = "non"
+                        for _b590 in _bs590:
+                            _bb590 = getattr(_bi590, _b590, None) if _b590 else None
+                            if _b590 is None:
+                                _x590 = "?"
+                            elif _b590 in _vd590:
+                                _x590 = _vd590[_b590]
+                            elif _b590 in _cls590 or _b590 in _alias175 or _b590 in _imp590:
+                                _x590 = "?"
+                            elif isinstance(_bb590, type):
+                                _x590 = "exc" if issubclass(_bb590, BaseException) else "non"
+                            elif _b590 in ("Generic", "Protocol"):
+                                _x590 = "non"
+                            else:
+                                _x590 = "?"
+                            if _x590 == "exc":
+                                _w590 = "exc"
+                                break
+                            if _x590 != "non":
+                                _w590 = "?"
+                        _vs590.append(_w590)
+                    # a name defined as several classes is an exception only if every one is
+                    _v590 = ("exc" if all(_w == "exc" for _w in _vs590)
+                             else "non" if all(_w in ("non", "exc") for _w in _vs590)
+                             and any(_w == "non" for _w in _vs590) else "?")
+                else:
+                    continue
+                if _v590 is not None and _vd590.get(_n590) != _v590:
+                    _vd590[_n590] = _v590
+                    _ch590 = True
+            if not _ch590:
+                break
+        _pa590 = {}
+        for _p590 in _ast175.walk(_t175):
+            for _q590 in _ast175.iter_child_nodes(_p590):
+                _pa590[id(_q590)] = _p590
+        for _r590 in _ast175.walk(_t175):
+            if not isinstance(_r590, _ast175.Raise) or _r590.exc is None:
+                continue
+            # the `except ... as` names of the handlers enclosing this raise (same def)
+            _as590 = set()
+            _cu590 = _r590
+            while id(_cu590) in _pa590 and not isinstance(_cu590, (
+                    _ast175.FunctionDef, _ast175.AsyncFunctionDef, _ast175.Lambda,
+                    _ast175.ClassDef)):
+                _cu590 = _pa590[id(_cu590)]
+                if isinstance(_cu590, _ast175.ExceptHandler) and _cu590.name and not any(
+                        isinstance(_z, _ast175.Name) and _z.id == _cu590.name
+                        and isinstance(_z.ctx, (_ast175.Store, _ast175.Del))
+                        for _s in _cu590.body for _z in _ast175.walk(_s)):
+                    _as590.add(_cu590.name)
+            for _role590, _e590 in (("raised", _r590.exc), ("cause", _r590.cause)):
+                if _e590 is None:
+                    continue
+                _why590 = None
+                _nm590 = (_e590.func.id if isinstance(_e590, _ast175.Call)
+                          and isinstance(_e590.func, _ast175.Name)
+                          else _e590.id if isinstance(_e590, _ast175.Name) else None)
+                if _role590 == "cause" and isinstance(_e590, _ast175.Constant) and _e590.value is None:
+                    continue
+                if _nm590 is not None:
+                    if isinstance(_e590, _ast175.Name) and _nm590 in _as590:
+                        continue
+                    _v590 = _vd590.get(_nm590)
+                    if _v590 is None and _nm590 not in _cls590 and _nm590 not in _def590:
+                        _bb590 = getattr(_bi590, _nm590, None)
+                        _v590 = ("exc" if isinstance(_bb590, type) and issubclass(
+                            _bb590, BaseException) else "non" if _bb590 is not None
+                            and _nm590 not in _imp590 else None)
+                    if _v590 == "exc":
+                        continue
+                    if _v590 == "non":
+                        _why590 = (f"`{_nm590}` is not an exception class (its bases do not "
+                                   f"reach `BaseException`)")
+                    elif _v590 == "?":
+                        _why590 = (f"`{_nm590}` is a class whose bases cannot be placed in "
+                                   f"the exception hierarchy")
+                    elif _nm590 in _def590:
+                        _why590 = (f"`{_nm590}` is a function, so the raised object is "
+                                   f"whatever it returns, which the model does not know")
+                    elif _role590 == "cause":
+                        _why590 = (f"`{_nm590}` is a value the model cannot place as an "
+                                   f"exception (only `None`, an exception class or the "
+                                   f"enclosing handler's `except ... as` name are)")
+                    else:
+                        continue
+                elif isinstance(_e590, (_ast175.Constant, _ast175.JoinedStr, _ast175.List,
+                                        _ast175.Tuple, _ast175.Set, _ast175.Dict,
+                                        _ast175.BinOp, _ast175.UnaryOp, _ast175.Compare,
+                                        _ast175.BoolOp, _ast175.ListComp, _ast175.SetComp,
+                                        _ast175.DictComp, _ast175.GeneratorExp,
+                                        _ast175.Lambda)):
+                    _why590 = (f"`{_ast175.unparse(_e590)[:40]}` is not an exception class "
+                               f"or instance")
+                elif _role590 == "cause":
+                    _why590 = (f"`{_ast175.unparse(_e590)[:40]}` is a value the model cannot "
+                               f"place as an exception (only `None`, an exception class or "
+                               f"the enclosing handler's `except ... as` name are)")
+                if _why590 is None:
+                    continue
+                from errors import PyCSLSemanticError as _PyCSLSemErr590
+                if _role590 == "raised":
+                    raise _PyCSLSemErr590(
+                        f"line {_r590.lineno}: PYCSL-R590-RAISE-NON-EXCEPTION: "
+                        f"`raise {_ast175.unparse(_e590)[:50]}`: {_why590}. CPython raises "
+                        f"TypeError (\"exceptions must derive from BaseException\") here, "
+                        f"while the model raises a tag named after it, so a handler / "
+                        f"`no_exception` claim would be proved of an exception that is never "
+                        f"raised (route #590; measured: `raise E(\"a\")` of a `@dataclass "
+                        f"class E`, under `except E`, proved `no_exception \\all`). FIX: "
+                        f"declare the class as an exception (`class E(Exception)`), or "
+                        f"raise an exception class instead.",
+                        stage="whyml-emit", code="PYCSL-R590-RAISE-NON-EXCEPTION")
+                raise _PyCSLSemErr590(
+                    f"line {_r590.lineno}: PYCSL-R591-RAISE-FROM-NON-EXCEPTION: "
+                    f"`raise ... from {_ast175.unparse(_e590)[:50]}`: {_why590}. The model "
+                    f"drops the cause, and CPython raises TypeError (\"exception causes must "
+                    f"derive from BaseException\") for a cause that is not one, so the "
+                    f"raised exception would be proved of a statement that raises TypeError "
+                    f"instead (route #591; measured: `raise E(\"a\") from 1` and `from k` "
+                    f"under `except E` proved `no_exception \\all`). FIX: write `from None`, "
+                    f"`from <ExceptionClass>`, or `from e` with `e` the enclosing handler's "
+                    f"`except ... as e` name.",
+                    stage="whyml-emit", code="PYCSL-R591-RAISE-FROM-NON-EXCEPTION")
         if _bases175:
             _lines175 = source_code.splitlines()
             _decl175 = {}

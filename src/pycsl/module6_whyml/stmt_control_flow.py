@@ -2208,6 +2208,38 @@ class ControlFlowStmtMixin:
             # the bare (non-deref) reads the body already emits for these names.
             # BYTE-INERT BY CONSTRUCTION: an unhandled tuple target does not type-check
             # today, so no currently-green emission can reach this branch.
+            # cap-vm-unerase-tuple (run #6 lvP): a loop over a TUPLE-ELEMENT seq local
+            # (`_seq_value_types[it]` = `(t1, .., tn)`, the element type
+            # `_reset_function_state` recorded) whose target unpacks exactly n names binds
+            # each READ component to its PROJECTION of the element -- `let nm = (let
+            # (_r0_, _) = !_for_target in _r0_) in` -- instead of the `any int` havoc below
+            # (immutable, matching the bare reads the body emits for these names).
+            _tq_it = (iter_ir.get("name") if isinstance(iter_ir, dict)
+                      and iter_ir.get("type") == "Var" else None)
+            _tq_et = ((getattr(self, "_seq_value_types", {}) or {}).get(_tq_it)
+                      if _tq_it in getattr(self, "_seq_locals", set()) else None)
+            if (tuple_targets and isinstance(_tq_et, str) and _tq_et.startswith("(")
+                    and _tq_et.endswith(")")):
+                _tq_dp, _tq_ar = 0, 1
+                for _tq_ch in _tq_et[1:-1]:
+                    if _tq_ch == "(":
+                        _tq_dp += 1
+                    elif _tq_ch == ")":
+                        _tq_dp -= 1
+                    elif _tq_ch == "," and _tq_dp == 0:
+                        _tq_ar += 1
+                if _tq_ar == len(tuple_targets):
+                    _ftq = [f"{bind_indent}let {safe_target} = ref ({elem_expr}) in"]
+                    for _tq_k, _tn in enumerate(tuple_targets):
+                        if not _tn or _tn == "_":
+                            continue
+                        _tw = whyml_ident(_tn)
+                        if re.search(r"\b" + re.escape(_tw) + r"\b", inner_body):
+                            _tq_pat = ", ".join(f"_r{_tq_k}_" if _j == _tq_k else "_"
+                                                for _j in range(_tq_ar))
+                            _ftq.append(f"{bind_indent}let {_tw} = "
+                                        f"(let ({_tq_pat}) = !{safe_target} in _r{_tq_k}_) in")
+                    return _ftq
             if tuple_targets:
                 _ftl = [f"{bind_indent}let {safe_target} = ref ({elem_expr}) in"]
                 for _tn in tuple_targets:

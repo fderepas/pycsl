@@ -6149,6 +6149,7 @@ class PreambleEmissionMixin:
             "  let function svalue_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub v _ -> v | _ -> IrOther \"\" end",
             "",
+            "(*__pycsl_field_proj_slot__*)",
             "  let function sindex_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub _ i -> i | _ -> IrOther \"\" end",
             "",
@@ -9083,7 +9084,20 @@ class PreambleEmissionMixin:
                         # IR-node-typed param (`_uses_ir_node_param`) — the Module5 mirror
                         # imports its IR records via the latter, not @mutable_state. Both
                         # gates are False for the corpus → `array int`, byte-identical.
-                        if (f.get("value_type") == "hval"
+                        if (isinstance(f.get("value_type"), str)
+                                and f.get("value_type").startswith("(")
+                                and f.get("value_type").endswith(")")):
+                            # cap-vm-unerase-tuple (run #6 lvP): a `List[Tuple[..]]` field
+                            # with an IR-node / nested-list slot (Module5 sets value_type
+                            # `(t1, .., tn)` only then) is the PURE `seq (t1, .., tn)` of
+                            # native Why3 tuples: a tuple holding a nested list is itself
+                            # pure only with a `seq` inner carrier (an `array` component
+                            # makes `Seq.snoc` "instantiate a pure type variable with a
+                            # mutable type"), and the record's constructor binds the
+                            # caller's accumulator seq as-is. No corpus field has this
+                            # value_type -> byte-inert.
+                            ftype = f"seq {f.get('value_type')}"
+                        elif (f.get("value_type") == "hval"
                                 and (getattr(self, "_mutable_state_classes", None)
                                      or getattr(self, "_uses_ir_node_param", False))):
                             # K1 (seq-pyval self-field append, self-tcb-reduction Tier-5):
