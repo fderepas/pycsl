@@ -63,3 +63,7 @@ RULE (annotations §7.595), inside route #582's walk (same population: every sta
   ceiling), check-refusal-witness-coverage (444 demonstrated, +12 census rows from `_census_row`),
   check-refusal-advice-audited (257 audited, +2 FOLLOWABLE: R593 / R595), check-open-route-carriers (14 carriers
   unchanged) all rc 0. Proof-axiom ledger 3 (`proof_axiom_allowlist.py` untouched); no new `#@ \trusted`.
+- Rule 18 slow planes on HEAD (emit dir = the HEAD mirror sweep, byte-identical to the base one):
+  check-assigns-writes-survival rc 0, check-getattr-erasure rc 0; check-trusted-frame-honesty rc 1 (model-visible
+  ratchets 1 > 0 and 48 > 0) with output IDENTICAL to the same command on the base 4e6004f3b with the base mirror
+  sweep: PRE-EXISTING, not moved by this change (nothing in the mirror or in a method frame changed).
