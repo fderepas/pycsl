@@ -1,7 +1,7 @@
 # Driver run #6 — final report (self-tcb-reduction-driver, AUTONOMOUS, 96 h)
 
 Window: 2026-11-08T17:56Z .. 2026-11-12T17:56Z (`getting-better/.driver-deadline` = 1794506189). Branch
-`ghost-assign-bc6`. Run-log entries 644-~800 (`getting-better/driver-run-log.md`). Plan of record:
+`ghost-assign-bc6`. Run-log entries 644-~820 (`getting-better/driver-run-log.md`). Plan of record:
 `getting-better/driver-run5-plan.md` (capability batches, cheap gates per conversion, batched whole-file mirror
 proofs, integration tree + battery before landing, reduced red-team cadence, one repair executor at a time); its §5
 slot layout superseded by the 2-slot heavy queue. COMMIT-ONLY: nothing was pushed.
@@ -23,7 +23,7 @@ slot layout superseded by the 2-slot heavy queue. COMMIT-ONLY: nothing was pushe
   - lvO — law-free re.Match model + constant-pair loop unroll [1].
   - lvP — List[Tuple]/Tuple returns as pure seqs of native tuples + typed pass-body trusted tuple stubs [4].
 - **Repair executors (one at a time on the backlog, plus mandatory ones).** u36 (#579 #580 #582), u37 (#583 + the 2
-  re-conversions), u38 (#584 #585), u39 (#589 #590 #591), u40 (#592, introduced by run #6 — mandatory).
+  re-conversions), u38 (#584 #585), u39 (#589 #590 #591), u40 (#592, introduced by run #6 — mandatory), u41 (#593 #595, wrap-up).
 - **Red team.**
   - rt56 (scope = run #6's capabilities and routes): 1068 probes, 966 CPython-breaching; its proofs were starved by
     the batch proofs and completed by the driver. 15 confirmed false proofs in 6 families: 14 PRE-EXISTING (#589-#591,
