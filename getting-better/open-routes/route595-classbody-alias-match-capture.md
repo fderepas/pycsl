@@ -53,4 +53,13 @@ RULE (annotations §7.595), inside route #582's walk (same population: every sta
   (`except ... as n` in the class body, CPython AttributeError: R582 -> R595, refused at both); the honest controls
   hh1722 / hh1730 keep their route #582 refusal.
 - INERTNESS (own base = `git archive 4e6004f3b`, same scripts, launched from the tree root): mirror 53/53 0 MOVED / 0
-  GONE / 0 APPEARED (after the `type`-store fix, see route #593); corpus root and python-reference: see below.
+  GONE / 0 APPEARED (after the `type`-store fix, see route #593); corpus root 3103 -> 3108 .mlw 0 MOVED / 0 GONE / 0
+  APPEARED (`--new-source` the 17 u41 files: the 5 controls emit, the 12 witnesses are refused); python-reference
+  2185 0 / 0 / 0. No existing corpus file is newly refused. Candidate pre-check (216 corpus files importing `ast` /
+  IR modules with classes, using `default_factory` / a `field` binding, or a `match` statement): 0 R593 / R595.
+- GATES on HEAD (u41, 2026-11-12): fidelity check-self-annotate-sync / self-annotate-mirror-check / doc-coherency
+  --check rc 0 x3; run-soundness-planes.sh (fast) rc 0, 62/62 green; individually check-vacuous-drivers,
+  check-dropped-mutation (0 dropped, CTXBIND 51 = ratchet: no `with ... as` added), check-claim-vacuity (1791 at the
+  ceiling), check-refusal-witness-coverage (444 demonstrated, +12 census rows from `_census_row`),
+  check-refusal-advice-audited (257 audited, +2 FOLLOWABLE: R593 / R595), check-open-route-carriers (14 carriers
+  unchanged) all rc 0. Proof-axiom ledger 3 (`proof_axiom_allowlist.py` untouched); no new `#@ \trusted`.

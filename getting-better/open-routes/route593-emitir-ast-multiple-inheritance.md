@@ -66,4 +66,8 @@ self-annotation's, stated in route #579's table.
   triage), hf1736 (was a Why3 type error) and hf1735 (CPython-honest for its one input; its file defines `class
   B2(ast.Name, ast.Call)`, exactly the refused shape, and its claim `\result == 1` is false for an `ast.Call` input
   anyway).
-- INERTNESS: see the route #595 doc (one landing; same sweeps).
+- Controls 9663 / 9664 under typed / store: a Why3 type error at base and HEAD alike (an existing model limit; the
+  corpus runs them in the default model).
+- INERTNESS (own base = `git archive 4e6004f3b`, same scripts, from the tree root): mirror 53/53 0 / 0 / 0; corpus
+  root 3103 -> 3108 .mlw 0 MOVED / 0 GONE / 0 APPEARED (+5 controls); python-reference 2185 0 / 0 / 0 (details and
+  gates in the route #595 doc; one landing).
