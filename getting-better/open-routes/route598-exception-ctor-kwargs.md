@@ -1,0 +1,2 @@
+# OPEN ROUTE #598 — KEYWORD ARGUMENTS TO AN EXCEPTION CONSTRUCTOR (raise ValueError("a", q=1); OSError(...)) ARE DROPPED WITH NO ARITY CHECK, SO no_exception PROVES WHILE CPYTHON RAISES TypeError
+**Status: OPEN, Severity 1, pre-existing (red team rt57 F3, 8 probes; all prove on 822621340). R589 (route #589) judges only whether a dropped part can raise, not whether the constructor accepts it.** Witnesses witnesses-r598/.

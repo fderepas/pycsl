@@ -1,0 +1,2 @@
+# OPEN ROUTE #597 — R590 RESIDUAL: A RAISED CLASS NAME REBOUND INSIDE THE FUNCTION (local assignment, parameter, import alias of a module / function, walrus, annotated assignment) TO A NON-EXCEPTION PROVES no_exception WHILE CPYTHON RAISES TypeError
+**Status: OPEN, Severity 1, pre-existing (red team rt57 F2, 30 probes; all prove on 822621340). R590 (route #590, run #6) resolves the module-level class and misses function-local rebinding.** Witnesses witnesses-r597/.
