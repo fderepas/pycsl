@@ -6303,6 +6303,43 @@ make the parameter required, or mark the callee `#@ \trusted` only if its contra
 9630-9634 (FAIL), controls 9640 (trusted callee) / 9641 (explicit argument), 9390 (lvN's witness, callees now
 trusted). Measurements: `getting-better/open-routes/route592-none-default-map-concrete-callee.md`.
 
+### 7.593 A program that narrows by an IR node class may not subclass one (route #593, run #6)
+
+The emit_ir model decides `isinstance(<emit_ir>, ast.Name)` / `isinstance(<emit_ir>, ast.Call)` by the node's
+constructor tag (`is_var`, ...), so two node classes are DISJOINT there. `class B(ast.Name, ast.Call): pass` makes one
+CPython object an instance of both: `if isinstance(x, ast.Name) and isinstance(x, ast.Call): return 1` PROVED
+`ensures \result == 0` (red team rt56 hd1767 / hd1768, PRE-EXISTING; CPython returns 1). RULE (`pycsl.py::_run_pipeline`
+on the standard-library AST, twin `\trusted`; inline, no new def, no axiom), fail-closed and only where the narrowing
+can fire -- some name of the source RESOLVES as an IR class or namespace (§7.579's table): (a) every class statement's
+bases and keywords (type arguments `[...]` aside) may name only builtins, classes of this file (an attribute of one
+only when it names a nested class statement), and imports of modules that are not IR modules; a name of an import of
+`ast` / `_ast` / `pure_ast` / `ir_schema` / `Module2_Parser` (however spelled, aliased or relative) is admitted only as
+the visitors `NodeVisitor` / `NodeTransformer`; a base name bound otherwise (an alias, a parameter, an `importlib`
+result) or imported from a module of the program found outside pycsl's own `src/` (it may re-export an IR class) is
+refused, and so is a `metaclass=` / `**` keyword (a metaclass may rewrite the bases); (b) no class is built another way:
+`type` used other than as `type(x)` / in an annotation / as the class argument of `isinstance`, a call through
+`__new__` / `__class__` / `new_class`, a store to `__class__` / `__bases__`, a `__mro_entries__` definition. Refusal
+`PYCSL-R593-IR-NODE-SUBCLASS` (naming the class and base, or the construct). A ONE-base subclass is refused too (it may
+override a node field with a property). Advice: wrap the node in a class of your own instead of subclassing it, and
+name base classes directly. RESIDUAL (named): a subclass defined in ANOTHER module and passed in by a caller there is
+outside this file's view. Measurements: `getting-better/open-routes/route593-emitir-ast-multiple-inheritance.md`.
+
+### 7.595 Every class-body binding form counts for §7.582: `match` captures, `except ... as`, `field` factories (route #595, run #6)
+
+Route #582's class-body walk knew assignments, loop / `with` / walrus targets and imports, and took any `field(...)`
+without a non-plain `default` for plain data. `match m: case n: pass` / `case _ as n` in a class body, and `n: Any =
+field(default_factory=lambda: m)`, bound `n` to the method `m` unseen, so `c.n(5)` stayed the effect-free
+receiver-less call and `c.a == 0` after it PROVED (red team rt56 hh1718 / hh1719 / hh1729, PRE-EXISTING). RULE (same
+walk, twin `\trusted`; inline, no new def): a `match` capture (`case n`, `as n`, `*n`, `**n`, nested and guarded) and an
+`except ... as n` in a class body are possible-method bindings (never plain data); a `field(...)` is plain only when
+`field` is bound solely by the import of `dataclasses.field`, it has no `**` keyword, its `default` is plain data and
+its `default_factory` (if any) is a builtin constructor not rebound in the file (`list`, `dict`, `set`, `tuple`,
+`frozenset`, `str`, `int`, `float`, `bool`, `bytes`, `bytearray`, `complex`) or a no-argument lambda of plain data. A
+call `<x>.n(...)` of a name made a possible method only by these forms is refused with
+`PYCSL-R595-CLASS-BODY-BINDING-CALL` (otherwise §7.582's code, unchanged). Advice as §7.582: call the method by the
+name of its `def`, or give the name its own `def` (with a contract) that calls it. Measurements:
+`getting-better/open-routes/route595-classbody-alias-match-capture.md`.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

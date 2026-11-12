@@ -1056,6 +1056,11 @@ AUDITED = {
         "Route #590. 'declare the class as an exception (`class E(Exception)`)': control 9612 (`class B(Exception)`, `class E(B)`, raised through an alias and bare, caught by name, `no_exception \\all`, `\\result == 2 * k + 3`) VERIFIES at HEAD; 'or raise an exception class instead': its `raise ValueError(\"v\")` arm."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr590(f"""line {_r590.lineno}: PYCSL-R591-RAISE-FROM-NON-EXCEPTION: `raise ... from {_ast175.unparse(_e590)[:50]}`: {_why590}. The'): (FOLLOWABLE,
         "Route #591. 'write `from None`, `from <ExceptionClass>`': control 9613 (`raise E(\"a\") from None`, `raise E(\"b\") from ValueError`, and `from None` inside a handler; `no_exception \\all`, `\\result == k + 3`) VERIFIES at HEAD. The `from e` disjunct passes R591 but every read of `e` is route #233's refusal (measured), recorded in the route doc."),
+    # driver run #6 -- routes #593 / #595 (u41, red team rt56).
+    ('src/pycsl/pycsl.py', '_R593Err("line %d: PYCSL-R593-IR-NODE-SUBCLASS: %s. This program narrows values by an IR node class (`isinstance(x, ast.Name)` resolved, rou'): (FOLLOWABLE,
+        "Route #593. 'wrap the node in a class of your own (`class B: def __init__(self, node): self.node = node`) instead of subclassing': witness hd1767 with `class B` holding the node (getting-better/open-routes/witnesses-r593/advice/a593_wrap_node; control 9664) VERIFIES the disjoint-narrowing claim `\\result == 0` at base and HEAD; 'name base classes directly (a builtin, a class of this file, or an import)': control 9663 (`ast.NodeVisitor`, `Exception`, a file class) VERIFIES the same claim."),
+    ('src/pycsl/pycsl.py', '_R595Err("line %d: PYCSL-R595-CLASS-BODY-BINDING-CALL: in function \'%s\', the call `.%s(...)` may run a method bound to `%s` in a class body '): (FOLLOWABLE,
+        "Route #595. 'Call the method by the name of its `def` (`c.m(...)`)': a595_call_def_name (getting-better/open-routes/witnesses-r595/advice/; control 9666; the class body keeps its `match` capture) VERIFIES `\\result == 5`; 'or define `n` with its own `def` (and contract) that calls it': a595_own_def (control 9667) VERIFIES `\\result == 5`. Both at base and HEAD."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1461,6 +1466,9 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr589(f\'line {_r589.lineno}\' + (\'\' if _main589 else f" of {os.path.relpath(_pp589, _dirs589[0])} (a module this file imports, whos'): '9ab1b9cbf999',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr590(f'line {_r590.lineno}: PYCSL-R590-RAISE-NON-EXCEPTION: `raise {_ast175.unparse(_e590)[:50]}`: {_why590}. CPython raises Type"): '945dde7f1b47',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr590(f"""line {_r590.lineno}: PYCSL-R591-RAISE-FROM-NON-EXCEPTION: `raise ... from {_ast175.unparse(_e590)[:50]}`: {_why590}. The'): 'be0ddc9e22bf',
+    # driver run #6 -- routes #593 / #595 (u41).
+    ('src/pycsl/pycsl.py', '_R593Err("line %d: PYCSL-R593-IR-NODE-SUBCLASS: %s. This program narrows values by an IR node class (`isinstance(x, ast.Name)` resolved, rou'): '66656f5d8df2',
+    ('src/pycsl/pycsl.py', '_R595Err("line %d: PYCSL-R595-CLASS-BODY-BINDING-CALL: in function \'%s\', the call `.%s(...)` may run a method bound to `%s` in a class body '): '9a5d04c1e446',
 }
 
 
