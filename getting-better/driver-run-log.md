@@ -1076,3 +1076,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-12T05:38Z | 802 | v55 (int58): A 17 new corpus files 0 unexpected; B 81 witness runs, all refused except the 2 controls (c593a NodeVisitor, c595a dataclass factory list) x3. C next. |
 2026-11-12T05:56Z | 803 | STATUS (run hour 84.0; 12 h left). v55 C corpus sweep (int58) running; rt57 proving. oom_kill 75. |
 2026-11-12T06:11Z | 804 | v55 (int58): C root 3104 -> 3109 0/0/0 (+5 controls), pyref 0/0/0; D mirror 53/53 byte-identical to the L6 tip (no proof owed); E fidelity rc 0 x3. F --slow running (ETA ~09:30Z). |
+2026-11-12T06:41Z | 805 | rt57 found dormant since 01:39Z (its chain finished pri1, the agent had ended its turn waiting on background work); resumed by message with a 12:00Z report deadline (finish pending proofs, typed/store, base classification, deliverables). v55 F running. |
