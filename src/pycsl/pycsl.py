@@ -17979,8 +17979,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _rl592, _, _q592 = _rv592[len("declared_in:"):].strip().partition("::")
                     _dc592, _, _dm592 = _q592.rpartition(".")
                     try:
-                        with open(os.path.join(_mir592, _rl592), encoding="utf-8") as _h592:
-                            _tx592 = _h592.read().splitlines()
+                        _tx592 = __import__("pathlib").Path(os.path.join(_mir592, _rl592)).read_text(
+                            encoding="utf-8").splitlines()
                     except OSError:
                         _tx592 = []
                     _ci592 = next((_i for _i, _l in enumerate(_tx592) if _dc592 and _re592.match(
