@@ -732,6 +732,9 @@ AUDITED = {
         "Route #430. 'Declare the hashed value's source with a hashable type in the callee (e.g. `Dict[str, str]` rather than `Dict[str, Any]`), or drop `\\all` from this function's claim': witness 6460 with both `m: Dict[str, str]` (a430_typed_source) VERIFIES; with `\\all` dropped from `caller` (a430_drop_claim, = control 6464) it VERIFIES."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_rg430)}` is HASHED by `{_ast341.unparse(_n346)}` ('): (FOLLOWABLE,
         "Route R-gate. 'Derive the value from a source declared with a hashable type (a parameter, field or container element annotated `str` / `int` / a frozen record), or drop the claim': witnesses 6470 / 6473 with `Dict[str, str]` / `List[Dict[str, int]]` sources (argate_typed_source) VERIFY under `no_exception \\all`; 6470 with the claim dropped (argate_drop_claim, = control 6480) VERIFIES. RE-AUDITED by g6 (driver run #3, routes #438 / #439: message now also names an un-parameterised `tuple` and a computed-name `setattr` field, advice adds `Tuple[int, str]`): witness 6601 with `t: Tuple[int, str]` (getting-better/systematic-soundness-r3/g6-r438-439/advice/a438_typed_tuple) VERIFIES under `no_exception \\all`; with the claim dropped (a438_drop_claim) VERIFIES."),
+    # (#49) driver run #7 -- W-hash (wh4, dict-value-model-r4 §2.5), audited the day it landed.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: `{_ast341.unparse(_r432)}` is HASHED by `{_ast341.unparse(_iw349[id(_a4'): (FOLLOWABLE,
+        "W-hash narrowing refusal. 'Narrow it first (`if isinstance(v, str):` around the site, or an early `return` when it is not one, with no rebinding in between), derive it from a source declared with a hashable type, or drop the claim': witness 9883 with each repair -- `if isinstance(v, str): s = {v}` (getting-better/dict-value-model-r4-whash/advice/aw_narrow.py), `if not isinstance(v, str): return n + 1` before the site (aw_early_return.py), `v: str` (aw_typed_source.py) under `no_exception \\all`, and the claim dropped (aw_drop_claim.py) -- VERIFIES."),
     # (#49) driver run #3 -- routes #432 / #433 / #437 (g4), audited the day they landed. Probes in
     # getting-better/systematic-soundness-r3/g4-r432-437/advice/.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: the attribute `{_ast341.unparse(_a432)}` is read on `{_ast341.unparse(_'): (FOLLOWABLE,
@@ -1362,6 +1365,8 @@ AUDITED_HASH = {
     # (#49) driver run #3 -- route #430 / route R-gate (h430)
     ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set ele"): '38d2b19ee594',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_rg430)}` is HASHED by `{_ast341.unparse(_n346)}` ('): '654460119406',  # re-audited g6 (#438 / #439 message edit)
+    # (#49) driver run #7 -- W-hash (wh4)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: `{_ast341.unparse(_r432)}` is HASHED by `{_ast341.unparse(_iw349[id(_a4'): '50d7a0289f63',
     # (#49) driver run #3 -- route #443 (h442)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: the receiver `{_ast341.unparse(_r432)}` of the attribute `.{_a432.attr}'): 'a143a13c30ab',
     # (#49) driver run #3 -- routes #432 / #433 / #437 (g4)

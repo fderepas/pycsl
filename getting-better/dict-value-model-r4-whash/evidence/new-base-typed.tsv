@@ -1,0 +1,17 @@
+9880_whash_harr_set_elem_under_claim.py	PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM
+9881_whash_hmap_dict_key_under_claim.py	PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM
+9882_whash_pyval_param_unnarrowed_under_claim.py	PYCSL-R349-UNHASHABLE-RECORD
+9883_whash_isinstance_not_dominating_under_claim.py	PYCSL-R349-UNHASHABLE-RECORD
+9884_whash_isinstance_list_under_claim.py	PYCSL-R349-UNHASHABLE-RECORD
+9885_whash_ctl_narrowed_pyval_under_claim.py	PYCSL-R349-UNHASHABLE-RECORD
+9886_whash_ctl_narrowed_hval_get_under_claim.py	PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM
+9887_whash_ctl_unclaimed_ambient.py	PYCSL-R349-UNHASHABLE-RECORD
+9888_whash_unclaimed_false_ensures_handler.py	PYCSL-R349-UNHASHABLE-RECORD
+9889_whash_known_list_unclaimed.py	PYCSL-R349-UNHASHABLE-RECORD
+9890_whash_known_dict_unclaimed.py	PYCSL-R349-UNHASHABLE-RECORD
+9891_whash_s362_shape_trusted_caller.py	PYCSL-R349-UNHASHABLE-RECORD
+9892_whash_ctl_schema_scalar_slot_under_claim.py	PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM
+9893_whash_schema_list_slot_under_claim.py	PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM
+9894_whash_schema_list_slot_unclaimed.py	EMITTED
+9895_whash_claimed_caller_unclaimed_pyval_hash.py	PYCSL-R349-UNHASHABLE-RECORD
+9896_whash_isinstance_str_file_subclass_unhashable.py	PYCSL-R349-UNHASHABLE-RECORD
