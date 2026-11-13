@@ -287,7 +287,11 @@ corpus 3180-3196) and **LATIN1-STR** (every `str` value consists of code points
 inside a `PyVal` value has `str` keys — `Dict[str, PyVal]` constrains only the
 top-level keys, but the `hval` model keys every nested dict by `string`, so
 `for k, v in d["xs"].items(): return isinstance(k, str)` proves for
-`{"xs": {1: 2}}`; drop it with `--strict-hval-keys`, corpus 3550-3558) and
+`{"xs": {1: 2}}`; drop it with `--strict-hval-keys`, corpus 3550-3558; since run #7 the
+`hval` model is the FROZEN certified 9-constructor value type — `None` / `bool` / `float` /
+tuple tags, Python `==` across the numeric tower, insertion-ordered dict literals,
+`isinstance` narrowing, and every wrong-tag use refused under a TypeError claim
+(`PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM`), translational reference App. R4) and
 **BARE-CONTAINER-INT** (an element of a parameter annotated with a bare
 container — `xs: list`, `xs: List`, `Sequence`, `tuple` — is read as an `int`,
 so `xs[0] % 1 == 0` proves for `[0.5]`; likewise a VALUE of a bare `d: dict`,

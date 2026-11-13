@@ -8338,6 +8338,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                else {}),
             "return_annotation": ("str" if node_returns_is_path else return_annotation),
             "return_value_type": return_value_type,
+            # dict-value-model-r4 (cv13 selection defects O6, `d027_2`): a `-> Tuple[..]`
+            # (any arity, `...`, nested) or `-> Dict[str, ..]` return that MENTIONS `PyVal`
+            # returns the certified value type (an `HTuple` hval / a `map string (option
+            # hval)`). Emitted ONLY for such an annotation -> every other IR byte-identical.
+            **({"r4_ret_pyval": ("tuple" if node.returns.value.id in ("Tuple", "tuple")
+                                 else "dict")}
+               if (isinstance(node.returns, ast.Subscript)
+                   and isinstance(node.returns.value, ast.Name)
+                   and ((node.returns.value.id in ("Tuple", "tuple")
+                         and "PyVal" in ast.unparse(node.returns))
+                        or ast.unparse(node.returns).replace(" ", "") in (
+                            "Dict[str,PyVal]", "dict[str,PyVal]")))
+               else {}),
             # typing-engagement ty1 / 28-0000-typing-spec-4: `-> NoReturn` (PEP
             # 484) sets the IR flag consumed by Module 6 (`ensures { false }`,
             # NR1) and the non-vacuity gate (NR4 exemption). Emitted ONLY when

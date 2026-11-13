@@ -7919,6 +7919,176 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _ct430 = {str(_f.get("name", "")): _f for _f in (_ir342.get("functions") or [])
                   if isinstance(_f, dict)}
         _sl430 = source_code.splitlines()
+        # dict-value-model-r4 (impl F6 (iii), user decision log 848 (e)): THE WRONG-TAG ARMS
+        # OF A PyVal VALUE ARE TypeError SITES, registered with this pass. A value read off a
+        # `PyVal` container (`Dict[str, PyVal]` / `List[PyVal]` / a bare `PyVal` binding, a
+        # `.get` / subscript / `or`-default of one, a local or loop target bound from one)
+        # is the certified tagged `hval`; `len(v)`, `tuple(v)` / `sorted(v)` / `list(v)` /
+        # `sep.join(v)`, iteration, arithmetic / ordering / unary operators and method calls
+        # on it raise TypeError in CPython on a wrong tag, where the model continues with
+        # the law-free wrong-tag value (`hval_len_other`, `hval_iter_*_other`,
+        # `hval_opaque_str` / `hval_opaque_int`, `hval_tuple_other`). TypeError is not a VC
+        # class (`KNOWN_EXCEPTIONS`), so -- exactly as §7.131's underivable hash -- such a
+        # site is REFUSED in a non-trusted function claiming TypeError
+        # (`PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM`), AMBIENT otherwise, and the function is
+        # recorded for route #430's callee summary. A site whose operand is a NAME narrowed
+        # by a dominating `isinstance(x, C)` (an `if` / `and` / IfExp guard, or a preceding
+        # `if not isinstance(x, C): <exit>`) is derived, not counted.
+        for _f4t, _ec4t in _fn346:
+            _ct4t: Set[str] = set()   # PyVal CONTAINERS (Dict[.., PyVal] / List[PyVal] ...)
+            _vl4t: Set[str] = set()   # PyVal VALUES (bare `PyVal` names, bound reads)
+            for _n4t in _ast341.walk(_f4t):
+                _an4t = (_n4t.annotation if isinstance(_n4t, (_ast341.AnnAssign, _ast341.arg))
+                         else None)
+                if _an4t is None:
+                    continue
+                _au4t = _ast341.unparse(_an4t)
+                if "PyVal" not in _au4t:
+                    continue
+                _nm4t = (_n4t.arg if isinstance(_n4t, _ast341.arg) else
+                         _n4t.target.id if isinstance(_n4t.target, _ast341.Name) else None)
+                if _nm4t is None:
+                    continue
+                if _au4t.strip() in ("PyVal", "Optional[PyVal]"):
+                    _vl4t.add(_nm4t)
+                else:
+                    _ct4t.add(_nm4t)
+            if not (_ct4t or _vl4t):
+                continue
+
+            # (lambdas, not nested defs: the mirror-coverage ratchet counts def names)
+            _isval4t = lambda _e4t: (
+                (_e4t.id in _vl4t) if isinstance(_e4t, _ast341.Name)
+                else ((isinstance(_e4t.value, _ast341.Name) and _e4t.value.id in _ct4t)
+                      or _isval4t(_e4t.value)) if isinstance(_e4t, _ast341.Subscript)
+                else ((isinstance(_e4t.func.value, _ast341.Name) and _e4t.func.value.id in _ct4t)
+                      or _isval4t(_e4t.func.value)) if (isinstance(_e4t, _ast341.Call)
+                                                        and isinstance(_e4t.func, _ast341.Attribute)
+                                                        and _e4t.func.attr == "get")
+                else _isval4t(_e4t.values[0]) if (isinstance(_e4t, _ast341.BoolOp) and _e4t.values)
+                else False)
+            _ch4t = True
+            while _ch4t:
+                _ch4t = False
+                for _n4t in _ast341.walk(_f4t):
+                    _tg4t, _vv4t = None, None
+                    if (isinstance(_n4t, _ast341.Assign) and len(_n4t.targets) == 1
+                            and isinstance(_n4t.targets[0], _ast341.Name)):
+                        _tg4t, _vv4t = _n4t.targets[0].id, _n4t.value
+                    elif (isinstance(_n4t, (_ast341.For, _ast341.comprehension))
+                          and isinstance(_n4t.target, _ast341.Name)):
+                        _tg4t, _vv4t = _n4t.target.id, _n4t.iter
+                    if (_tg4t and _tg4t not in _vl4t and _tg4t not in _ct4t
+                            and _vv4t is not None and _isval4t(_vv4t)):
+                        _vl4t.add(_tg4t)
+                        _ch4t = True
+            _par4t: Dict[int, Any] = {}
+            for _n4t in _ast341.walk(_f4t):
+                for _c4t in _ast341.iter_child_nodes(_n4t):
+                    _par4t[id(_c4t)] = _n4t
+
+            # `_t4t` (true if _pos4t, false otherwise) implies isinstance(_x4t, C)
+            _isin4t = lambda _t4t, _x4t, _pos4t: (
+                (isinstance(_t4t, _ast341.UnaryOp) and isinstance(_t4t.op, _ast341.Not)
+                 and _isin4t(_t4t.operand, _x4t, True)) if not _pos4t
+                else (isinstance(_t4t, _ast341.Call) and isinstance(_t4t.func, _ast341.Name)
+                      and _t4t.func.id == "isinstance" and len(_t4t.args) == 2
+                      and isinstance(_t4t.args[0], _ast341.Name) and _t4t.args[0].id == _x4t)
+                or (isinstance(_t4t, _ast341.BoolOp) and isinstance(_t4t.op, _ast341.And)
+                    and any(_isin4t(_y4t, _x4t, True) for _y4t in _t4t.values)))
+            _exits4t = lambda _b4t: bool(_b4t) and isinstance(_b4t[-1], (
+                _ast341.Return, _ast341.Raise, _ast341.Continue, _ast341.Break))
+            # walk up the parents of a NAME use: a dominating isinstance guard narrows it
+            _up4t = lambda _x4t, _c4t, _a4t: (
+                False if (_a4t is None or _a4t is _f4t)
+                else True if (
+                    (isinstance(_a4t, (_ast341.If, _ast341.While))
+                     and ((_c4t in _a4t.body and _isin4t(_a4t.test, _x4t, True))
+                          or (_c4t in _a4t.orelse and _isin4t(_a4t.test, _x4t, False))))
+                    or (isinstance(_a4t, _ast341.IfExp)
+                        and ((_c4t is _a4t.body and _isin4t(_a4t.test, _x4t, True))
+                             or (_c4t is _a4t.orelse and _isin4t(_a4t.test, _x4t, False))))
+                    or (isinstance(_a4t, _ast341.BoolOp) and isinstance(_a4t.op, _ast341.And)
+                        and _c4t in _a4t.values
+                        and any(_isin4t(_y4t, _x4t, True)
+                                for _y4t in _a4t.values[:_a4t.values.index(_c4t)]))
+                    or any(isinstance(getattr(_a4t, _fl4t, None), list)
+                           and _c4t in getattr(_a4t, _fl4t)
+                           and any(isinstance(_pv4t, _ast341.If) and not _pv4t.orelse
+                                   and _exits4t(_pv4t.body) and _isin4t(_pv4t.test, _x4t, False)
+                                   for _pv4t in getattr(_a4t, _fl4t)[
+                                       :getattr(_a4t, _fl4t).index(_c4t)])
+                           for _fl4t in ("body", "orelse", "finalbody")))
+                else _up4t(_x4t, _a4t, _par4t.get(id(_a4t))))
+            _narrowed4t = lambda _u4t: (isinstance(_u4t, _ast341.Name)
+                                        and _up4t(_u4t.id, _u4t, _par4t.get(id(_u4t))))
+            _site4t = None
+            for _n4t in _ast341.walk(_f4t):
+                _ops4t: List[Any] = []
+                if isinstance(_n4t, _ast341.Call):
+                    if (isinstance(_n4t.func, _ast341.Name) and _n4t.args and _n4t.func.id in (
+                            "len", "tuple", "sorted", "list", "set", "frozenset", "sum",
+                            "min", "max", "iter", "reversed", "enumerate", "zip", "dict")):
+                        _ops4t = [_n4t.args[0]]
+                    elif (isinstance(_n4t.func, _ast341.Attribute) and _n4t.func.attr == "join"
+                          and _n4t.args):
+                        _ops4t = [_n4t.args[0]]
+                    if (isinstance(_n4t.func, _ast341.Attribute)
+                            and _n4t.func.attr not in ("get", "items", "keys", "values", "copy")):
+                        _ops4t.append(_n4t.func.value)
+                elif isinstance(_n4t, _ast341.BinOp):
+                    _ops4t = [_n4t.left, _n4t.right]
+                elif isinstance(_n4t, _ast341.UnaryOp) and not isinstance(_n4t.op, _ast341.Not):
+                    _ops4t = [_n4t.operand]
+                elif isinstance(_n4t, _ast341.Compare):
+                    _cp4t = [_n4t.left] + list(_n4t.comparators)
+                    for _i4t, _o4t in enumerate(_n4t.ops):
+                        if isinstance(_o4t, (_ast341.Lt, _ast341.LtE, _ast341.Gt, _ast341.GtE)):
+                            _ops4t += [_cp4t[_i4t], _cp4t[_i4t + 1]]
+                        elif isinstance(_o4t, (_ast341.In, _ast341.NotIn)):
+                            _ops4t.append(_cp4t[_i4t + 1])
+                elif isinstance(_n4t, (_ast341.For, _ast341.comprehension)):
+                    _ops4t = [_n4t.iter]
+                elif isinstance(_n4t, _ast341.AugAssign):
+                    _ops4t = [_n4t.target, _n4t.value]
+                for _u4t in _ops4t:
+                    if _isval4t(_u4t) and not _narrowed4t(_u4t):
+                        _site4t = (_n4t, _u4t)
+                        break
+                if _site4t is not None:
+                    break
+            if _site4t is None:
+                continue
+            _irn4t = ((_ec4t.lower() + "__" + _f4t.name) if _ec4t else _f4t.name)
+            _und430.add(_irn4t)
+            _ir4t = _ct430.get(_irn4t) or {}
+            _cc4t = _ir4t.get("contracts") or {}
+            _cl4t = bool(_cc4t.get("no_exception_all")) or bool(
+                set(_cc4t.get("no_exception") or [])
+                & {"TypeError", "Exception", "BaseException"})
+            _li4t = min([_d.lineno for _d in _f4t.decorator_list] + [_f4t.lineno]) - 2
+            while not _cl4t and 0 <= _li4t < len(_sl430) and (
+                    _sl430[_li4t].lstrip().startswith("#@")):
+                _lt4t = _sl430[_li4t].strip()
+                if _lt4t.startswith("#@ no_exception") and (
+                        "\\all" in _lt4t or "TypeError" in _lt4t
+                        or "Exception" in _lt4t.replace("no_exception", "")):
+                    _cl4t = True
+                _li4t -= 1
+            if _cl4t and not (_ir4t.get("trusted") or _ir4t.get("abstract")):
+                raise _PyCSLSemErr341(
+                    f"'{_f4t.name}' line {getattr(_site4t[0], 'lineno', 0)}: "
+                    f"`{_ast341.unparse(_site4t[1])}` is a PyVal value (read off a "
+                    f"`Dict[str, PyVal]` / `PyVal` binding) used by "
+                    f"`{_ast341.unparse(_site4t[0])}`, which raises TypeError in CPython "
+                    f"when the value has the wrong type (a `len` / iteration / `tuple` / "
+                    f"`join` / arithmetic / ordering / method of a value that may be None, "
+                    f"an int, a str, a list, a dict ...), while this function claims "
+                    f"`#@ no_exception` covering TypeError and the model continues with "
+                    f"an uninterpreted wrong-tag value (dict-value-model-r4: TypeError is "
+                    f"not a VC class). Narrow it first (`if isinstance(x, str): ...`, or "
+                    f"`if not isinstance(x, list): return ...`), or drop the claim.",
+                    stage="ir-semantic", code="PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM")
         # (#49) gen #37, ROUTES #449 / #450 / #455 (red team 36): file-wide facts for the
         # CALL-BINDING checks run in each function below and the decorator-site check after
         # this loop. `_gn449`: the names a `global` / `nonlocal` statement names; `_mdf449`:
@@ -21048,6 +21218,43 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if _a490 is _fd490:
                         _own490.add(id(_n490))
             _rep490 = None
+            # dict-value-model-r4: a value read off a `PyVal`-annotated container (a
+            # `Dict[str, PyVal]` / `PyVal` binding or parameter, or a local bound from such
+            # a read) is NOT int-erased: it is the certified tagged `hval`, whose truth test
+            # (`hval_truthy`), `==` / membership (`hval_eq`, key presence) and iteration are
+            # faithful. Those uses ("truth" / "hash") are exempt below; arithmetic, unary
+            # operators and escapes stay judged here (a wrong tag is a TypeError site).
+            _pvs4r = set()
+            for _n490 in _ast486.walk(_fd490):
+                _an4r = (_n490.annotation if isinstance(_n490, (_ast486.AnnAssign, _ast486.arg))
+                          else None)
+                if _an4r is not None and "PyVal" in _ast486.unparse(_an4r):
+                    if isinstance(_n490, _ast486.arg):
+                        _pvs4r.add(_n490.arg)
+                    elif isinstance(_n490.target, _ast486.Name):
+                        _pvs4r.add(_n490.target.id)
+
+            # (lambdas, not nested defs: the mirror-coverage ratchet counts def names)
+            _pvroot4r = lambda _e4r: (
+                (_e4r.id in _pvs4r) if isinstance(_e4r, _ast486.Name)
+                else _pvroot4r(_e4r.value) if isinstance(_e4r, _ast486.Subscript)
+                else _pvroot4r(_e4r.func.value) if (isinstance(_e4r, _ast486.Call)
+                                                    and isinstance(_e4r.func, _ast486.Attribute)
+                                                    and _e4r.func.attr == "get")
+                else _pvroot4r(_e4r.values[0]) if (isinstance(_e4r, _ast486.BoolOp)
+                                                   and isinstance(_e4r.op, _ast486.Or)
+                                                   and _e4r.values)
+                else False)
+            _chg4r = bool(_pvs4r)
+            while _chg4r:
+                _chg4r = False
+                for _n490 in _ast486.walk(_fd490):
+                    if (isinstance(_n490, _ast486.Assign) and len(_n490.targets) == 1
+                            and isinstance(_n490.targets[0], _ast486.Name)
+                            and _n490.targets[0].id not in _pvs4r
+                            and _pvroot4r(_n490.value)):
+                        _pvs4r.add(_n490.targets[0].id)
+                        _chg4r = True
             for _n490 in _ast486.walk(_fd490):
                 # (use node, the operand, the use's description, truth-test?) to judge
                 _uses490 = []
@@ -21208,6 +21415,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _rep490 is not None:
                     break
                 for _u490, _why490, _truth490 in _uses490:
+                    if _truth490 in ("truth", "hash") and _pvs4r and _pvroot4r(_u490):
+                        continue        # dict-value-model-r4: a faithful hval use (above)
                     if _truth490 == "esc" and (_K490.get(id(_u490), _UNK490)
                                                & frozenset(["tuple", "dict"])):
                         continue        # a tuple's positions / a record-like dict's keys

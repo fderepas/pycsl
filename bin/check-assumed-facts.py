@@ -40,6 +40,25 @@ and every `axiom` into the families this campaign has reviewed:
                            (measured, gen #29). That fence is INCIDENTAL; if the record
                            comparison ever types, this family becomes a live route.
 
+  CERTIFIED-DEFINITIONAL    `axiom pairs_get_nil : forall k. pairs_get PNil k = None` and
+                           `axiom pairs_get_cons : forall k k' v t [pairs_get (PCons k' v t)
+                           k].` + its one continuation line `pairs_get (PCons k' v t) k =
+                           (if k = k' then Some v else pairs_get t k)` — route (e2) of wall
+                           dict-value-model-r4 (user decision log 848 (d)): the TWO defining
+                           equations of the PyVal dict lookup, emitted by the frozen r4 theory
+                           (`preamble.py::_emit_pyval_theory`) as constructor-triggered axioms
+                           so Z3 does not loop on a recursive definition. Each is REALISED by
+                           the certified recursive `pairs_get`, proved as a lemma of it in
+                           BOTH assistants with no axiom: Rocq
+                           `src/formal-semantics/rocq/Phase2m_PyValR4.v` (`pairs_get_nil`,
+                           `pairs_get_cons`) and Lean
+                           `src/formal-semantics/lean/PyCSL/PyValR4.lean`
+                           (`PyValR4Cert.pairs_get_nil`, `PyValR4Cert.pairs_get_cons`). The
+                           family is matched EXACTLY (both lines, byte for byte): any other
+                           `pairs_get` axiom, a reworded equation, or a third axiom of the
+                           theory is UNCLASSIFIED and fails. It is not a proof-assistant
+                           axiom: the proof-axiom ledger stays 3.
+
 Anything else is UNCLASSIFIED and FAILS. A new assumed-fact family is exactly the thing
 that must not arrive without a route review, and the census that found route #187's was
 done by hand; this is that census, executable.
@@ -109,6 +128,19 @@ AXIOM_FAMILIES = [
      re.compile(r"^axiom mem_head : forall x: int, l: list int\. mem x \(Cons x l\)$")),
     ("HASH-EQ-CONSISTENCY",
      re.compile(r"^axiom hash_eq_consistent_[A-Za-z0-9_]+ ?: forall a b: [A-Za-z0-9_]+\. ")),
+    ("CERTIFIED-DEFINITIONAL",
+     re.compile(r"^axiom pairs_get_nil : forall k\. pairs_get PNil k = None$")),
+    ("CERTIFIED-DEFINITIONAL",
+     re.compile(r"^axiom pairs_get_cons : forall k k' v t \[pairs_get \(PCons k' v t\) k\]\.$")),
+]
+# The one continuation line of `pairs_get_cons` (the equation body). The family is admitted
+# ONLY when the axiom line is followed by EXACTLY this line (checked in `main`).
+PAIRS_GET_CONS_BODY = "pairs_get (PCons k' v t) k = (if k = k' then Some v else pairs_get t k)"
+# The realising lemmas the family cites: each must exist, by name, in the certificate files
+# (checked in `main` when the files are present in this tree), so the citation cannot rot.
+CERT_REALISERS = [
+    ("src/formal-semantics/rocq/Phase2m_PyValR4.v", ("pairs_get_nil", "pairs_get_cons")),
+    ("src/formal-semantics/lean/PyCSL/PyValR4.lean", ("pairs_get_nil", "pairs_get_cons")),
 ]
 
 
@@ -161,7 +193,8 @@ def main():
             text = open(path, encoding="utf-8", errors="replace").read()
         except OSError:
             continue
-        for raw in text.splitlines():
+        _lines = text.splitlines()
+        for _li, raw in enumerate(_lines):
             line = raw.strip().rstrip(";")
             if line.startswith("assume {"):
                 fam = classify(line, ASSUME_FAMILIES)
@@ -177,6 +210,12 @@ def main():
                         unbacked.append((path, line))
             elif line.startswith("axiom "):
                 fam = classify(line, AXIOM_FAMILIES)
+                if (fam == "CERTIFIED-DEFINITIONAL" and line.startswith("axiom pairs_get_cons")
+                        and (_li + 1 >= len(_lines)
+                             or _lines[_li + 1].strip() != PAIRS_GET_CONS_BODY)):
+                    # the trigger line alone is not the certified equation: its body must be
+                    # the exact realised `pairs_get_cons` equation.
+                    fam = None
                 if fam is None:
                     unclassified.append((path, line))
                 else:
@@ -191,6 +230,21 @@ def main():
             print("    %-24s %d" % (k, v))
 
     rc = 0
+    if counts.get("CERTIFIED-DEFINITIONAL"):
+        for _cf, _names in CERT_REALISERS:
+            _cp = os.path.join(ROOT, _cf)
+            if not os.path.exists(_cp):
+                print("[!] assumed-facts: the CERTIFIED-DEFINITIONAL family cites %s, which "
+                      "is absent from this tree: the realising lemmas are not in evidence."
+                      % _cf, file=sys.stderr)
+                rc = 1
+                continue
+            _ct = open(_cp, encoding="utf-8", errors="replace").read()
+            for _n in _names:
+                if not re.search(r"\b(Lemma|Theorem|theorem|lemma)\s+%s\b" % re.escape(_n), _ct):
+                    print("[!] assumed-facts: the realising lemma `%s` is missing from %s."
+                          % (_n, _cf), file=sys.stderr)
+                    rc = 1
     for path, line in unclassified:
         print("[!] assumed-facts: an UNCLASSIFIED assumed fact in %s:\n        %s\n"
               "    A new assumed-fact family is a TCB change. Review it as a route, then "

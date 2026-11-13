@@ -3300,3 +3300,30 @@ obligation must NOT be discharged by the runtime presence check — the
 coherent-and-wrong trap, Callable edition. Defended by the independence of the
 spec-agent and conformance-agent from the core-agent (§4.2 of the overview).
 
+
+## Appendix R4. Static rules of the frozen PyVal value model (wall dict-value-model-r4, run #7)
+
+- **Wrong-tag TypeError sites** (`PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM`, registered with the
+  §7.131 pass in `_run_pipeline`). A PyVal VALUE is a read off a `PyVal` container (a
+  `Dict[str, PyVal]` / `List[PyVal]` binding or parameter), a bare `PyVal` binding, or a local /
+  loop target bound from one. Its use by `len` / `tuple` / `sorted` / `list` / `set` / `sum` /
+  `min` / `max` / `iter` / `reversed` / `enumerate` / `zip` / `dict`, `sep.join(v)`, iteration,
+  an arithmetic / unary / ordering operator, `in` on its right, an augmented assignment or a
+  method call other than `.get` / `.items` / `.keys` / `.values` / `.copy` is a TypeError site,
+  unless the operand is a NAME narrowed by a dominating `isinstance(x, C)` (an `if` / `while` /
+  `and` / IfExp guard, or a preceding `if not isinstance(x, C): <return / raise / continue /
+  break>`). In a non-`\trusted`, non-`\abstract` function claiming TypeError (`\all`, or a list
+  naming `TypeError` / `Exception` / `BaseException`) the first such site is REFUSED; outside a
+  claim it is AMBIENT, and the function is recorded for route #430's callee summary.
+- **Route #490 exemption.** A truth-test ("truth") or equality / membership / iteration /
+  subscript ("hash") use of a PyVal value is NOT judged by route #490: the value is the tagged
+  `hval`, whose truthiness (`hval_truthy`) and equality (`hval_eq`) are faithful. Arithmetic,
+  unary operators and escapes stay judged.
+- **Narrowing.** A read of a PyVal name in a region where `isinstance(x, str)` holds is typed
+  `str` (`_is_string_expr`) and lowered to `hstr_of x`; a region that assigns `x` is not narrowed.
+- **Selection.** A bare `PyVal` parameter is `hval`; `-> Tuple[..PyVal..]` (fixed arity, nested)
+  returns `hval` (`HTuple`), `-> Dict[str, PyVal]` returns `map string (option hval)`; every call
+  site agrees (`_module_method_return_types`).
+- **Stores** are unchanged: the r2c functional write-back under the R1-R4 escape check only; a
+  parameter / field root, a shared non-literal container, an alias and a store through an
+  unrepresented value are refused (witnesses 9840-9843).
