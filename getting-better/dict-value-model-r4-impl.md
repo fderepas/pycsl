@@ -36,7 +36,7 @@ the E-matching cost early). Written 2026-11-13 ~16:40Z, about 89 h before the de
   - (f), the by-reference heap, goes to a separate census-gated track. fr4's `fr4_alias*.mlw` and its R4 / R7
     numbers are its seed.
   - (d), live refactors, is opportunistic only.
-  - (e2), constructor-triggered `pairs_get` equations, is held behind a user decision (§5 Q2).
+  - (e2), constructor-triggered `pairs_get` equations, is ADOPTED (user decision §5 (d)).
 
 **The make-or-break spike comes before any `src/` edit (§3, Gate S).** It is numeric, on two real mirror files.
 
@@ -66,7 +66,7 @@ The window buys the certified foundation. Every later batch, including (f), need
 | F5 | equality laws absent / None / bool (`True == 1`) | **ADOPTED** (= fr4 §3.3.3): `hval_eq` structural with the numeric tower (`HBool b ≡ HInt (0/1)`, `HInt i == HFloat f` iff `from_int i = f`), `HNone` only equals `HNone`, `(1,) != [1]`; `hval_canon` at every key position; `eq_canon_coherent` certified. Each law gets a witness pair (PROVED-at-base where it applies / REFUSED-or-unprovable on the candidate for the false claim). Absent ≠ stored None stays carried by the outer `option` (no `HAbsent`). | §2.2 |
 | F6 | claim-gated KeyError / TypeError rule | **ADOPTED** (= fr4 §3.3.2). (i) Un-claimed code: total with an *uninterpreted* result (`any hval`), never a concrete junk value. The `(HInt 0)` junk continuation of `d[k]` is replaced. (ii) Under a claim covering KeyError: an `assert` that the key is present. This exists for the top-level map; it is ADDED for nested `pairs_get` reads, a gap fr4 found (P2). (iii) TypeError is not a VC class at HEAD (`KNOWN_EXCEPTIONS`). So every projection / wrong-tag site (`hstr_of`, `len`, `+`, iteration) is registered with the §7.131 static pass: it is REFUSED under `\all` and ambient otherwise. This closes the report's open question 4 (the unaudited `hval_opaque_str` sites). | §2.2 |
 | F7 | cert / emitter `pairs_set` drift; extend coupling to operations; decide iteration order | **ADOPTED.** Every observable operation is either a definitional `let function` with a Rocq + Lean twin lemma, or listed below as an uninterpreted law-free `val`. The observable operations are get, set, literal construction, truthy, eq, canon, hashable, len / nth / tuple, and the projections. The `pairs_set` certificate is replaced by the emitted replace-first/append version, with `read_same_key`, `read_other_key`, `nodup_preserved` and `len_set` (fr4 R7 proves the WhyML twins by induction). Iteration order is DECIDED: insertion order. Literals are built by folding `pairs_set` (no more prepend), and iteration is the list order. | §2.3, §3 step C |
-| F8 | #UND hashing is separate | **ADOPTED as a separate work item W-hash** with its own witness pair. It does not count as a side benefit. It is needed by s362 only because the caller hashes the tuple. Its policy (claim-conditional deny for a tagged value, ambient outside claims) needs a user ruling (§5 Q1). Until then s362 waits on it, and W-hash is built behind a flag that is off. | §2.5, §5 |
+| F8 | #UND hashing is separate | **ADOPTED as a separate work item W-hash** with its own witness pair. It does not count as a side benefit. It is needed by s362 only because the caller hashes the tuple. Its policy was ruled by the user (§5 (c)). | §2.5, §5 |
 | F9 | numeric spike: `types.py` whole-file HEAD vs hand-patched theory, <= +25 %, no new Timeout | **ADOPTED and merged with fr4's §3.5 spike.** The spike runs on TWO files: `module6_whyml/types.py` (F9) and `module6_whyml/functions.py` (fr4: home of 6 BOUND stubs, ~1.6 h). Each runs pristine vs the frozen theory hand-patched with the hoisted-length template, per prover, in the pipeline's own call. PASS needs all of: (1) union Valid = 100 % of the pristine union; (2) no goal Valid on pristine becomes unproved by both provers (F9's "no new Timeout" read at the pipeline level: a Z3 timeout on a goal Alt-Ergo proves costs nothing in the best-of-N pipeline); (3) the pipeline wall (Alt-Ergo first, Z3 on its failures; sum of per-goal walls) <= +25 % (F9's bar, which is stricter than fr4's 1.5×); (4) new Z3 timeouts on goals Alt-Ergo does not prove <= 10. REFUTE otherwise. | §3 step S |
 | F10 | numeric tiers; hot-home rows deferred by name | **ADOPTED.** Tiers in §4. Deferred to run #8 by name: every BOUND row whose home is `expressions.py`, `statements.py`, `stmt_control_flow.py` or `functions.py` (except as a re-proved mover), or `preamble.py` / `Module5_IREmitter.py` when that home's batch would hold only one stub (cv13 FINAL's list, recorded in the final report with its remaining chain). | §4 |
 | F11 | smaller corrections | **ADOPTED.** (a) The mirror's `errors.py` has `PyVal = Any`. `_record_answer` / `_record_is_valid` are already `Dict[str, PyVal]`, and `_merge_records_best_of_n` is s362's consumer: the pilot converts the pair in order. (b) cv13 is cited by commit. (c) "No new axiom" also covers WhyML: a new operation is a definitional `let function`, and a `val ... ensures` is allowed only when it is realisable and cert-covered (as `hpairs_key_eq` is today). (d) Line citations are re-measured at HEAD by each executor. | §2.3 |
@@ -153,7 +153,7 @@ BEFORE step C, never after it.
   - the mirror's TypedDict schema types the slot as a scalar.
 
   This is a derivation: a wrong schema sends the value to a refusal, never to a proof.
-- **Otherwise.** Refused under `\all`. Outside a claim it is admitted as ambient (USER RULING NEEDED, §5 Q1).
+- **Otherwise.** Refused under `\all`. Outside a claim it is admitted as ambient (user ruling §5 (c)).
 - **Witnesses.** A pair: an unhashable `HArr` key under `\all` is REFUSED, and a narrowed scalar key PROVES.
 
 ---
@@ -165,7 +165,7 @@ BEFORE step C, never after it.
 | **S (make-or-break)** | Hand-patch the frozen theory (§2.1, hoisted-length template, absent defaults → `HNone`, new arms in every emitted `match` over `hval`) into the base emissions of `module6_whyml/types.py` and `module6_whyml/functions.py`; run the pipeline's per-prover call (`why3 prove -a split_vc -P <p> --timelimit 30 --json`, the exact flags pycsl.py uses) for Alt-Ergo and Z3 on pristine and patched; tabulate per goal. Criterion §1 F9. Also re-run fr4's R6 / R8 control on `monomorphize.py` as a replicate. Also emit (QUICK) the F3 reopening rows at HEAD with the stand-in theory to pre-check the five edit specs. | executor **sp4** (HEAVY_PRIO) | 2 PRIO, ~6-8 slot-h | Gate S: PASS → C; REFUTE → exit §0 |
 | **C (parallel with S, discarded on REFUTE)** | Rocq + Lean certificates for §2.3 in a worktree; `make` / `lake build` via heavy.sh; `Print Assumptions` / `#print axioms` clean; ledger 3. Lands on main only after S PASSES. | executor **ce4** | coqc / lake (small) | certificates build, axiom audit clean |
 | **T** | emitter: preamble theory text (frozen set, certified `pairs_set`, literal fold, `hval_eq` / `canon` / `hashable` / `truthy`, hoisted-length iteration), expressions (wrap, reads, `any hval` continuation, narrowing substitution, `tuple` / `join` / `len` / `in` polymorphism, `==` via `hval_eq`), statements (nested KeyError assert), functions (`Tuple[PyVal, ...]` codomain = `HTuple`), Module5 slot tags, the §7.131 TypeError-site registration; docs (the 5 surfaces, `bin/doc-coherency.py --check`); corpus witnesses for every law (§2.2, §2.4) and controls. L3 byte-diff must be INERT on the corpus except the declared PyVal-using files (every mover listed and re-proved, M1). | executor **lv4** | QUICK + NORMAL | fidelity, byte-diff (M1), fast planes, ledger 3 |
-| **W** | W-hash (§2.5) behind a flag, ON only after the user's ruling | lv4 | — | witness pair |
+| **W** | W-hash (§2.5), policy ruled by the user (§5 (c)); ON after its witness pair | lv4 | — | witness pair |
 | **V** | Reopening test re-implemented at HEAD + candidate (F3 bar), all five rows | lv4 / driver | QUICK + `--fun` | >= 2 / 5 |
 | **M** | Mirror emission sweep; re-prove EVERY moved mirror file whole-file (expected: the 21 hval files + the homes), PRIO, never `expressions` and `statements` together, PYTHON_CPU_COUNT=6; batched WITH u43's owed hot-file movers so each file is proved once for both. A regression is fixed in the template, never re-trusted. | driver | 2 PRIO, ~35-40 slot-h | 0 non-Valid per file |
 | **P** | Pilot conversion s362 `_record_key` (+ its consumer `_merge_records_best_of_n` if its chain closes) in `pycsl.py`, then cv13 FINAL's small-home leaves | lv4 | NORMAL + home proofs | per-conversion gates (base loop), leaf-reachability, mutation |
@@ -182,30 +182,48 @@ BEFORE step C, never after it.
 | Stretch | <= 5 conversions, all in homes <= 1 h proof; `\trusted` 389 → >= 384 from this track | by the hour-90 close (2026-11-17 03:20Z) | 3-5 |
 
 **Deferred to run #8 by name:** the hot-home BOUND rows (cv13 FINAL list), family M (parameter mutation, 17 stubs,
-route (f)), family I / C (erased iterables, closures), and the (e2) encoding unless Q2 is answered yes.
+route (f)), family I / C (erased iterables, closures), (the (e2) encoding is adopted, §5 (d)).
 
 ---
 
-## 5. Open user decisions (asked through the supervisor; the build does not wait for them except where stated)
+## 5. User decisions (ANSWERED 2026-11-13 via the supervisor, run log 848)
 
-- **Q1 (W-hash policy).** May the #349 pass make its deny claim-conditional for a TAGGED value? That means refused
-  under `\all`, and admitted outside a claim as an ambient TypeError, the same P1 argument as the accepted `#UND`
-  R-gate (§7.131). It stays unconditional for a value statically known to be a list / dict / set.
-  - **If no:** W-hash admits only derivation-proved hashable values. s362's caller is then refused, and s362 stays
-    trusted.
-  - **Default until answered:** OFF.
-- **Q2 ((e2) encoding).** May the assumed-facts plane admit the two constructor-triggered WhyML equations for
-  `pairs_get`? They are realised by the certified `pairs_get` (proved as Rocq / Lean lemmas). Without them, Z3
-  cannot prove multi-key value facts and Alt-Ergo cannot separate string literals (fr4 R5b / R9). Every value-level
-  witness with >= 2 literal keys would then be unprovable.
-  - **Default until answered:** NO. The rule "no new axioms" stands, and witnesses are designed with a single
-    literal key or with symbolic keys.
-- **Decided by the driver here, within the user's decision:**
-  - the constructor set (§2.1);
-  - in-place widening, which accepts the 21-file re-proof and is batched with u43's movers;
-  - TypeError stays static-refusal-only in this window.
+The user accepted all five recommendations of fr4 §3.7 step 2:
+- (a) **Constructor set frozen** as §2.1. There is no `HAbsent` and no `HSet`; sets stay refused / trusted. It is
+  certified in Rocq + Lean first, in one commit with the emitted theory text.
+- (b) **`hval` is widened IN PLACE**; the 21-file mover re-proof (~35-40 h) is accepted.
+- (c) **W-hash policy** (§2.5) as proposed:
+  - a value is derivable-hashable via a dominating `isinstance` or a schema-typed scalar slot (a derivation);
+  - otherwise it is REFUSED under a claim covering TypeError / `\all`, and ADMITTED outside a claim (ambient, as
+    `#UND` §7.131);
+  - list / dict / set values stay unconditionally denied.
 
----
+  The flag is ON once W-hash's witness pair passes.
+- (d) **Route (e2) ADOPTED NOW.** The assumed-facts plane may admit exactly the two defining equations of
+  `pairs_get`, as constructor-triggered WhyML `axiom`s, under these conditions:
+  - they are realised by the certified definition;
+  - each is proved as a lemma of the certified `pairs_get` in BOTH Rocq and Lean, with `Print Assumptions` /
+    `#print axioms` clean (step C);
+  - they are recorded in `bin/check-assumed-facts.py` as a NEW reviewed family, CERTIFIED-DEFINITIONAL
+    (`pairs_get_nil`, `pairs_get_cons`), citing the realising lemmas;
+  - no other axiom is added.
+
+  **Ledger accounting.** The proof-axiom ledger (Rocq / Lean axioms, `proof_axiom_allowlist.py`) stays **3**. The
+  pair is not a proof-assistant axiom. It is the one sanctioned exception to "no new axioms" on the WhyML side,
+  counted in the assumed-facts plane as one certified-definitional family of 2 equations. The run log and the
+  final report record it in exactly those terms.
+
+  The spike S measures the patched theory WITH the (e2) encoding as the primary candidate, and with the recursive
+  definition as the control.
+- (e) **TypeError stays static-refusal-only** in this window; it is not a VC class.
+
+Everything else stands as written above:
+- every L-plane gate;
+- the escape-check store rule unchanged;
+- the hoisted loop-length template;
+- the make-or-break spike before any `src/` edit (the §3.5 / F9 criteria);
+- commit only;
+- 2 proof slots.
 
 ## 6. Gate battery (unchanged, per increment, driver-verified FRESH)
 
