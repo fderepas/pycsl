@@ -1,0 +1,14 @@
+2026-11-13T09:28:29Z u43 START: reading brief, route docs
+2026-11-13T09:31:04Z u43: base snapshot /home/fabrice/git/pycsl-u43-base; base mirror sweep + base witness emission running
+2026-11-13T09:35:46Z u43: designing lowering (opaque defaults + per-ctor arms); base emissions running
+2026-11-13T09:55:31Z u43: lowering implemented (iratt/iratts/irget opaque defaults, irtru truthiness, #594 stmt_value isnone); head witness emission queued in QUICK
+2026-11-13T10:03:50Z u43: mirror sweep head h1: 7 files moved; running expressions --fun (29 funcs) + small whole-file proofs (spec_ops, collections, types)
+2026-11-13T10:16:38Z u43: spec_ops + collections whole-file PROVED at h1; types running; expressions --fun running
+2026-11-13T10:38:05Z u43: waiting on types whole-file (vacuity phase) + expressions --fun
+2026-11-13T10:47:59Z u43: expressions --fun 27 movers PROVED (20533 Valid/0); launched statements/stmt_control_flow/Module5 --fun
+2026-11-13T11:00:22Z u43: waiting types vacuity + statements --fun; drafted h2 edits (local truthiness ir_truthy_v, string value)
+2026-11-13T11:08:38Z u43: h2 frozen (/home/fabrice/git/pycsl-u43-h2); witness proofs h2 default running (75)
+2026-11-13T11:17:40Z u43: statements --fun 6 movers PROVED at h1; scf --fun running; witnesses h2 running
+2026-11-13T11:27:51Z u43: scf --fun 5 PROVED at h1; Module5 --fun running
+2026-11-13T11:33:50Z u43: Module5 --fun running; witnesses h2 default ~20/73
+2026-11-13T11:34:44Z u43: STEP 0 report committed (getting-better/run7-u43-projectors.md): 7 mirror files move, all measured verified movers PROVE (no re-trust); h2 deltas running
