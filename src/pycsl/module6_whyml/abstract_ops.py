@@ -374,6 +374,14 @@ class AbstractOpsMixin:
         # the flat path → byte-identical.
         shared_skip: Set[str] = getattr(self, "_shared_op_skip", set())
         insert_idx = self._find_abstract_val_insert_idx(out)
+        # lvQ (run #7): an open-world external-effect op (`val ext_..`) DECLARES the exceptions
+        # it raises, so the block must follow the `exception` declarations (the typed / store
+        # memory models emit a `type loc` BEFORE them, the anchor of the search above).
+        if any(_d.startswith("val ext_") and " raises { " in _d
+               for _d in self._abstract_ops.values()):
+            for _xi, _xl in enumerate(out):
+                if _xl.startswith("  exception ") and _xi >= insert_idx:
+                    insert_idx = _xi + 1
         abs_lines = ["", "  (* Abstract operations for unsupported Python patterns *)"]
         # wall lex-char-class step 4 (review C6): DEFINITIONAL `isalnum`, axiom-free.
         # CPython: `s.isX()` for X in alpha/decimal/digit/numeric/alnum is True iff `s` is

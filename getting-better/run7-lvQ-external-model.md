@@ -83,3 +83,61 @@ measured reason: `_coqc_version`, `_lean_version` (IndexError), `_cache_load` (j
 (no context-manager model).
 
 (Results are appended below as they are measured.)
+
+## 5. The capability as built (src/pycsl only, inline, `\trusted`-twin methods)
+
+| live method (mirror twin) | what it does |
+|---|---|
+| `Module6_WhyMLTranspiler.transpile` (`\trusted`) | MODULE-WIDE decision, after `_scan_preamble_needs`: every call of a modelled callee string in a lowered (non-`\trusted`) body is checked against the modelled shape; a callee string ALL of whose occurrences match gets registry rows `{"exc_type": E, "condition": None, "ext": kind}` in `_module_func_raises` (one row per raised class) and its classes in `needs["user_exceptions"]`; any non-matching occurrence keeps the OLD lowering for every occurrence (byte-identical). argparse is all-or-nothing over its four callees. The rows are restored after `_build_callee_no_exception_summary` (which resets an imported stub's row, e.g. `dumps`). |
+| `FunctionEmissionMixin._reset_function_state` (`\trusted`) | per function: PROCESS LOCALS (every binding a modelled `subprocess.run`, every other use `.returncode` / `.stdout` / `.stderr` / `.stdout.strip()`...) under `_re_compiled_locals["<ext_p>"]`, ARGPARSE LOCALS (bound by `ArgumentParser(..)` / `<local>.add_argument_group(..)`, used only as receivers) under `"<ext_a>"`; route #174's handler-reachability census now counts the registry `ext` rows as raised in the `try` body. |
+| `ExpressionEmissionMixin._handle_call_expr` (`\trusted`) | the lowering: each modelled call is an impure `val ext_*_op ... raises { <every class> }` with NO `ensures` / `reads`; refusals `PYCSL-R7Q-EXT-HANDLE-ESCAPES` (a `subprocess.run` result that is not a process local), `PYCSL-R7Q-EXT-PATH-RECEIVER` (`mkdir` / `write_text` on a receiver, or `write_text` of a text, not typed path / str), `PYCSL-R7Q-EXT-ARGPARSE-RECEIVER`. |
+| `ExpressionEmissionMixin._handle_attribute_expr` (`\trusted`) | `r.returncode` / `r.stdout` / `r.stderr` of a process local -> `val function ext_cp_<attr>_op (h: int) : int / string` (law-free, deterministic in the handle: lvO's argument, the handle never escapes). |
+| `ExpressionEmissionMixin._is_string_expr` (`\trusted`), `_str_method_recv_and_tail` (live-only) | the string-typed results (`r.stdout`, `Path.cwd()`, `json.dumps(..)`) and the `r.stdout.strip()` receiver. |
+| `AbstractOpsMixin._insert_abstract_val_block` (`\trusted`) | a raising `ext_` op is placed after the `exception` declarations (typed / store memory models emit `type loc` before them). |
+
+Lowerings (CPython 3.14 exception sets; `OS` = BlockingIOError, BrokenPipeError, ChildProcessError,
+ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError,
+FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError,
+ProcessLookupError, TimeoutError -- every OSError class the errno mapping can produce, so a handler for any
+subset is exact):
+
+| Python | WhyML | raises |
+|---|---|---|
+| `r = subprocess.run([<str lit / str name>..], capture_output=True, text=True)` | `ext_subprocess_run_op <array string> : int` (handle) | OS, ValueError (NUL), UnicodeDecodeError |
+| `r.returncode` / `r.stdout` / `r.stderr` | `ext_cp_returncode_op h : int`, `ext_cp_stdout_op h : string`, `ext_cp_stderr_op h : string` (`val function`) | - |
+| `Path.cwd()` | `ext_path_cwd_op () : string` | OS |
+| `p.mkdir(parents=<bool>, exist_ok=<bool>)` | `ext_path_mkdir_op p parents exist_ok : unit` | OS, ValueError |
+| `p.write_text(<str>)` | `ext_path_write_text_op p s : int` | OS, ValueError, UnicodeEncodeError |
+| `json.dumps(<name>[, indent=<int>])` (also the `dumps` an `--import-path` run rewrites it to) | `ext_json_dumps_op indent : string` | TypeError, ValueError, RecursionError |
+| `p = argparse.ArgumentParser(<literal kwargs>)` | `ext_argparse_parser_op () : int` | AttributeError, IndexError (empty `sys.argv`), TypeError, ValueError |
+| `p.add_argument(<literals>)` | `ext_argparse_add_op h : unit` | ArgumentError, TypeError, ValueError |
+| `g = p.add_argument_group(<literals>)` | `ext_argparse_group_op h : int` | TypeError, ValueError |
+| `p.parse_args()` | `ext_argparse_parse_op h : int` | OS, SystemExit, UnicodeEncodeError |
+
+Not modelled (old lowering kept, or refused): `subprocess.run(.., timeout=..)` (the front-end DROPS a
+dotted `except subprocess.TimeoutExpired` handler -- `Module5._py_stmt_try` keeps only `ast.Name`
+elements, a pre-existing hole noted here, not fixed: the method's twin is VERIFIED); any other keyword;
+a CompletedProcess that escapes; `read_text`, `json.loads` (returns `Any`); `with ... as` (no
+context-manager model); argparse with a non-literal argument (`type=int`).
+
+## 6. Witnesses (expected FAIL) and controls (expected PASS), corpus IDs 9700-9711
+
+All run in the default (`hoare`), `--memory-model typed` and `--memory-model store` models
+(`/home/fabrice/git/lvQ-st/tools/wit.sh`; logs `/home/fabrice/git/lvQ-st/logs/wit-w2/`, `wit-w3/`,
+tables `table.txt`; w1 was the pre-fix run, superseded). Every CPython driver was run (`ulimit -v`):
+each FAIL witness prints `VIOLATION`, each control prints `result`.
+
+| id | claim | default | typed | store | why it fails / proves |
+|---|---|---|---|---|---|
+| 9700 | `mkdir` cache root, `ensures True` | PASS | PASS | PASS | control |
+| 9701 | `except OSError` around `mkdir` dead (`\result == 0`) | FAIL | FAIL | FAIL | postcondition Unknown (mkdir raises FileExistsError on a file) |
+| 9702 | `returncode == 0` (world fact) | FAIL | FAIL | FAIL | postcondition Unknown |
+| 9703 | same handle read twice equal | PASS | PASS | PASS | control (`val function` of one handle) |
+| 9704 | two runs give equal stdout | FAIL | FAIL | FAIL | postcondition Timeout (fresh handles) |
+| 9705 | `except FileNotFoundError` around `subprocess.run` dead | FAIL | FAIL | FAIL | postcondition Unknown |
+| 9706 | `is_file()` after `write_text` | FAIL | FAIL | FAIL | postcondition Unknown (law-free reads) |
+| 9707 | `except FileNotFoundError` around `Path.cwd()` dead | FAIL | FAIL | FAIL | postcondition Unknown |
+| 9708 | `json.dumps` under `no_exception \all` | FAIL | FAIL | FAIL | refused by the existing `no_exception` callee census (fail-closed) |
+| 9709 | CompletedProcess returned | FAIL | FAIL | FAIL | refused `PYCSL-R7Q-EXT-HANDLE-ESCAPES` |
+| 9710 | `_why3_typecheck` shape, result in {0,1,2} | PASS | PASS | PASS | control (handler + both branches) |
+| 9711 | rc != 0 branch dead (`\result == 0`) | FAIL | FAIL | FAIL | postcondition Unknown |

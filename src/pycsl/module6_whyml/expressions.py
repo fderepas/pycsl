@@ -3445,6 +3445,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             recv, tail = fn.rsplit(".", 1)
             if "." not in recv:
                 return {"type": "Var", "name": recv}, tail
+            # lvQ (run #7): `r.stdout.strip()` / `r.stderr.strip()` of a PROCESS LOCAL `r`
+            # (`_reset_function_state`) -- the receiver is the law-free field read.
+            if (recv.count(".") == 1 and recv.split(".")[1] in ("stdout", "stderr")
+                    and recv.split(".")[0] in ((((getattr(self, "_re_compiled_locals", None)
+                                                  or {}).get("<ext_p>") or {})
+                                                .get("procs")) or {})):
+                return ({"type": "Attribute", "object": {"type": "Var",
+                                                         "name": recv.split(".")[0]},
+                         "attr": recv.split(".")[1]}, tail)
             # value-model campaign incr9: a `<emit_ir-var>.<str-leaf-attr>.<method>()` receiver
             # (`ann.id.lower()`, `ann.attr.lower()` in `_overload_type_name`) — reconstruct the
             # string-leaf attribute read as its Attribute IR so `.lower()`/`.strip()` reaches the
@@ -5016,6 +5025,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """True if an IR expression is string-typed: a literal, a string-producing op, or a
         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
         t = ir.get("type")
+        # lvQ (run #7): the open-world model's string results -- a process local's
+        # `.stdout` / `.stderr` read, and a modelled `Path.cwd()` / `json.dumps(..)` call
+        # (`_handle_call_expr`) -- are `string`-typed, as their lowering is.
+        if (t == "Attribute" and ir.get("attr") in ("stdout", "stderr")
+                and isinstance(ir.get("object"), dict)
+                and ir["object"].get("type") == "Var"
+                and ir["object"].get("name") in ((((getattr(self, "_re_compiled_locals", None)
+                                                    or {}).get("<ext_p>") or {})
+                                                  .get("procs")) or {})):
+            return True
+        if (t == "Call" and ir.get("func") in ("Path.cwd", "json.dumps", "dumps")
+                and (((getattr(self, "_module_func_raises", {}) or {}).get(ir.get("func"))
+                      or [{}])[0].get("ext") in ("Path.cwd", "json.dumps"))):
+            return True
         # (#49) ROUTE #231 — an f-string part carrying a conversion and/or a format spec
         # (`{v!r}`, `{b:02x}`) is `format(conv(v), spec)`: always a `str`, whatever `v`
         # is. `_expr_to_whyml` lowers it to an opaque `string`-returning
@@ -11496,6 +11519,91 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 args.append(self._expr_to_whyml(_airr, local_refs, invariant_ctx, subst))
             finally:
                 self._todict_arg_wants_pymap = _saved_wp
+        # lvQ (run #7) OPEN-WORLD EXTERNAL-EFFECT MODEL (`transpile` decides, module-wide, which
+        # callee strings are modelled and puts their raises in `_module_func_raises` under an
+        # `ext` marker). Each modelled call is an impure, LAW-FREE `val` (no `ensures`, no
+        # `reads`: a fresh value per call) declaring every exception CPython can raise there,
+        # so the escaping-exception summary and the handler arms see them. A modelled callee
+        # string whose receiver / argument is not of the modelled type is REFUSED rather
+        # than lowered to the old receiver-less opaque op.
+        _x7c = ((getattr(self, "_module_func_raises", {}) or {}).get(func_name)
+                if isinstance(func_name, str) else None) or [{}]
+        if (_x7c[0].get("ext") and isinstance(expr, dict) and expr.get("type") == "Call"
+                and not self._in_spec and not invariant_ctx):
+            from module6_whyml.identifiers import safe_exc_name as _sen176x7
+            _x7k = _x7c[0]["ext"]
+            _x7r = ", ".join(sorted({_sen176x7(_e["exc_type"]) for _e in _x7c}))
+            _x7kw = {_kw.get("arg"): _kw.get("value") for _kw in (expr.get("keywords") or [])
+                     if isinstance(_kw, dict)}
+            if _x7k == "subprocess.run":
+                _x7ps = (getattr(self, "_re_compiled_locals", None) or {}).get("<ext_p>") or {}
+                if not (_x7ps.get("ok") and len(args) == 1):
+                    raise PyCSLIRError(
+                        "PYCSL-R7Q-EXT-HANDLE-ESCAPES: a modelled `subprocess.run(..)` result "
+                        "must be bound to a PROCESS LOCAL -- a local every binding of which is "
+                        "such a call and whose only other uses are `.returncode`, `.stdout`, "
+                        "`.stderr` (and `.strip()` on the last two). Here the CompletedProcess "
+                        "escapes (passed on, returned, compared, or read through another "
+                        "attribute), which the law-free handle model cannot represent. Bind it "
+                        "to a local and read only those fields.")
+                self._add_abstract_op(
+                    f"val ext_subprocess_run_op (args: array string) : int raises {{ {_x7r} }}")
+                return f"(ext_subprocess_run_op {args[0]})"
+            if _x7k == "Path.cwd":
+                self._add_abstract_op(f"val ext_path_cwd_op () : string raises {{ {_x7r} }}")
+                return "(ext_path_cwd_op ())"
+            if _x7k == "json.dumps":
+                _x7i = (_x7kw.get("indent") or {}).get("value", -1)
+                self._add_abstract_op(
+                    f"val ext_json_dumps_op (indent: int) : string raises {{ {_x7r} }}")
+                return f"(ext_json_dumps_op ({_x7i}))"
+            if _x7k == "argparse.ArgumentParser":
+                self._add_abstract_op(
+                    f"val ext_argparse_parser_op () : int raises {{ {_x7r} }}")
+                return "(ext_argparse_parser_op ())"
+            if _x7k in ("add_argument", "add_argument_group", "parse_args"):
+                _x7al = (((getattr(self, "_re_compiled_locals", None) or {}).get("<ext_a>")
+                          or {}).get("locals")) or set()
+                if func_name.split(".")[0] not in _x7al:
+                    raise PyCSLIRError(
+                        f"PYCSL-R7Q-EXT-ARGPARSE-RECEIVER: `{func_name}(..)` is modelled as an "
+                        "argparse call (the file imports `argparse`), but its receiver is not an "
+                        "ARGPARSE LOCAL -- a local bound only by `argparse.ArgumentParser(..)` / "
+                        "`<parser>.add_argument_group(..)` and used only as the receiver of "
+                        "`.add_argument` / `.add_argument_group` / `.parse_args`. Bind the "
+                        "parser to a local and keep it local.")
+                _x7h = self._expr_to_whyml({"type": "Var", "name": func_name.split(".")[0]},
+                                           local_refs, invariant_ctx, subst)
+                _x7op, _x7rt = {"add_argument": ("ext_argparse_add_op", "unit"),
+                                "add_argument_group": ("ext_argparse_group_op", "int"),
+                                "parse_args": ("ext_argparse_parse_op", "int")}[_x7k]
+                self._add_abstract_op(f"val {_x7op} (h: int) : {_x7rt} raises {{ {_x7r} }}")
+                return f"({_x7op} {_x7h})"
+            if _x7k in ("mkdir", "write_text"):
+                _x7rv = {"type": "Var", "name": func_name.split(".")[0]}
+                if not self._is_string_expr(_x7rv) or (
+                        _x7k == "write_text" and not self._is_string_expr(expr["args"][0])):
+                    raise PyCSLIRError(
+                        f"PYCSL-R7Q-EXT-PATH-RECEIVER: `{func_name}(..)` is modelled as "
+                        f"`pathlib.Path.{_x7k}` (the file imports `Path` from `pathlib`), but "
+                        + ("its receiver" if not self._is_string_expr(_x7rv) else
+                           "its text argument") +
+                        " is not typed as a path / str here, so the call cannot be lowered to "
+                        "the open-world path model. Annotate the receiver as `Path` (or bind "
+                        "it from `<Path> / <str>`) and pass a `str`.")
+                _x7p = self._expr_to_whyml(_x7rv, local_refs, invariant_ctx, subst)
+                if _x7k == "mkdir":
+                    _x7b = lambda _n: ("true" if (_x7kw.get(_n) or {}).get("value") is True
+                                       else "false")
+                    self._add_abstract_op(
+                        f"val ext_path_mkdir_op (p: string) (parents: bool) (exist_ok: bool) "
+                        f": unit raises {{ {_x7r} }}")
+                    return (f"(ext_path_mkdir_op {_x7p} {_x7b('parents')} "
+                            f"{_x7b('exist_ok')})")
+                self._add_abstract_op(
+                    f"val ext_path_write_text_op (p: string) (s: string) : int "
+                    f"raises {{ {_x7r} }}")
+                return f"(ext_path_write_text_op {_x7p} {args[0]})"
         # (#49) ROUTE #417 — two OverflowError sites with no obligation, under `\all`
         #   only (route #332's rule for a non-Phase-1 exception, as routes #413 / #414):
         #   (1) `list(range(..))` / `sorted(range(..))` take the range's LENGTH as a
@@ -19251,6 +19359,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         obj_ir = expr.get("object", {})
         attr = expr.get("attr", "unknown")
+        # lvQ (run #7): a read of a PROCESS LOCAL `r` (`_reset_function_state`, the handle of
+        # a modelled `subprocess.run(.., capture_output=True, text=True)`) is a LAW-FREE
+        # `val function` of the handle: `returncode` an int, `stdout` / `stderr` a str
+        # (`text=True` with captured output: never None). Nothing else is claimed.
+        if (attr in ("returncode", "stdout", "stderr") and isinstance(obj_ir, dict)
+                and obj_ir.get("type") == "Var"
+                and obj_ir.get("name") in ((((getattr(self, "_re_compiled_locals", None) or {})
+                                            .get("<ext_p>") or {}).get("procs")) or {})
+                and not invariant_ctx and not getattr(self, "_in_spec", False)):
+            _x7h = self._expr_to_whyml({"type": "Var", "name": obj_ir["name"]},
+                                       local_refs, invariant_ctx, subst)
+            _x7t = "int" if attr == "returncode" else "string"
+            self._add_abstract_op(f"val function ext_cp_{attr}_op (h: int) : {_x7t}")
+            return f"(ext_cp_{attr}_op {_x7h})"
         # lvO (re.Match model): `m.re.groups` of a MATCH LOCAL is the group count of the
         # pattern of its binding ("cur", or the unrolled copy's tag), computed by CPython's own
         # `re.compile` -- an int literal, after the `m <> 0` VC (AttributeError on None).
