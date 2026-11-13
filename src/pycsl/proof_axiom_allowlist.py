@@ -82,20 +82,27 @@ def parse_rocq_assumptions_block(block: str) -> tuple[bool, list[str]]:
     theorem has zero assumptions ("Closed under the global context").
     Otherwise assumption_names lists each Axiom: / Variable: / etc.
     """
-    if ROCQ_NO_AXIOMS_MARKER in block:
-        return True, []
+    # One exit: `(True, [])` when the marker is present (the loop is skipped, so
+    # `names` stays empty), else `(False, names)`.
+    closed = ROCQ_NO_AXIOMS_MARKER in block
     names: list[str] = []
-    for raw in block.splitlines():
-        line = raw.strip()
-        # Coq's output looks like:
-        #   Axioms:
-        #   propext : ...
-        #   Quot.sound : ...
-        # We accept any non-empty identifier on a line containing ` : `.
-        if " : " in line and not line.startswith(("Axioms:", "Section Variables:",
-                                                   "Constants:", "Parameters:",
-                                                   "Print", "Closed")):
-            name = line.split(" : ", 1)[0].strip()
-            if name:
-                names.append(name)
-    return False, names
+    if not closed:
+        for raw in block.splitlines():
+            line: str = raw.strip()
+            # Coq's output looks like:
+            #   Axioms:
+            #   propext : ...
+            #   Quot.sound : ...
+            # We accept any non-empty identifier on a line containing ` : `.
+            if " : " in line and not (line.startswith("Axioms:")
+                                      or line.startswith("Section Variables:")
+                                      or line.startswith("Constants:")
+                                      or line.startswith("Parameters:")
+                                      or line.startswith("Print")
+                                      or line.startswith("Closed")):
+                # `line.split(" : ", 1)[0]`, spelled as the prefix before the first " : "
+                # (identical: this branch is entered only when " : " occurs in `line`).
+                name = line[:line.find(" : ")].strip()
+                if name:
+                    names.append(name)
+    return closed, names

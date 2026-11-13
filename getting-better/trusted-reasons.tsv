@@ -293,7 +293,6 @@ module6_whyml/preamble.py	PreambleEmissionMixin._emit_class_inv_axioms	unclassif
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble_axioms	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_shared_state	unclassified	-
-module6_whyml/preamble.py	PreambleEmissionMixin._mutex_inv_application	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._inductive_referenced_axiom_decls	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_uncited_axiom_func_decls	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_inductive_decls	unclassified	-
@@ -322,7 +321,6 @@ module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._callee_raised_in	unclas
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._render_match_pattern	unclassified	-
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_match_stmt	cost-scale:emit-ir-item-store-model	routes #566 / #567 mirror re-trusts
 module6_whyml/struct_format.py	parse_format	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
-module6_whyml/struct_format.py	calcsize	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 module6_whyml/types.py	TypeInferenceMixin._track_collection_metadata	unclassified	-
 module6_whyml/types.py	TypeInferenceMixin._collect_array_var_assigns	unclassified	-
 proof2why3/crosscheck.py	_load_axiom_registry	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
@@ -355,7 +353,6 @@ proof2why3/sertop.py	parse_sexp	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM
 proof2why3/sertop.py	run_sertop_batch	unclassified	-
 proof2why3/sertop.py	SertopSession.type_of_batch	unclassified	-
 proof2why3/sertop.py	extract_via_sertop	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-proof_axiom_allowlist.py	parse_rocq_assumptions_block	unclassified	-
 pycsl.py	_generate_rocq_obligations	unclassified	-
 pycsl.py	_sha256_file	cost-scale:context-manager-model	A `with ... as` BINDING
 pycsl.py	_find_coqc	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
