@@ -141,3 +141,19 @@ each FAIL witness prints `VIOLATION`, each control prints `result`.
 | 9709 | CompletedProcess returned | FAIL | FAIL | FAIL | refused `PYCSL-R7Q-EXT-HANDLE-ESCAPES` |
 | 9710 | `_why3_typecheck` shape, result in {0,1,2} | PASS | PASS | PASS | control (handler + both branches) |
 | 9711 | rc != 0 branch dead (`\result == 0`) | FAIL | FAIL | FAIL | postcondition Unknown |
+
+## 7. Per-stub verdicts
+
+Logs under `/home/fabrice/git/lvQ-st/` (`logs/apr1.*` --fun, `L/wf-a.*` whole-file, `L/var*.{table,*.log}`
+leaf + mutants, `L/post-p1.*` sweeps / planes, `L-sync.log`, `L-mcheck.log` fidelity).
+
+| stub | verdict | gates |
+|---|---|---|
+| `audit_proof_reverify._cache_root` | **VERIFIED** (verbatim live body) | (1) `--fun` SUCCESS, 0 non-Valid (`logs/apr1.fun._cache_root.log`); (2) whole file SUCCESS 0 non-Valid, oom_kill 0->0 (`L/wf-a.audit_proof_reverify.py.log`); (3) mutant `n = 7 // len(root)` FAILS (division-by-zero goal, `L/var3.mut_croot.log`); (4) leaf `#@ assert 1 == 2` at head FAILS (`L/var.leaf_croot.log`); (5) fidelity rc 0; (6)(7) see §8 |
+| `audit_proof_reverify._cache_store` | **VERIFIED** (verbatim) | (1) `logs/apr1.fun._cache_store.log`; (2) as above; (3) mutant `n = 7 // len(json.dumps(..))` FAILS (`L/var3.mut_cstore.log`); (4) leaf FAILS (`L/var.leaf_cstore.log`) |
+| `pycsl._parse_args` | **VERIFIED** (verbatim live body; the mirror body was STALE, 98 lines differ, now the live one) | (1) via the leaf/mutant `--fun` runs (`L/var.leaf_pargs.log`, `L/var2.mut_pargs.log`, the unmutated `--fun` is the base of both); (2) whole file `pycsl.py` SUCCESS, 745 goals 0 non-Valid, oom 0->0 (`L/wf-a.pycsl.py.log`); (3) mutant `q = 7 // k` (k = 0) FAILS; (4) leaf FAILS |
+| `_coqc_version`, `_lean_version` | still `\trusted` | `subprocess.run(.., timeout=..)` is not modelled (the dropped `except subprocess.TimeoutExpired` arm would let a modelled TimeoutExpired escape where CPython catches it); and with timeout modelled the body is STILL not honest: `.splitlines()[0]` raises IndexError on blank tool output (CPython-reachable), PyCSL owes the array-read precondition, the spike's `_coqc_version` goal does not prove (spike0.mlw). The `\trusted` contract (no `raises`) is FALSE of CPython. |
+| `_why3_typecheck` | still `\trusted` | model reached (TC-OK of the subprocess part, probe `d2_w3tc`), but the `(bool, str)` early returns use the homogeneous `exception Return_2 (int, int)`: L3-TC `(int, string)` vs `(int, int)`; a typed tuple-return exception needs edits of the VERIFIED `_handle_return_stmt` (stmt_control_flow.py) / `_wrap_body_with_return_catch` (statements.py). Shape control 9710 PROVES. |
+| `SertopSession.type_of_batch` | still `\trusted` | the `Optional[Path]` dataclass field `cwd` is erased to `Any` (record field `int`), so `self.cwd or Path.cwd()` selects an operand the model cannot represent (route #487 refuses it). Needs an Optional[Path] field model. |
+| `_cache_load` | still `\trusted` | `json.loads` returns `Any`, the function is declared `Optional[dict]` (CPython returns a list for a cache file `[1]`), and `read_text` is not modelled (UnicodeDecodeError would also escape). |
+| `extract_lean_statements`, `extract_rocq_statements`, `_generate_rocq_obligations`, `_resolve_runtime_config` | still `\trusted` | `with ... as` (no context-manager model); route #264 / the `_py_stmt_with` refusal at depth 0 (probes `d0_exl`, `d0_exr`, `d0_gro`, `d0_rrc`). |

@@ -8,10 +8,11 @@ import json
 
 
 #@ no_exception \all
-#@ ensures True
+#@ ensures \result == 0
 #@ assigns \nothing
-def dump(payload: dict) -> str:
-    return json.dumps(payload, indent=2)
+def dump(payload: dict) -> int:
+    s = json.dumps(payload, indent=2)
+    return 0
 
 
 if __name__ == "__main__":

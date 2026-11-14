@@ -19,6 +19,6 @@ def wrote(p: Path, s: str) -> bool:
 
 
 if __name__ == "__main__":
-    with tempfile.TemporaryDirectory() as d:
-        r = wrote(Path(d), "x")
-        print("VIOLATION contract" if r is not True else "result", r)
+    d = tempfile.mkdtemp()
+    r = wrote(Path(d), "x")
+    print("VIOLATION contract" if r is not True else "result", r)

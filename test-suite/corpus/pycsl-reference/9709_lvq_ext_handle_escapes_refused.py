@@ -7,7 +7,7 @@ from __future__ import annotations
 import subprocess
 
 
-#@ ensures True
+#@ ensures \result == 0
 #@ assigns \nothing
 def run(cmd: str) -> int:
     r = subprocess.run([cmd], capture_output=True, text=True)
@@ -15,4 +15,5 @@ def run(cmd: str) -> int:
 
 
 if __name__ == "__main__":
-    print("result", run("true"))
+    r = run("true")
+    print("VIOLATION contract" if r != 0 else "result", r)

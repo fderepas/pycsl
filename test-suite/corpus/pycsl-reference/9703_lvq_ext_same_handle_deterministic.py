@@ -8,11 +8,11 @@ import subprocess
 
 #@ ensures \result == True
 #@ assigns \nothing
-def same(cmd: str) -> bool:
-    r = subprocess.run([cmd], capture_output=True, text=True)
+def same() -> bool:
+    r = subprocess.run(["true"], capture_output=True, text=True)
     return r.returncode == r.returncode and r.stdout == r.stdout
 
 
 if __name__ == "__main__":
-    r = same("true")
+    r = same()
     print("VIOLATION contract" if r is not True else "result", r)

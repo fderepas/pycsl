@@ -11554,9 +11554,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return "(ext_path_cwd_op ())"
             if _x7k == "json.dumps":
                 _x7i = (_x7kw.get("indent") or {}).get("value", -1)
+                # the object is PASSED (a polymorphic, law-free parameter): the result may
+                # depend on it, and nothing about that dependence is claimed
                 self._add_abstract_op(
-                    f"val ext_json_dumps_op (indent: int) : string raises {{ {_x7r} }}")
-                return f"(ext_json_dumps_op ({_x7i}))"
+                    f"val ext_json_dumps_op (obj: 'a) (indent: int) : string "
+                    f"raises {{ {_x7r} }}")
+                return f"(ext_json_dumps_op {args[0]} ({_x7i}))"
             if _x7k == "argparse.ArgumentParser":
                 self._add_abstract_op(
                     f"val ext_argparse_parser_op () : int raises {{ {_x7r} }}")

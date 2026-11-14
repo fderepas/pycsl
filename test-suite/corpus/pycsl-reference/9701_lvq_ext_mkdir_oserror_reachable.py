@@ -19,8 +19,8 @@ def make(p: Path) -> int:
 
 
 if __name__ == "__main__":
-    with tempfile.TemporaryDirectory() as d:
-        f = Path(d) / "f"
-        f.write_text("x")
-        r = make(f)
-        print("VIOLATION contract" if r != 0 else "result", r)
+    d = tempfile.mkdtemp()
+    f = Path(d) / "f"
+    f.write_text("x")
+    r = make(f)
+    print("VIOLATION contract" if r != 0 else "result", r)
