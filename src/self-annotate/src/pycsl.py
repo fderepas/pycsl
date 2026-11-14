@@ -771,11 +771,10 @@ def _record_is_valid(rec: Dict[str, PyVal]) -> bool:
     return _record_answer(rec) == "Valid"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _record_key(rec: dict) -> "Tuple":
+def _record_key(rec: Dict[str, PyVal]) -> Tuple[Tuple[PyVal, PyVal, PyVal, PyVal, PyVal], PyVal, Tuple[PyVal, ...]]:
     """Cross-prover alignment key (everything but occurrence). Two split sub-goals
     can be byte-identical here — the merge disambiguates by occurrence index."""
     term = rec.get("term") or {}
