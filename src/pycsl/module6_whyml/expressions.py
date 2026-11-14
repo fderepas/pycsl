@@ -6618,6 +6618,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # unlike a derived `=` on the algebraic option). Both arms reachable (the
             # converted callee genuinely `return None`s or returns a tuple) → the guarded
             # unpack is NON-VACUOUS. Read the RAW `!x` (deref), NOT the projected read.
+            # T5 (run #7 lvR, cap-typed-local-lowering): `f(..) is None` / `is not None` of
+            # a BARE call whose declared WhyML return is an OPTION OF A TUPLE
+            # (`-> Optional[Tuple[..]]`, emitted `option (t1, .., tn)`) is the FAITHFUL
+            # option presence test -- a `match .. with None/Some` discriminant, as for an
+            # `_option_tuple_vars` local below. It compared the option with the int
+            # `pycsl_none`, a Why3 type error (fail-closed). Only that callee type routes
+            # here.
+            if (isinstance(_nn, dict) and _nn.get("type") == "Call"
+                    and isinstance(_nn.get("func"), str) and "." not in _nn["func"]):
+                _t5_rt = self._call_return_whyml_type(_nn["func"])
+                if isinstance(_t5_rt, str) and _t5_rt.startswith("option ("):
+                    _t5_v = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
+                    _chk = f"(match {_t5_v} with None -> true | Some _ -> false end)"
+                    return _chk if raw_op == "==" else f"(not {_chk})"
             if (isinstance(_nn, dict) and _nn.get("type") == "Var"
                     and _nn.get("name") in getattr(self, "_option_tuple_vars", {})):
                 _ov = f"!{whyml_ident(_nn.get('name'))}"
@@ -8205,6 +8219,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and getattr(self, "_current_self_type", None)
                 not in getattr(self, "_mutable_state_classes", set())):
             return f"(Array.length {args[0]})"
+        # T4 (run #7 lvR, cap-typed-local-lowering): `len(f(..))` of a BARE call of a
+        # module function whose declaration Module5 typed as a scalar-slot
+        # `-> List[Tuple[..]]` (`return_annotation` "list", `return_value_type` the
+        # synthesized `pytuple_<tags>` record, so it is declared `array pytuple_<tags>`)
+        # is the ARRAY length -- the opaque `iter_length : int -> int` fallback mistypes
+        # against that array (fail-closed). Only that callee shape routes here; every
+        # other `len(<call>)` is unchanged.
+        if atype == "Call" and args and isinstance(arg_ir.get("func"), str) \
+                and "." not in arg_ir.get("func"):
+            _t4_fn = arg_ir.get("func")
+            for _t4_f in (self.ir.get("functions", []) or []):
+                if _t4_f.get("name") == _t4_fn and not _t4_f.get("self_type"):
+                    _t4_rv = _t4_f.get("return_value_type")
+                    if (_t4_f.get("return_annotation") == "list"
+                            and isinstance(_t4_rv, str) and _t4_rv.startswith("pytuple_")
+                            and _t4_rv in {(_t4_r or {}).get("whyml_name") for _t4_r in
+                                           (getattr(self, "_record_types", {}) or {}).values()
+                                           if isinstance(_t4_r, dict)}):
+                        return f"(Array.length {args[0]})"
+                    break
         # nested-list-mutable.md: a matrix-routed (in-place inner-mutated int-leaf)
         # nested list `a` is a built-in `matrix int`. `len(a)` = `a.rows` (outer row
         # count); `len(a[i])` = `a.columns` (the rectangular per-row length). Emit the

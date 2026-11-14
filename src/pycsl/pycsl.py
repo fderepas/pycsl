@@ -38459,7 +38459,11 @@ def _synthesize_block(rec: dict) -> str:
 
 def _synthesize_legacy_text(records: "List[dict]") -> str:
     """Canonical, lossless legacy-format text — ONE block per record, no dedup."""
-    return "\n\n".join(_synthesize_block(r) for r in records)
+    # The generator join spelled as a for/append then join (same calls, same order).
+    _parts: List[str] = []
+    for r in records:
+        _parts.append(_synthesize_block(r))
+    return "\n\n".join(_parts)
 
 
 def _residual_selectors_from_records(records: "List[dict]") -> "Optional[List[str]]":

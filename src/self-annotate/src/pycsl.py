@@ -713,11 +713,10 @@ def _why3_typecheck(mlw_filename: str):
 # parsed as a per-goal verdict (each goal is keyed by its own File+Sub-goal
 # header block).
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
+def _parse_goal_blocks(output: str) -> List[Tuple[str, str]]:
     """Split goal-block text into per-goal (header, result_line) pairs by COUNTING
     `Prover result is:` lines. Used only by `_check_goal_conservation` over the
     synthesised canonical text (one block per record) to count goals — the live
@@ -896,7 +895,7 @@ def _merge_records_best_of_n(record_lists: "List[List[dict]]") -> "List[dict]":
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _synthesize_block(rec: dict) -> str:
+def _synthesize_block(rec: Dict[str, PyVal]) -> str:
     """Render one record as a legacy why3 goal block (File + Sub-goal + result), so
     the text-based downstream and the Tier-0 guard consume it unchanged. The verdict
     token is 'Valid (...)' ONLY for a real Valid; every non-Valid answer renders with
@@ -931,13 +930,15 @@ def _synthesize_block(rec: dict) -> str:
             f"Prover result is: {tok} ({t:.2f}s, {steps} steps).")
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _synthesize_legacy_text(records: "List[dict]") -> str:
+def _synthesize_legacy_text(records: List[Dict[str, PyVal]]) -> str:
     """Canonical, lossless legacy-format text — ONE block per record, no dedup."""
-    return "\n\n".join(_synthesize_block(r) for r in records)
+    _parts: List[str] = []
+    for r in records:
+        _parts.append(_synthesize_block(r))
+    return "\n\n".join(_parts)
 
 
 #@ \trusted reviewer: pycsl-self-annotate

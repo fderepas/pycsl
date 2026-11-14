@@ -415,8 +415,19 @@ class _Harvester:
         strings. With no block header present this is `[ln.strip() …]` — exactly
         what the old `_clean` produced, so non-block contracts are byte-identical.
         Only an `act`/`happy` header engages the folder."""
-        if not any(_match_block_hdr(ln) for ln in raw_lines):
-            return [ln.strip() for ln in raw_lines]
+        # `any(<genexp>)` and the list comprehension spelled as loops (same calls, same
+        # order, same early stop); a non-None `(kw, name)` 2-tuple is always truthy, so
+        # the truth test is `is not None`.
+        _hit = False
+        for ln in raw_lines:
+            if _match_block_hdr(ln) is not None:
+                _hit = True
+                break
+        if not _hit:
+            _out: List[str] = []
+            for ln2 in raw_lines:
+                _out.append(ln2.strip())
+            return _out
         return self._fold_blocks(raw_lines)
 
     def _fold_clauses(self, raw_lines: List[str], i: int, n: int, blk_indent: int,
