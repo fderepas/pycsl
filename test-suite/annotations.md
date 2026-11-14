@@ -6416,12 +6416,11 @@ emitted verbatim (translational reference App. R4). Absent ≠ stored `None` (th
 (`9824`/`9825`), `None != 0` (`9828`/`9829`) — a comparison against a literal is the RHS of the
 certified one-level unfolding lemma (`hval_eq_int_lit` / `_bool_lit` / `_intfloat_lit` / `_float_lit`
 / `_none_lit` / `_str_lit`, Rocq + Lean + companion `DictR4LemmasLit`); between two PyVal values it is
-`hval_eq` itself, sound but NOT value-reachable for the provers (OPEN LIMIT: the TRUE `(1,) != [1]` times out,
-so it has no PASS witness; its false twin `9827` is not proved). Truthiness of every
+the certified `hval_eq` itself: `(1,) != [1]` (`9826`/`9827`). Truthiness of every
 tag (`9830`/`9831`). `isinstance(x, str)` narrowing is substituted in the guarded region (`return
 g` after the test returns the `str`, `9832`/`9833`). A dict literal is insertion-ordered with
-last-wins duplicates (the first key of `{"b": 1, "a": 2, "b": 3}` is `"b"`, `9859`; the full
-`("b", "a")` with length 2 is TRUE but times out: OPEN LIMIT, no PASS witness; false twin `9835`).
+last-wins duplicates (the first key of `{"b": 1, "a": 2, "b": 3}` is `"b"`, `9859`; `tuple(d)` is
+`("b", "a")` with length 2, `9834`/`9835`).
 Route (e2): a value fact about a nested dict with several literal keys proves through the
 certified `pairs_get_nil` / `pairs_get_cons` equations (`9844`/`9845`). Typed / store memory
 models: `9847`-`9858`.
