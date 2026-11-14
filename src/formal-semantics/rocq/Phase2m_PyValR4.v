@@ -769,6 +769,54 @@ Proof.
   intros x y Hx Hy. simpl. rewrite (hval_eq_refl x Hx), (hval_eq_refl y Hy). reflexivity.
 Qed.
 
+
+(* ---- one-level unfoldings of hval_eq at a LITERAL (the emitter inlines these RHS
+        at `v == <literal>`; statements match the WhyML lemmas hval_eq_*_lit) ---- *)
+Theorem hval_eq_int_lit : forall v n, hval_eq v (HInt n) =
+  match v with
+  | HInt i => Z.eqb i n
+  | HBool b => Z.eqb (hbool_int b) n
+  | HFloat f => match hreal_int_of f with Some j => Z.eqb j n | None => false end
+  | _ => false
+  end.
+Proof. intros v n; destruct v; reflexivity. Qed.
+
+Theorem hval_eq_bool_lit : forall v x, hval_eq v (HBool x) =
+  match v with
+  | HInt i => Z.eqb i (hbool_int x)
+  | HBool b => Z.eqb (hbool_int b) (hbool_int x)
+  | HFloat f => match hreal_int_of f with Some j => Z.eqb j (hbool_int x) | None => false end
+  | _ => false
+  end.
+Proof.
+  intros v x; destruct v as [|b| | | | | | | ]; try reflexivity.
+  destruct b, x; reflexivity.
+Qed.
+
+Theorem hval_eq_intfloat_lit : forall v n, hval_eq v (HFloat (from_int n)) =
+  match v with
+  | HInt i => Z.eqb i n
+  | HBool b => Z.eqb (hbool_int b) n
+  | HFloat f => match hreal_int_of f with Some j => Z.eqb j n | None => false end
+  | _ => false
+  end.
+Proof.
+  intros v n; destruct v as [|b|i|f|s|l|l|p|x]; cbn [hval_eq];
+    try rewrite hreal_int_of_from_int; try reflexivity.
+  apply Bool.eq_true_iff_eq. rewrite F_eqb_spec, float_int. split; intro H; exact H.
+Qed.
+
+Theorem hval_eq_float_lit : forall v c, hreal_int_of c = None ->
+  hval_eq v (HFloat c) = match v with HFloat f => F_eqb f c | _ => false end.
+Proof. intros v c H; destruct v; cbn [hval_eq]; try rewrite H; reflexivity. Qed.
+
+Theorem hval_eq_none_lit : forall v, hval_eq v HNone = match v with HNone => true | _ => false end.
+Proof. intros v; destruct v; reflexivity. Qed.
+
+Theorem hval_eq_str_lit : forall v t,
+  hval_eq v (HStr t) = match v with HStr s => hpairs_key_eq s t | _ => false end.
+Proof. intros v t; destruct v; reflexivity. Qed.
+
 (* ===================================================================== *)
 (* 5. Key canonicalisation and hashability.                               *)
 (* ===================================================================== *)
@@ -1359,3 +1407,9 @@ Print Assumptions model_one_eq_onef.
 Print Assumptions model_eq_sym.
 Print Assumptions int_of_eqn_some.
 Print Assumptions int_of_eqn_none.
+Print Assumptions hval_eq_int_lit.
+Print Assumptions hval_eq_bool_lit.
+Print Assumptions hval_eq_intfloat_lit.
+Print Assumptions hval_eq_float_lit.
+Print Assumptions hval_eq_none_lit.
+Print Assumptions hval_eq_str_lit.

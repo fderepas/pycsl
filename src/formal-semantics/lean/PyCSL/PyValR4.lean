@@ -802,6 +802,53 @@ theorem eq_dict_order [RealCarrier F] (ka kb : String) (x y : HVal F) (hab : ka 
   simp [hval_eq, pairs_incl, pairs_keys_in, pairs_mem, pairs_get, hpairs_key_eq, hab, hba,
     hval_eq_refl x hx, hval_eq_refl y hy]
 
+
+-- ---- one-level unfoldings of hval_eq at a LITERAL (the emitter inlines these RHS at
+--      `v == <literal>`; statements match the WhyML lemmas hval_eq_*_lit) ----
+theorem hval_eq_int_lit [RealCarrier F] (v : HVal F) (n : Int) :
+    hval_eq v (.HInt n) =
+    (match v with
+     | .HInt i => decide (i = n)
+     | .HBool b => decide (hbool_int b = n)
+     | .HFloat f => (match hreal_int_of f with | some j => decide (j = n) | none => false)
+     | _ => false) := by
+  cases v <;> first | rfl | simp [hval_eq]
+
+theorem hval_eq_bool_lit [RealCarrier F] (v : HVal F) (x : Bool) :
+    hval_eq v (.HBool x) =
+    (match v with
+     | .HInt i => decide (i = hbool_int x)
+     | .HBool b => decide (hbool_int b = hbool_int x)
+     | .HFloat f => (match hreal_int_of f with | some j => decide (j = hbool_int x) | none => false)
+     | _ => false) := by
+  cases v with
+  | HBool b => cases b <;> cases x <;> simp [hval_eq, hbool_int]
+  | _ => first | rfl | simp [hval_eq]
+
+theorem hval_eq_intfloat_lit [RealCarrier F] (v : HVal F) (n : Int) :
+    hval_eq v (.HFloat (from_int n)) =
+    (match v with
+     | .HInt i => decide (i = n)
+     | .HBool b => decide (hbool_int b = n)
+     | .HFloat f => (match hreal_int_of f with | some j => decide (j = n) | none => false)
+     | _ => false) := by
+  cases v with
+  | HFloat f =>
+      exact Bool.eq_iff_iff.2 ((F_eqb_spec _ _).trans (float_int f n).symm)
+  | _ => first | rfl | simp [hval_eq, hreal_int_of_from_int]
+
+theorem hval_eq_float_lit [RealCarrier F] (v : HVal F) (c : F) (hc : hreal_int_of c = none) :
+    hval_eq v (.HFloat c) = (match v with | .HFloat f => F_eqb f c | _ => false) := by
+  cases v <;> first | rfl | simp [hval_eq, hc]
+
+theorem hval_eq_none_lit [RealCarrier F] (v : HVal F) :
+    hval_eq v .HNone = (match v with | .HNone => true | _ => false) := by
+  cases v <;> first | rfl | simp [hval_eq]
+
+theorem hval_eq_str_lit [RealCarrier F] (v : HVal F) (t : String) :
+    hval_eq v (.HStr t) = (match v with | .HStr s => hpairs_key_eq s t | _ => false) := by
+  cases v <;> first | rfl | simp [hval_eq]
+
 -- ===================================================================== --
 -- 5. Key canonicalisation and hashability.                               --
 -- ===================================================================== --
@@ -1397,3 +1444,9 @@ end PyValR4Cert
 #print axioms PyValR4Cert.model_eq_sym
 #print axioms PyValR4Cert.int_of_eqn_some
 #print axioms PyValR4Cert.int_of_eqn_none
+#print axioms PyValR4Cert.hval_eq_int_lit
+#print axioms PyValR4Cert.hval_eq_bool_lit
+#print axioms PyValR4Cert.hval_eq_intfloat_lit
+#print axioms PyValR4Cert.hval_eq_float_lit
+#print axioms PyValR4Cert.hval_eq_none_lit
+#print axioms PyValR4Cert.hval_eq_str_lit
