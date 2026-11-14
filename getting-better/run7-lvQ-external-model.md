@@ -25,7 +25,7 @@ Scratch tree for probes: `/home/fabrice/git/lvQ-st` (a `git archive` of 1ffab454
 Semantics that decide the verdicts (read from the emitter, functions.py `_emit_function`):
 a verified function's ESCAPING exceptions (own `raise`, callee `#@ raises`) are added to its own
 `raises { .. }`; Why3 rejects any unlisted escaping exception at type-check (measured,
-`/home/fabrice/git/lvQ-st/spike/t1.mlw`: "this expression raises unlisted exception E"). Implicit
+`/home/fabrice/git/lvQ-st/probe/evidence/spike/t1.mlw`: "this expression raises unlisted exception E"). Implicit
 IndexError of a subscript is NOT an escaping exception: it is the Why3 array-read precondition,
 owed in every body (the polarity of route #527).
 
@@ -48,7 +48,7 @@ owed in every body (the polarity of route #527).
 
 ## 3. STEP 0 spike (hand-written `.mlw`, no emitter edit)
 
-`/home/fabrice/git/lvQ-st/spike/spike0.mlw`, `why3 prove -P z3 -t 10` (heavy.sh): law-free model =
+`/home/fabrice/git/lvQ-st/probe/evidence/spike/spike0.mlw`, `why3 prove -P z3 -t 10` (heavy.sh): law-free model =
 impure `val`s with NO `ensures` / `reads`, each declaring every exception CPython can raise there;
 results of a world query are fresh per call; the `CompletedProcess` is an int handle read by
 `val function`s (deterministic in the handle, exactly lvO's match-handle argument: the handle never
@@ -123,7 +123,7 @@ context-manager model); argparse with a non-literal argument (`type=int`).
 ## 6. Witnesses (expected FAIL) and controls (expected PASS), corpus IDs 9700-9711
 
 All run in the default (`hoare`), `--memory-model typed` and `--memory-model store` models
-(`/home/fabrice/git/lvQ-st/tools/wit.sh`; logs `/home/fabrice/git/lvQ-st/logs/wit-w2/`, `wit-w3/`,
+(`/home/fabrice/git/lvQ-st/probe/evidence/tools/wit.sh`; logs `/home/fabrice/git/lvQ-st/probe/evidence/logs/wit-w2/`, `wit-w3/`, `wit-w4/`, `wit-w5/`,
 tables `table.txt`; w1 was the pre-fix run, superseded). Every CPython driver was run (`ulimit -v`):
 each FAIL witness prints `VIOLATION`, each control prints `result`.
 
@@ -144,7 +144,7 @@ each FAIL witness prints `VIOLATION`, each control prints `result`.
 
 ## 7. Per-stub verdicts
 
-Logs under `/home/fabrice/git/lvQ-st/` (`logs/apr1.*` --fun, `L/wf-a.*` whole-file, `L/var*.{table,*.log}`
+Logs under `/home/fabrice/git/lvQ-st/probe/evidence/` (`logs/apr1.*`, `logs/fin-*` final re-proofs --fun, `L/wf-a.*` whole-file, `L/var*.{table,*.log}`
 leaf + mutants, `L/post-p1.*` sweeps / planes, `L-sync.log`, `L-mcheck.log` fidelity).
 
 | stub | verdict | gates |
@@ -157,3 +157,21 @@ leaf + mutants, `L/post-p1.*` sweeps / planes, `L-sync.log`, `L-mcheck.log` fide
 | `SertopSession.type_of_batch` | still `\trusted` | the `Optional[Path]` dataclass field `cwd` is erased to `Any` (record field `int`), so `self.cwd or Path.cwd()` selects an operand the model cannot represent (route #487 refuses it). Needs an Optional[Path] field model. |
 | `_cache_load` | still `\trusted` | `json.loads` returns `Any`, the function is declared `Optional[dict]` (CPython returns a list for a cache file `[1]`), and `read_text` is not modelled (UnicodeDecodeError would also escape). |
 | `extract_lean_statements`, `extract_rocq_statements`, `_generate_rocq_obligations`, `_resolve_runtime_config` | still `\trusted` | `with ... as` (no context-manager model); route #264 / the `_py_stmt_with` refusal at depth 0 (probes `d0_exl`, `d0_exr`, `d0_gro`, `d0_rrc`). |
+
+## 8. Planes, sweeps, ledger (final)
+
+- Corpus byte-diff vs the driver's base `scratchpad/run7/base/bd` (= 1ffab454c): root 0 MOVED,
+  0 APPEARED, 1 GONE (`1723_route212_verify_imports_control`, a `--verify-imports` flake: the
+  single-file re-emission is `cmp`-identical to base, `L/post-p1.status` "1723 cmp rc=0");
+  pyref 2185/2185 0/0/0. (Swept before the final json.dumps-argument change, which reaches only
+  modelled `json.dumps` calls: none in the corpus outside the 97xx witnesses.)
+- Mirror sweep vs `base/mir`: MOVED `audit_proof_reverify`, `pycsl` only (the two home files,
+  both whole-file proved); no big-file mover; OWED: none.
+- Fast planes `bin/run-soundness-planes.sh`: 62/62 rc 0 (`L/f2.planes.log`); RED planes compared
+  against base 1ffab454c (`L/red-r2.*`): all green at base, all green now. Individually
+  (`L/post-p1.*`): check-assigns-writes-survival, check-trusted-frame-honesty,
+  check-vacuous-drivers, check-getattr-erasure, check-mirror-coverage rc 0.
+- `\trusted` count 389 -> 386; proof-axiom ledger unchanged (no axiom added).
+- oom_kill 0 at the start and end of every proof run.
+
+All evidence: `/home/fabrice/git/lvQ-st/probe/evidence/` (`L/`, `logs/`, `spike/`, `tools/`); depth-0 probes `/home/fabrice/git/lvQ-st/probe/d*`.
