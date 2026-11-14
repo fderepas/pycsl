@@ -75,7 +75,7 @@ PROOFS OF THE VERIFIED MOVERS (proof phase; `PYTHON_CPU_COUNT=4`, `HEAVY_LOW=1` 
 | Module5 `--fun` x9 (unmoved users of `iratt_value_of`) | h1 (= h2 for Module5) | rc 0, 1268 Valid / 0 | `m5-fun-h1.log` |
 | expr_ghost_spec_ops WHOLE FILE (incl. vacuity) | h1 (= h2) | rc 0, SUCCESS | `expr_ghost_spec_ops-whole-h1.log` |
 | expr_ghost_collections WHOLE FILE | h1 (= h2) | rc 0, SUCCESS, 254 Valid / 0 | `expr_ghost_collections-whole-h1.log` |
-| types WHOLE FILE | h1 | rc 0, SUCCESS, 3692 Valid / 0; vacuity notes `could not be checked` for `_first_assign_kind`, `_split_tuple_type` (base comparison pending) | `types-whole-h1.log` |
+| types WHOLE FILE | h1 | rc 0, SUCCESS, 3692 Valid / 0; vacuity notes `could not be checked` for `_first_assign_kind`, `_split_tuple_type` -- PRE-EXISTING: the base whole-file run (`proofs/types-whole-base.log`, rc 0, 3692 Valid / 0) prints the same two | `types-whole-h1.log` |
 
 `expressions` `_handle_in_globals_expr` / `_handle_in_scope_expr` (moved: `.name` -> `iratts_name_of`) cannot be
 `--fun`-proved: with `--fun` the filtered emission is ill-typed (`int` vs `string` at the `_module_binding_names` map
@@ -89,3 +89,171 @@ stmt_control_flow `_handle_return_stmt`, `_try_union_is_none_match`; types `_rhs
 Results: see the STEP 0 addendum below.
 
 RESULT SO FAR (STEP 0, 2026-11-13T11:35Z): NO verified mirror body stopped proving. Nothing to re-trust. No body relied on the placeholder.
+
+### STEP 0 addendum (h1 -> h2 deltas, tree `/home/fabrice/git/pycsl-u43-h2`)
+| run | result | log |
+|---|---|---|
+| expressions `--fun` x6 (`_getattr_self_field`, `_handle_lambda_expr`, `_iter_elem_class`, `_match_field_decode_idiom`, `_typeddict_field_access`, `_typeddict_record_literal`) | rc 0, 3152 Valid / 0 | `proofs/expr-fun-h2.log` |
+| statements `--fun` x2 (`_handle_critical_section_stmt`, `_rhs_yields_map`) | rc 0, 9900 Valid / 0 | `proofs/stmts-fun-h2.log` |
+| stmt_control_flow `--fun` x2 (`_handle_return_stmt`, `_try_union_is_none_match`) | rc 0, 5954 Valid / 0 | `proofs/scf-fun-h2.log` |
+
+### h2 -> h3 (final lowering)
+h3 = h2 + the SCOPED annotation-walker `.slice` (`_typeddict_field_type`, `_normalize_final_annotation`,
+`_m5_get_dict_key_type`, `_m5_get_dict_value_type`, `_m5_get_type_name_legacy`, `_field_type_from_annotation`,
+`_collect_type_params`) and `_py_stmt_augassign`'s `.value` / `.slice` read `iratt_slice_of` / `iratt_value_of` (a
+superset of `sindex_of` / `avalue_of`: identical on IrSub / IrAttr, opaque elsewhere) instead of the Subscript
+projector -- a method merely NAMED like one of these handlers read `IrOther ""` on a SliceAccess. Frozen tree
+`/home/fabrice/git/pycsl-u43-h3` (= the committed head's `src/`), patch `scratchpad/u43/h3.patch`, sweep
+`scratchpad/u43/mir-h3`. Only Module5 moves (h2 -> h3: 52 lines, 8 verified bodies):
+| run | result | log |
+|---|---|---|
+| Module5 `--fun` x10 (`_collect_type_params`, `_field_type_from_annotation`, `_m5_get_dict_key_type`, `_m5_get_dict_value_type`, `_m5_get_type_name_legacy`, `_normalize_final_annotation`, `_py_stmt_augassign`, `_typeddict_field_type`, `_collect_final_registry`, `_union_arm_tag`) | rc 0, 1334 Valid / 0 | `proofs/m5-fun-h3.log` |
+| types WHOLE FILE at h3 (`PYTHON_CPU_COUNT=6`, `HEAVY_LOW`) | rc 0, SUCCESS, 3692 Valid / 0 (2967 s); the same two vacuity notes | `proofs/types-whole-h3.log` |
+expr_ghost_collections / expr_ghost_spec_ops: h1 == h3 emission (their h1 whole-file proofs stand).
+
+FINAL MIRROR MOVERS (base -> h3): Module5_IREmitter 25 / 30 lines, expressions 66 / 149, statements 26 / 68,
+stmt_control_flow 28 / 52, types 15 / 52, expr_ghost_collections 39 / 88, expr_ghost_spec_ops 15 / 53; the other 46
+files byte-identical. Verified bodies moved (or reading a re-defined projector), ALL proved by the runs above except
+expressions `_handle_in_globals_expr` / `_handle_in_scope_expr` (not `--fun`-provable at base either).
+
+OWED (driver, whole-file, batched): `module6_whyml/expressions.py` (215 changed lines), `module6_whyml/statements.py`
+(94), `module6_whyml/stmt_control_flow.py` (80), `frontend/Module5_IREmitter.py` (55). Proved here (whole-file):
+types, expr_ghost_collections, expr_ghost_spec_ops. Re-trust proposals: NONE.
+
+## Witnesses (default model; CPython runs each `__main__` and breaks the claim)
+Scratch witnesses `scratchpad/u43/{w596,w584,w594,wx,wc}/` (w596 = the 44 rt57 F1 probes, w584 = u38's f01-f14 /
+t01-t03 from branch run6-u38, w594 = route #594's two, wx = new probes, wc = controls). Base re-measured after the
+reboot (`scratchpad/u43/wres/base-default/`, tree `/home/fabrice/git/pycsl-u43-base`), head
+`scratchpad/u43/wres/h2-default/` (h2 = h3 for every witness: h3 only changes methods named like the scoped
+handlers, which no witness but x05 uses, and x05's swap-family path is unchanged h2 -> h3). Command
+`scratchpad/u43/prove.sh <tree> <out> default <files>` (pycsl.py <f> --import-path src/pycsl).
+67 false proofs at base, 0 at head; x03 / x08 / x10 were not proved at base either; control c02 proves at both.
+
+| witness | base 1ffab454c (default) | head h2/h3 (default) |
+|---|---|---|
+| w596/ate_DictComp_value | PROVED | NOT PROVED |
+| w596/ate_Exists_body | PROVED | NOT PROVED |
+| w596/ate_Forall_body | PROVED | NOT PROVED |
+| w596/ate_IfExpr_test | PROVED | NOT PROVED |
+| w596/ate_Lambda_body | PROVED | NOT PROVED |
+| w596/ate_MapValueIs_value | PROVED | NOT PROVED |
+| w596/ate_ProjExpr_tuple | PROVED | NOT PROVED |
+| w596/atg_ClassInvariant_expr | PROVED | NOT PROVED |
+| w596/atg_Ensures_expr | PROVED | NOT PROVED |
+| w596/atg_GhostArraySetDecl_index | PROVED | NOT PROVED |
+| w596/atg_GhostArraySetDecl_value | PROVED | NOT PROVED |
+| w596/atg_GhostAssignDecl_value | PROVED | NOT PROVED |
+| w596/atg_Lambda_body | PROVED | NOT PROVED |
+| w596/atg_LoopInvariant_expr | PROVED | NOT PROVED |
+| w596/atg_LoopVariant_expr | PROVED | NOT PROVED |
+| w596/atg_MutexInvariant_expr | PROVED | NOT PROVED |
+| w596/atg_Proj_tuple | PROVED | NOT PROVED |
+| w596/atg_Requires_expr | PROVED | NOT PROVED |
+| w596/ats_ArraySet_index | PROVED | NOT PROVED |
+| w596/ats_ArraySet_value | PROVED | NOT PROVED |
+| w596/ats_ArraySliceSet_lower | PROVED | NOT PROVED |
+| w596/ats_ArraySliceSet_upper | PROVED | NOT PROVED |
+| w596/ats_ArraySliceSet_value | PROVED | NOT PROVED |
+| w596/ats_Assert_test | PROVED | NOT PROVED |
+| w596/ats_Assign_value | PROVED | NOT PROVED |
+| w596/ats_AugAssign_value | PROVED | NOT PROVED |
+| w596/ats_DelSubscript_index | PROVED | NOT PROVED |
+| w596/ats_Expr_value | PROVED | NOT PROVED |
+| w596/ats_FieldAssign_value | PROVED | NOT PROVED |
+| w596/ats_FieldAugAssign_value | PROVED | NOT PROVED |
+| w596/ats_GhostArraySet_index | PROVED | NOT PROVED |
+| w596/ats_GhostArraySet_value | PROVED | NOT PROVED |
+| w596/ats_GhostAssign_value | PROVED | NOT PROVED |
+| w596/ats_If_test | PROVED | NOT PROVED |
+| w596/ats_ProofAssert_test | PROVED | NOT PROVED |
+| w596/ats_Return_value | PROVED | NOT PROVED |
+| w596/ats_TupleUnpack_value | PROVED | NOT PROVED |
+| w596/ats_While_test | PROVED | NOT PROVED |
+| wc-drop/c01_sub_value_truthy |  | NOT PROVED |
+| wc/c02_mapget_dict_isinst | PROVED | PROVED |
+| wc-drop/c03_attr_value_isinst |  | NOT PROVED |
+| w596/dve_DictComp_value | PROVED | NOT PROVED |
+| w596/dve_MapValueIs_value | PROVED | NOT PROVED |
+| w584/f01_mapget_dict | PROVED | NOT PROVED |
+| w584/f02_haskey_key | PROVED | NOT PROVED |
+| w584/f03_cons_head | PROVED | NOT PROVED |
+| w584/f04_strconcat_left | PROVED | NOT PROVED |
+| w584/f05_arrayeq_dict_left | PROVED | NOT PROVED |
+| w584/f06_nth_dict_index | PROVED | NOT PROVED |
+| w584/f09_unaryop_op_attr | PROVED | NOT PROVED |
+| w584/f10_unaryop_op_dict | PROVED | NOT PROVED |
+| w584/f11_inglobals_name | PROVED | NOT PROVED |
+| w584/f12_arraylen_var | PROVED | NOT PROVED |
+| w584/f14_ctortest_ctor | PROVED | NOT PROVED |
+| w594/hk1702_cd_ann_value_isnone | PROVED | NOT PROVED |
+| w594/hk1725_mo_ann_value_isnone | PROVED | NOT PROVED |
+| w596/pre_IfExpr_body_test | PROVED | NOT PROVED |
+| w596/pre_IfExpr_orelse_test | PROVED | NOT PROVED |
+| w596/pre_IfExpr_test_body | PROVED | NOT PROVED |
+| w596/pre_IfExpr_test_orelse | PROVED | NOT PROVED |
+| w584/t01_truthy_get_value | PROVED | NOT PROVED |
+| w584/t02_truthy_attr_value | PROVED | NOT PROVED |
+| w584/t03_truthy_get_guard | PROVED | NOT PROVED |
+| wx/x01_attr_label_at | PROVED | NOT PROVED |
+| wx/x02_attr_base_valid | PROVED | NOT PROVED |
+| wx/x03_dict_attr_var | NOT PROVED | NOT PROVED |
+| wx/x04_attr_lo_issorted | PROVED | NOT PROVED |
+| wx/x05_scoped_setadd_set | PROVED | NOT PROVED |
+| wx/x06_truthy_local_value | PROVED | NOT PROVED |
+| wx/x07_attr_size_ghostmake | PROVED | NOT PROVED |
+| wx/x08_dict_body_ifexpr_stmt | NOT PROVED | NOT PROVED |
+| wx/x09_attr_func_callN_stmt | PROVED | NOT PROVED |
+| wx/x10_dict_value_string_number | NOT PROVED | NOT PROVED |
+
+
+## Corpus witnesses 9740-9778 (block 9740-9779; 9774 / 9775 / 9779 unused)
+Expected FAIL 9740-9773 (34): 9740-9751 #596, 9752-9759 + 9773 #586, 9760-9766 #587, 9767-9770 #588, 9771-9772
+#594. Controls (expected PASS) 9776-9778: the truthiness of `.value` / `.slice` after `isinstance(x, ast.Subscript)`
+and of `.value` after `isinstance(x, ast.Attribute)` -- the modelled IrSub / IrAttr arms decide `true`, so the falsy
+branch is unreachable; CPython agrees (a child AST node is truthy). Generated by `scratchpad/u43/tools/mkcorpus.py`.
+Corpus-mode proofs (`scratchpad/u43/cprove.sh`: cwd = tree root, only the file's own `# pycsl-flags:`; tree
+`/home/fabrice/git/pycsl-u43-h3`):
+- default: 34 / 34 expected-FAIL NOT PROVED (every unproved goal is the postcondition of the tested method:
+  `em__f` 33, `em___handle_set_add_expr` 1; no type error), 3 / 3 controls PROVED (`scratchpad/u43/cres/h3-default/`).
+- typed / store: 37 / 37 fail the Why3 type check before any proof (`unbound type symbol 'array'`, the pre-existing
+  emit_ir gap of those models; 0 SUCCESS) (`scratchpad/u43/cres/h3-typed/`, `h3-store/`).
+The two wx probes not proved at base (x03, x10) are NOT in the corpus; x02 / x07 replace them (both PROVED at base).
+
+## Corpus byte-diff (driver base sweep `scratchpad/run7/base/bd` = source tree 73fd1874f, vs `scratchpad/u43/bd-h3`,
+`bin/byte-diff-compare.py` once root with `--new-source` the 37 IDs, once pyref; `scratchpad/u43/bdc-root.txt`,
+`bdc-pyref.txt`)
+- pyref: 2185 / 2185, 0 MOVED / 0 GONE / 0 APPEARED.
+- root: 35 MOVED, 1 GONE, 0 APPEARED, 37 new ignored. MOVED: 0748, 0749, 0878, 0880, 9310, 9311, 9430-9435, 9440,
+  9441, 9550-9565, 9580-9584 -- every diff is the projector change (`IrOther ""` default -> `<proj>_unk e`; `name_of` ->
+  `iratts_name_of`; `left_of`/`right_of`/`op_of` -> `iratt_left_of`/`iratt_right_of`/`iratts_op_of`; the defs spliced).
+  M1: all 35 re-proved corpus-mode at h3 (`scratchpad/u43/cres/m1-h3/`): 22 expected-FAIL still NOT PROVED, 9
+  expected-PASS + 4 untagged (0748, 0749, 0878, 0880) PROVED. Verdicts unchanged.
+  GONE: 1723_route212_verify_imports_control -- `--verify-imports` of its dependency fails today at BASE and HEAD alike
+  (`scratchpad/u43/e1723-pycsl-u43-base.log`, `e1723-pycsl-u43-h3.log`, identical PIPELINE ERROR), i.e. an
+  environmental difference from the driver's base sweep, not this change.
+
+## Gates (working tree = the committed head; logs `scratchpad/u43/gates/`)
+- Fidelity x3: check-self-annotate-sync rc 0 (963 un-trusted mirror functions verbatim), self-annotate-mirror-check
+  rc 0 (53/53), doc-coherency --check rc 0.
+- run-soundness-planes.sh (fast + conversion tier): first run 2 RED, both caused by this change and fixed:
+  (1) check-type-keyed-constant-answers -- two baseline entries described the `_to_bool` always-present `true` arms
+  that route #588 REMOVES ("matches no arm -- the classification is stale"); the two entries are deleted (the set of
+  permitted constant answers shrinks; no new entry); (2) check-assigns-underdeclaration -- the first splice draft
+  chose the constructor gate with `getattr(self, g)()` (a dynamic dispatch the plane cannot bound); replaced by an
+  explicit gate table (same five `_uses_*` predicates; emission identical: mirror sweep `mir-h4` == `mir-h3`, 53/53).
+  Re-run `planes2.txt`: rc 0, 0 RED; `type-keyed.txt` rc 0, `assigns-underdecl.txt` rc 0.
+- Individually: check-vacuous-drivers rc 0; check-dropped-mutation rc 0 (0 dropped); check-claim-vacuity rc 0 (1791 at
+  ceiling); check-refusal-witness-coverage rc 0; check-refusal-advice-audited rc 0 (no refusal added, no new code);
+  check-open-route-carriers rc 0 (14 carriers; none for these routes); check-assigns-writes-survival rc 0 (HOLE 0,
+  TRAP 1398 / ratchet 1399, emit dir `scratchpad/u43/mir_h3`); check-trusted-frame-honesty rc 0 (trusted 0/1, converted
+  0/63); check-getattr-erasure rc 0.
+- Ledgers: proof-axiom ledger 3 (no axiom); mirror `#@ \trusted` unchanged (no mirror file edited); no new refusal code
+  (refusal-witness census / advice audit unchanged); annotations §7.596; route docs #586 #587 #588 #594 #596 REPAIRED.
+
+## Residuals (same class, NOT repaired; scoped to methods NAMED like specific handlers)
+`_EMIT_IR_GET_KEY_PROJ_BY_FUNC` (`_match_field_decode_idiom`: `receiver_of`, `slice_of`, `lower_of`/`upper_of`/`step_of`,
+`num_of`), `_const_int_value`'s `unaryop_operand_of` (`IrNone` default), `_classify_literal_value`'s `const_pyval_of`,
+`_csl_old`'s `fgobject_of`/`field_of`, the `.id` / `.attr` attribute reads (`name_of`: a non-Name receiver raises in
+CPython), `elt0_of`/`elt1_of` (IrTuple only) still carry a placeholder default. Each fires only inside a method of that
+exact name (or, for `.id`/`.attr`, only on a receiver CPython rejects), so a user program reaches them only by naming
+a method like a mirror handler; not measured here.

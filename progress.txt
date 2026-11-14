@@ -12,3 +12,101 @@
 2026-11-13T11:27:51Z u43: scf --fun 5 PROVED at h1; Module5 --fun running
 2026-11-13T11:33:50Z u43: Module5 --fun running; witnesses h2 default ~20/73
 2026-11-13T11:34:44Z u43: STEP 0 report committed (getting-better/run7-u43-projectors.md): 7 mirror files move, all measured verified movers PROVE (no re-trust); h2 deltas running
+2026-11-13T11:39:51Z u43: h2 deltas (--fun) + witnesses h2 running
+2026-11-13T11:51:55Z u43: h2 deltas statements running; witnesses ~36/73; h3 edit (scoped .slice/.value -> iratt) pending sweep
+2026-11-13T12:08:54Z u43: waiting scf h2 delta; witnesses ~50/73
+2026-11-13T12:20:32Z u43: h3 mirror sweep queued; witnesses h2 ~55/73
+2026-11-13T12:29:10Z u43: h3 mirror sweep queued; witnesses h2 67/73
+2026-11-13T12:37:15Z u43: witnesses h2 default DONE (all FAIL except control c02 PASS; c01/c03 controls FAIL - investigating); base witnesses running; h3 sweep
+2026-11-13T12:46:04Z u43: queued (base witnesses NORMAL, Module5 --fun h3 LOW)
+2026-11-13T12:58:57Z u43: base witnesses running; m5 h3 queued
+2026-11-13T13:07:46Z u43: base witnesses 17/73 (all false proofs confirmed so far); m5 h3 queued
+2026-11-13T13:12:14Z u43: base witnesses running; m5 h3 queued LOW
+2026-11-13T13:16:56Z u43: Module5 h3 --fun PROVED (1334/0); controls c06/c07/c09 (is_sub/is_attribute arms) proving
+2026-11-13T13:24:49Z u43: corpus witnesses 9740-9778 written; route docs + annotations §7.596; base witnesses 35/73; controls queued
+2026-11-13T13:33:57Z u43: base witnesses 45/73; controls queued
+2026-11-13T13:42:47Z u43: base witnesses 54/73; controls queued
+2026-11-13T13:51:33Z u43: base witnesses 64/73; controls queued
+2026-11-13T13:57:13Z u43: base witnesses DONE (67 emit_ir witnesses PROVED false at base, all NOT PROVED at head); corpus 9740-9778 (37) corpus-mode proofs at h3 launched
+2026-11-13T14:03:19Z u43: queued: corpus proofs h3, types whole h3+base
+2026-11-13T14:11:53Z u43: corpus proofs h3 running
+2026-11-13T14:17:32Z u43: corpus proofs h3 running
+2026-11-13T14:23:09Z u43: corpus proofs h3 ~12/37; types h3 whole running
+2026-11-13T14:28:55Z u43: corpus proofs h3 ~17/37
+2026-11-13T14:34:31Z u43: corpus proofs h3 ~21/37
+2026-11-13T14:40:10Z u43: corpus proofs h3 ~26/37
+2026-11-13T14:45:47Z u43: corpus proofs h3 ~31/37
+2026-11-13T14:52:12Z u43: corpus 9740-9778 corpus-mode at h3: 34 FAIL (postcondition) / 3 PASS as expected; byte-diff sweep h3 launched
+2026-11-13T15:01:00Z u43: types h3 whole PROVED (3692/0; same 2 vacuity notes, base comparison running); corpus sweep queued
+2026-11-13T15:07:06Z u43: corpus sweep queued/running; base types running
+2026-11-13T15:15:56Z u43: corpus sweep queued
+2026-11-13T15:24:50Z u43: corpus sweep queued; base types running
+2026-11-13T15:33:57Z u43: corpus sweep queued; base types running
+2026-11-13T15:40:11Z u43: types base whole DONE (same 2 vacuity notes = pre-existing); corpus sweep running; typed/store corpus runs queued
+2026-11-13T15:49:02Z u43: corpus sweep running
+2026-11-13T15:57:53Z u43: corpus sweep running (2756+)
+2026-11-13T16:17:20Z u43: corpus sweep h3 DONE (3149 root / 2185 pyref); compare + typed/store queued
+2026-11-13T16:28:53Z u43: compare + typed/store queued
+2026-11-13T16:34:46Z u43: queued behind driver PRIO jobs (compare, typed/store)
+2026-11-13T16:43:35Z u43: still queued behind PRIO
+2026-11-13T16:52:05Z u43: still queued behind PRIO
+2026-11-13T17:00:32Z u43: queued
+2026-11-13T17:09:36Z u43: queued
+2026-11-13T17:13:59Z u43: byte-diff root 35 MOVED (all projector-def/use moves, intended) / 1 GONE (1723: --verify-imports dependency fails identically at base and head now: environmental) ; pyref 0/0/0; M1 re-proofs of 35 movers queued
+2026-11-13T17:19:46Z u43: typed/store + M1 queued
+2026-11-13T17:26:31Z u43: fidelity x3 rc 0; planes/ledger gates prepared; typed/store + M1 queued
+2026-11-13T17:35:26Z u43: queued behind PRIO
+2026-11-13T17:44:11Z u43: queued behind PRIO
+2026-11-13T17:52:37Z u43: queued behind PRIO
+2026-11-13T17:56:34Z u43: typed/store running
+2026-11-13T17:57:46Z u43: typed/store: 37/37 corpus witnesses fail the Why3 type check (unbound 'array'), none proves; gates launched; M1 running
+2026-11-13T18:03:23Z u43: M1 + gates queued/running
+2026-11-13T18:11:49Z u43: M1 + gates queued
+2026-11-13T18:17:35Z u43: M1 + gates queued
+2026-11-13T18:23:12Z u43: M1 + gates queued
+2026-11-13T18:32:03Z u43: M1 + gates queued
+2026-11-13T18:38:00Z u43: M1 + gates queued behind PRIO
+2026-11-13T18:46:52Z u43: M1 + gates queued behind PRIO
+2026-11-13T18:55:41Z u43: M1 running
+2026-11-13T19:04:40Z u43: M1 12/35
+2026-11-13T19:13:16Z u43: M1 ~18/35
+2026-11-13T19:21:44Z u43: M1 ~25/35; planes running
+2026-11-13T19:30:10Z u43: M1 ~32/35; planes running
+2026-11-13T19:37:41Z u43: M1 DONE (35/35 verdicts unchanged); planes running
+2026-11-13T19:44:40Z u43: planes: 2 RED (type-keyed stale baseline -> entries removed; assigns-underdeclaration from a getattr dispatch in transpile -> rewritten); rerun pending
+2026-11-13T19:53:11Z u43: gates: trusted-frame running
+2026-11-13T20:01:52Z u43: getattr-erasure running
+2026-11-13T20:05:52Z u43: all ledger gates rc 0; planes re-run (with transpile dispatch fix + stale baseline entries removed) + mirror sweep h4 launched
+2026-11-13T20:11:41Z u43: g2 (mirror sweep h4 + planes) queued/running
+2026-11-13T20:20:49Z u43: g2 queued
+2026-11-13T20:30:05Z u43: g2 queued
+2026-11-13T20:39:02Z u43: g2 queued
+2026-11-13T20:47:49Z u43: g2 queued
+2026-11-13T20:56:20Z u43: g2 queued behind PRIO
+2026-11-13T21:05:01Z u43: g2 queued behind PRIO
+2026-11-13T21:13:29Z u43: g2 queued
+2026-11-13T21:21:56Z u43: g2 queued
+2026-11-13T21:30:25Z u43: g2 queued
+2026-11-13T21:36:03Z u43: g2 queued
+2026-11-13T21:44:33Z u43: g2 queued behind PRIO
+2026-11-13T21:50:21Z u43: g2 queued
+2026-11-13T21:59:06Z u43: g2 queued
+2026-11-13T22:07:31Z u43: g2 queued
+2026-11-13T22:15:59Z u43: g2 queued behind PRIO
+2026-11-13T22:21:38Z u43: g2 queued
+2026-11-13T22:27:18Z u43: g2 queued
+2026-11-13T22:32:56Z u43: g2 queued behind PRIO
+2026-11-13T22:38:34Z u43: g2 queued
+2026-11-13T22:44:12Z u43: g2 queued
+2026-11-13T22:49:51Z u43: g2 queued
+2026-11-13T22:55:29Z u43: g2 queued
+2026-11-13T23:01:07Z u43: g2 queued behind PRIO
+2026-11-13T23:06:44Z u43: g2 queued
+2026-11-13T23:12:21Z u43: g2 queued
+2026-11-13T23:18:00Z u43: g2 queued
+2026-11-13T23:23:38Z u43: g2 queued
+2026-11-13T23:25:10Z u43: g2 relaunched once with HEAVY_PRIO=1 (driver grant); old queued copy pid 1597236 (mine, verified) killed
+2026-11-13T23:39:44Z u43: mirror h4 == h3 (53/53 identical); planes2 running
+2026-11-13T23:48:11Z u43: planes2 running
+2026-11-13T23:53:52Z u43: planes2 running, 0 RED so far
+2026-11-14T00:02:17Z u43: planes2 running (conversion tier)

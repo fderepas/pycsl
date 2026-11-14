@@ -6340,6 +6340,38 @@ call `<x>.n(...)` of a name made a possible method only by these forms is refuse
 name of its `def`, or give the name its own `def` (with a contract) that calls it. Measurements:
 `getting-better/open-routes/route595-classbody-alias-match-capture.md`.
 
+### 7.596 A read on an IR node value that the node's class does not carry is opaque; a field several classes carry is read by the receiver's constructor; truthiness and `is None` of such a read are not decided (routes #596 / #586 / #587 / #588 / #594, run #7)
+
+Routes #583-#585 (§7.583-§7.585) chose some reflection reads by the receiver's constructor, but every projector kept a
+PLACEHOLDER default -- `IrOther ""` for a node child, `""` for a string field -- and several field names still went to
+ONE class's projector. Inside a `@mutable_state` class, after a test that pins the receiver's class, a read that class
+does not carry (or carries through another projector) was the placeholder, and the model decided the branch: `if
+x.kind == "IfExpr": if x.test.kind == "Var": return 1` PROVED `\result == 0` (the IfExpr node is not modelled with
+its test); every StmtIR receiver (`x.kind == "Assign"` admits only `IrOther "Assign"`) likewise; `.dict` of a
+`MapGet` read IrBinOp's `left_of`; `.op` of a `UnaryOp` read IrBinOp's `op_of` (`""`); `if x.get("value"):` was
+`true`; `child.value is None` on a raw `ast.AnnAssign` was `false`. CPython takes the other branch each time.
+
+RULE (Module 6; every edited method's mirror twin `\trusted` or absent; no axiom, no new ADT arm, no `\trusted`):
+- A read on an emit_ir value is chosen by the receiver's CONSTRUCTOR, and a receiver whose constructor carries no such
+  field reads an OPAQUE value -- `<proj>_unk e`, a `val function` of the receiver: deterministic, decided by nothing.
+  - node fields (attribute view and the dict view's `left`/`right`/`index`/`object`/`orelse`/`body` `{}`):
+    `iratt_<f>_of`, one arm per constructor carrying `<f>` as an emit_ir child (`_EMIT_IR_ATTR_ARMS`, generated from
+    `_IRNODE_CTORS` + the ADT, gated constructors keep their gate); `_EMIT_IR_NODE_ATTRS` (`.dict/.key/.head/.tail/
+    .left/.right/.lo/.hi/.size/.default` -> `left_of`/`right_of`) and the swap-family handler slots are retired;
+  - string fields (`.op/.name/.var/.ctor/.func/.label/.base/.base1/.base2/.arr`, dict view `name/attr/field/func/ctor/
+    op` and the string `.get("value"[, ""])`): `iratts_<f>_of` (`_EMIT_IR_STR_ATTR_ARMS`); `.kind`, `.id`, `.attr`
+    keep `kind_of` / `name_of`;
+  - `irget_value_of` / `irget_lower_of` / `irget_upper_of` (the dict view): default opaque.
+  The definitions are spliced into the emit_ir theory only when the emitted text uses them (the §7.584 slot), so every
+  other file's theory is byte-identical.
+- TRUTHINESS: `if <projected child>:` is `irtru_<proj> <receiver>` -- `true` on a constructor that carries the field
+  (an IR / ast child is a truthy object), the option's presence on an optional bound (`IrSliceN`), opaque elsewhere;
+  `if v:` on an emit_ir LOCAL is `ir_truthy_v v` (`IrNone` / `IrOther` undecided, any other node `true`).
+- `child.value is None` on a raw `ast.stmt` (the pyast_stmt class-body / module walk): `ast.Assign` always carries its
+  value (`false`), every other statement's presence is opaque (`stmt_value_isnone_unk`).
+Witnesses 9740-9773 (expected FAIL), controls 9776-9778 (PASS); route docs
+`getting-better/open-routes/route596-*.md` (and #586 / #587 / #588 / #594), `getting-better/run7-u43-projectors.md`.
+
 ### 7.597 A raised name is judged by every binding that can reach the raise (route #597, run #6)
 
 §7.590 resolved the raised name by the module-level classes only, so a name rebound inside the function to a
