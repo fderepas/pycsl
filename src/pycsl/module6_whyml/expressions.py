@@ -126,13 +126,16 @@ _TYPED_EXPR_HANDLERS = {
 # `emit_ir` sum; string-valued keys yield a `string`, sub-node keys yield an `emit_ir`.
 # ("field" is the FieldGet member-name — a string, routed like "attr"/"name".)
 _EMIT_IR_PROJ = {
-    "type": "kind_of", "name": "name_of", "attr": "name_of", "field": "name_of",
-    "func": "func_of", "value": "irget_value_of", "object": "object_of", "index": "sindex_of",
+    # routes #586/#587 (run #7 u43): every key a SEVERAL-class field reads the receiver's
+    # constructor (`iratt_<k>_of` / `iratts_<k>_of`, opaque where no constructor carries it),
+    # not one class's `name_of` / `func_of` / `object_of` / `sindex_of` / `op_of` / `left_of`.
+    "type": "kind_of", "name": "iratts_name_of", "attr": "iratts_attr_of", "field": "iratts_field_of",
+    "func": "iratts_func_of", "value": "irget_value_of", "object": "iratt_object_of", "index": "iratt_index_of",
     "args": "args_of",   # resync-campaign.md R1: the args LIST → `array emit_ir`
     # cf6.md M1.1: match pattern/case keys — `pattern` (KIND) / `ctor` (NAME) are strings;
     # `captures` is a reflected node list (`args_of`); `body` is an OPAQUE stmt-list
     # (`stmts_of : → array int`); `guard` is a single node (`svalue_of`).
-    "pattern": "kind_of", "ctor": "name_of", "captures": "args_of",
+    "pattern": "kind_of", "ctor": "iratts_ctor_of", "captures": "args_of",
     # `alternatives` (an `Or` match-pattern's alternative sub-pattern LIST) joins the
     # node-list family on the same footing as `captures` — reflected `array emit_ir`,
     # no theory change. Reference lock: corpus 0893 (positive) / 0894 (negative twin).
@@ -146,13 +149,13 @@ _EMIT_IR_PROJ = {
     "lower": "irget_lower_of", "upper": "irget_upper_of",   # 07-03-refactor R4: SliceExpr bound sub-nodes
     # tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections — `op` is the operator
     # STRING (`op_of`); `left`/`right` are the SUB-NODES (`left_of`/`right_of`, → emit_ir).
-    "op": "op_of", "left": "left_of", "right": "right_of",
+    "op": "iratts_op_of", "left": "iratt_left_of", "right": "iratt_right_of",
     # orelse_of mini-M1: IfExpr's `orelse` (else sub-node) is UNAMBIGUOUS (used nowhere
     # else) → the table entry suffices. IfExpr's `body` (then sub-node) COLLIDES with the
     # If/For/While/Try stmt-list `body` (→ `stmts_of`, above); disambiguated at the
     # `.get(key, default)` call site by the default-argument shape (empty-dict `{}` default
     # → `body_of`; empty-list `[]`/no default → `stmts_of`), NOT here in the table.
-    "orelse": "orelse_of",
+    "orelse": "iratt_orelse_of",
 }
 # `pattern` is CONTEXT-DEPENDENT: SUBSCRIPT `c["pattern"]` → a sub-NODE (below); `.get("pattern")`
 # → the KIND string (here). Different code paths read each tuple, so it appears in both.
@@ -241,25 +244,37 @@ _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
 _EMIT_IR_FIELD_SLOT = "(*__pycsl_field_proj_slot__*)"
 _EMIT_IR_FIELD_PROJ_DEFS = {
     # dict view: `.get("value"[, {}])` / `["value"]` (the wire keys; an Attribute node carries `object`, not `value`).
-    "irget_value_of": ["  let function irget_value_of (e: emit_ir) : emit_ir =",
+    # route #596 (run #7 u43): a node whose constructor carries no `value` reads the OPAQUE
+    # `irget_value_unk e`, not the `IrOther ""` placeholder (DictComp / MapValueIs / StmtIR ...).
+    "irget_value_of": ["  val function irget_value_unk (e: emit_ir) : emit_ir",
+                       "  let function irget_value_of (e: emit_ir) : emit_ir =",
                        "    match e with IrSub v _ -> v | IrStarred v -> v | IrNamedExpr _ v -> v"
-                       " | IrSliceAccess v _ -> v | IrMapSet _ _ v -> v | _ -> IrOther \"\" end",
+                       " | IrSliceAccess v _ -> v | IrMapSet _ _ v -> v | _ -> irget_value_unk e end",
                        # the Subscript size-decrease law `size_svalue_dec` gave the old read (a
                        # recursion on `node.get("value")` under a Subscript test terminates). PROVEN.
                        "  lemma size_irget_value_dec : forall e: emit_ir. is_sub e ->"
                        " size (irget_value_of e) < size e", ""],
-    "irget_lower_of": ["  let function irget_lower_of (e: emit_ir) : emit_ir =",
+    "irget_lower_of": ["  val function irget_lower_unk (e: emit_ir) : emit_ir",
+                       "  let function irget_lower_of (e: emit_ir) : emit_ir =",
                        "    match e with IrSlice l _ -> l | IrSliceN l _ _ ->"
                        " (match l with IrOSome x -> x | IrONone -> IrNone end)"
-                       " | _ -> IrOther \"\" end", ""],
-    "irget_upper_of": ["  let function irget_upper_of (e: emit_ir) : emit_ir =",
+                       " | _ -> irget_lower_unk e end", ""],
+    "irget_upper_of": ["  val function irget_upper_unk (e: emit_ir) : emit_ir",
+                       "  let function irget_upper_of (e: emit_ir) : emit_ir =",
                        "    match e with IrSlice _ u -> u | IrSliceN _ u _ ->"
                        " (match u with IrOSome x -> x | IrONone -> IrNone end)"
-                       " | _ -> IrOther \"\" end", ""],
+                       " | _ -> irget_upper_unk e end", ""],
     # a match-case's `guard` has no constructor in the sum: an OPAQUE read (the model does not decide it).
     "irget_guard_of": ["  val function irget_guard_of (e: emit_ir) : emit_ir", ""],
     # `c["pattern"]`: a match-case's pattern sub-node, likewise no constructor: opaque.
     "irget_pattern_of": ["  val function irget_pattern_of (e: emit_ir) : emit_ir", ""],
+    # route #588 (run #7 u43): the Python truthiness of an emit_ir VALUE (a local bound to a
+    # read): a constructed node is a truthy object; `IrNone` (the model's None / an absent
+    # bound) and `IrOther` (an unmodelled class) are undecided.
+    "ir_truthy_v": ["  val function ir_truthy_unk (e: emit_ir) : bool",
+                    "  let function ir_truthy_v (e: emit_ir) : bool =",
+                    "    match e with IrNone -> ir_truthy_unk e | IrOther _ -> ir_truthy_unk e"
+                    " | _ -> true end", ""],
 }
 # ATTRIBUTE view (`x.value`, `x.slice`, ... on an emit_ir value, the catch-all of
 # `_handle_attribute_expr`): for each field name, the arms of the constructors that carry it
@@ -269,37 +284,96 @@ _EMIT_IR_FIELD_PROJ_DEFS = {
 # uses; a name no constructor carries as a node is an opaque `val` (the model does not decide
 # it). `ast.Attribute.value` is the object, `ast.Subscript.slice` the index, `ast.UnaryOp`
 # keeps `operand`.
+# ROUTES #586/#587/#596 (driver run #7, executor u43): the table is extended to EVERY emit_ir
+# sub-node field the constructor table (`_IRNODE_CTORS`) and the gated comprehension / lambda /
+# quantifier ctors carry (the 2-child `.dict/.key/.head/.tail/.left/.right/.lo/.hi/.size/.default`
+# reads no longer go to IrBinOp's shared `left_of`/`right_of`), and `_EMIT_IR_STR_ATTR_ARMS` gives
+# the STRING fields (`.op/.name/.var/.ctor/.func/.label/.base*/.arr`) the same per-constructor
+# arms (`iratts_<attr>_of`) instead of one class's `op_of`/`name_of`/`func_of`. A receiver whose
+# constructor carries no arm (an unmodelled IR class: a StmtIR node, `IfExpr.test`, a gated ctor
+# that is off in this file, ...) reads an OPAQUE `iratt[s]_<attr>_unk e`, never the `IrOther ""` /
+# `""` placeholder, so the model decides nothing CPython does not.
 _EMIT_IR_ATTR_ARMS = {
     'arg': [('IrFootprint _ v -> v', '_uses_clause_ir')],
-    'body': [('IrForallItems _ _ _ v -> v', None), ('IrTer3 _ v _ -> v', None), ('IrIfExpr v _ -> v', None), ('IrLambda _ v -> v', '_uses_stmt_ir')],
+    'body': [('IrForallItems _ _ _ v -> v', None), ('IrTer3 _ v _ -> v', None), ('IrIfExpr v _ -> v', None), ('IrLambda _ v -> v', '_uses_stmt_ir'), ('IrForall _ v _ _ -> v', None), ('IrExists _ v _ _ -> v', None)],
     'col': [('IrValid2D _ _ v -> v', None)],
     'collection': [('IrCSLIn _ v -> v', '_uses_clause_ir'), ('IrCSLNotIn _ v -> v', '_uses_clause_ir')],
     'cols': [('IrLength2D _ _ v -> v', None)],
     'condition': [('IrRaisesDecl _ v -> v', '_uses_clause_ir')],
+    'default': [('IrGhostMake _ v -> v', None)],
+    'dict': [('IrMapGet v _ -> v', None), ('IrMapSet v _ _ -> v', None), ('IrHasKey v _ -> v', None), ('IrMapRemove v _ -> v', None)],
     'elem': [('IrSetAdd _ v -> v', None), ('IrSetRemove _ v -> v', None), ('IrSetMem v _ -> v', None), ('IrMem v _ -> v', None)],
     'element': [('IrCSLIn v _ -> v', '_uses_clause_ir'), ('IrCSLNotIn v _ -> v', '_uses_clause_ir')],
+    'elt': [('IrListComp v _ -> v', '_uses_stmt_ir'), ('IrSetComp v _ -> v', '_uses_stmt_ir'), ('IrGenExp v _ -> v', '_uses_stmt_ir')],
     'expr': [('IrOld v -> v', None), ('IrUnaryOp _ v -> v', None), ('IrAt v _ -> v', None), ('IrClassInvariant v -> v', '_uses_clause_ir'), ('IrLoopInvariant v -> v', '_uses_clause_ir'), ('IrLoopVariant v -> v', '_uses_clause_ir'), ('IrEnsures v -> v', '_uses_clause_ir'), ('IrRequires v -> v', '_uses_clause_ir'), ('IrFunctionVariant v _ -> v', None), ('IrMutexInvariant _ v -> v', '_uses_clause_ir')],
+    'head': [('IrCons v _ -> v', None)],
+    'hi': [('IrIsSorted _ _ v -> v', None), ('IrSum _ _ v -> v', None), ('IrSetCard _ _ v -> v', None), ('IrStrSub _ _ v -> v', None), ('IrGhostCopyRange _ _ v -> v', None)],
     'high': [('IrAssignsRegion _ _ v -> v', None)],
     'index': [('IrSub _ v -> v', None), ('IrNth _ v -> v', None), ('IrGhostArraySetDecl _ v _ -> v', '_uses_clause_ir')],
+    'key': [('IrMapGet _ v -> v', None), ('IrMapSet _ v _ -> v', None), ('IrHasKey _ v -> v', None), ('IrMapRemove _ v -> v', None), ('IrDictComp v _ _ -> v', '_uses_stmt_ir')],
+    'left': [('IrBinOp _ v _ -> v', None), ('IrArrayEq v _ -> v', None), ('IrPermutation v _ -> v', None), ('IrMapEq v _ -> v', None), ('IrSetUnion v _ -> v', None), ('IrSetInter v _ -> v', None), ('IrSetDiff v _ -> v', None), ('IrSetSubset v _ -> v', None), ('IrSetEq v _ -> v', None), ('IrAppend v _ -> v', None), ('IrStrConcat v _ -> v', None)],
     'len1': [('IrSeparated _ v _ _ -> v', None)],
     'len2': [('IrSeparated _ _ _ v -> v', None)],
     'length': [('IrValid _ v -> v', None)],
     'list': [('IrHd v -> v', None), ('IrTl v -> v', None), ('IrListLength v -> v', None), ('IrNth v _ -> v', None), ('IrMem _ v -> v', None)],
+    'lo': [('IrIsSorted _ v _ -> v', None), ('IrSum _ v _ -> v', None), ('IrSetCard _ v _ -> v', None), ('IrStrSub _ v _ -> v', None), ('IrGhostCopyRange _ v _ -> v', None)],
     'low': [('IrAssignsRegion _ v _ -> v', None)],
     'lower': [('IrSlice v _ -> v', None), ('IrSliceN l _ _ -> (match l with IrOSome v -> v | IrONone -> IrNone end)', None)],
     'object': [('IrAttr v _ -> v', None)],
     'operand': [('IrUnaryOp _ v -> v', None)],
     'orelse': [('IrTer3 _ _ v -> v', None), ('IrIfExpr _ v -> v', None)],
     'payload': [('IrInterfaceClause _ v -> v', '_uses_clause_ir')],
+    'right': [('IrBinOp _ _ v -> v', None), ('IrArrayEq _ v -> v', None), ('IrPermutation _ v -> v', None), ('IrMapEq _ v -> v', None), ('IrSetUnion _ v -> v', None), ('IrSetInter _ v -> v', None), ('IrSetDiff _ v -> v', None), ('IrSetSubset _ v -> v', None), ('IrSetEq _ v -> v', None), ('IrAppend _ v -> v', None), ('IrStrConcat _ v -> v', None)],
     'row': [('IrValid2D _ v _ -> v', None)],
     'rows': [('IrLength2D _ v _ -> v', None)],
     'set': [('IrSetAdd v _ -> v', None), ('IrSetRemove v _ -> v', None), ('IrSetMem _ v -> v', None), ('IrSetCard v _ _ -> v', None)],
+    'size': [('IrGhostMake v _ -> v', None)],
     'slice': [('IrSub _ v -> v', None), ('IrSliceAccess _ v -> v', None)],
     'string': [('IrStrLength v -> v', None), ('IrStrSub v _ _ -> v', None)],
+    'tail': [('IrCons _ v -> v', None)],
     'test': [('IrTer3 v _ _ -> v', None)],
     'tuple': [('IrFst v -> v', None), ('IrSnd v -> v', None), ('IrProj v _ -> v', '_uses_csl_proj')],
     'upper': [('IrSlice _ v -> v', None), ('IrSliceN _ u _ -> (match u with IrOSome v -> v | IrONone -> IrNone end)', None)],
-    'value': [('IrAttr v _ -> v', None), ('IrSub v _ -> v', None), ('IrMapSet _ _ v -> v', None), ('IrSliceAccess v _ -> v', None), ('IrStarred v -> v', None), ('IrNamedExpr _ v -> v', None), ('IrGhostAssignDecl _ v _ _ -> v', '_uses_clause_ir'), ('IrGhostArraySetDecl _ _ v -> v', '_uses_clause_ir')],
+    'value': [('IrAttr v _ -> v', None), ('IrSub v _ -> v', None), ('IrMapSet _ _ v -> v', None), ('IrSliceAccess v _ -> v', None), ('IrStarred v -> v', None), ('IrNamedExpr _ v -> v', None), ('IrGhostAssignDecl _ v _ _ -> v', '_uses_clause_ir'), ('IrGhostArraySetDecl _ _ v -> v', '_uses_clause_ir'), ('IrDictComp _ v _ -> v', '_uses_stmt_ir')],
+}
+_EMIT_IR_STR_ATTR_ARMS = {
+    'op': [('IrBinOp v _ _ -> v', None), ('IrUnaryOp v _ -> v', None), ('IrGhostAssignDecl _ _ v _ -> v', '_uses_clause_ir')],
+    'name': [('IrVar v -> v', None), ('IrInGlobals v -> v', None), ('IrInScope v -> v', None), ('IrSharedStateDecl v _ -> v', '_uses_clause_ir'), ('IrTouchesFieldDecl v _ -> v', '_uses_clause_ir')],
+    'var': [('IrArrayLen v -> v', None), ('IrCtorTest v _ -> v', None), ('IrCtorPayload v _ _ -> v', None), ('IrForall v _ _ _ -> v', None), ('IrExists v _ _ _ -> v', None)],
+    'ctor': [('IrCtorTest _ v -> v', None), ('IrCtorPayload _ v _ -> v', None)],
+    'func': [('IrCall v _ _ -> v', None), ('IrCallN v _ -> v', None), ('IrCallKw v _ _ _ -> v', '_uses_call_kw'), ('IrMethodCall _ v _ _ -> v', '_uses_method_recv')],
+    'label': [('IrAt _ v -> v', None)],
+    'base': [('IrValid v _ -> v', None), ('IrLength2D v _ _ -> v', None), ('IrValid2D v _ _ -> v', None), ('IrIsSorted v _ _ -> v', None), ('IrSum v _ _ -> v', None), ('IrAssignsRegion v _ _ -> v', None)],
+    'base1': [('IrSeparated v _ _ _ -> v', None)],
+    'base2': [('IrSeparated _ _ v _ -> v', None)],
+    'arr': [('IrGhostCopy v -> v', None), ('IrGhostCopyRange v _ _ -> v', None)],
+    # dict view only (`.get("attr")` / `.get("field")`; the attribute view keeps `name_of`)
+    'attr': [('IrAttr _ v -> v', None)],
+    'field': [('IrFieldGet _ v -> v', None), ('IrOldField _ v -> v', None)],
+    # dict view only: the STRING content `.get("value"[, ""])` of a String node (was `value_of`,
+    # whose `""` default decided a Number / RawWhyml node's value)
+    'value': [('IrStr v -> v', None)],
+}
+# ROUTE #588 (run #7 u43): the TRUTHINESS of a projected emit_ir child (`if x.get("value"):`,
+# `if x.value:`) was decided `true` for every receiver. It is now `irtru_<proj> x` (spliced by
+# `transpile`): `true` on a constructor that carries the field (an IR / ast child node is a truthy
+# object), the option's presence on an optional bound (IrSliceN), OPAQUE on every other receiver
+# (a StmtIR, an absent wire key, an unmodelled class). Arms of the non-`iratt_` projectors:
+_EMIT_IR_TRUTHY_ARMS = {
+    "svalue_of": [("IrSub v _ -> v", None)],
+    "sindex_of": [("IrSub _ v -> v", None)],
+    "object_of": [("IrAttr v _ -> v", None)],
+    "avalue_of": [("IrAttr v _ -> v", None), ("IrSub v _ -> v", None)],
+    "arg0_of": [("IrCall _ v _ -> v", None), ("IrCallKw _ _ v _ -> v", "_uses_call_kw"),
+                ("IrMethodCall _ _ v _ -> v", "_uses_method_recv")],
+    "irget_value_of": [("IrSub v _ -> v", None), ("IrStarred v -> v", None),
+                       ("IrNamedExpr _ v -> v", None), ("IrSliceAccess v _ -> v", None),
+                       ("IrMapSet _ _ v -> v", None)],
+    "irget_lower_of": [("IrSlice v _ -> v", None),
+                       ("IrSliceN l _ _ -> (match l with IrOSome v -> v | IrONone -> IrNone end)", None)],
+    "irget_upper_of": [("IrSlice _ v -> v", None),
+                       ("IrSliceN _ u _ -> (match u with IrOSome v -> v | IrONone -> IrNone end)", None)],
+    "irget_guard_of": [], "irget_pattern_of": [],
 }
 _EMIT_IR_NODE_ATTRS = {"dict": "left_of", "key": "right_of", "head": "left_of", "tail": "right_of",
                        "left": "left_of", "right": "right_of",
@@ -394,9 +468,13 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 # subscript-only default) is unperturbed. `.id` stays the global `_EMIT_IR_STR_ATTRS`
 # `name_of` (checked first).
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
-    "_py_stmt_augassign": {"value": "avalue_of", "slice": "sindex_of",
+    "_py_stmt_augassign": {"value": "iratt_value_of", "slice": "iratt_slice_of",
                            "attr": "name_of"},
 })
+# route #586 (run #7 u43): the SCOPED `.slice` / `.value` entries below read the per-constructor
+# `iratt_slice_of` / `iratt_value_of` (a superset of `sindex_of` / `avalue_of`: identical on IrSub /
+# IrAttr, the field of the node on every other carrier, opaque elsewhere) -- a method merely NAMED like
+# one of these handlers no longer reads the Subscript projector's `IrOther ""` on a SliceAccess.
 # value-model campaign increment 2 (P1 — SCOPED `.slice`→sindex_of for the annotation
 # walkers): a type-annotation node's `.slice` is the type ARGUMENT (a Subscript's index
 # child, `sindex_of`), NOT the `.value` head (`svalue_of`, the default). Global `.slice`
@@ -407,29 +485,29 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 # (`_py_expr_subscript`, `_py_stmt_assign`, which pass `.slice` to `_py_expr_to_ir`, an
 # emit_ir-local path).
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
-    "_typeddict_field_type": {"slice": "sindex_of"},
+    "_typeddict_field_type": {"slice": "iratt_slice_of"},
 })
 # value-model campaign increment 5 (combined): P1-scoped `.slice`->sindex_of for the two
 # converted Optional[str] annotation walkers. `_normalize_final_annotation`'s `Final[T].slice`
 # and `_m5_get_dict_key_type`'s `Dict[K,V].slice` both read the type ARGUMENT (sindex_of),
 # NOT the `.value` head. SCOPED via `_current_emitting_func` -> corpus/consumer-inert.
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
-    "_normalize_final_annotation": {"slice": "sindex_of"},
-    "_m5_get_dict_key_type": {"slice": "sindex_of"},
-    "_m5_get_dict_value_type": {"slice": "sindex_of"},
+    "_normalize_final_annotation": {"slice": "iratt_slice_of"},
+    "_m5_get_dict_key_type": {"slice": "iratt_slice_of"},
+    "_m5_get_dict_value_type": {"slice": "iratt_slice_of"},
 })
 # value-model campaign increment 10 (loop-over-irlist): the two legacy leaf resolvers read
 # `inner = annotation.slice` (the `Union[...].slice` type-arg tuple) then `for elt in inner.elts`.
 # `.slice`->sindex_of (P1) so `inner` is the tuple; `inner.elts`-> the IrMkTupleN irlist loop.
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
-    "_m5_get_type_name_legacy": {"slice": "sindex_of"},
-    "_field_type_from_annotation": {"slice": "sindex_of"},
+    "_m5_get_type_name_legacy": {"slice": "iratt_slice_of"},
+    "_field_type_from_annotation": {"slice": "iratt_slice_of"},
 })
 # 7b (self-tcb-reduction L4b): `_collect_type_params`'s legacy `Generic[T]` branch reads
 # `b.slice` (the Subscript type-arg, `sindex_of`) off a `for b in node.bases` emit_ir loop
 # var — NOT the `.value` head. SCOPED via `_current_emitting_func` -> corpus-inert.
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
-    "_collect_type_params": {"slice": "sindex_of"},
+    "_collect_type_params": {"slice": "iratt_slice_of"},
 })
 # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `_classify_literal_value`'s
 # `v = elt.value` reads the CONSTANT-leaf VALUE off `elt` (an `ast.Constant` self-annotated
@@ -869,11 +947,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # 07-03-refactor R4: `if <emit_ir sub-node>:` (an Optional[ExprIR] field, e.g.
         # `if sl.get("lower")`) is a present-guard; the sub-node is always-present in the model, so
         # `true` is a sound over-approx for the type-safety+frame contract. @mutable_state.
+        # ROUTE #588 (run #7 u43): that `true` decided the branch for every receiver (an absent
+        # key / a None field / an unmodelled class is falsy in CPython). The truthiness is now the
+        # receiver-chosen `irtru_<proj> <recv>` (`_EMIT_IR_TRUTHY_ARMS`, spliced by `transpile`):
+        # `true` only where the receiver's constructor carries the field, opaque elsewhere.
         if (getattr(self, "_current_self_type", None) in getattr(self, "_mutable_state_classes", set())
                 and any(whyml_str.startswith(p) for p in
                         ("(svalue_of ", "(avalue_of ", "(object_of ", "(sindex_of ",
                          "(arg0_of ", "(irget_", "(iratt_"))):
-            return "true"
+            _d588, _end588 = 0, -1
+            for _i588, _c588 in enumerate(whyml_str):
+                _d588 += 1 if _c588 == "(" else -1 if _c588 == ")" else 0
+                if _d588 == 0:
+                    _end588 = _i588
+                    break
+            _m588 = (re.match(r"\((\w+) (.*)\)$", whyml_str, re.S)
+                     if _end588 == len(whyml_str) - 1 else None)
+            if _m588 is None:
+                # not one projector application: the value's own truthiness (`ir_truthy_v`)
+                return f"(ir_truthy_v {whyml_str})"
+            return f"(irtru_{_m588.group(1)} {_m588.group(2)})"
         # cf6.md M1.6: `if existing_caps:` on an emit_ir-element ARRAY LOCAL is array-emptiness.
         if (t == "Var"
                 and getattr(self, "_array_elem_types", {}).get(ir_expr.get("name")) == "emit_ir"):
@@ -1012,9 +1105,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # is truthy iff present — modeled always-present (`true`), like the emit_ir
             # `is None` comparison; sound for the type-safety+frame contracts (both arms
             # type-check, no self-field write). Gated by the emit_ir tags.
+            # ROUTE #588 (run #7 u43): `true` decided `if v:` for a local bound to an absent
+            # / None child (`v = x.get("value")`). A constructed node is a truthy object; the
+            # model's None (`IrNone`) and an unmodelled / opaque read are undecided (`ir_truthy_v`).
             if (name in getattr(self, "_emit_ir_local_vars", set())
                     or self._is_emit_ir_expr(ir_expr)):
-                return "true"
+                return f"(ir_truthy_v {whyml_str})"
             # ROUTE #31, the last word: an array local that reached here has no
             # modelled length at all, and the historical answer `true` is FALSE of an
             # empty list. Refuse rather than invent a branch decision.
@@ -6603,6 +6699,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             for _h in _EMIT_IR_EXTRA_NODE_KEYS_BY_FUNC)):
                 _es = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
                 _chk = f"(match {_es} with IrNone -> true | _ -> false end)"
+                return _chk if raw_op == "==" else f"(not {_chk})"
+            # ROUTE #594 (run #7 u43): `child.value is None` on a raw `ast.stmt` (the pyast_stmt
+            # class-body / module walk) was decided by the always-present answer below, while an
+            # `ast.AnnAssign` without a value (`x: int`) has `value is None` in CPython. An
+            # `ast.Assign` always carries its value (decided `false`); every other statement's
+            # presence is OPAQUE (`stmt_value_isnone_unk`), so the model decides neither branch.
+            _ps594 = (self._pyast_stmt_read(_nn, local_refs, invariant_ctx, subst)
+                      if isinstance(_nn, dict) and _nn.get("type") == "Attribute" else None)
+            if isinstance(_ps594, str) and _ps594.startswith("(stmt_value "):
+                self._add_abstract_op("val function stmt_value_isnone_unk (s: pyast_stmt) : bool")
+                _x594 = _ps594[len("(stmt_value "):-1]
+                _chk = (f"(match {_x594} with PSAssign _ _ -> false"
+                        f" | _ -> stmt_value_isnone_unk {_x594} end)")
                 return _chk if raw_op == "==" else f"(not {_chk})"
             if self._is_emit_ir_expr(_nn):
                 return "false" if raw_op == "==" else "true"
@@ -15363,8 +15472,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # test). Scoped via `_current_emitting_func` → corpus/consumer-inert.
                     _proj = ("num_of" if (_k == "value"
                                  and (getattr(self, "_current_emitting_func", None) or "").endswith("_is_null_byte_lit"))
-                             else "value_of" if _k == "value"
-                             else "body_of" if (_k == "body" and self._get_default_is_empty_dict(expr))
+                             else "iratts_value_of" if _k == "value"
+                             else "iratt_body_of" if (_k == "body" and self._get_default_is_empty_dict(expr))
                              else _EMIT_IR_PROJ.get(_k))
                     if _proj:
                         _rv = self._expr_to_whyml(_rcv, local_refs or set(),
@@ -15782,7 +15891,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # (a `string`), not the `svalue_of` sub-node. General (semantically the
                 # string-content read) + byte-inert. Overrides the default table below.
                 if _scoped_val is None and _k2 == "value" and self._get_default_is_str_literal(expr):
-                    _scoped_val = "value_of"
+                    _scoped_val = "iratts_value_of"
                 # orelse_of mini-M1: same "body" disambiguation as the subscript-receiver
                 # site above — an empty-dict `{}` default routes to the IfExpr scalar
                 # `body_of`, everything else keeps the table's `stmts_of`.
@@ -15794,7 +15903,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # shape, mirroring `body`/`body_of`. `_try_union_is_none_match` reads
                 # `stmt.get("orelse", [])` (list default) → `stmts_of`.
                 _proj = (_scoped_val or (_scoped2 or {}).get(_k2)
-                         or ("body_of" if (_k2 == "body" and self._get_default_is_empty_dict(expr))
+                         or ("iratt_body_of" if (_k2 == "body" and self._get_default_is_empty_dict(expr))
                              else "orelse_stmts_of" if (_k2 == "orelse"
                                                         and not self._get_default_is_empty_dict(expr))
                              else _EMIT_IR_PROJ.get(_k2)))
@@ -20248,6 +20357,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
             # self-tcb-reduction T1.a: `<emit_ir>.kind` is the DISCRIMINANT (`kind_of`, a string),
             # not a sub-node — so `inner.kind == "Subscript"` routes through `str_eq_op`.
+            # route #587 (run #7 u43): a string field several classes carry reads the
+            # receiver's constructor (`iratts_<attr>_of`); `.kind` / `.id` / `.attr` keep theirs.
+            if attr in _EMIT_IR_STR_ATTR_ARMS and attr not in ("attr", "field", "value"):
+                return f"(iratts_{attr}_of {_os})"
             if attr in _EMIT_IR_STR_ATTRS:
                 return f"({_EMIT_IR_STR_ATTRS[attr]} {_os})"
             # self-tcb-reduction T1.a: a node-LIST attr (`node.elts`/`node.parts`/…) → the args
@@ -20264,13 +20377,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _cef = getattr(self, "_current_emitting_func", None) or ""
             for _hname, _projmap in _EMIT_IR_HANDLER_ATTR_PROJ.items():
                 if attr in _projmap and (_cef == _hname or _cef.endswith("__" + _hname)):
+                    # route #586 (run #7 u43): the swap-family slots (`left_of`/`right_of`/
+                    # `ter_*_of`) are ONE class's projectors; the per-constructor arms below
+                    # read the field the node really carries.
+                    if _projmap[attr] in ("left_of", "right_of", "ter_fst_of", "ter_snd_of",
+                                          "ter_thd_of"):
+                        break
                     return f"({_projmap[attr]} {_os})"
             # 2-child-cluster mini-M1: an unambiguous 2-child-dataclass sub-node attr
             # (`node.dict`/`node.key`/`node.head`/`node.tail`) → its DISTINCT left_of/right_of
             # projector, avoiding the svalue_of collision when a handler reads both children
             # of the SAME node (e.g. `_handle_map_get_expr`'s `node.dict` and `node.key`).
-            if attr in _EMIT_IR_NODE_ATTRS:
-                return f"({_EMIT_IR_NODE_ATTRS[attr]} {_os})"
+            # route #586 (run #7 u43): `_EMIT_IR_NODE_ATTRS` routed `.dict/.key/.head/.tail/.left/
+            # .right/.lo/.hi/.size/.default` to IrBinOp's `left_of`/`right_of` (`IrOther ""` on every
+            # other class); they now take the per-constructor `iratt_<attr>_of` below.
             # ROUTES #583/#584/#585 (run #6 u37, u38): the catch-all read of an attribute on an
             # emit_ir value is chosen by the receiver's CONSTRUCTOR. `(iratt_<attr>_of x)` reads
             # the sub-node each constructor carrying that field holds, IrOther "" elsewhere

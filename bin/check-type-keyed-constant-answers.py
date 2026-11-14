@@ -98,9 +98,9 @@ BASELINE = {
         "effect typing is the frame check -- a negative control writing one field outside "
         "the enclosing `writes` is rejected (`unlisted write effect`). So no self-field "
         "write hides on a branch the model decides. Re-run that patch if a new site fires.",
-    ("_to_bool", "_emit_ir_local_vars+_is_emit_ir_expr", "true"):
-        "the truthiness twin of the emit_ir always-present arm above, on the same stated "
-        "scope; its frame half is checked by the same measurement.",
+    # (run #7, executor u43) ROUTE #588 REPAIRED: the `_to_bool` always-present `true` for an
+    # emit_ir LOCAL is gone (now `ir_truthy_v v`, undecided on IrNone / IrOther), so its entry is
+    # removed; likewise the projector-read entry below (now `irtru_<proj> <recv>`).
     ("_to_bool", "_r55_subsumed_name", "true"):
         "ROUTE #55, CLOSED -- and this entry is what the old one SHOULD have said. The "
         "previous entry keyed on [_current_self_type+_current_symbol_table+"
@@ -122,21 +122,6 @@ BASELINE = {
         "has exactly this shape, so 0 of 53 mirror emissions and 0 of 905 corpus emissions "
         "move and NO re-proof is owed; witness `1107` is the precision guard and is "
         "negative-tested both ways.",
-    ("_to_bool", "_current_self_type+_mutable_state_classes", "true"):
-        "`if sl.get(\"lower\"):` -- a present-guard on an emit_ir SUB-NODE projection "
-        "(`svalue_of`/`object_of`/`sindex_of`/`arg0_of`), i.e. the same always-present "
-        "model reached through a projector instead of a local. "
-        "THE STANDING CONDITION, measured in gen #30 and stated here because nothing else "
-        "enforces it: an OVER-APPROXIMATED GUARD makes the model take ONE branch ALWAYS, "
-        "which is unsound for ANY non-trivial `ensures`, and unsound for `assigns` "
-        "whenever the SKIPPED branch assigns something the taken one does not. "
-        "INSTRUMENTED AND EMITTED over all 53 mirror files: this arm fires EXACTLY ONCE, "
-        "in `ExpressionEmissionMixin._slice_array_or_opaque`, which carries "
-        "`#@ ensures True` -- so no false postcondition is reachable -- and whose guard "
-        "(`self._expr_to_whyml(sl[\"lower\"], ...) if sl.get(\"lower\") else \"0\"`) "
-        "forces the MORE-assigning branch, so the frame claim is conservative in the right "
-        "direction. RE-MEASURE THIS whenever a conversion gives a reaching method a real "
-        "`ensures`, or an arm is added whose skipped branch assigns.",
     ("_to_bool", "_hvalmap_local_vars", "true"):
         "`if not vinfo:` on a nested-map local (`map string (option hval)`). A map has no "
         "int value, so the default coercion is a type error; the real projection happens in "

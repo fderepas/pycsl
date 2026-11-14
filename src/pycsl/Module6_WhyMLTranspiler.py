@@ -10,7 +10,8 @@ from module6_whyml.auto_trust import AutoTrustMixin
 from module6_whyml.abstract_ops import AbstractOpsMixin
 from module6_whyml.types import TypeInferenceMixin
 from module6_whyml.expressions import (ExpressionEmissionMixin, _EMIT_IR_FIELD_SLOT,
-                                       _EMIT_IR_FIELD_PROJ_DEFS, _EMIT_IR_ATTR_ARMS)
+                                       _EMIT_IR_FIELD_PROJ_DEFS, _EMIT_IR_ATTR_ARMS,
+                                       _EMIT_IR_STR_ATTR_ARMS, _EMIT_IR_TRUTHY_ARMS)
 from module6_whyml.statements import StatementEmissionMixin
 from module6_whyml.preamble import PreambleEmissionMixin
 from module6_whyml.functions import FunctionEmissionMixin
@@ -1438,7 +1439,10 @@ class Module6_WhyMLTranspiler(
                 # node-reader only PROJECTS, so a projector-name match is the exact signal.
                 _rich = (self._opaque_accessor_symbols(_full) - self._opaque_accessor_symbols(_minimal)
                          | set(_EMIT_IR_FIELD_PROJ_DEFS)
-                         | {f"iratt_{_a}_of" for _a in _EMIT_IR_ATTR_ARMS})
+                         | {f"iratt_{_a}_of" for _a in _EMIT_IR_ATTR_ARMS}
+                         | {f"iratts_{_a}_of" for _a in _EMIT_IR_STR_ATTR_ARMS}
+                         | {f"irtru_{_p}" for _p in _EMIT_IR_TRUTHY_ARMS}
+                         | {f"irtru_iratt_{_a}_of" for _a in _EMIT_IR_ATTR_ARMS})
                 self._opaque_theory_deferred = (
                     _OPAQUE_THEORY_SLOT, _full, _minimal, _rich)
                 out.append(_OPAQUE_THEORY_SLOT)
@@ -2035,20 +2039,60 @@ class Module6_WhyMLTranspiler(
         if _EMIT_IR_FIELD_SLOT in out:
             _i584 = out.index(_EMIT_IR_FIELD_SLOT)
             _rest584 = "\n".join(out[_i584 + 1:])
+            # routes #586/#587/#588/#596 (run #7 u43): a receiver whose constructor carries no
+            # arm reads an OPAQUE `<proj>_unk e` (never the `IrOther ""` / `""` placeholder);
+            # `.op/.name/.var/...` read the per-constructor STRING arms (`iratts_<attr>_of`); the
+            # truthiness of a projected child is `irtru_<proj> e` -- `true` on a constructor
+            # that carries the field (an IR / ast child node is a truthy object), the option's
+            # presence on an optional bound, opaque elsewhere.
+            _used_tru = set(re.findall(r"\birtru_(\w+?_of)\b", _rest584))
+            _rest584 += " " + " ".join(_used_tru)
+
+            # the theory gate of each constructor arm (`None` = an ungated constructor)
+            _gates584 = {None: True, "_uses_clause_ir": self._uses_clause_ir(),
+                         "_uses_stmt_ir": self._uses_stmt_ir(),
+                         "_uses_csl_proj": self._uses_csl_proj(),
+                         "_uses_call_kw": self._uses_call_kw(),
+                         "_uses_method_recv": self._uses_method_recv()}
             _defs584 = [_l584 for _n584, _d584 in _EMIT_IR_FIELD_PROJ_DEFS.items()
                         if re.search(r"\b" + _n584 + r"\b", _rest584)
                         for _l584 in _d584]
             for _a584 in sorted(set(re.findall(r"\biratt_(\w+?)_of\b", _rest584))):
                 _arms584 = [_t584 for _t584, _g584 in _EMIT_IR_ATTR_ARMS.get(_a584, [])
-                            if _g584 is None
-                             or (self._uses_clause_ir() if _g584 == "_uses_clause_ir"
-                                 else self._uses_stmt_ir() if _g584 == "_uses_stmt_ir"
-                                 else self._uses_csl_proj())]
-                _defs584 += ([f"  let function iratt_{_a584}_of (e: emit_ir) : emit_ir =",
+                            if _gates584[_g584]]
+                _defs584 += ([f"  val function iratt_{_a584}_unk (e: emit_ir) : emit_ir",
+                              f"  let function iratt_{_a584}_of (e: emit_ir) : emit_ir =",
                               "    match e with " + " | ".join(_arms584)
-                              + " | _ -> IrOther \"\" end", ""]
+                              + f" | _ -> iratt_{_a584}_unk e end", ""]
                              if _arms584
                              else [f"  val function iratt_{_a584}_of (e: emit_ir) : emit_ir", ""])
+            for _a584 in sorted(set(re.findall(r"\biratts_(\w+?)_of\b", _rest584))):
+                _arms584 = [_t584 for _t584, _g584 in _EMIT_IR_STR_ATTR_ARMS.get(_a584, [])
+                            if _gates584[_g584]]
+                _defs584 += ([f"  val function iratts_{_a584}_unk (e: emit_ir) : string",
+                              f"  let function iratts_{_a584}_of (e: emit_ir) : string =",
+                              "    match e with " + " | ".join(_arms584)
+                              + f" | _ -> iratts_{_a584}_unk e end", ""]
+                             if _arms584
+                             else [f"  val function iratts_{_a584}_of (e: emit_ir) : string", ""])
+            for _p584 in sorted(_used_tru):
+                if _p584.startswith("iratt_"):
+                    _src584 = [_t for _t, _g in _EMIT_IR_ATTR_ARMS.get(_p584[6:-3], []) if _gates584[_g]]
+                else:
+                    _src584 = [_t for _t, _g in _EMIT_IR_TRUTHY_ARMS.get(_p584, []) if _gates584[_g]]
+                _tarms584 = []
+                for _t in _src584:
+                    _pat, _rhs = _t.split(" -> ", 1)
+                    _mo = re.match(r"\(match (\w+) with", _rhs)
+                    _tarms584.append(
+                        f"{_pat} -> (match {_mo.group(1)} with IrOSome _ -> true | IrONone -> false end)"
+                        if _mo else f"{_pat.replace(' v', ' _')} -> true")
+                _defs584 += ([f"  val function irtru_{_p584}_unk (e: emit_ir) : bool",
+                              f"  let function irtru_{_p584} (e: emit_ir) : bool =",
+                              "    match e with " + " | ".join(_tarms584)
+                              + f" | _ -> irtru_{_p584}_unk e end", ""]
+                             if _tarms584
+                             else [f"  val function irtru_{_p584} (e: emit_ir) : bool", ""])
             out[_i584:_i584 + 1] = _defs584
         self._insert_array_init_use(out)
         return "\n".join(out)
