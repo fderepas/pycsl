@@ -38684,8 +38684,10 @@ def _residual_selectors_from_records(records: "List[dict]") -> "Optional[List[st
     for rec in records:
         if _record_is_valid(rec):
             continue
-        loc = (rec.get("term") or {}).get("loc") or {}
-        fn, ln = loc.get("file-name"), loc.get("start-line")
+        term = rec.get("term") or {}
+        loc = term.get("loc") or {}
+        fn = loc.get("file-name")
+        ln = loc.get("start-line")
         if fn is None or ln is None:
             return None
         s = f"{fn}:{ln}"
@@ -38725,12 +38727,14 @@ def _function_body_eqs(mlw_code: str) -> "Tuple[List[Tuple[str, int]], List[str]
     lines = mlw_code.splitlines()
     res: List[Tuple[str, int]] = []
     cur: Optional[str] = None
-    for i, line in enumerate(lines):
+    for i in range(len(lines)):
+        line: str = lines[i]
         m = _LET_FN_RE.match(line)
         if m:
             cur = m.group(1)
         elif cur is not None and _BODY_EQ_RE.match(line):
-            res.append((cur, i))
+            _c: str = cur
+            res.append((_c, i))
             cur = None
     return res, lines
 

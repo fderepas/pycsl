@@ -6987,6 +6987,35 @@ other-arity append or any other mutation keeps the base lowering. Witnesses (mus
 `9524`; controls (PASS) `9511`, `9513`, `9515`, `9517`, `9519`, `9522` (other-arity append: base
 lowering kept), `9523`.
 
+### 7.322 An aliased `re` import feeds the match model; a tuple-seq slot, an `Optional[List[str]]` arm, an hval filter and an hval f-string are typed by value (lvS, run #7)
+
+(1) The lvO match model (§7.320) also applies when the module binds the stdlib `re` under ONE
+alias and never plainly: no module-top `import re`, exactly one module-top `import re as A`, no
+other binding of `A` anywhere (an import, a store, a `del`, a parameter, a def / class name, an
+`except .. as A`, a `match` capture), `A` neither a module method nor a local; only `A.compile(<str
+literal>)` statements AFTER the import are module constants, and only the "const" / unrolled
+sources follow (a `re.match(<literal>, s)` source still needs the plain import). (2) In a
+`-> Tuple[..]` function whose declared native tuple type has a `seq (t1, .., tn)` slot (§7.321) and
+whose ONLY `return` is the last top-level statement, a tuple display whose slot holds a seq list
+local bound once by `x = []`, appended only by tuple displays of arity n and otherwise read only as
+a `for` iterable, a test, a `not` operand or a `len` argument, that local grows by the real tuple
+and the tail return passes it as the slot value (was `materialize_str`, a Why3 type error);
+`len(\result[k])` of such a slot in a contract is its `Seq.length`. (3) The Some arm of a verified
+(non-`\trusted`) `-> Optional[List[str]]` return is the list's `seq string` value (was the
+int-erased `Arm_i_0 int`); `return x` of a `seq string` local injects `!x`, on the raise path too.
+(4) `[r for r in f(..) if "<k>" in r]` over the `seq hval` of a `-> List[Dict[str, PyVal]]` callee
+is the DEFINITIONAL fold `hval_seq_filter_in` (a `let rec function`: no axiom, no assumed
+`ensures`) of the dict-value-wall R2b membership (`HMap`: key presence; `HArr` / `HTuple`: str
+element equality; any other carrier the uninterpreted `hval_in_other`); `len(\result)` of a `seq
+hval` return is its `Seq.length`. (5) An f-string whose segments are string-typed or PyVal values,
+at least one PyVal, is a Python `str` (classifier and lowering agree): an `HStr s` segment is `s`,
+any other carrier the program `val hval_fmt_other` (no `function`: `True` / `1` and `-0.0` /
+`0.0` share carriers but not texts). A `.get` on a PyVal local named like a WhyML keyword
+(`rec`) reads its WhyML name. Implicit `ValueError` of formatting a huge `int` segment is not
+modelled (no `no_exception` claim reaches it here). Witnesses (must FAIL) `9901`-`9904`, `9906`,
+`9907`, `9909`, `9911`, `9913`, `9915`; controls (PASS) `9900`, `9905`, `9908`, `9910`, `9912`,
+`9914`.
+
 ---
 
 ## 10. Concurrent Model Annotations

@@ -8783,7 +8783,12 @@ class PreambleEmissionMixin:
                  # Parenthesized: the payload is a single ctor-argument position
                  # (`Arm_i_0 (map string bool)`), so the multi-token type needs its
                  # own parens or Why3 reads it as `map` applied to `string`/`bool`.
-                 "set": "(map string bool)", "frozenset": "(map string bool)"}
+                 "set": "(map string bool)", "frozenset": "(map string bool)",
+                 # lvS (run #7): the Some arm of a verified `-> Optional[List[str]]`
+                 # return (Module5 tag `list_str`) carries the list's VALUE, the pure
+                 # `seq string` of its string-element seq local (an `array` payload
+                 # would make the variant and its `Return_<variant>` exception mutable).
+                 "list_str": "(seq string)"}
         # no-more-int-3 A5a: declared `#@ datatype` names, so a constructor
         # payload that NAMES a datatype (a self-reference `Node(Tree, Tree)` or
         # another variant) resolves to that variant's Why3 type instead of the

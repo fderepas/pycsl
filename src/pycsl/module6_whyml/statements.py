@@ -5401,6 +5401,68 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if isinstance(stmt, WhileStmt):
             return self._handle_while_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
         if isinstance(stmt, ReturnStmt):
+            # lvS (run #7): the TAIL return `return x, ..` of a `-> Tuple[..]` function whose
+            # declared native tuple type has a `seq (t1, .., tn)` slot k holding the
+            # TUPLE-ELEMENT seq local x of exactly that element type (`_reset_function_state`
+            # flow (5) recorded `_seq_value_types[x]`): x IS the declared slot value, so it
+            # passes as-is (`!x`). `_handle_return_stmt`'s tuple-tail arm picks ONE seq->array
+            # bridge from the whole declared type and would `materialize_str` it (a Why3
+            # type error). Every other slot lowers exactly as in that arm (`_expr_to_whyml`);
+            # a second seq-local slot, a raise-path return or any other shape keeps it.
+            _t5_vi = stmt.value.to_dict() if stmt.value is not None else None
+            _t5_rt = getattr(self, "_func_return_type", None)
+            _t5_svt = getattr(self, "_seq_value_types", {}) or {}
+            _t5_sql = getattr(self, "_seq_locals", set())
+            if (not in_loop and not self._has_early_ret and isinstance(_t5_vi, dict)
+                    and _t5_vi.get("type") == "Tuple" and isinstance(_t5_rt, str)
+                    and _t5_rt.startswith("(") and _t5_rt.endswith(")")
+                    and "array " in _t5_rt and "seq (" in _t5_rt):
+                _t5_sl: List[str] = []
+                _t5_dp, _t5_cur = 0, ""
+                for _t5_ch in _t5_rt[1:-1]:
+                    if _t5_ch == "," and _t5_dp == 0:
+                        _t5_sl.append(_t5_cur.strip())
+                        _t5_cur = ""
+                        continue
+                    if _t5_ch == "(":
+                        _t5_dp += 1
+                    elif _t5_ch == ")":
+                        _t5_dp -= 1
+                    _t5_cur += _t5_ch
+                _t5_sl.append(_t5_cur.strip())
+                _t5_el = _t5_vi.get("elts") or []
+                _t5_hit = [_k for _k in range(len(_t5_el))
+                           if isinstance(_t5_el[_k], dict) and _t5_el[_k].get("type") == "Var"
+                           and _t5_el[_k].get("name") in _t5_sql]
+                if (len(_t5_el) == len(_t5_sl) and len(_t5_hit) == 1
+                        and isinstance(_t5_svt.get(_t5_el[_t5_hit[0]]["name"]), str)
+                        and _t5_svt[_t5_el[_t5_hit[0]]["name"]].startswith("(")
+                        and _t5_sl[_t5_hit[0]] == "seq " + _t5_svt[_t5_el[_t5_hit[0]]["name"]]):
+                    return (indent + "(" + ", ".join(self._expr_to_whyml(_t5_e, local_refs)
+                                                     for _t5_e in _t5_el) + ")")
+            # lvS (run #7, cv13 Optional-list arm typing): `return x` of a `seq string` list
+            # local x from a function whose declared return is a synthesized
+            # `Optional[List[str]]` variant with the `seq string` Some arm (Module5 tag
+            # `list_str`) injects the list's value `!x` as-is into that arm.
+            # `_handle_return_stmt` bridges it with the int `materialize` for any
+            # non-`array string` declared type (a Why3 type error against the arm). The
+            # early / in-loop return raises the variant's `Return_<variant>` exactly as
+            # there; anything else keeps it.
+            _o2_vt = (getattr(self, "_variant_types", {}) or {}).get(_t5_rt) if isinstance(
+                _t5_rt, str) and _t5_rt.startswith("_union_") else None
+            if (isinstance(_t5_vi, dict) and _t5_vi.get("type") == "Var"
+                    and set(_t5_vi) == {"type", "name"}
+                    and _t5_vi.get("name") in _t5_sql
+                    and _t5_svt.get(_t5_vi.get("name")) == "string"
+                    and _t5_vi.get("name") not in getattr(self, "_pyval_seq_locals", set())
+                    and isinstance(_o2_vt, dict)):
+                _o2_cs = [(_cn, _c) for _cn, _c in (_o2_vt.get("constructors") or {}).items()
+                          if (_c or {}).get("payload")]
+                if len(_o2_cs) == 1 and _o2_cs[0][1].get("payload") == ["list_str"]:
+                    _o2_v = f"({_o2_cs[0][0]} !{whyml_ident(_t5_vi['name'])})"
+                    if in_loop or self._has_early_ret:
+                        return f"{indent}raise (Return_{_t5_rt} {_o2_v})"
+                    return f"{indent}{_o2_v}"
             return self._handle_return_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
         if isinstance(stmt, IfStmt):
             return self._handle_if_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)

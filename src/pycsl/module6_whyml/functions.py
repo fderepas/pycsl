@@ -447,7 +447,24 @@ class FunctionEmissionMixin:
         _rxm_cand: Dict[str, List[Any]] = {}
         # `re` must RESOLVE to the stdlib module (route #323's import test, as for
         # `_is_re_str_call`) for every source, the module constants included.
-        if _rxm_re_ok:
+        # lvS (run #7, cap-re-gate-widening): or, for the "const" / "rx" sources ONLY (the
+        # "lit" `re.match(..)` branch below still needs `_rxm_re_ok`), the module binds the
+        # stdlib `re` under ONE alias and nothing else: no import binds the name `re`, every
+        # import of the module `re` is the one `import re as A` (no `from re import ..`),
+        # nothing else imports as A, and A is neither a module method nor a local of this
+        # function. Module5 recorded `module_const_regexes` only under that same alias rule.
+        _rxm_al = [_i for _i in _rxm_imps if isinstance(_i, (list, tuple)) and len(_i) >= 5
+                   and (_i[0] == "re" or _i[2] == "re" or _i[1] == "re")]
+        _rxm_al_ok = (not _rxm_re_ok and bool(_rxm_consts) and len(_rxm_al) == 1
+                      and _rxm_al[0][1] == "re" and _rxm_al[0][2] == "re"
+                      and _rxm_al[0][4] is True and _rxm_al[0][3] == 0
+                      and isinstance(_rxm_al[0][0], str) and _rxm_al[0][0] != "re"
+                      and len([_i for _i in _rxm_imps if isinstance(_i, (list, tuple))
+                               and len(_i) >= 5 and _i[0] == _rxm_al[0][0]]) == 1
+                      and _rxm_al[0][0] not in (
+                          getattr(self, "_module_method_return_types", {}) or {})
+                      and _rxm_al[0][0] not in _rxm_st)
+        if _rxm_re_ok or _rxm_al_ok:
             _rxm_w: List[Any] = [(body_stmts, None)]
             while _rxm_w:
                 _rxm_x, _rxm_enc = _rxm_w.pop()
@@ -5064,6 +5081,120 @@ class FunctionEmissionMixin:
             if _tq_ok1 and _tq_rv in self._seq_locals:
                 self._pyval_seq_locals.add(_tq_rv)
                 self._seq_value_types[_tq_rv] = _tq_rvt
+        # lvS (run #7): (5) a `-> Tuple[..]` function whose DECLARED native tuple type
+        # (`return_value_type`, cap-trusted-val-unit-return) has a `seq (t1, .., tn)` slot k
+        # (n >= 2) and whose ONLY `return` is the LAST top-level statement, a tuple display
+        # of the declared arity whose slot k is a seq-promoted list local x
+        # (`_function_body_eqs`: `return res, lines`): x is a TUPLE-ELEMENT seq local of that
+        # element type when every `.append(..)` of x is a tuple display of arity n and x
+        # does not escape (each occurrence is that return slot, a `for` iterable, an `if` /
+        # `while` test, a `not` operand or a `len(..)` argument). Its appends then snoc the
+        # real tuple (statements `_handle_expr_stmt`) and the tail return passes the seq
+        # as-is (statements `_stmts_to_whyml`, where the per-slot bridge of
+        # `_handle_return_stmt` would otherwise `materialize_str` it). Anything else keeps
+        # the old lowering (a Why3 type error today, fail-closed).
+        if (func.get("return_annotation") == "tuple" and not func.get("trusted")
+                and isinstance(_tq_rvt, str) and _tq_rvt.startswith("(")
+                and _tq_rvt.endswith(")") and "seq (" in _tq_rvt
+                and isinstance(body_stmts, list) and body_stmts
+                and isinstance(body_stmts[-1], dict)
+                and body_stmts[-1].get("stmt") == "Return"
+                and isinstance(body_stmts[-1].get("value"), dict)
+                and body_stmts[-1]["value"].get("type") == "Tuple"):
+            _t5_sl: List[str] = []
+            _t5_dp, _t5_cur = 0, ""
+            for _t5_ch in _tq_rvt[1:-1]:
+                if _t5_ch == "," and _t5_dp == 0:
+                    _t5_sl.append(_t5_cur.strip())
+                    _t5_cur = ""
+                    continue
+                if _t5_ch == "(":
+                    _t5_dp += 1
+                elif _t5_ch == ")":
+                    _t5_dp -= 1
+                _t5_cur += _t5_ch
+            _t5_sl.append(_t5_cur.strip())
+            _t5_ret = body_stmts[-1]
+            _t5_el = _t5_ret["value"].get("elts") or []
+            _t5_nret = 0
+            _t5_sr: List[Any] = [body_stmts]
+            while _t5_sr:
+                _t5_y = _t5_sr.pop()
+                if isinstance(_t5_y, dict):
+                    if _t5_y.get("stmt") == "Return":
+                        _t5_nret += 1
+                    _t5_sr.extend(_t5_y.values())
+                elif isinstance(_t5_y, (list, tuple)):
+                    _t5_sr.extend(_t5_y)
+            if _t5_nret == 1 and len(_t5_el) == len(_t5_sl) and len(_t5_sl) >= 2:
+                for _t5_k in range(len(_t5_sl)):
+                    _t5_e = _t5_el[_t5_k]
+                    _t5_st = _t5_sl[_t5_k]
+                    if not (isinstance(_t5_e, dict) and _t5_e.get("type") == "Var"
+                            and set(_t5_e) == {"type", "name"}
+                            and isinstance(_t5_e.get("name"), str)
+                            and _t5_e["name"] in self._seq_locals
+                            and _t5_e["name"] not in self._formal_params
+                            and _t5_st.startswith("seq (") and _t5_st.endswith(")")):
+                        continue
+                    _t5_x = _t5_e["name"]
+                    _t5_ar, _t5_dp2 = 1, 0
+                    for _t5_ch in _t5_st[len("seq ("):-1]:
+                        if _t5_ch == "(":
+                            _t5_dp2 += 1
+                        elif _t5_ch == ")":
+                            _t5_dp2 -= 1
+                        elif _t5_ch == "," and _t5_dp2 == 0:
+                            _t5_ar += 1
+                    _t5_ok = _t5_ar >= 2
+                    _t5_sa: List[Any] = [body_stmts]
+                    while _t5_sa and _t5_ok:
+                        _t5_y = _t5_sa.pop()
+                        if isinstance(_t5_y, dict):
+                            if (_t5_y.get("type") == "Call"
+                                    and isinstance(_t5_y.get("func"), str)
+                                    and _t5_y["func"].startswith(_t5_x + ".")):
+                                _t5_a = _t5_y.get("args") or []
+                                _t5_ok = (_t5_y["func"] == _t5_x + ".append"
+                                          and not _t5_y.get("keywords")
+                                          and len(_t5_a) == 1 and isinstance(_t5_a[0], dict)
+                                          and _t5_a[0].get("type") == "Tuple"
+                                          and len(_t5_a[0].get("elts") or []) == _t5_ar)
+                            _t5_sa.extend(_t5_y.values())
+                        elif isinstance(_t5_y, (list, tuple)):
+                            _t5_sa.extend(_t5_y)
+                    _t5_se: List[Any] = [(body_stmts, None, None)]
+                    _t5_nb = 0
+                    while _t5_se and _t5_ok:
+                        _t5_ne, _t5_pe, _t5_ke = _t5_se.pop()
+                        if isinstance(_t5_ne, dict):
+                            if _t5_ne.get("type") == "Var" and _t5_ne.get("name") == _t5_x:
+                                _t5_ok = _t5_ne is _t5_e or (isinstance(_t5_pe, dict) and (
+                                    (_t5_pe.get("stmt") == "For" and _t5_ke == "iter")
+                                    or (_t5_pe.get("stmt") in ("If", "While")
+                                        and _t5_ke == "test")
+                                    or (_t5_pe.get("type") == "UnaryOp"
+                                        and _t5_pe.get("op") == "not")
+                                    or (_t5_pe.get("type") == "Call"
+                                        and _t5_pe.get("func") == "len")))
+                            for _t5_kk, _t5_vv in _t5_ne.items():
+                                _t5_se.append((_t5_vv, _t5_ne, _t5_kk))
+                        elif isinstance(_t5_ne, (list, tuple)):
+                            for _t5_vv in _t5_ne:
+                                _t5_se.append((_t5_vv, _t5_pe, _t5_ke))
+                        elif isinstance(_t5_ne, str) and _t5_ne == _t5_x and _t5_ke != "name":
+                            # a bare-name slot is a binding: only the ONE initial
+                            # `x = []` (empty list display) is admitted; any other assign /
+                            # for / unpack target or `global` / `nonlocal` entry refuses
+                            _t5_nb += 1
+                            _t5_ok = (_t5_nb == 1 and _t5_ke == "target"
+                                      and isinstance(_t5_pe, dict)
+                                      and _t5_pe.get("stmt") in ("Assign", "AnnAssign")
+                                      and isinstance(_t5_pe.get("value"), dict)
+                                      and _t5_pe["value"].get("type") in ("ArrayLit", "ListLit")
+                                      and not _t5_pe["value"].get("elts"))
+                    if _t5_ok and _t5_nb == 1:
+                        self._seq_value_types[_t5_x] = _t5_st[len("seq "):]
         # (3) a local bound ONLY by `x = <call>` of a function whose call sites the
         # return-type map gives a `seq (t1, .., tn)` of tuples (flow (1) of the callee)
         # is that seq: a seq local of that element type, read `!x`, never an `int`.
