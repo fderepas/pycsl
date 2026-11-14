@@ -22,6 +22,10 @@ class FunctionEmissionMixin:
                         int_type: str) -> str:
         """Return the WhyML parameter type string for a standalone function argument."""
         safe = whyml_ident(arg)
+        # dict-value-model-r4: a bare `PyVal` parameter is the certified `hval`.
+        if (arg in getattr(self, "_pyval_locals", set()) and self._uses_pyval()
+                and str(symbol_table.get(arg, "")).strip() in ("PyVal", "Any", "'PyVal'")):
+            return f"({safe}: hval)"
         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`): the
         # `local_refs`/`ghost_vars` `Set[str]` params are modelled as `seq string` (the
         # sequence of the set's elements) — the body only membership-tests them (`v in
@@ -5333,6 +5337,15 @@ class FunctionEmissionMixin:
         else:
             self._current_self_type = None
         self._pyval_locals: Set[str] = self._prescan_pyval_locals(body_stmts)
+        # dict-value-model-r4 (cv13 selection defect, `d374_3`): a bare `PyVal` PARAMETER is
+        # the certified `hval` (was: the int-erased `int`). It is a pyval name like any
+        # `.get` read. Gated on `_uses_pyval` (which now also fires on such a param).
+        # (no new emitter field: the params join the existing `_pyval_locals`, and
+        # `_param_type_str` reads them back from there)
+        if self._uses_pyval():
+            self._pyval_locals |= {
+                str(_k) for _k, _a in (func.get("param_annotations") or {}).items()
+                if isinstance(_a, str) and _a.strip() in ("PyVal", "'PyVal'", '"PyVal"')}
         # set-value-model-wall (self-tcb-reduction, Tier-5): the locals of THIS
         # function that are an emitter-local `Set[str]` value (annotated `Set[str]`
         # + `= set()` init). Their `= set()` lowers to `ref (StrSet.empty ())`,
@@ -5998,6 +6011,46 @@ class FunctionEmissionMixin:
                 if _rhs_is_pyval(st.get("value") or {}):
                     pyval.add(tgt)
                     changed = True
+            # dict-value-model-r4: `a, b, c = <PyVal>` (a pyval read, or a subscript of a
+            # `Dict[str, PyVal]` binding) binds each target to a real `hval` element
+            # (`_handle_tuple_unpack_stmt`), so the targets are pyval locals.
+            if self._uses_pyval():
+                _r4us: List[Any] = [body_stmts]
+                while _r4us:
+                    _r4ux = _r4us.pop()
+                    if isinstance(_r4ux, list):
+                        _r4us.extend(_r4ux)
+                        continue
+                    if not isinstance(_r4ux, dict):
+                        continue
+                    _r4us.extend(_v for _v in _r4ux.values() if isinstance(_v, (dict, list)))
+                    # `t = tuple(<PyVal>)` is the `HTuple` hval `hval_tuple v`.
+                    _r4tv = _r4ux.get("value") if _r4ux.get("stmt") == "Assign" else None
+                    if (isinstance(_r4tv, dict) and _r4tv.get("type") == "Call"
+                            and _r4tv.get("func") == "tuple"
+                            and len(_r4tv.get("args") or []) == 1
+                            and isinstance(_r4ux.get("target"), str)
+                            and _r4ux["target"] not in pyval
+                            and (_rhs_is_pyval(_r4tv["args"][0])
+                                 or (isinstance(_r4tv["args"][0], dict)
+                                     and _r4tv["args"][0].get("type") == "Var"
+                                     and _r4tv["args"][0].get("name") in pyval))):
+                        pyval.add(_r4ux["target"])
+                        changed = True
+                    if _r4ux.get("stmt") != "TupleUnpack":
+                        continue
+                    _r4uv = _r4ux.get("value") or {}
+                    _r4ut = [t for t in (_r4ux.get("targets") or []) if isinstance(t, str)]
+                    if (_rhs_is_pyval(_r4uv)
+                            or (isinstance(_r4uv, dict) and _r4uv.get("type") == "Subscript"
+                                and isinstance(_r4uv.get("value"), dict)
+                                and _r4uv["value"].get("type") == "Var"
+                                and getattr(self, "_dict_value_types", {}).get(
+                                    _r4uv["value"].get("name")) == "hval")):
+                        for _t in _r4ut:
+                            if _t != "_" and _t not in pyval:
+                                pyval.add(_t)
+                                changed = True
         # self-tcb-reduction _namedtuple_positional_access: a pyval local read as a
         # COLLECTION — `len(X)` or `X[<Number>]` (an ordered hval sequence like
         # `rec_info["fields"]`, not a string leaf) — must bind the RAW `hval` (so
@@ -11763,6 +11816,15 @@ class FunctionEmissionMixin:
         # `unit` (it computes nothing; the body is the proof).
         if func.get("lemma"):
             return_type = "unit"
+        # dict-value-model-r4 (cv13 O6): a `-> Tuple[..PyVal..]` return is the certified
+        # `hval` (an `HTuple`: the returned tuple literal is `_pyval_wrap`ped, `tuple(v)`
+        # is `hval_tuple v`), a `-> Dict[str, PyVal]` return the `map string (option
+        # hval)` carrier. `transpile` records the same type for the call sites.
+        if (self._uses_pyval() and func.get("r4_ret_pyval") == "tuple"
+                and not func.get("lemma")):
+            return_type = "hval"
+        elif self._uses_pyval() and func.get("r4_ret_pyval") == "dict":
+            return_type = "map string (option hval)"
         # `_func_return_type` is read by `_handle_return_stmt` to pick
         # the right Return exception (int / array / tuple); set it AFTER
         # the `List[T] → array int` override so the array-Return slot

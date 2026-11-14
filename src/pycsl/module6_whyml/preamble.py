@@ -8048,159 +8048,209 @@ class PreambleEmissionMixin:
             v == "hval"
             for fn in self.ir.get("functions", []) or []
             for v in (fn.get("param_list_elem_types", {}) or {}).values())
+        # dict-value-model-r4: a bare `PyVal` PARAMETER is an `hval`, and a `Tuple[..]` /
+        # `Dict[str, ..]` RETURN mentioning `PyVal` returns one (cv13 selection defects).
+        # No corpus file outside the PyVal set has either annotation -> byte-inert.
+        result = result or any(
+            (isinstance(a, str) and a.strip() == "PyVal")
+            for fn in self.ir.get("functions", []) or []
+            for a in (fn.get("param_annotations", {}) or {}).values())
+        result = result or any(
+            fn.get("r4_ret_pyval") for fn in self.ir.get("functions", []) or [])
         self._uses_pyval_cache = result
         return result
 
     def _emit_pyval_theory(self) -> List[str]:
-        """hval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall):
-        the CERTIFIED faithful value variant for a heterogeneous `Dict[str, Any]`
-        (`_render_match_pattern`-shaped) — proven axiom-free by the fable oracle
-        (`getting-better/pyval-oracle.mlw`, Z3 Valid) and co-landed with the Rocq/Lean
-        `Phase2f_PyVal` cert. Emit EXACTLY the oracle's shape (renamed carrier):
+        """dict-value-model-r4 (driver run #7, wall `dict-value-model-r4`, steps T/C): the
+        FROZEN, CERTIFIED 9-constructor mixed-value theory, replacing the r3 5-constructor
+        `hval` IN PLACE (user decision log 848 (a)/(b)).
 
-          type hval = HStr string | HInt int | HArr hval_list
-                    | HMap (map string (option hval)) | HNode hval
-          with hval_list = HNil | HCons hval hval_list
+        The code lines of `_R4_THEORY` below are VERBATIM the body of module `DictR4Theory`
+        of `getting-better/dict-r4-theory.mlw` (comments dropped), the WhyML companion of
+        the Rocq `src/formal-semantics/rocq/Phase2m_PyValR4.v` and Lean
+        `src/formal-semantics/lean/PyCSL/PyValR4.lean` certificates: every definition is
+        certified there under the same name. Trust surface: the two route-(e2) defining
+        equations of `pairs_get` (`axiom pairs_get_nil` / `axiom pairs_get_cons`, the
+        CERTIFIED-DEFINITIONAL family of `bin/check-assumed-facts.py`, each realised by the
+        same-named axiom-free Rocq + Lean lemma of the certified recursive `pairs_get`), the
+        four specified vals `hpairs_key_eq` / `hstr_len` / `hreal_eq` / `hreal_int_of`
+        (each ONE total equation, realisable), and the law-free wrong-tag vals
+        `hval_opaque_str` / `hval_opaque_int` / `hval_len_other` / `hval_tuple_other`
+        (TypeError arms, never a concrete junk value: impl F6). Proof-axiom ledger stays 3.
 
-        NAME COLLISION (fixed here): the OLDER D1/R-A generic-fold value model
-        (`_pydict_theory_lines`) also declares `type pyval` with `PInt|PStr|PBool|PNone|
-        PList|PDict`. A file that needs BOTH gates (the first is `frontend/ir_resolve.py`,
-        which imports Module3_Weaver AND Module5_IREmitter) emitted two clashing
-        declarations — `Symbol PStr is already defined in the current scope`. The two
-        types are NOT mergeable (the generic-fold `pv_size`/`size_pos` measure pack
-        cannot extend over `HMap`'s map codomain), so this Tier-5 family carries the
-        DISJOINT `h*` names and both theories now coexist in one scope.
+        `_R4_EXTRA` are the r3 views the emitter still calls, re-stated over the frozen
+        type (HTuple handled like HArr, a dict's `in` is key membership, every other tag an
+        UNINTERPRETED arm): `hval_list_str_mem`, `hval_str_mem`, `hval_nth_str`, the
+        law-free `hval_values_len/get`, `hval_keys_get`, `hval_as_map`, `hval_in_other`.
+        Definitional `let function`s or law-free `val`s: no new axiom.
 
-        `HArr` recurses through the BESPOKE `hval_list` (HNil/HCons), NOT `seq hval` —
-        Why3 rejects `seq` recursion as a non-strictly-positive occurrence (the hard
-        refinement from Gate R). `HMap (map string (option hval))` is accepted (hval
-        sits in the positive arrow codomain). Structural mutual recursion, NO `variant`
-        clause (the `irlist`/`stmt_list` fold precedent — Why3 emits no termination VC).
-        `size`/`size_pos` are the cert-side measure ONLY (no frontier fold needs them);
-        they are NOT emitted here (kept out of every VC's SMT context). Gated on
-        `_uses_pyval` → corpus + every other mirror byte-identical."""
-        # r2c-wall R2c-local gate (see the `pairs_set` lines at the end): any NON-trusted
-        # function whose body has `<root>[..]...append(..)` / `<root>.setdefault(..).append(..)`
-        # / `<root>[..][..] = ..` with `<root>` an hval-valued dict (`dict_value_types`).
-        r2c_on = False
-        for _r2c_fn in (self.ir.get("functions", []) or []):
-            if r2c_on or not isinstance(_r2c_fn, dict) or _r2c_fn.get("trusted"):
-                continue
-            _r2c_hv = {k for k, v in (_r2c_fn.get("dict_value_types") or {}).items()
-                       if v == "hval"}
-            if not _r2c_hv:
-                continue
-            _r2c_st = [_r2c_fn.get("body") or []]
-            while _r2c_st and not r2c_on:
-                _r2c_x = _r2c_st.pop()
-                if isinstance(_r2c_x, list):
-                    _r2c_st.extend(_r2c_x)
-                    continue
-                if not isinstance(_r2c_x, dict):
-                    continue
-                _r2c_ch = None
-                _r2c_v = _r2c_x.get("value")
-                if (_r2c_x.get("stmt") == "Expr" and isinstance(_r2c_v, dict)
-                        and _r2c_v.get("type") == "Call" and _r2c_v.get("func") == "append"):
-                    _r2c_ch = _r2c_v.get("receiver")
-                    if (isinstance(_r2c_ch, dict) and _r2c_ch.get("type") == "Call"
-                            and str(_r2c_ch.get("func", "")).endswith(".setdefault")):
-                        _r2c_ch = {"type": "Var",
-                                   "name": str(_r2c_ch.get("func"))[:-len(".setdefault")]}
-                elif (_r2c_x.get("stmt") == "ArraySet" and isinstance(_r2c_x.get("array"), dict)
-                        and _r2c_x["array"].get("type") == "Subscript"):
-                    _r2c_ch = _r2c_x.get("array")
-                while isinstance(_r2c_ch, dict) and _r2c_ch.get("type") == "Subscript":
-                    _r2c_ch = _r2c_ch.get("value")
-                if (isinstance(_r2c_ch, dict) and _r2c_ch.get("type") == "Var"
-                        and _r2c_ch.get("name") in _r2c_hv):
-                    r2c_on = True
-                _r2c_st.extend(v for v in _r2c_x.values() if isinstance(v, (list, dict)))
-        return [
-            "  (* hval heterogeneous value model (self-tcb-reduction, Tier-5"
-            " value-model wall): the faithful value carrier for a heterogeneous"
-            " Python `Dict[str, Any]` — HStr/HInt/HArr/HMap/HNode. Proven axiom-free by"
-            " the fable oracle (getting-better/pyval-oracle.mlw, Z3 Valid); co-landed with"
-            " the Rocq/Lean Phase2f_PyVal cert. The `h*` names are DISJOINT from the older"
-            " D1/R-A generic-fold `pyval`/`PStr` family (_pydict_theory_lines) so both"
-            " value models can coexist in one scope. HArr recurses through the BESPOKE"
-            " `hval_list` (HNil/HCons), NOT `seq hval` (Why3 rejects `seq` recursion as"
-            " non-strictly-positive). R3: HMap's carrier is the BESPOKE assoc list"
-            " `hpairs` (PNil/PCons), NOT a `map string (option hval)` — the map was"
-            " non-iterable so `.values()` could not fold; the assoc list keeps the"
-            " recursion structural and makes the read a terminating lookup fold"
-            " (`pairs_get`). Structural mutual recursion, NO `variant` clause. Gated on"
-            " `_uses_pyval` -> corpus byte-identical. The abstract-val insert point"
-            " (`_find_abstract_val_insert_idx`, which skips `with`/`invariant`/`by` but"
-            " NOT `|` arm lines) lands AFTER the whole mutual group + `pairs_get`. *)",
-            "  type hval = HStr string | HInt int | HArr hval_list"
-            " | HMap hpairs | HNode hval",
+        Insertion order: `pairs_set` replaces the FIRST binding else APPENDS; dict literals
+        are a left fold of it (`_pyval_wrap`), so iteration order = Python insertion order.
+        Gated on `_uses_pyval` -> every file without a `PyVal` annotation byte-identical."""
+        _R4_THEORY = [
+            "  use int.Int",
+            "  use real.RealInfix",
+            "  use real.FromInt",
+            "  use real.Truncate",
+            "  use option.Option",
+            "  use string.String",
+            # ONE line (the companion's two-line layout, whitespace only): the abstract-val
+            # insert point (`_find_abstract_val_insert_idx`) skips `with` lines but not a
+            # `|` continuation, and would land between the two lines.
+            "  type hval = HNone | HBool bool | HInt int | HFloat real | HStr string"
+            " | HTuple hval_list | HArr hval_list | HMap hpairs | HNode hval",
             "  with hval_list = HNil | HCons hval hval_list",
             "  with hpairs = PNil | PCons string hval hpairs",
-            "  (* R3 carrier read: `.values()`-foldable lookup over the assoc list"
-            " (the map carrier was non-iterable). Build PREPENDS a binding (PCons)."
-            " A `let rec function` (usable in program `let` bindings — where the reads"
-            " occur); `variant { p }` gives structural termination over the assoc-list"
-            " cons. The key test is `hpairs_key_eq` (disjoint from the str-set"
-            " `pystr_eq`). ch27: a `val FUNCTION`, not a program `val`: a `let function`"
-            " whose body calls a program `val` gets NO logic definition, so `pairs_get` /"
-            " `hval_truthy` / `hval_list_str_mem` were logic-OPAQUE and `pairs_get PNil k"
-            " = None` was unprovable (witness 3140 timed out). dict-value-wall R2a: its"
-            " spec `result <-> a = b` is a realizable Why3 `val` specification (Why3"
-            " encodes it as a task axiom of this file, NOT a kernel axiom: ledger"
-            " unchanged), same form as `str_eq_op` / `str_replace_op` / `map_nonempty`"
-            " and the stdlib `String.(=)` (a program `val`, so not callable from a `let"
-            " function`); it is realized by `string_dec` in the cert's `pairs_get`"
-            " (Phase2f_PyVal.v). Without it a PRESENT key could never be read. *)",
             "  val function hpairs_key_eq (a b: string) : bool ensures { result <-> a = b }",
-            "  let rec function pairs_get (p: hpairs) (k: string) : option hval",
+            "  val function hstr_len (s: string) : int ensures { result = String.length s }",
+            "  val function hreal_eq (a b: real) : bool ensures { result <-> a = b }",
+            "  val function hreal_int_of (f: real) : option int",
+            "    ensures { result = if FromInt.from_int (truncate f) = f then Some (truncate f) else None }",
+            "  val function hval_opaque_str (h: hval) : string",
+            "  val function hval_opaque_int (h: hval) : int",
+            "  val function hval_len_other (h: hval) : int",
+            "  val function hval_tuple_other (h: hval) : hval",
+            "  val function pairs_get (p: hpairs) (k: string) : option hval",
+            "  axiom pairs_get_nil : forall k. pairs_get PNil k = None",
+            "  axiom pairs_get_cons : forall k k' v t [pairs_get (PCons k' v t) k].",
+            "    pairs_get (PCons k' v t) k = (if k = k' then Some v else pairs_get t k)",
+            "  let rec function pairs_set (p: hpairs) (k: string) (v: hval) : hpairs",
             "    variant { p }",
             "    = match p with",
-            "      | PNil -> None",
-            "      | PCons k' v t -> if hpairs_key_eq k k' then Some v else pairs_get t k",
+            "      | PNil -> PCons k v PNil",
+            "      | PCons k' w t -> if hpairs_key_eq k k' then PCons k' v t else PCons k' w (pairs_set t k v)",
             "      end",
-            "  (* hval-retype (self-tcb-reduction Tier-5): project the string carrier out"
-            " of an `hval` — the `HStr s` payload, else the empty string. A `let function`"
-            " (usable in program `let`/guard positions, where the record-registry scan's"
-            " `info.get(\"whyml_name\") == cls` compare + the Optional[str] return occur)."
-            " Descends the REAL hval structure (non-vacuous), NOT an abstract reader."
-            " dict-value-wall (red-team round 7 R6): a NON-`HStr` carrier is NOT a Python"
-            " string, so it projects to the UNINTERPRETED `hval_opaque_str h` (a `val"
-            " function`, no spec, no axiom -- the `hval_len_other` precedent), never to"
-            " \"\" (`5 or \"\"` PROVED `\\result == \"\"`, CPython 5). *)",
-            "  val function hval_opaque_str (h: hval) : string",
-            "  let function hstr_of (h: hval) : string"
-            " = match h with HStr s -> s | _ -> hval_opaque_str h end",
-            "  (* self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): project"
-            " the INT carrier out of an `hval` — the `HInt i` payload, else 0. The int twin"
-            " of `hstr_of`, for the `ctor.get(\"arity\") == 0` read in `_union_none_ctor_for`"
-            " (`.get` on an hval local produces an `hval`; compared against an int literal it"
-            " projects via `hint_of`). Total definitional `let function` over the certified"
-            " hval ADT (`HInt` already exists), descends the REAL structure (non-vacuous),"
-            " NO axiom -> ledger stays 3. *)",
-            "  let function hint_of (h: hval) : int"
-            " = match h with HInt i -> i | _ -> 0 end",
-            "  (* self-tcb-reduction _typeddict_field_access (a): Python truthiness of an"
-            " `hval` projected from a DOUBLED `.get` read used in a bool/if context"
-            " (`if self._record_types[sym].get(\"is_typeddict\"):`). Total definitional"
-            " `let function` over the hval ADT — HStr non-empty / HInt non-zero / HArr,HMap"
-            " non-empty / HNode present. The string-emptiness test reuses the specified"
-            " key equality `hpairs_key_eq` (a `let function` cannot call the stdlib program"
-            " `String.(=)`, same reason `pairs_get` uses it). Descends the REAL structure (non-vacuous),"
-            " NO axiom -> ledger stays 3. *)",
+            "  let function pairs_mem (p: hpairs) (k: string) : bool =",
+            "    match pairs_get p k with None -> false | Some _ -> true end",
+            "  let rec function hpairs_len (p: hpairs) : int",
+            "    variant { p }",
+            "    = match p with PNil -> 0 | PCons _ _ t -> 1 + hpairs_len t end",
+            "  let rec function pairs_nodup (p: hpairs) : bool",
+            "    variant { p }",
+            "    = match p with PNil -> true | PCons k _ t -> not (pairs_mem t k) && pairs_nodup t end",
+            "  let rec function pairs_keys_in (q p: hpairs) : bool",
+            "    variant { q }",
+            "    = match q with PNil -> true | PCons k _ t -> pairs_mem p k && pairs_keys_in t p end",
+            "  let rec function hpairs_keys (p: hpairs) : hval_list",
+            "    variant { p }",
+            "    = match p with PNil -> HNil | PCons k _ t -> HCons (HStr k) (hpairs_keys t) end",
+            "  let function hbool_int (b: bool) : int = if b then 1 else 0",
+            "  let rec function hval_eq (a b: hval) : bool",
+            "    variant { a }",
+            "    = match a with",
+            "      | HNone -> (match b with HNone -> true | _ -> false end)",
+            "      | HBool x -> (match b with",
+            "                    | HBool y -> (if x then y else not y)",
+            "                    | HInt j -> hbool_int x = j",
+            "                    | HFloat g -> (match hreal_int_of g with Some j -> hbool_int x = j | None -> false end)",
+            "                    | _ -> false end)",
+            "      | HInt i -> (match b with",
+            "                   | HBool y -> i = hbool_int y",
+            "                   | HInt j -> i = j",
+            "                   | HFloat g -> (match hreal_int_of g with Some j -> i = j | None -> false end)",
+            "                   | _ -> false end)",
+            "      | HFloat f -> (match b with",
+            "                     | HBool y -> (match hreal_int_of f with Some i -> i = hbool_int y | None -> false end)",
+            "                     | HInt j -> (match hreal_int_of f with Some i -> i = j | None -> false end)",
+            "                     | HFloat g -> hreal_eq f g",
+            "                     | _ -> false end)",
+            "      | HStr s -> (match b with HStr t -> hpairs_key_eq s t | _ -> false end)",
+            "      | HTuple l -> (match b with HTuple m -> hlist_eq l m | _ -> false end)",
+            "      | HArr l -> (match b with HArr m -> hlist_eq l m | _ -> false end)",
+            "      | HMap p -> (match b with HMap q -> pairs_incl p q && pairs_keys_in q p | _ -> false end)",
+            "      | HNode x -> (match b with HNode y -> hval_eq x y | _ -> false end)",
+            "      end",
+            "  with function hlist_eq (l m: hval_list) : bool",
+            "    variant { l }",
+            "    = match l with",
+            "      | HNil -> (match m with HNil -> true | _ -> false end)",
+            "      | HCons x t -> (match m with HCons y u -> hval_eq x y && hlist_eq t u | _ -> false end)",
+            "      end",
+            "  with function pairs_incl (p q: hpairs) : bool",
+            "    variant { p }",
+            "    = match p with",
+            "      | PNil -> true",
+            "      | PCons k v t -> (match pairs_get q k with Some w -> hval_eq v w | None -> false end)",
+            "                       && pairs_incl t q",
+            "      end",
+            "  let rec function hval_canon (v: hval) : hval",
+            "    variant { v }",
+            "    = match v with",
+            "      | HBool b -> HInt (hbool_int b)",
+            "      | HFloat f -> (match hreal_int_of f with Some i -> HInt i | None -> HFloat f end)",
+            "      | HTuple l -> HTuple (hlist_canon l)",
+            "      | _ -> v",
+            "      end",
+            "  with function hlist_canon (l: hval_list) : hval_list",
+            "    variant { l }",
+            "    = match l with HNil -> HNil | HCons x t -> HCons (hval_canon x) (hlist_canon t) end",
+            "  let rec function hval_hashable (v: hval) : bool",
+            "    variant { v }",
+            "    = match v with",
+            "      | HNone -> true | HBool _ -> true | HInt _ -> true | HFloat _ -> true | HStr _ -> true",
+            "      | HTuple l -> hlist_hashable l",
+            "      | _ -> false",
+            "      end",
+            "  with function hlist_hashable (l: hval_list) : bool",
+            "    variant { l }",
+            "    = match l with HNil -> true | HCons x t -> hval_hashable x && hlist_hashable t end",
             "  let function hval_truthy (h: hval) : bool =",
             "    match h with",
-            "    | HStr s -> not (hpairs_key_eq s \"\")",
+            "    | HNone -> false",
+            "    | HBool b -> b",
             "    | HInt i -> i <> 0",
+            "    | HFloat f -> not (hreal_eq f 0.0)",
+            "    | HStr s -> not (hpairs_key_eq s \"\")",
+            "    | HTuple l -> (match l with HNil -> false | _ -> true end)",
             "    | HArr l -> (match l with HNil -> false | _ -> true end)",
             "    | HMap p -> (match p with PNil -> false | _ -> true end)",
             "    | HNode _ -> true",
             "    end",
-            "  (* self-tcb-reduction _typeddict_field_access (d): faithful membership of a"
-            " string in an hval collection (`field_name not in rec_info[\"fields\"]`, an"
-            " `HArr` of `HStr` field names). Total definitional recursion over the bespoke"
-            " `hval_list` carrier via the certified `hpairs_key_eq` element test — descends"
-            " the REAL structure (non-vacuous), NO axiom. *)",
+            "  let function hstr_of (h: hval) : string =",
+            "    match h with HStr s -> s | _ -> hval_opaque_str h end",
+            "  let function hint_of (h: hval) : int =",
+            "    match h with HInt i -> i | HBool b -> hbool_int b | _ -> hval_opaque_int h end",
+            "  let rec function hval_list_len (l: hval_list) : int",
+            "    variant { l }",
+            "    = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end",
+            "  let rec function hval_list_nth (l: hval_list) (i: int) : hval",
+            "    variant { l }",
+            "    = match l with",
+            "      | HNil -> HInt 0",
+            "      | HCons x t -> if i <= 0 then x else hval_list_nth t (i - 1)",
+            "      end",
+            "  let function hval_len (h: hval) : int =",
+            "    match h with",
+            "    | HStr s -> hstr_len s",
+            "    | HTuple l -> hval_list_len l",
+            "    | HArr l -> hval_list_len l",
+            "    | HMap p -> hpairs_len p",
+            "    | _ -> hval_len_other h",
+            "    end",
+            "  let function hval_tuple (h: hval) : hval =",
+            "    match h with",
+            "    | HTuple l -> HTuple l",
+            "    | HArr l -> HTuple l",
+            "    | HMap p -> HTuple (hpairs_keys p)",
+            "    | _ -> hval_tuple_other h",
+            "    end",
+            "  let rec function hval_list_snoc (l: hval_list) (x: hval) : hval_list",
+            "    variant { l }",
+            "    = match l with HNil -> HCons x HNil | HCons h t -> HCons h (hval_list_snoc t x) end",
+        ]
+        _R4_EXTRA = [
+            "  (* r3 views still called by the emitter, over the frozen type (not part of the"
+            " DictR4Theory companion; definitional or law-free, no axiom): HTuple is a"
+            " sequence like HArr, a dict's `in` is KEY membership (`pairs_mem`), and every"
+            " other tag is the UNINTERPRETED `hval_in_other` / `hval_opaque_str` arm"
+            " (TypeError / substring sites, never a concrete junk value). *)",
+            "  val function hval_in_other (k: string) (h: hval) : bool",
+            "  (* the RAISING arm of a PyVal read (an absent key: KeyError; a non-dict"
+            " receiver: AttributeError / TypeError): a law-free value OF the receiver and"
+            " the key -- uninterpreted (never a concrete junk value) and deterministic"
+            " (two reads of one absent key agree). Dead in Python; asserted absent under a"
+            " KeyError claim. *)",
+            "  val function hval_get_other (h: hval) (k: string) : hval",
             "  let rec function hval_list_str_mem (l: hval_list) (x: string) : bool",
             "    variant { l }",
             "    = match l with",
@@ -8209,89 +8259,29 @@ class PreambleEmissionMixin:
             " | _ -> false end) then true else hval_list_str_mem t x",
             "      end",
             "  let function hval_str_mem (h: hval) (x: string) : bool =",
-            "    match h with HArr l -> hval_list_str_mem l x | _ -> false end",
-            "  (* self-tcb-reduction _namedtuple_positional_access: an hval collection"
-            " (`rec_info[\"fields\"]`, an `HArr` of `HStr`) viewed as an ordered SEQUENCE —"
-            " its LENGTH (`len(fields)`) and its i-th element as a `string` (`fields[idx]`)."
-            " Total definitional recursion over the bespoke `hval_list` carrier, descends"
-            " the REAL structure (non-vacuous), NO axiom. *)",
-            "  let rec function hval_list_len (l: hval_list) : int",
-            "    variant { l }",
-            "    = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end",
-            "  let function hval_len (h: hval) : int =",
-            "    match h with HArr l -> hval_list_len l | _ -> 0 end",
-            "  let rec function hval_list_nth (l: hval_list) (i: int) : hval",
-            "    variant { l }",
-            "    = match l with",
-            "      | HNil -> HInt 0",
-            "      | HCons x t -> if i <= 0 then x else hval_list_nth t (i - 1)",
-            "      end",
+            "    match h with HArr l -> hval_list_str_mem l x | HTuple l -> hval_list_str_mem l x"
+            " | HMap p -> pairs_mem p x | _ -> hval_in_other x h end",
             "  let function hval_nth_str (h: hval) (i: int) : string =",
-            "    match h with HArr l -> hstr_of (hval_list_nth l i) | _ -> \"\" end",
-            "  (* hval-retype (self-tcb-reduction Tier-5): the abstract `.values()`"
-            " iterator over a `map string (option hval)` field — a native Why3 `map` is"
-            " not finitely iterable, so the ENUMERATION is over-approximated (arbitrary"
-            " length, arbitrary element), but each element is a REAL `hval` whose `.get`"
-            " reads descend the actual structure via `pairs_get` (non-vacuous). Declared"
-            " in the theory (not late via `_add_abstract_op`) so the decl is always in"
-            " scope before the loop use, across the proof + vacuity re-emission paths. *)",
-            "  (* LOGIC `function`s (not program `val`s) so `hval_values_len` is usable in"
-            " the loop `variant` term (a logic context) — exactly like the psl-loop"
-            " `psl_len`. Uninterpreted + total + effect-free, so also usable in the"
-            " program while-condition + element `let`. NO axiom (the variant's `0 <=`"
-            " bound falls out of the loop condition `idx < len`) -> ledger stays 3. *)",
+            "    match h with HArr l -> hstr_of (hval_list_nth l i)"
+            " | HTuple l -> hstr_of (hval_list_nth l i) | _ -> hval_opaque_str h end",
             "  val function hval_values_len (m: map string (option hval)) : int",
             "  val function hval_values_get (m: map string (option hval)) (i: int) : hval",
-            "  (* self-tcb-reduction _namedtuple_positional_access: the `.items()` twin of"
-            " the `.values()` walk — a `for k, v in <hval-field>.items()` loop binds the"
-            " KEY `k` to an arbitrary `string` (over-approx enumeration, same length as"
-            " the values) alongside the real `hval` value. Uninterpreted + total +"
-            " effect-free; NO axiom. *)",
             "  val function hval_keys_get (m: map string (option hval)) (i: int) : string",
-            "  (* self-tcb-reduction Tier-5 (union/match cluster C3): a NESTED `hval` viewed"
-            " as its `map string (option hval)` carrier — the `.items()` twin over an hval"
-            " LOCAL (`vinfo.get(\"constructors\", {}).items()`), not a self-field. Total +"
-            " uninterpreted (an `HMap` IS a `map string (option hval)`; a non-map hval views"
-            " as the empty map), so `hval_values_len/get`/`hval_keys_get` apply to the view."
-            " NO axiom -> ledger stays 3. *)",
             "  val function hval_as_map (h: hval) : map string (option hval)",
+        ]
+        return [
+            "  (* dict-value-model-r4: the FROZEN certified mixed-value theory (module"
+            " DictR4Theory of getting-better/dict-r4-theory.mlw, verbatim; Rocq"
+            " Phase2m_PyValR4.v + Lean PyCSL/PyValR4.lean). Route (e2): `pairs_get` is"
+            " uninterpreted with its two certified defining equations (realised by the"
+            " same-named axiom-free Rocq + Lean lemmas). Gated on `_uses_pyval`. *)",
+            *_R4_THEORY,
+            *_R4_EXTRA,
             # self-tcb-reduction _typeddict_record_literal (cap-6/7): the raise-branch
-            # consumers `missing = [f for f in rec_info["fields"] if f not in present]` /
-            # `extra = [k for k in present if k not in declared]` are a SOUND OVER-APPROX
-            # (they feed ONLY the `if missing or extra: raise` guard — the returned record
-            # depends solely on the faithful `kv.get(fname)`), modelled as an arbitrary
-            # `array string` reader that CONSUMES both real inputs: the iterated hval
-            # collection (`rec_info["fields"]` / `declared`) AND the kv-domain map
-            # (`present`). Every emitted CALL passes a real term (an hval projection that
-            # descends `rec_info`, and `!present` = the `kv` map), so the emission is
-            # non-vacuous (Gate-C) — no input-blind `kv_keys_0 ()`/`set_1` facade.
-            # Uninterpreted + total + effect-free; NO axiom -> ledger stays 3. Gated on
-            # `_uses_dictlit` (the sole `_typeddict_record_literal` file) -> byte-inert.
+            # consumers' SOUND OVER-APPROX reader (unchanged from r3; gated on
+            # `_uses_dictlit`, the sole `_typeddict_record_literal` file -> byte-inert).
             *(["  val typeddict_str_overapprox (h: hval) (m: map string (option emit_ir)) : array string"]
               if self._uses_dictlit() else []),
-            # r2c-wall R2c-local (gen #37): the FUNCTIONAL PATH WRITE-BACK ops for a nested
-            # store / append on a LOCALLY BUILT hval tree (`generics[t]["methods"].append(f)`
-            # -> `generics := map_update_some !generics t (.. pairs_set .. hval_list_snoc ..)`,
-            # statements.py `_handle_expr_stmt`). Total STRUCTURAL `let rec function`s over the
-            # bespoke carriers (definitional, descend the REAL structure), NO axiom, NO `val`
-            # spec -> ledger stays 3. `pairs_set` replaces the FIRST binding (the one
-            # `pairs_get` reads) else APPENDS at the end (Python insertion order). Proven with
-            # their read-back lemmas in getting-better/r2c-wall/spike/r2c_writeback.mlw.
-            # Gated on `r2c_on` (a non-trusted function with an hval-valued dict local that
-            # is the root of a nested store / computed-receiver append) -> byte-inert
-            # elsewhere.
-            *(["  let rec function pairs_set (p: hpairs) (k: string) (v: hval) : hpairs",
-               "    variant { p }",
-               "    = match p with",
-               "      | PNil -> PCons k v PNil",
-               "      | PCons k' w t -> if hpairs_key_eq k k' then PCons k' v t"
-               " else PCons k' w (pairs_set t k v)",
-               "      end",
-               "  let rec function hval_list_snoc (l: hval_list) (x: hval) : hval_list",
-               "    variant { l }",
-               "    = match l with HNil -> HCons x HNil"
-               " | HCons h t -> HCons h (hval_list_snoc t x) end"]
-              if r2c_on else []),
             "",
         ]
 

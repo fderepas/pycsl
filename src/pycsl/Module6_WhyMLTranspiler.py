@@ -1597,6 +1597,15 @@ class Module6_WhyMLTranspiler(
         # against it. Empty for non-mixin modules → maps unchanged → byte-identical.
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # dict-value-model-r4 (cv13 O6): a `-> Tuple[..PyVal..]` / `-> Dict[str, PyVal]`
+        # function returns `hval` / `map string (option hval)` (`_emit_function_block`);
+        # every call site agrees.
+        if self._uses_pyval():
+            for _r4f in funcs_for_maps or []:
+                if isinstance(_r4f, dict) and _r4f.get("r4_ret_pyval") and _r4f.get("name"):
+                    self._module_method_return_types[_r4f["name"]] = (
+                        "hval" if _r4f["r4_ret_pyval"] == "tuple"
+                        else "map string (option hval)")
         # cap-vm-unerase-tuple (run #6 lvP): a `-> List[Tuple[..]]` function (element
         # type `(t1, .., tn)` from Module5) that returns its seq-promoted accumulator
         # is emitted returning `seq (t1, .., tn)` (`_emit_function_block`); its call
@@ -2261,6 +2270,15 @@ class Module6_WhyMLTranspiler(
                for m in ind.get("members", [])})
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # dict-value-model-r4 (cv13 O6): a `-> Tuple[..PyVal..]` / `-> Dict[str, PyVal]`
+        # function returns `hval` / `map string (option hval)` (`_emit_function_block`);
+        # every call site agrees.
+        if self._uses_pyval():
+            for _r4f in funcs_for_maps or []:
+                if isinstance(_r4f, dict) and _r4f.get("r4_ret_pyval") and _r4f.get("name"):
+                    self._module_method_return_types[_r4f["name"]] = (
+                        "hval" if _r4f["r4_ret_pyval"] == "tuple"
+                        else "map string (option hval)")
         # cap-vm-unerase-tuple (run #6 lvP): a `-> List[Tuple[..]]` function (element
         # type `(t1, .., tn)` from Module5) that returns its seq-promoted accumulator
         # is emitted returning `seq (t1, .., tn)` (`_emit_function_block`); its call

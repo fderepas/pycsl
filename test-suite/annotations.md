@@ -6437,6 +6437,50 @@ argument. (A direct `E(..)` construction of a user class is also route #369's.) 
 constructor accepts, binding extra data to a local first. Measurements:
 `getting-better/open-routes/route598-exception-ctor-kwargs.md`.
 
+### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
+
+A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /
+`-> Dict[str, PyVal]` return) is the frozen type `HNone | HBool | HInt | HFloat | HStr | HTuple |
+HArr | HMap | HNode`, certified in Rocq (`Phase2m_PyValR4.v`) and Lean (`PyCSL/PyValR4.lean`) and
+emitted verbatim (translational reference App. R4). Absent ≠ stored `None` (the outer `option`):
+`d.get("b") is None and "b" not in d` and `d.get("a") is None and "a" in d` for `{"a": None}`
+(`9820`/`9821`). `==` is the certified `hval_eq`: `True == 1` (`9822`/`9823`), `1 == 1.0`
+(`9824`/`9825`), `None != 0` (`9828`/`9829`) — a comparison against a literal is the RHS of the
+certified one-level unfolding lemma (`hval_eq_int_lit` / `_bool_lit` / `_intfloat_lit` / `_float_lit`
+/ `_none_lit` / `_str_lit`, Rocq + Lean + companion `DictR4LemmasLit`); between two PyVal values it is
+the certified `hval_eq` itself: `(1,) != [1]` (`9826`/`9827`). Truthiness of every
+tag (`9830`/`9831`). `isinstance(x, str)` narrowing is substituted in the guarded region (`return
+g` after the test returns the `str`, `9832`/`9833`). A dict literal is insertion-ordered with
+last-wins duplicates (the first key of `{"b": 1, "a": 2, "b": 3}` is `"b"`, `9859`; `tuple(d)` is
+`("b", "a")` with length 2, `9834`/`9835`).
+Route (e2): a value fact about a nested dict with several literal keys proves through the
+certified `pairs_get_nil` / `pairs_get_cons` equations (`9844`/`9845`). Typed / store memory
+models: `9847`-`9858`.
+
+**Wrong-tag arms.** Every arm that is not Python's answer for the tag — `len` of a non-sequence
+(`hval_len_other`), iteration of a non-iterable (`hval_iter_len_other` / `hval_iter_get_other`),
+`tuple` of a non-iterable (`hval_tuple_other`), the `str` / `int` projection of another tag
+(`hval_opaque_str` / `hval_opaque_int`), `in` on a str / scalar (`hval_in_other`) — is an
+UNINTERPRETED law-free `val function` (never a concrete junk value), and its site is a TypeError
+site: in a non-trusted function claiming TypeError (`#@ no_exception \all`, or a list naming
+`TypeError` / `Exception` / `BaseException`) a use of an un-narrowed PyVal value by `len` /
+`tuple` / `sorted` / `list` / `set` / `sum` / `min` / `max` / `iter` / `reversed` / `enumerate` /
+`zip` / `dict`, `sep.join`, iteration, an arithmetic / unary / ordering operator, `in`, an
+augmented assignment or a method call (but `.get` / `.items` / `.keys` / `.values` / `.copy`) is
+REFUSED (`PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM`, `9838`); a dominating `isinstance` derives it
+(`9860`: `len` of a narrowed str is the certified `String.length`; OPEN LIMIT: `\result >= 0` for it times out); outside a claim it is ambient, and the function enters route #430's callee summary.
+
+**Raising reads.** The absent-key / non-dict arm of `d[k]` and of a nested `r[k]` is the
+law-free, deterministic `hval_get_other <receiver> <key>` (two reads of one absent key agree) (was the junk `(HInt 0)` / `(HMap PNil)` / `""`); under a KeyError claim
+a NESTED read asserts the key's presence (`9836` FAIL, `9837` PASS), as the top-level read did.
+
+**Stores** are unchanged (the r2c escape check): the three alias shapes are refused (`9840` nested
+shared inner, `9841` `b = a`, `9842` a parameter root) and an alias program with a false `ensures`
+is not proved (`9843`). Key canonicalisation: a nested PyVal dict is keyed by `str`
+(HVAL-STR-KEYS), so `{1: "a", True: "b"}` as a PyVal value is not representable and its false
+`len == 2` claim is refused at the type check (`9846`); `hval_canon` serves the hashed-key
+positions.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
