@@ -215,7 +215,6 @@ def _check_rocq_proofs(proof_dir: str, mlw_path: str, unproven_goal_names: List[
     return proved_count
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -259,6 +258,13 @@ def _parse_args() -> argparse.Namespace:
                         help="Recursively resolve transitive imports in "
                              "dependency files (default: only direct imports "
                              "of the main file are resolved).")
+    g_scope.add_argument("--import-path", action="append", default=[],
+                        metavar="DIR",
+                        help="Extra directory to search when resolving imports "
+                             "(repeatable), after the main file's dir/CWD/src/Lib. "
+                             "Lets single-file verification resolve a dependency "
+                             "elsewhere in the repo (e.g. --import-path src/pycsl "
+                             "so a self-annotate mirror finds ir_schema).")
     g_scope.add_argument("--diagnostics-json", action="store_true",
                         help="On a pipeline error, ALSO print the structured "
                              "diagnostic {code, stage, file, line, message} as a single "
@@ -281,8 +287,10 @@ def _parse_args() -> argparse.Namespace:
                              "WhyML is emitted, WITHOUT running `why3 prove --type-only`. "
                              "Use for fast byte-diff / dev sweeps and when why3 is absent. "
                              "(A missing why3 is already treated as skip-not-fail by the gate.)")
-    g_proof.add_argument("--check-vacuity", action="store_true",
-                        help="Run the NON-VACUITY GATE. After a file verifies, the gate "
+    g_proof.add_argument("--check-vacuity", dest="check_vacuity",
+                        action="store_true", default=True,
+                        help="Run the NON-VACUITY GATE (now ON BY DEFAULT — fail-closed). "
+                             "After a file verifies, the gate "
                              "re-proves, per body-bearing function, a probe with an extra "
                              "`ensures false`. split_vc emits one such goal per NORMAL-EXIT "
                              "path; the function is VACUOUS iff EVERY one proves Valid (every "
@@ -291,10 +299,21 @@ def _parse_args() -> argparse.Namespace:
                              "exit is consistent (its false-goal is Unknown/Timeout) the "
                              "function is SOUND, even when a DEAD branch's false-goal is Valid "
                              "(a consequence test's 'didn't-happen' branch is provably dead by "
-                             "design — this is why the criterion is ALL exits, not ANY). The "
-                             "probe filters to the injected goal only and uses a short per-goal "
-                             "timelimit. OPT-IN (surfaces pre-existing genuine vacuities, e.g. "
-                             "the os removal->absence proofs); a missing why3 skips it.")
+                             "design — this is why the criterion is ALL exits, not ANY). "
+                             "`-> NoReturn` and `#@ \\diverges` functions are EXEMPT (their "
+                             "sound green is expected-vacuous on the unreachable normal exit). "
+                             "Route #267: each call to a body-less (\\abstract/\\trusted) callee "
+                             "is also probed with `check false` after and before it; the "
+                             "function is VACUOUS if the point after is unreachable while the "
+                             "point before is not (the callee's contract killed the branch). "
+                             "The probe filters to the injected goal only and uses a short "
+                             "per-goal timelimit; a missing why3 skips it (skip-not-fail).")
+    g_proof.add_argument("--no-check-vacuity", dest="check_vacuity",
+                        action="store_false",
+                        help="Opt OUT of the (default-on) non-vacuity gate — for fast "
+                             "byte-diff / dev sweeps, or when a slow-to-manifest vacuity "
+                             "probe would dominate. The hole is then unguarded, so use only "
+                             "when soundness is being checked elsewhere.")
     g_proof.add_argument("--vacuity-timelimit", metavar="SECS", default="5",
                         help="Per-goal timelimit (seconds) for the non-vacuity gate probe "
                              "(default 5). An inconsistent context derives `false` quickly; "
@@ -318,6 +337,17 @@ def _parse_args() -> argparse.Namespace:
                              "hard errors. Off by default to preserve backward "
                              "compatibility for existing concurrent-model corpora. "
                              "See config/skills/pycsl-ub-catalog/SKILL.md §7.3.")
+    g_strict.add_argument("--verify-imports", action="store_true",
+                        help="(#49 gen #30, route #212.) VERIFY each resolved local "
+                             "import before trusting its contracts, transitively. OFF by "
+                             "default, so no existing behaviour or byte output changes. "
+                             "Without it an importing unit BELIEVES every contract of an "
+                             "imported module — frames, postconditions, class invariants "
+                             "— and nothing checks the module was ever verified: an "
+                             "owner declaring `assigns \\nothing` over a body that writes "
+                             "`a[0]` FAILS compiled alone while its importer PROVES "
+                             "`x - a[0] == 0` (CPython: -4). This flag is the module-level "
+                             "certificate that hole needs.")
     g_strict.add_argument("--allow-unverified-imports", action="store_true",
                         help="Permit imports on the C-extension deny-list "
                              "(ctypes, cffi, numpy.ctypeslib, cython) without "
@@ -328,12 +358,62 @@ def _parse_args() -> argparse.Namespace:
                              "Why3 goal that must be discharged (typically via "
                              "an external proof citation). Off by default — emits "
                              "as an axiom and trusts the user.")
+    g_strict.add_argument("--strict-float-finite", action="store_true",
+                        help="Drop the FLOAT-FINITE model assumption (route #250): "
+                             "model a NaN float value, so every float comparison "
+                             "and `==` also requires its operands to be non-NaN "
+                             "(`x == x` no longer proves for a float parameter). "
+                             "Off by default — floats are assumed finite and "
+                             "non-NaN, a declared assumption listed by "
+                             "--soundness-report. Costs TRUE claims of the shape "
+                             "`\\result == <float arithmetic>`.")
+    g_strict.add_argument("--strict-latin1", action="store_true",
+                        help="Drop the LATIN1-STR model assumption (route #276): "
+                             "`ord` reads an uninterpreted code point in "
+                             "[0, 0x10FFFF] (not Why3's 8-bit `Char.code`), and "
+                             "`chr(n)` is not `Char.chr n`, so `ord(s) < 256` and "
+                             "`ord(chr(300)) != 300` no longer prove. Off by "
+                             "default — every str value is assumed to consist of "
+                             "code points 0..255, a declared assumption listed by "
+                             "--soundness-report. Costs every proof that feeds "
+                             "`ord(..)` into a cited lemma over `Char.code`.")
+    g_strict.add_argument("--strict-bare-containers", action="store_true",
+                        help="Drop the BARE-CONTAINER-INT model assumption (route "
+                             "#330): an element of a parameter annotated with a BARE "
+                             "container (`list`, `List`, `Sequence`, `tuple`, ...) — "
+                             "or a VALUE of a bare `dict` / `Dict` / `Mapping` (route "
+                             "#334) — is of unknown type, so using it as an int (`xs[0] % 1 == 0`, "
+                             "`xs[0] * 0 == 0`) is refused (PYCSL-R325-OPAQUE-INT-"
+                             "FALLBACK). Off by default — such an element is read as an "
+                             "`int`, a declared assumption listed by --soundness-report "
+                             "(measured: 90 corpus files rely on it).")
+    g_strict.add_argument("--strict-hval-keys", action="store_true",
+                        help="Drop the HVAL-STR-KEYS model assumption (route #298): "
+                             "the key of a NESTED `PyVal` dict (an `.items()` key or a "
+                             "bare `for k in m` over a dict read out of a "
+                             "`Dict[str, PyVal]`) is an unknown-typed value, not a "
+                             "`str`, so `isinstance(k, str)` no longer proves and a "
+                             "string operation on it does not type-check. Off by "
+                             "default — `Dict[str, PyVal]` constrains only the "
+                             "top-level keys, and every nested dict is assumed to "
+                             "have str keys, a declared assumption listed by "
+                             "--soundness-report.")
     g_strict.add_argument("--check-behavioral-subtyping", action="store_true",
-                        help="Layer D: emit Liskov refinement goals for "
+                        help="Layer D (ON BY DEFAULT since route #277; kept for "
+                             "compatibility): emit Liskov refinement goals for "
                              "overriding methods (pre_base ⇒ pre_sub, "
-                             "post_sub ⇒ post_base). Fails if an override "
+                             "post_sub ⇒ post_base, raise conditions) and refuse "
+                             "an override that raises / assigns / renames "
+                             "parameters beyond the base. Fails if an override "
                              "strengthens a precondition or weakens a "
                              "postcondition.")
+    g_strict.add_argument("--assume-class-exact", action="store_true",
+                        help="Turn the default override-refinement check OFF "
+                             "(route #277): a value typed with a user class is "
+                             "then ASSUMED to be an exact instance of it (a "
+                             "subclass override is never seen by a caller). "
+                             "This is the declared model assumption CLASS-EXACT, "
+                             "listed by --soundness-report.")
     g_strict.add_argument("--strict-no-exception-propagation", action="store_true",
                         help="(Experimental, off by default.) Under `no_exception` "
                              "treat unannotated callees pessimistically: any call "

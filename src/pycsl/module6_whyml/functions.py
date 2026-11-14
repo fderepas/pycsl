@@ -630,6 +630,144 @@ class FunctionEmissionMixin:
         if _rxm_locals:
             self._re_compiled_locals["<re_m>"] = {"locals": _rxm_locals, "cur": _rxm_cur,
                                                   "sigs": _rxm_sigs}
+        # lvQ (run #7, open-world external-effect model, `transpile`): a PROCESS LOCAL `r` is
+        # a local every binding of which is a MODELLED `r = subprocess.run(..)` (the callee
+        # registry row carries the `ext` marker) and whose every other occurrence is a read
+        # `r.returncode` / `r.stdout` / `r.stderr`, or the receiver of a string method on
+        # `r.stdout` / `r.stderr` (`r.stderr.strip()`, the dotted callee string). The binding
+        # is an int HANDLE (a fresh `val` result: two runs are unrelated) and each read is a
+        # law-free `val function` of it (lvO's match-handle argument: the handle never
+        # escapes, so the identity CPython gives each CompletedProcess is unobservable).
+        # `ok` is False when some modelled `subprocess.run` value is NOT a process local's
+        # binding: `_handle_call_expr` then REFUSES (the handle would escape).
+        _x7p_reg = getattr(self, "_module_func_raises", {}) or {}
+        _x7p_st0 = func.get("symbol_table") or {}
+        if ((_x7p_reg.get("subprocess.run") or [{}])[0].get("ext") == "subprocess.run"):
+            _x7p_cand: Dict[str, List[Any]] = {}
+            _x7p_calls: List[Any] = []
+            _x7p_w: List[Any] = [body_stmts]
+            while _x7p_w:
+                _x7p_x = _x7p_w.pop()
+                if isinstance(_x7p_x, dict):
+                    if _x7p_x.get("type") == "Call" and _x7p_x.get("func") == "subprocess.run":
+                        _x7p_calls.append(_x7p_x)
+                    _x7p_v = _x7p_x.get("value")
+                    if (_x7p_x.get("stmt") == "Assign" and isinstance(_x7p_x.get("target"), str)
+                            and isinstance(_x7p_v, dict) and _x7p_v.get("type") == "Call"
+                            and _x7p_v.get("func") == "subprocess.run"):
+                        _x7p_cand.setdefault(_x7p_x["target"], []).append(_x7p_x)
+                    _x7p_w.extend(_x7p_x.values())
+                elif isinstance(_x7p_x, (list, tuple)):
+                    _x7p_w.extend(_x7p_x)
+            _x7p_procs: Dict[str, bool] = {}
+            _x7p_st = func.get("symbol_table") or {}
+            for _x7p_m, _x7p_defs in _x7p_cand.items():
+                if _x7p_st.get(_x7p_m) not in (None, "Any"):
+                    continue
+                _x7p_bind = {id(_d) for _d in _x7p_defs}
+                _x7p_good = True
+                _x7p_w2: List[Any] = [func.get(_x7p_pk) for _x7p_pk in (
+                    "formal_params", "kwonly_params", "posonly_params", "kwarg_param",
+                    "vararg_param", "params", "args", "nonlocal_writes", "global_writes",
+                    "with_bindings")]
+                _x7p_w2.append(body_stmts)
+                while _x7p_w2 and _x7p_good:
+                    _x7p_x = _x7p_w2.pop()
+                    if isinstance(_x7p_x, dict):
+                        if id(_x7p_x) in _x7p_bind:
+                            _x7p_w2.append(_x7p_x["value"])
+                            continue
+                        _x7p_o = _x7p_x.get("object")
+                        if (_x7p_x.get("type") == "Attribute"
+                                and _x7p_x.get("attr") in ("returncode", "stdout", "stderr")
+                                and isinstance(_x7p_o, dict) and _x7p_o.get("type") == "Var"
+                                and _x7p_o.get("name") == _x7p_m
+                                and set(_x7p_o) == {"type", "name"}):
+                            continue
+                        _x7p_f = _x7p_x.get("func")
+                        if (_x7p_x.get("type") == "Call" and isinstance(_x7p_f, str)
+                                and _x7p_x.get("receiver") is None
+                                and _x7p_f.count(".") == 2
+                                and _x7p_f.split(".")[0] == _x7p_m
+                                and _x7p_f.split(".")[1] in ("stdout", "stderr")
+                                and _x7p_f.split(".")[2] in ("strip", "lstrip", "rstrip")
+                                and not _x7p_x.get("args") and not _x7p_x.get("keywords")):
+                            continue
+                        _x7p_w2.extend(_x7p_x.values())
+                    elif isinstance(_x7p_x, (list, tuple)):
+                        _x7p_w2.extend(_x7p_x)
+                    elif isinstance(_x7p_x, str) and (_x7p_x == _x7p_m
+                                                      or _x7p_x.startswith(_x7p_m + ".")):
+                        _x7p_good = False
+                if _x7p_good:
+                    _x7p_procs[_x7p_m] = True
+            self._re_compiled_locals["<ext_p>"] = {
+                "procs": _x7p_procs,
+                "ok": all(any(_c is _d["value"] for _m in _x7p_procs
+                              for _d in _x7p_cand[_m]) for _c in _x7p_calls)}
+        # lvQ (run #7): an ARGPARSE LOCAL is a local every binding of which is a MODELLED
+        # `argparse.ArgumentParser(..)` or `<argparse local>.add_argument_group(..)` and whose
+        # every other occurrence is the receiver of a modelled `.add_argument(..)` /
+        # `.add_argument_group(..)` / `.parse_args()` (the dotted callee string). It is a
+        # fresh int HANDLE; the calls on it are law-free world effects (`_handle_call_expr`).
+        if ((_x7p_reg.get("argparse.ArgumentParser") or [{}])[0].get("ext")
+                == "argparse.ArgumentParser"):
+            _x7a_cand: Dict[str, List[Any]] = {}
+            _x7a_w: List[Any] = [body_stmts]
+            while _x7a_w:
+                _x7a_x = _x7a_w.pop()
+                if isinstance(_x7a_x, dict):
+                    _x7a_v = _x7a_x.get("value")
+                    if (_x7a_x.get("stmt") == "Assign" and isinstance(_x7a_x.get("target"), str)
+                            and isinstance(_x7a_v, dict) and _x7a_v.get("type") == "Call"
+                            and isinstance(_x7a_v.get("func"), str)
+                            and (_x7a_v["func"] == "argparse.ArgumentParser"
+                                 or (_x7a_v["func"].count(".") == 1
+                                     and _x7a_v["func"].endswith(".add_argument_group")))):
+                        _x7a_cand.setdefault(_x7a_x["target"], []).append(_x7a_x)
+                    _x7a_w.extend(_x7a_x.values())
+                elif isinstance(_x7a_x, (list, tuple)):
+                    _x7a_w.extend(_x7a_x)
+            _x7a_ok = {_m for _m in _x7a_cand if _x7p_st0.get(_m) in (None, "Any")}
+            _x7a_changed = True
+            while _x7a_changed:
+                _x7a_changed = False
+                for _x7a_m in sorted(_x7a_ok):
+                    _x7a_good = all(
+                        _d["value"]["func"] == "argparse.ArgumentParser"
+                        or _d["value"]["func"].split(".")[0] in _x7a_ok
+                        for _d in _x7a_cand[_x7a_m])
+                    _x7a_bind = {id(_d) for _d in _x7a_cand[_x7a_m]}
+                    _x7a_w2: List[Any] = [func.get(_x7a_pk) for _x7a_pk in (
+                        "formal_params", "kwonly_params", "posonly_params", "kwarg_param",
+                        "vararg_param", "params", "args", "nonlocal_writes", "global_writes",
+                        "with_bindings")]
+                    _x7a_w2.append(body_stmts)
+                    while _x7a_w2 and _x7a_good:
+                        _x7a_x = _x7a_w2.pop()
+                        if isinstance(_x7a_x, dict):
+                            if id(_x7a_x) in _x7a_bind:
+                                _x7a_w2.append(_x7a_x["value"])
+                                continue
+                            _x7a_f = _x7a_x.get("func")
+                            if (_x7a_x.get("type") == "Call" and isinstance(_x7a_f, str)
+                                    and _x7a_x.get("receiver") is None
+                                    and _x7a_f.count(".") == 1
+                                    and _x7a_f.split(".")[0] == _x7a_m
+                                    and _x7a_f.split(".")[1] in (
+                                        "add_argument", "add_argument_group", "parse_args")):
+                                _x7a_w2.extend(_v for _k, _v in _x7a_x.items() if _k != "func")
+                                continue
+                            _x7a_w2.extend(_x7a_x.values())
+                        elif isinstance(_x7a_x, (list, tuple)):
+                            _x7a_w2.extend(_x7a_x)
+                        elif isinstance(_x7a_x, str) and (_x7a_x == _x7a_m
+                                                          or _x7a_x.startswith(_x7a_m + ".")):
+                            _x7a_good = False
+                    if not _x7a_good:
+                        _x7a_ok.discard(_x7a_m)
+                        _x7a_changed = True
+            self._re_compiled_locals["<ext_a>"] = {"locals": _x7a_ok}
         # (#49) ROUTE #232 — A READ `**kwargs` PARAMETER IN AN EMITTED BODY. The parameter
         # is not modelled (it is not in the signature), so the read would lower to an
         # auto-declared opaque `val constant <name> : int` SHARED by every call: measured,
@@ -960,6 +1098,12 @@ class FunctionEmissionMixin:
                                 if _x174.get("stmt") == "Raise" and _x174.get("exc_type"):
                                     _e174.add(str(_x174.get("exc_type")))
                                 if _x174.get("type") == "Call" and isinstance(_x174.get("func"), str):
+                                    # lvQ (run #7): a call of the open-world external-effect
+                                    # model RAISES its registry row's classes (`transpile`)
+                                    for _r174x in ((getattr(self, "_module_func_raises", {})
+                                                    or {}).get(_x174["func"]) or []):
+                                        if isinstance(_r174x, dict) and _r174x.get("ext"):
+                                            _e174.add(str(_r174x["exc_type"]))
                                     _cf174 = _x174["func"].rsplit(".", 1)[-1]
                                     for _g174 in (self.ir.get("functions", []) or []):
                                         _gn174 = str(_g174.get("name", ""))

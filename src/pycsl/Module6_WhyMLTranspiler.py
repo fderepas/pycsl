@@ -1095,6 +1095,201 @@ class Module6_WhyMLTranspiler(
             return self._transpile_modular(functions, type_decls)
 
         needs = self._scan_preamble_needs(functions, all_bodies)
+        # lvQ (run #7) OPEN-WORLD EXTERNAL-EFFECT MODEL. A call into the outside world --
+        # `subprocess.run(<str list>, capture_output=True, text=True)`, `Path.cwd()`,
+        # `<path>.mkdir(parents=.., exist_ok=..)`, `<path>.write_text(<str>)`,
+        # `json.dumps(<name>[, indent=<int>])` -- used to lower to a receiver-less opaque
+        # `val` (`root_mkdir_0 ()`, `subprocess_run_1 <args>`) that DROPPED its receiver and
+        # keywords and could NOT RAISE: a converted body then "proved" that the world never
+        # fails (no FileNotFoundError, no PermissionError, no TypeError from json). The model
+        # (`_handle_call_expr`, `_handle_attribute_expr`) is LAW-FREE: every world query is
+        # an impure `val` with no `ensures` and no `reads` (a fresh value per call, so two
+        # reads are never equal and a write needs no explicit havoc), and every call RAISES
+        # every exception CPython can raise there: the whole OSError family (any errno can
+        # come back from the kernel), plus ValueError (an embedded NUL), UnicodeDecodeError
+        # (`text=True` decoding), UnicodeEncodeError (`write_text`), TypeError / ValueError /
+        # RecursionError (`json.dumps`). The raises ride on the EXISTING callee registry
+        # (`_module_func_raises`, keyed by the IR callee string, an `ext` marker on each
+        # row), so the escaping-exception summary (`_callee_raised_in`) and the handler arms
+        # (`_handle_try_stmt`) see them unchanged. The decision is MODULE-WIDE and
+        # all-or-nothing per callee string: a callee string ALL of whose occurrences have
+        # the modelled shape gets the model; any other occurrence keeps the old lowering for
+        # every occurrence of that string (byte-identical elsewhere). `timeout=` is NOT
+        # modelled (the front-end drops a dotted `except subprocess.TimeoutExpired` handler,
+        # so a modelled TimeoutExpired would escape where CPython catches it).
+        _x7_os = ("BlockingIOError", "BrokenPipeError", "ChildProcessError",
+                  "ConnectionAbortedError", "ConnectionError", "ConnectionRefusedError",
+                  "ConnectionResetError", "FileExistsError", "FileNotFoundError",
+                  "InterruptedError", "IsADirectoryError", "NotADirectoryError", "OSError",
+                  "PermissionError", "ProcessLookupError", "TimeoutError")
+        _x7_raises = {
+            "subprocess.run": _x7_os + ("ValueError", "UnicodeDecodeError"),
+            "Path.cwd": _x7_os,
+            "mkdir": _x7_os + ("ValueError",),
+            "write_text": _x7_os + ("ValueError", "UnicodeEncodeError"),
+            "json.dumps": ("TypeError", "ValueError", "RecursionError"),
+            # argparse: the constructor reads `sys.argv[0]` (IndexError on an empty argv,
+            # AttributeError without one); `add_argument` raises ArgumentError on a
+            # conflicting option and ValueError / TypeError on a bad spec or help format;
+            # `parse_args` exits (SystemExit) on `--help` / a usage error and writes to a
+            # stream that may be closed or unencodable.
+            "argparse.ArgumentParser": ("AttributeError", "IndexError", "TypeError", "ValueError"),
+            "add_argument": ("ArgumentError", "TypeError", "ValueError"),
+            "add_argument_group": ("TypeError", "ValueError"),
+            "parse_args": _x7_os + ("SystemExit", "UnicodeEncodeError"),
+        }
+        _x7_imps = [_i for _i in (self.ir.get("imports") or [])
+                    if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+        _x7_mod = {_m: (any(_i[0] == _m for _i in _x7_imps)
+                        and all(_i[1] == _m and _i[2] == _m and _i[4]
+                                for _i in _x7_imps if _i[0] == _m))
+                   for _m in ("subprocess", "json", "argparse")}
+        _x7_mod["Path"] = (any(_i[0] == "Path" for _i in _x7_imps)
+                           and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[4]
+                                   for _i in _x7_imps if _i[0] == "Path"))
+        # A callee string that names a function of this unit is that function, never the
+        # model -- unless it is a bodyless IMPORTED stub of the stdlib module itself (with
+        # `--import-path` the interpreter's own `json/__init__.py` is read as `\trusted`
+        # stubs: `json.dumps` becomes an all-`int` `val` that cannot raise), which the
+        # model replaces.
+        # (`ir_resolve._resolve_module_imports` also REWRITES every `json.dumps(..)` call to
+        # the bare `dumps`; the stub is recognised by CPython's own signature.)
+        _x7_jstub = any(f.get("name") == "dumps" and (f.get("trusted") or f.get("abstract"))
+                        and {"skipkeys", "ensure_ascii", "check_circular"}
+                        <= set(f.get("formal_params") or [])
+                        for f in functions)
+        _x7_fnames = {f.get("name") for f in functions
+                      if not (f.get("name") == "dumps" and _x7_jstub)}
+        _x7_tnames = {(_t.get("name") if isinstance(_t, dict) else None)
+                      for _t in (self.ir.get("type_decls") or [])}
+        # an argparse argument is admitted only as a LITERAL (str / int / bool / None, or a
+        # list of str literals): it is then effect-free, so the law-free call may drop it
+        _x7_lit = (lambda _vs: all(isinstance(_v, dict) and (
+            (_v.get("type") in ("String", "Number", "Bool") and set(_v) == {"type", "value"})
+            or _v == {"type": "None"}
+            or (_v.get("type") == "ArrayLit" and set(_v) == {"type", "elts"}
+                and all(isinstance(_e, dict) and _e.get("type") == "String"
+                        and set(_e) == {"type", "value"} for _e in (_v.get("elts") or []))))
+            for _v in _vs))
+        # the argparse model raises the (non-builtin) tag `ArgumentError`: not if the unit
+        # names its own `ArgumentError` anywhere (a class, a raise, a handler)
+        _x7_argerr = "ArgumentError" in _x7_tnames or any(
+            "ArgumentError" in str(_x7_f.get("body")) for _x7_f in functions
+            if _x7_mod["argparse"])
+        _x7_occ: Dict[str, List[bool]] = {}
+        _x7_kinds: Dict[str, str] = {}
+        _x7_inj: Dict[str, List[Dict[str, Any]]] = {}
+        for _x7_f in functions:
+            # a `\trusted` / `\abstract` body is never lowered (an opaque `val`): it can
+            # neither use the model nor veto it
+            if _x7_f.get("trusted") or _x7_f.get("abstract"):
+                continue
+            _x7_st = _x7_f.get("symbol_table") or {}
+            _x7_w: List[Any] = [(_x7_f.get("body") or [], None)]
+            while _x7_w:
+                _x7_n, _x7_par = _x7_w.pop()
+                if isinstance(_x7_n, dict):
+                    _x7_fn = _x7_n.get("func")
+                    if _x7_n.get("type") == "Call" and isinstance(_x7_fn, str):
+                        _x7_a = _x7_n.get("args") or []
+                        _x7_kw = [_kw for _kw in (_x7_n.get("keywords") or [])]
+                        _x7_k = {(_kw.get("arg") if isinstance(_kw, dict) else None): (
+                                    _kw.get("value") if isinstance(_kw, dict) else None)
+                                 for _kw in _x7_kw}
+                        _x7_kind = None
+                        _x7_ok = len(_x7_k) == len(_x7_kw) and _x7_n.get("receiver") is None
+                        _x7_bool = all(isinstance(_v, dict) and _v.get("type") == "Bool"
+                                       and set(_v) == {"type", "value"} for _v in _x7_k.values())
+                        if _x7_fn == "subprocess.run" and _x7_mod["subprocess"]:
+                            _x7_kind = "subprocess.run"
+                            _x7_ok = (_x7_ok and len(_x7_a) == 1 and isinstance(_x7_a[0], dict)
+                                      and _x7_a[0].get("type") == "ArrayLit"
+                                      and bool(_x7_a[0].get("elts"))
+                                      and all(isinstance(_e, dict) and (
+                                                  (_e.get("type") == "String"
+                                                   and set(_e) == {"type", "value"}
+                                                   and isinstance(_e.get("value"), str))
+                                                  or (_e.get("type") == "Var"
+                                                      and set(_e) == {"type", "name"}
+                                                      and _x7_st.get(_e.get("name")) == "str"))
+                                              for _e in _x7_a[0]["elts"])
+                                      and set(_x7_k) == {"capture_output", "text"} and _x7_bool
+                                      and all(_v["value"] is True for _v in _x7_k.values())
+                                      and isinstance(_x7_par, dict)
+                                      and _x7_par.get("stmt") == "Assign"
+                                      and _x7_par.get("value") is _x7_n
+                                      and isinstance(_x7_par.get("target"), str))
+                        elif (_x7_fn == "Path.cwd" and _x7_mod["Path"]
+                                and "Path" not in _x7_tnames):
+                            _x7_kind = "Path.cwd"
+                            _x7_ok = _x7_ok and not _x7_a and not _x7_k
+                        elif ((_x7_fn == "json.dumps" or (_x7_fn == "dumps" and _x7_jstub))
+                                and _x7_mod["json"]):
+                            _x7_kind = "json.dumps"
+                            _x7_ok = (_x7_ok and len(_x7_a) == 1 and isinstance(_x7_a[0], dict)
+                                      and _x7_a[0].get("type") == "Var"
+                                      and set(_x7_a[0]) == {"type", "name"}
+                                      and set(_x7_k) <= {"indent"}
+                                      and all(isinstance(_v, dict) and _v.get("type") == "Number"
+                                              and type(_v.get("value")) is int
+                                              for _v in _x7_k.values()))
+                        elif (_x7_fn == "argparse.ArgumentParser" and _x7_mod["argparse"]
+                                and not _x7_argerr):
+                            _x7_kind = "argparse.ArgumentParser"
+                            _x7_ok = (_x7_ok and not _x7_a and _x7_lit(_x7_k.values())
+                                      and isinstance(_x7_par, dict)
+                                      and _x7_par.get("stmt") == "Assign"
+                                      and _x7_par.get("value") is _x7_n
+                                      and isinstance(_x7_par.get("target"), str))
+                        elif (_x7_fn.count(".") == 1 and _x7_mod["argparse"] and not _x7_argerr
+                                and _x7_fn.split(".")[1] in ("add_argument",
+                                                             "add_argument_group", "parse_args")
+                                and _x7_fn.split(".")[0].isidentifier()
+                                and _x7_fn.split(".")[0] not in ("self", "cls", "argparse")):
+                            _x7_kind = _x7_fn.split(".")[1]
+                            _x7_ok = _x7_ok and _x7_lit(_x7_a) and _x7_lit(_x7_k.values())
+                            if _x7_kind == "parse_args":
+                                _x7_ok = _x7_ok and not _x7_a and not _x7_k
+                            if _x7_kind == "add_argument_group":
+                                _x7_ok = (_x7_ok and isinstance(_x7_par, dict)
+                                          and _x7_par.get("stmt") == "Assign"
+                                          and _x7_par.get("value") is _x7_n
+                                          and isinstance(_x7_par.get("target"), str))
+                        elif (_x7_fn.count(".") == 1 and _x7_mod["Path"]
+                                and _x7_fn.split(".")[1] in ("mkdir", "write_text")
+                                and _x7_fn.split(".")[0].isidentifier()
+                                and _x7_fn.split(".")[0] not in ("self", "cls", "pathlib",
+                                                                 "Path", "os")):
+                            _x7_kind = _x7_fn.split(".")[1]
+                            if _x7_kind == "mkdir":
+                                _x7_ok = (_x7_ok and not _x7_a and _x7_bool
+                                          and set(_x7_k) <= {"parents", "exist_ok"})
+                            else:
+                                _x7_ok = _x7_ok and len(_x7_a) == 1 and not _x7_k
+                        if _x7_kind is not None:
+                            _x7_occ.setdefault(_x7_fn, []).append(bool(_x7_ok))
+                            _x7_kinds[_x7_fn] = _x7_kind
+                    _x7_w.extend((_v, _x7_n) for _v in _x7_n.values())
+                elif isinstance(_x7_n, (list, tuple)):
+                    _x7_w.extend((_v, _x7_par) for _v in _x7_n)
+        # argparse is ALL-OR-NOTHING over the unit: the handles flow between the four
+        # callee kinds, so one unmodelled argparse call disables the whole argparse model.
+        _x7_apk = ("argparse.ArgumentParser", "add_argument", "add_argument_group",
+                   "parse_args")
+        _x7_apall = all(all(_x7_occ[_f]) and _f not in _x7_fnames
+                        for _f in _x7_occ if _x7_kinds[_f] in _x7_apk)
+        for _x7_fn in sorted(_x7_occ):
+            if _x7_kinds[_x7_fn] in _x7_apk and not _x7_apall:
+                continue
+            if (not all(_x7_occ[_x7_fn]) or _x7_fn in _x7_fnames
+                    or (self._module_func_raises.get(_x7_fn)
+                        and _x7_kinds[_x7_fn] != "json.dumps")):
+                continue
+            _x7_kind = _x7_kinds[_x7_fn]
+            _x7_inj[_x7_fn] = self._module_func_raises[_x7_fn] = [
+                {"exc_type": _e, "condition": None, "ext": _x7_kind}
+                for _e in _x7_raises[_x7_kind]]
+            needs["user_exceptions"] = set(needs["user_exceptions"]) | set(_x7_raises[_x7_kind])
         # cap-trusted-val-unit-return (run #5, lvF): a `\trusted` `pass`-body stub declared
         # `-> List[..]` / bytes now announces `array ..` (see the CALL-SITE half below), so
         # the array theory must be in scope even when no body uses an array. Set/dict
@@ -1746,6 +1941,9 @@ class Module6_WhyMLTranspiler(
         for pf in self._mixin_dep_pseudo_functions(functions):
             self._module_method_return_types[pf["name"]] = pf["_mixin_ret_whyml"]
         self._build_callee_no_exception_summary(functions)
+        # lvQ (run #7): the summary resets an imported stub's row (`json.dumps`, no declared
+        # raises); the external-effect model's rows, decided above, are restored over it.
+        self._module_func_raises.update(_x7_inj)
 
         # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): the dispatcher's
         # calls to its 23 handlers are synthesized from the source table by the bespoke
