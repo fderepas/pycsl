@@ -15140,8 +15140,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # dict-value-model-r4: `tuple(<pyval>)` is an `HTuple` hval, and a call of a
         # same-file `-> Tuple[..PyVal..]` function returns one.
         if t == "Call" and isinstance(e.get("func"), str) and getattr(self, "ir", None):
-            if (e.get("func") == "tuple" and len(e.get("args") or []) == 1
-                    and self._expr_is_pyval((e.get("args") or [{}])[0])):
+            _r4ta = (e.get("args") or [{}])[0] if len(e.get("args") or []) == 1 else None
+            if (e.get("func") == "tuple" and isinstance(_r4ta, dict)
+                    and (self._expr_is_pyval(_r4ta)
+                         or (_r4ta.get("type") == "BinOp" and _r4ta.get("op") == "or"
+                             and self._expr_is_pyval(_r4ta.get("left") or {})
+                             and isinstance(_r4ta.get("right"), dict)
+                             and _r4ta["right"].get("type") in ("ArrayLit", "DictLit", "Tuple")
+                             and not _r4ta["right"].get("elts")
+                             and not _r4ta["right"].get("keys")))):
                 return True
             _r4fn = e.get("func").split(".")[-1]
             if any(isinstance(_f, dict) and _f.get("r4_ret_pyval") == "tuple"

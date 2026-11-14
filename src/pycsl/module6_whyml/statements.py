@@ -9373,6 +9373,42 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 else stmts)
 
             body_stmts = _r4_stmts(body_stmts, set())
+            # dict-value-model-r4: the DISTINCT string-literal keys of this body's PyVal
+            # dict literals and literal-key reads, stated once as a proved `assert` at the
+            # body start (Z3 decides literal disequality; Alt-Ergo cannot, fr4 R5b), so a
+            # literal-key `pairs_get` read past another literal key unfolds the certified
+            # `pairs_get_cons` for every prover. A proved goal, then a hypothesis: no axiom.
+            _r4lk: Set[str] = set()
+            _r4ls: List[Any] = [body_stmts]
+            while _r4ls:
+                _r4lx = _r4ls.pop()
+                if isinstance(_r4lx, list):
+                    _r4ls.extend(_r4lx)
+                    continue
+                if not isinstance(_r4lx, dict):
+                    continue
+                _r4ls.extend(_v for _v in _r4lx.values() if isinstance(_v, (dict, list)))
+                if _r4lx.get("type") == "DictLit":
+                    _r4lk.update(_k.get("value") for _k in (_r4lx.get("keys") or [])
+                                 if isinstance(_k, dict) and _k.get("type") == "String"
+                                 and isinstance(_k.get("value"), str))
+                if (_r4lx.get("type") == "Call" and str(_r4lx.get("func", "")).endswith("get")
+                        and _r4lx.get("args") and isinstance(_r4lx["args"][0], dict)
+                        and _r4lx["args"][0].get("type") == "String"
+                        and isinstance(_r4lx["args"][0].get("value"), str)):
+                    _r4lk.add(_r4lx["args"][0]["value"])
+                if (_r4lx.get("type") == "Subscript" and isinstance(_r4lx.get("index"), dict)
+                        and _r4lx["index"].get("type") == "String"
+                        and isinstance(_r4lx["index"].get("value"), str)):
+                    _r4lk.add(_r4lx["index"]["value"])
+            _r4lkl = sorted(_r4lk)
+            self._r4_litkey_assert = None
+            if 2 <= len(_r4lkl) <= 12:
+                self._r4_litkey_assert = (
+                    "    assert { [@expl:PyCSL-R4 distinct literal keys] "
+                    + " /\\ ".join(f"{whyml_string_literal(_a)} <> {whyml_string_literal(_b)}"
+                                     for _i, _a in enumerate(_r4lkl) for _b in _r4lkl[_i + 1:])
+                    + " };\n")
         append_targets = IRScanner.find_append_targets(body_stmts)
         # Expose append-targets to `_handle_len_call` so `len(X)` in
         # invariants/specs resolves to `!X_len` (the dynamic counter)
@@ -10185,6 +10221,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
         if not body_code.strip():
             body_code = "    ()"
+        if getattr(self, "_r4_litkey_assert", None) and self._uses_pyval():
+            body_code = self._r4_litkey_assert + body_code
+            self._r4_litkey_assert = None
         if self._has_early_ret:
             body_code = self._wrap_body_with_return_catch(body_code, return_type)
         return body_code

@@ -6416,12 +6416,12 @@ emitted verbatim (translational reference App. R4). Absent ≠ stored `None` (th
 (`9824`/`9825`), `None != 0` (`9828`/`9829`) — a comparison against a literal is the RHS of the
 certified one-level unfolding lemma (`hval_eq_int_lit` / `_bool_lit` / `_intfloat_lit` / `_float_lit`
 / `_none_lit` / `_str_lit`, Rocq + Lean + companion `DictR4LemmasLit`); between two PyVal values it is
-`hval_eq` itself, sound but NOT value-reachable for the provers (OPEN LIMIT: `(1,) != [1]`, `9826`
-FAIL / `9827`). Truthiness of every
+`hval_eq` itself, sound but NOT value-reachable for the provers (OPEN LIMIT: the TRUE `(1,) != [1]` times out,
+so it has no PASS witness; its false twin `9827` is not proved). Truthiness of every
 tag (`9830`/`9831`). `isinstance(x, str)` narrowing is substituted in the guarded region (`return
 g` after the test returns the `str`, `9832`/`9833`). A dict literal is insertion-ordered with
 last-wins duplicates (the first key of `{"b": 1, "a": 2, "b": 3}` is `"b"`, `9859`; the full
-`("b", "a")` with length 2 is TRUE but times out, OPEN LIMIT `9834` FAIL / `9835`).
+`("b", "a")` with length 2 is TRUE but times out: OPEN LIMIT, no PASS witness; false twin `9835`).
 Route (e2): a value fact about a nested dict with several literal keys proves through the
 certified `pairs_get_nil` / `pairs_get_cons` equations (`9844`/`9845`). Typed / store memory
 models: `9847`-`9858`.
@@ -6437,7 +6437,7 @@ site: in a non-trusted function claiming TypeError (`#@ no_exception \all`, or a
 `zip` / `dict`, `sep.join`, iteration, an arithmetic / unary / ordering operator, `in`, an
 augmented assignment or a method call (but `.get` / `.items` / `.keys` / `.values` / `.copy`) is
 REFUSED (`PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM`, `9838`); a dominating `isinstance` derives it
-(`9860`: `len` of a narrowed str; `9839`, its `\result >= 0` twin, is an OPEN LIMIT: times out); outside a claim it is ambient, and the function enters route #430's callee summary.
+(`9860`: `len` of a narrowed str is the certified `String.length`; OPEN LIMIT: `\result >= 0` for it times out); outside a claim it is ambient, and the function enters route #430's callee summary.
 
 **Raising reads.** The absent-key / non-dict arm of `d[k]` and of a nested `r[k]` is the
 law-free, deterministic `hval_get_other <receiver> <key>` (two reads of one absent key agree) (was the junk `(HInt 0)` / `(HMap PNil)` / `""`); under a KeyError claim
