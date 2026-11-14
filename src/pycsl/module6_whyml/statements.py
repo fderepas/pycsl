@@ -9403,7 +9403,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     _r4lk.add(_r4lx["index"]["value"])
             _r4lkl = sorted(_r4lk)
             self._r4_litkey_assert = None
-            if 2 <= len(_r4lkl) <= 12:
+            # only in a body that HOLDS a PyVal value (a pyval local / param, a
+            # `Dict[str, PyVal]` binding, a PyVal tuple / dict return)
+            _r4has = (bool(getattr(self, "_pyval_locals", set()))
+                      or any(_v == "hval" or (isinstance(_v, str) and "option hval" in _v)
+                             for _v in (func.get("dict_value_types") or {}).values())
+                      or bool(func.get("r4_ret_pyval")))
+            if _r4has and 2 <= len(_r4lkl) <= 12:
                 self._r4_litkey_assert = (
                     "    assert { [@expl:PyCSL-R4 distinct literal keys] "
                     + " /\\ ".join(f"{whyml_string_literal(_a)} <> {whyml_string_literal(_b)}"
