@@ -4682,10 +4682,12 @@ class PreambleEmissionMixin:
         """Program-context application of `{mutex}_inv`: applied to the
         dereferenced shared refs it is parameterized by (or bare if none)."""
         safe_mutex = safe_mutex_name(mutex)
-        params = self._mutex_inv_params(mutex, inv_str)
-        if not params:
+        parts: List[str] = []
+        for v in self._mutex_inv_params(mutex, inv_str):
+            parts.append(f"!{whyml_ident(v)}")
+        if not parts:
             return f"{safe_mutex}_inv"
-        args = " ".join(f"!{whyml_ident(v)}" for v in params)
+        args = " ".join(parts)
         return f"{safe_mutex}_inv {args}"
 
     def _inductive_referenced_axiom_decls(

@@ -89,7 +89,6 @@ class ReverifyReport:
 # ---------------------------------------------------------------------------
 # Cache helpers
 # ---------------------------------------------------------------------------
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -141,7 +140,6 @@ def _cache_load(project_root: Path, prover: str, key: str) -> Optional[dict]:
         return json.loads(f.read_text())
     except (OSError, json.JSONDecodeError):
         return None
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

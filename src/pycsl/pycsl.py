@@ -5423,7 +5423,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                          or (isinstance(_v383, _ast341.BinOp)
                              and isinstance(_v383.op, _ast341.BitOr)))
                     and not any(isinstance(_z, _ast341.Name) and _z.id == _k383
-                                for _z in _ast341.walk(_v383))):
+                                for _z in _ast341.walk(_v383))
+                    # (W-hash, dict-value-model-r4 §2.5) `PyVal = Any` is NOT followed: the
+                    # name stays the TAGGED value class "PyVal" (as it is in a mirror file that
+                    # never binds it), which the #349 pass below judges claim-conditionally
+                    and not (_k383 == "PyVal" and (
+                        (isinstance(_v383, _ast341.Name) and _v383.id == "Any")
+                        or (isinstance(_v383, _ast341.Attribute) and _v383.attr == "Any")))):
                 _al383[_k383] = _v383
         # `_rs369[id(e)]`: the resolution of each annotation head / default
         # callee of a class body (see (a)); filled below for the expressions it is asked of.
@@ -9731,6 +9737,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             # expression such as `Callable[[int], int]` / `Dict[K, V]` hashes nothing).
             # (#394) `_xe394`: hashed ITERABLES (each element is hashed)
             _xe394 = set()
+            # (W-hash) `PyVal` names the TAGGED value class (the `hval` model) unless the file
+            # makes it a class or aliases it to another type; `_hw349`: the claimed hashed
+            # leaves left to #432's FLOW NARROWING below
+            _pv349 = "PyVal" not in _cls341 and "PyVal" not in _al383
+            _hw349 = []
             for _n346 in _ast341.walk(_f346):
                 if id(_n346) in _anx365:
                     continue
@@ -9941,6 +9952,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     # un-claimed one is refused in Module 6). A hashed site in a nested `def`
                     # / lambda counts for the enclosing function too (fail-closed).
                     _ul430 = []
+                    _pf349 = False
                     _rg430 = None
                     _uq430 = [_h349] if id(_h349) not in _xe394 else []
                     while _uq430:
@@ -9973,12 +9985,99 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                    _ast341.Dict, _ast341.DictComp,
                                                    _ast341.Set, _ast341.SetComp)):
                                 _uc430.add("#UB")
+                            # (W-hash, dict-value-model-r4 §2.5) a SCHEMA SLOT `X["k"]`: `X`
+                            # derived as exactly file TypedDict classes, each declaring `k` in
+                            # its own body once -- the slot's annotation is a DERIVATION: all
+                            # hashable scalars / tuples of them ("H") is derived hashable; one
+                            # that admits a list / dict / set ("U") is denied unconditionally;
+                            # anything else ("?") keeps the underivable rule
+                            _sk349 = None
+                            if (isinstance(_uy430, _ast341.Subscript)
+                                    and isinstance(_uy430.slice, _ast341.Constant)
+                                    and isinstance(_uy430.slice.value, str)
+                                    and _ty383.get(id(_uy430.value))):
+                                _sk349 = []
+                                for _t349 in _ty383[id(_uy430.value)]:
+                                    _fa349 = [
+                                        _m.annotation for _k in _cls341.get(_t349.id, [])
+                                        for _m in _k.body if isinstance(_m, _ast341.AnnAssign)
+                                        and isinstance(_m.target, _ast341.Name)
+                                        and _m.target.id == _uy430.slice.value] if (
+                                            isinstance(_t349, _ast341.Name)
+                                            and _tck1.get(_t349.id) == "TypedDict"
+                                            and len(_cls341.get(_t349.id) or []) == 1) else []
+                                    if len(_fa349) != 1:
+                                        _sk349 = None
+                                        break
+                                    _sk349.append(_fa349[0])
+                            _sv349 = set()
+                            _sq349 = list(_sk349 or [])
+                            _sg349 = 0
+                            while _sq349 and _sg349 < 64:
+                                _sg349 += 1
+                                _x349 = _sq349.pop()
+                                _xh349 = (_x349.value.id if isinstance(_x349, _ast341.Subscript)
+                                          and isinstance(_x349.value, _ast341.Name) else "")
+                                _xa349 = ((list(_x349.slice.elts) if isinstance(
+                                    _x349.slice, _ast341.Tuple) else [_x349.slice])
+                                          if _xh349 else [])
+                                if (isinstance(_x349, _ast341.Constant)
+                                        and isinstance(_x349.value, str)):
+                                    try:
+                                        _sq349.append(_ast341.parse(_x349.value,
+                                                                    mode="eval").body)
+                                    except (SyntaxError, ValueError):
+                                        _sv349.add("?")
+                                elif isinstance(_x349, _ast341.Constant) and _x349.value is None:
+                                    _sv349.add("H")
+                                elif isinstance(_x349, _ast341.Name) and _x349.id in _al383:
+                                    _sq349.append(_al383[_x349.id])
+                                elif (isinstance(_x349, _ast341.Name)
+                                      and _x349.id not in _cls341):
+                                    _sv349.add("H" if _x349.id in (
+                                        "str", "int", "bool", "float", "complex", "bytes")
+                                               else "U" if _x349.id in (
+                                                   "list", "List", "dict", "Dict", "set",
+                                                   "Set") else "?")
+                                elif (isinstance(_x349, _ast341.BinOp)
+                                      and isinstance(_x349.op, _ast341.BitOr)):
+                                    _sq349 += [_x349.left, _x349.right]
+                                elif _xh349 in ("Optional", "Union") and _xh349 not in _cls341:
+                                    _sq349 += _xa349 + ([_ast341.Constant(value=None)]
+                                                        if _xh349 == "Optional" else [])
+                                elif (_xh349 in ("Required", "NotRequired", "Annotated",
+                                                 "Final") and _xh349 not in _cls341):
+                                    _sq349 += _xa349[:1]
+                                elif (_xh349 in ("Tuple", "tuple") and _xh349 not in _cls341
+                                      and [_e for _e in _xa349 if not (
+                                          isinstance(_e, _ast341.Constant)
+                                          and _e.value is Ellipsis)]):
+                                    _sq349 += [_e for _e in _xa349 if not (
+                                        isinstance(_e, _ast341.Constant)
+                                        and _e.value is Ellipsis)]
+                                elif (_xh349 in ("List", "list", "Dict", "dict", "Set", "set")
+                                      and _xh349 not in _cls341):
+                                    _sv349.add("U")
+                                else:
+                                    _sv349.add("?")
+                            if _sq349:
+                                _sv349.add("?")
+                            if "U" in _sv349:
+                                _hc349.add("#UB")
+                            elif _sv349 == {"H"}:
+                                pass
                             # (#438) an UN-PARAMETERISED `tuple` / `Tuple` ("#UNKT": its
-                            # components are unknown, so `([1],)` is one) is underivable too
-                            if "#UND" in _uc430 or "#UNKT" in _uc430 or not _uc430:
+                            # components are unknown, so `([1],)` is one) is underivable too;
+                            # (W-hash) so is a TAGGED value ("PyVal": a `PyVal` parameter /
+                            # local / return / element) -- claim-conditional, not denied
+                            elif ("#UND" in _uc430 or "#UNKT" in _uc430 or not _uc430
+                                  or (_pv349 and "PyVal" in _uc430)):
                                 _ul430.append(_uy430)
-                    if id(_h349) in _xe394 and ("#UND" in _hc349 or "#UNKT" in _hc349):
+                                _pf349 = _pf349 or "PyVal" in _uc430
+                    if id(_h349) in _xe394 and ("#UND" in _hc349 or "#UNKT" in _hc349
+                                                or (_pv349 and "PyVal" in _hc349)):
                         _ul430.append(_h349)
+                        _pf349 = _pf349 or "PyVal" in _hc349
                     if _ul430 and id(_n346) not in _gr383g:
                         _irn430 = ((_ec346.lower() + "__" + _f346.name) if _ec346
                                    else _f346.name)
@@ -10000,8 +10099,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _li430 -= 1
                         if _cl430 and not (_ir430.get("trusted") or _ir430.get("abstract")):
                             # raised AFTER the deny-list checks below, so a value known
-                            # (or suspected) unhashable keeps their message
-                            _rg430 = _ul430[0]
+                            # (or suspected) unhashable keeps their message. (W-hash) A leaf
+                            # that is a name / attribute path which an `isinstance` of this
+                            # function tests is judged by #432's FLOW NARROWING instead
+                            # (`_hw349`): admitted iff narrowed to hashable builtin classes
+                            _nw349 = []
+                            for _lv349 in _ul430:
+                                _r349 = _lv349
+                                while isinstance(_r349, _ast341.Attribute):
+                                    _r349 = _r349.value
+                                if (isinstance(_r349, _ast341.Name)
+                                        and isinstance(_lv349, (_ast341.Name, _ast341.Attribute))
+                                        and any(isinstance(_z, _ast341.Call)
+                                                and isinstance(_z.func, _ast341.Name)
+                                                and _z.func.id == "isinstance"
+                                                and len(_z.args) == 2
+                                                and _ast341.dump(_z.args[0])
+                                                == _ast341.dump(_lv349)
+                                                for _z in _ast341.walk(_f346))):
+                                    _nw349.append(_lv349)
+                                else:
+                                    _rg430 = _lv349
+                                    break
+                            # (deferred only under the IR's own claim, which makes #432's
+                            # `_te432` hold for this function: its engine then judges each)
+                            if _rg430 is None and not (bool(_cc430.get("no_exception_all")) or bool(
+                                    set(_cc430.get("no_exception") or [])
+                                    & {"TypeError", "Exception", "BaseException"})):
+                                _rg430 = _nw349[0]
+                            if _rg430 is None:
+                                _hw349 += [(_u, _n346) for _u in _nw349]
+                    # (W-hash) a TAGGED value is claim-conditional (above), never denied
+                    if _pv349 and _pf349:
+                        _hc349.discard("PyVal")
                     # (#381 / #382 / #383) each outside class name by its real class: a
                     # container / `__hash__ = None` ("U") is unhashable, an unknown one
                     # (`Any`, `object`, a TypeVar, an unknown import: "?") may be any class
@@ -10839,6 +10969,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _cf549[id(_x527)] = (_pn549, _ast341.unparse(_fx549),
                                                  "imported" if not _fl549 else "file")
                 _i527 = {id(_x) for _x in _s527}
+                # (W-hash, dict-value-model-r4 §2.5) each claimed hashed leaf `_hw349` (an
+                # underivable / TAGGED value that an `isinstance` tests) is a SYNTHETIC load
+                # judged by FLOW NARROWING: admitted iff its classes at the site are derived and
+                # all hashable builtins (`str` / `int` / `bool` / `float` / `complex` / `bytes`
+                # / None, no file class with `__hash__ = None` among them), else refused
+                _iw349 = {}
+                for _lv349, _z349 in _hw349:
+                    _x349 = _ast341.Attribute(value=_lv349, attr="__r349w__", ctx=_ast341.Load())
+                    _ast341.copy_location(_x349, _lv349)
+                    _pm432[id(_x349)] = _pm432.get(id(_lv349), _z349)
+                    _s527.append(_x349)
+                    _iw349[id(_x349)] = _z349
                 for _a432 in (_al432 if _ae432 else []) + _s527:
                     if not (isinstance(_a432, _ast341.Attribute)
                             and isinstance(_a432.ctx, _ast341.Load)) or id(_a432) in _anx365:
@@ -10913,10 +11055,57 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _dv443 = True
                     if _f527:
                         _dv443 = True
+                    _w349 = id(_a432) in _iw349
+                    if _w349:
+                        _dv443 = True
                     for _ph432 in (0, 1):
                         _cn432 = {_c for _c in _fs432 if _c[:1] != "#"
                                   and _c not in ("Any", "object")}
-                        if _f527:
+                        if _w349:
+                            # (a builtin class a FILE class derives from, at any depth, may be
+                            # an instance of that subclass -- `class S(str): __hash__ = None`
+                            # -- so it does not narrow to hashable)
+                            _bz349 = set()
+                            _bq349 = [_b for _ks in _cls341.values() for _k in _ks
+                                      for _b in _k.bases]
+                            _bg349 = 0
+                            while _bq349 and _bg349 < 4096:
+                                _bg349 += 1
+                                _b349 = _bq349.pop()
+                                _b349 = (_b349.value if isinstance(_b349, _ast341.Subscript)
+                                         else _b349)
+                                _bn349 = (_b349.id if isinstance(_b349, _ast341.Name) else
+                                          _b349.attr if isinstance(_b349, _ast341.Attribute)
+                                          else "")
+                                _bz349.add(_bn349)
+                                if _bn349 in _cls341:
+                                    _bq349 += [_b for _k in _cls341[_bn349] for _b in _k.bases]
+                            if (_cn432 and _cn432 == _fs432 and not (_cn432 & _u365)
+                                    and not (_cn432 & _bz349) and not _bq349
+                                    and _cn432 <= {"str", "int", "bool", "float", "complex",
+                                                   "bytes", "None", "NoneType"}):
+                                break
+                            if _ph432 == 1:
+                                raise _PyCSLSemErr341(
+                                    f"'{_f346.name}' line {getattr(_a432, 'lineno', 0)}: "
+                                    f"`{_ast341.unparse(_r432)}` is HASHED by "
+                                    f"`{_ast341.unparse(_iw349[id(_a432)])}` (a set element, a "
+                                    f"dict key, a membership test or subscript of a set / "
+                                    f"dict, or `hash(...)`), and no guard holding there "
+                                    f"narrows it to hashable builtin classes (derived here: "
+                                    f"{sorted(_fs432) or 'nothing'}; a `PyVal` value or an "
+                                    f"underivable one may be a list / dict / set at run time), "
+                                    f"so CPython may raise TypeError, while this function "
+                                    f"claims `#@ no_exception` covering TypeError and the model "
+                                    f"lowers the collection as an opaque value (routes R-gate "
+                                    f"/ W-hash, dict-value-model-r4 §2.5). Narrow it first "
+                                    f"(`if isinstance({_ast341.unparse(_r432)}, str):` around "
+                                    f"the site, or an early `return` when it is not one, with "
+                                    f"no rebinding in between), derive it from a source "
+                                    f"declared with a hashable type, or drop the claim.",
+                                    stage="ir-semantic",
+                                    code="PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM")
+                        elif _f527:
                             if not (_cn432 & {"None", "NoneType"}):
                                 break
                             if _ph432 == 1:
@@ -11053,7 +11242,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                     and type(_ob443) is type
                                                     and _ob443 is not object):
                                                 _ud443 = False
-                        if not _ud443 and ((len(_cn432) <= 1
+                        if not _w349 and not _ud443 and ((len(_cn432) <= 1
                                             and not (_cn432 & {"None", "NoneType"}))
                                            or (_cn432 and all(
                                                _c in _NT432 and hasattr(_NT432[_c],

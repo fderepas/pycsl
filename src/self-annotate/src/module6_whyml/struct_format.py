@@ -64,10 +64,44 @@ _TOKEN_RE = re.compile('(\\d*)([A-Za-z?])')
 def parse_format(fmt: str) -> Optional[StructFormat]:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def calcsize(fmt: str) -> Optional[int]:
-    return None
+    sizes = {
+        "x": 1, "b": 1, "B": 1, "?": 1, "c": 1,
+        "h": 2, "H": 2,
+        "i": 4, "I": 4, "l": 4, "L": 4, "f": 4,
+        "q": 8, "Q": 8, "d": 8,
+    }
+    if not isinstance(fmt, str) or not fmt:
+        return None
+    # Native size/alignment ('@' prefix) is platform-dependent: standard-size
+    # arithmetic here would be UNSOUND (native alignment inserts padding). Refuse
+    # to compute a size for it — the faithful/size-law paths must never see a
+    # native format (see UB-7.4b; '@' is also rejected in _handle_struct_call).
+    if fmt[:1] == "@":
+        return None
+    pos = 1 if fmt[:1] in _VALID_PREFIXES else 0
+    total = 0
+    #@ loop variant len(fmt) - pos
+    while pos < len(fmt):
+        m = _TOKEN_RE.match(fmt, pos)
+        if not m:
+            return None
+        count_str: str = m.group(1)
+        char: str = m.group(2)
+        count = int(count_str) if count_str else 1
+        if char in ("s", "p"):
+            total += count   # N-byte fixed bytes
+        elif char in sizes:
+            total += sizes[char] * count
+        else:
+            return None
+        # The token pattern always consumes at least one char, so `m.end() > pos`
+        # holds and this guard never fires; it states the loop's progress.
+        if m.end() <= pos:
+            return None
+        pos = m.end()
+    return total
 

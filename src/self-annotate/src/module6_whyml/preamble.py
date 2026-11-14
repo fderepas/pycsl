@@ -314,12 +314,18 @@ class PreambleEmissionMixin:
         )
         return [v for v in names if f"!{whyml_ident(v)}" in inv_str]
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _mutex_inv_application(self, mutex: str, inv_str: str) -> str:
-        return ""
+        safe_mutex = safe_mutex_name(mutex)
+        parts: List[str] = []
+        for v in self._mutex_inv_params(mutex, inv_str):
+            parts.append(f"!{whyml_ident(v)}")
+        if not parts:
+            return f"{safe_mutex}_inv"
+        args = " ".join(parts)
+        return f"{safe_mutex}_inv {args}"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
