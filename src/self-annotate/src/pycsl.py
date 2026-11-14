@@ -997,6 +997,8 @@ def _function_body_eqs(mlw_code: str) -> Tuple[List[Tuple[str, int]], List[str]]
     lines = mlw_code.splitlines()
     res: List[Tuple[str, int]] = []
     cur: Optional[str] = None
+    #@ loop invariant 0 <= i and i <= len(lines)
+    #@ loop variant len(lines) - i
     for i in range(len(lines)):
         line: str = lines[i]
         m = _LET_FN_RE.match(line)
