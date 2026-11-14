@@ -1801,6 +1801,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 es = self._coerce_to_int(self._expr_to_whyml(e, local_refs))
                 expr = f"(Seq.cons {es} {expr})"
             return expr
+        # T6 (run #7 lvR, cap-typed-local-lowering): a CALL whose declared WhyML return is
+        # `array string` (`return self._fold_blocks(..)` of a `-> List[str]` method) is
+        # bridged below by the generic `snapshot`, which outside `@mutable_state` is
+        # monomorphic `array int -> seq int` -- a Why3 type error against the `seq string`
+        # it must produce (fail-closed). Use its STRING twin `snapshot_str` (length- and
+        # element-preserving, fresh seq), the bridge the split-comprehension return already
+        # uses. Only that callee type, outside `@mutable_state`, routes here.
+        if (val_ir.get("type") in ("Call", "MethodCall")
+                and isinstance(val_ir.get("func"), str)
+                and not getattr(self, "_mutable_state_classes", None)
+                and self._call_return_whyml_type(val_ir["func"]) == "array string"):
+            self._add_abstract_op(
+                "val snapshot_str (a: array string) : seq string\n"
+                "    ensures { Seq.length result = Array.length a }\n"
+                "    ensures { forall i:int. 0 <= i < Array.length a ->"
+                " Seq.get result i = a[i] }")
+            return f"(snapshot_str {self._expr_to_whyml(val_ir, local_refs)})"
         return self._seq_operand(val_ir, local_refs)
 
     def _call_returns_string_collection(self, func_name: str) -> bool:
@@ -4437,6 +4454,36 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             f"Seq.snoc self.{safe_field} "
                             f"{self._pyval_wrap(raw_arg, local_refs)}")
                 elif (arr_name in getattr(self, "_seq_locals", set())
+                      and isinstance(getattr(self, "_func_return_type", None), str)
+                      and self._func_return_type.startswith("array pytuple_")
+                      and " " not in self._func_return_type[len("array "):]
+                      and isinstance(val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                                     else val["args"][0], dict)
+                      and (val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                           else val["args"][0]).get("type") == "Tuple"
+                      and len((val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                               else val["args"][0]).get("elts") or [])
+                      == len(next((_t3_r.get("fields") or [] for _t3_r in
+                                   (getattr(self, "_record_types", {}) or {}).values()
+                                   if isinstance(_t3_r, dict) and _t3_r.get("whyml_name")
+                                   == self._func_return_type[len("array "):]), []))):
+                    # T3 (run #7 lvR, cap-typed-local-lowering): in a scalar-slot
+                    # `-> List[Tuple[..]]` function (Module5's WL-03 record path: declared
+                    # `array pytuple_<tags>`, returned through `materialize_pytuple_<tags>`),
+                    # a seq-local `.append(<tuple display>)` of the record's arity grows the
+                    # seq by the REAL `pytuple_<tags>` record, slot i -> `field<i>`, each slot
+                    # lowered as itself -- not the `(any int)` the int coercion made of it,
+                    # which never type-checked against the record seq (fail-closed). A slot
+                    # of the wrong WhyML type is again a Why3 type error.
+                    _t3_rn = self._func_return_type[len("array "):]
+                    _t3_av = (val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                              else val["args"][0])
+                    _t3_fs = "; ".join(
+                        f"{self._field_label(_t3_rn, f'field{_t3_i}')} = "
+                        f"{self._expr_to_whyml(_t3_e, local_refs)}"
+                        for _t3_i, _t3_e in enumerate(list(_t3_av.get("elts") or [])))
+                    code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {{ {_t3_fs} }}"
+                elif (arr_name in getattr(self, "_seq_locals", set())
                       and isinstance((getattr(self, "_seq_value_types", {}) or {}).get(arr_name), str)
                       and (getattr(self, "_seq_value_types", {}) or {}).get(arr_name).startswith("(")
                       and isinstance(val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
@@ -6769,10 +6816,48 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     _scan_dicts(x)
         _scan_dicts(body_stmts)
 
+        # T2b (run #7 lvR, cap-typed-local-lowering): the TARGET of a `for x in
+        # <str>.splitlines()` / `<str>.split(..)` loop iterates the faithful `array string`
+        # of that split (stmt_control_flow binds `x` to its element, a `string`), so an
+        # `.append(x)` of it is a string element source. Without this a `List[str]` local
+        # grown only from such a target stayed `seq int`-classified and its `sep.join(v)`
+        # fell to the opaque int `join_1` (a Why3 type error against the seq: fail-closed).
+        # Fail-closed: the target must not be bound anywhere else in the body (no
+        # `Assign`, no other `for`), and the receiver must itself be a string expression.
+        split_tgts: Set[str] = set()
+        other_bind: Set[str] = set()
+
+        def _scan_split_for(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") in ("For", "ForStmt") and isinstance(n.get("target"), str):
+                    _it = n.get("iter", {})
+                    _fn = _it.get("func") if isinstance(_it, dict) else None
+                    _ok = False
+                    if (isinstance(_it, dict) and _it.get("type") == "Call"
+                            and isinstance(_fn, str) and "." in _fn
+                            and _fn.rsplit(".", 1)[1] in ("splitlines", "split")):
+                        _rv = _it.get("receiver")
+                        if not isinstance(_rv, dict):
+                            _rv = {"type": "Var", "name": _fn.rsplit(".", 1)[0]}
+                        _ok = self._is_string_expr(_rv)
+                    (split_tgts if _ok else other_bind).add(n["target"])
+                if n.get("stmt") in ("Assign", "AnnAssign", "AugAssign") \
+                        and isinstance(n.get("target"), str):
+                    other_bind.add(n["target"])
+                for x in n.values():
+                    _scan_split_for(x)
+            elif isinstance(n, list):
+                for x in n:
+                    _scan_split_for(x)
+        _scan_split_for(body_stmts)
+        split_tgts -= other_bind
+
         def _src_is_str(src: Any) -> bool:
             if not isinstance(src, dict):
                 return False
             if self._is_string_expr(src):
+                return True
+            if src.get("type") == "Var" and src.get("name") in split_tgts:
                 return True
             if src.get("type") == "Call":
                 _fn = src.get("func", "")

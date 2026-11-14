@@ -66,7 +66,6 @@ frontend/Module1_Ingestor.py	Module1_Ingestor.process	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._make	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._build	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._assign	unclassified	-
-frontend/Module1_Ingestor.py	_Harvester._normalize_leading	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._fold_blocks	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._emit_suite	unclassified	-
 frontend/Module2_Parser.py	_lex_contract	unclassified	-
@@ -362,13 +361,11 @@ pycsl.py	_build_soundness_report	cost-scale:int-erasure-seam	THE INT-ERASURE SEA
 pycsl.py	_print_soundness_report	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_run_pipeline	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 pycsl.py	_why3_typecheck	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-pycsl.py	_parse_goal_blocks	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_parse_why3_json	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 pycsl.py	_json_goal_records	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_record_key	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_merge_records_best_of_n	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_synthesize_block	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-pycsl.py	_synthesize_legacy_text	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_residual_selectors_from_records	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_function_body_eqs	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_run_vacuity_gate	cost-scale:context-manager-model	A `with ... as` BINDING
