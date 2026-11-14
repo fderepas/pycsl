@@ -3434,6 +3434,38 @@ d[k + 100] = 0` over `d: Dict[int, int]` is `int` (control `6336`). Witnesses `6
 controls `6480` (the same bodies un-claimed), `6481` (claimed, derivable: `Dict[str, int]`
 values, `str`, `int` arithmetic over `list(d.keys())`, typed tuples), `6336`.
 
+**W-hash (run #7, `getting-better/dict-value-model-r4-impl.md` §2.5, user decision §5 (c)).**
+A TAGGED value -- one whose class is `PyVal` (the `hval` model's carrier: a `PyVal` parameter,
+local, return or container element, including a `Tuple[PyVal, ...]` return's slots) -- was
+derived as `Any` (`PyVal = Any` was followed as a type alias) and DENIED at every hashing site
+whatever the claim ("may be a list / dict / set", route #383's allow-list polarity), so the s362
+shape `best[key]` with `key` built from a `-> Tuple[PyVal, ...]` was refused in an un-claimed
+function (report H4). RULE: `PyVal` aliased to `Any` (or never bound, as in a mirror file, or
+imported) is not followed; it stays the class `PyVal`, and a hashed leaf of that class is
+judged as an underivable one -- REFUSED under a claim covering TypeError, ADMITTED (ambient)
+outside one, and recorded for route #430's callers. A file class named `PyVal`, or `PyVal`
+aliased to another type, keeps its own derivation; a value STATICALLY known to be a list /
+dict / set (a display, a container-bound name such as a `PyVal` local bound to `[1]`, a
+`Dict[str, PyVal]`) stays denied unconditionally. Two DERIVATIONS make such a value hashable
+(never an assumption: a wrong schema or guard sends it to a refusal, not to a proof): (i) FLOW
+NARROWING -- under the claim, a leaf that is a name / attribute path which an `isinstance` of
+the function tests is judged by route #432's narrowing (§7.133: the guards holding at the
+site, the same stop conditions; only RESOLVED builtin classes narrow, route #442) and admitted
+iff its classes there are derived and all of `str` / `int` / `bool` / `float` / `complex` /
+`bytes` / None, none of them an unhashable class of the file and none a base (at any depth) of a
+file class (`class S(str): __hash__ = None` makes `isinstance(v, str)` narrow nothing), else refused
+with the same code; this applies to every underivable leaf so tested, `PyVal` or `#UND`; (ii) a SCHEMA SLOT
+-- `X["k"]` with `X` derived exactly as file TypedDict classes each declaring `k` once in its
+own body: an annotation of hashable scalars / tuples of them (`Optional` / `Union` / `|`,
+`Required` / `NotRequired` / `Annotated` / `Final` unwrapped, module aliases followed) is
+derived hashable; one that admits a `list` / `dict` / `set` is DENIED unconditionally
+(`PYCSL-R349-UNHASHABLE-RECORD`); any other annotation keeps the underivable rule. `ir_schema.py`
+is not read (an IR-node slot stays underivable). No WhyML changes: the pass only refuses or
+admits. Witnesses `9880`-`9884`, `9888`-`9890`, `9893`-`9896`; controls `9885` (narrowed `PyVal`
+parameter: `if` body, early `return`, a class tuple), `9886` (narrowed `hval` read), `9887`
+(un-claimed ambient), `9891` (the s362 shape, `\trusted` as in the mirror), `9892` (schema
+scalar slot).
+
 ### 7.132 A claimed caller of a callee that may hash an underivable value is refused (route #430, run #3)
 
 Route #178 refuses a `no_exception` caller of a same-file callee that may raise KeyError /

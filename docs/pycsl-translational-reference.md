@@ -5228,6 +5228,23 @@ in the `#@` block above the `def`), the translation is undefined and the run ref
 derivation $\mathcal{T}_{ty}$ of `list(x)` / `set(x)` (one positional argument, no keyword) is
 `#list[Union[el(x)]]` / `#set[Union[el(x)]]`.
 
+**W-hash (run #7, `annotations.md` §7.131).** The module alias map `_al383` omits `PyVal` when it
+is bound to `Any` / `typing.Any`, so a tagged value derives the class `PyVal`. With
+$P$ = (`PyVal` $\notin$ `_cls341` $\cup$ dom `_al383`), a leaf with `PyVal` $\in C(e)$ (or a hashed
+iterable with `PyVal` $\in$ `_hc349`) counts as underivable, and `PyVal` is removed from `_hc349`
+before the #381-#383 class loop (so it never becomes `#UNK`). A leaf `X["k"]` (constant `str` key)
+whose base derives (`_ty383`) only as file TypedDict classes, each with exactly one own-body
+`AnnAssign` for `k`, is classified by that annotation: all hashable scalars (or `None`, tuples of
+them) — not underivable; admits `list` / `dict` / `set` — `#UB` joins `_hc349` (denied); otherwise
+the rule above. Under the claim, the underivable leaves that are names / attribute paths tested by
+an `isinstance` call of $f$ are not refused here but become synthetic loads `e.__r349w__`
+(`_hw349`) judged in the #432 engine: the translation is defined iff the classes after FLOW
+NARROWING are non-empty, contain no mark, avoid `_u365` and every base name (at any depth) of a
+file class, and lie in {`str`, `int`, `bool`,
+`float`, `complex`, `bytes`, `None`, `NoneType`}. A leaf is deferred only when the IR's own
+contracts carry the claim (which makes the #432 engine's `_te432` hold for $f$); a claim read only
+from the `#@` block is refused here as before. No emission changes.
+
 ### §T.6.143  Callee TypeError by hashing (route #430, run #3)
 
 _Corresponds to `annotations.md` §7.132._
