@@ -9255,6 +9255,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         """Build the WhyML body code string with pre-declared ref variables.
         Mutates self._array_locals, self._has_early_ret."""
         bounded_int = func.get("bounded_int")
+        _r4_lka = None   # dict-value-model-r4: the literal-key distinctness assert (below)
         # dict-value-model-r4 (impl §2.2, fr4 §3.3.2): ISINSTANCE NARROWING IS SUBSTITUTED
         # in the guarded region. Over the body IR (a copy), every read of a PyVal name `x`
         # in a region where `isinstance(x, str)` is known to hold -- the then-branch of
@@ -9402,7 +9403,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         and isinstance(_r4lx["index"].get("value"), str)):
                     _r4lk.add(_r4lx["index"]["value"])
             _r4lkl = sorted(_r4lk)
-            self._r4_litkey_assert = None
+            _r4_lka = None
             # only in a body that HOLDS a PyVal value (a pyval local / param, a
             # `Dict[str, PyVal]` binding, a PyVal tuple / dict return)
             _r4has = (bool(getattr(self, "_pyval_locals", set()))
@@ -9410,7 +9411,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                              for _v in (func.get("dict_value_types") or {}).values())
                       or bool(func.get("r4_ret_pyval")))
             if _r4has and 2 <= len(_r4lkl) <= 12:
-                self._r4_litkey_assert = (
+                _r4_lka = (
                     "    assert { [@expl:PyCSL-R4 distinct literal keys] "
                     + " /\\ ".join(f"{whyml_string_literal(_a)} <> {whyml_string_literal(_b)}"
                                      for _i, _a in enumerate(_r4lkl) for _b in _r4lkl[_i + 1:])
@@ -10227,9 +10228,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
         if not body_code.strip():
             body_code = "    ()"
-        if getattr(self, "_r4_litkey_assert", None) and self._uses_pyval():
-            body_code = self._r4_litkey_assert + body_code
-            self._r4_litkey_assert = None
+        if _r4_lka:
+            body_code = _r4_lka + body_code
         if self._has_early_ret:
             body_code = self._wrap_body_with_return_catch(body_code, return_type)
         return body_code

@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Tuple
 PyVal = Any
 
 
-#@ requires True
 #@ ensures \result == 0
 #@ assigns \nothing
 def alias_nested() -> int:

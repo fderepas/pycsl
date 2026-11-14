@@ -7,7 +7,7 @@ PyVal = Any
 
 
 #@ no_exception KeyError
-#@ ensures True
+#@ ensures \result == 1
 #@ assigns \nothing
 def f(c: int) -> int:
     d: Dict[str, PyVal] = {"a": {"k": "q"}}

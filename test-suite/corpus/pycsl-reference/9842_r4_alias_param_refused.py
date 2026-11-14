@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Tuple
 PyVal = Any
 
 
-#@ requires True
 #@ ensures \result == 0
 #@ assigns d
 def alias_param(d: Dict[str, PyVal]) -> int:

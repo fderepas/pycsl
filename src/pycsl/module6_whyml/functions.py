@@ -23,7 +23,8 @@ class FunctionEmissionMixin:
         """Return the WhyML parameter type string for a standalone function argument."""
         safe = whyml_ident(arg)
         # dict-value-model-r4: a bare `PyVal` parameter is the certified `hval`.
-        if arg in getattr(self, "_r4_pyval_params", set()):
+        if (arg in getattr(self, "_pyval_locals", set()) and self._uses_pyval()
+                and str(symbol_table.get(arg, "")).strip() in ("PyVal", "Any", "'PyVal'")):
             return f"({safe}: hval)"
         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`): the
         # `local_refs`/`ghost_vars` `Set[str]` params are modelled as `seq string` (the
@@ -5195,12 +5196,12 @@ class FunctionEmissionMixin:
         # dict-value-model-r4 (cv13 selection defect, `d374_3`): a bare `PyVal` PARAMETER is
         # the certified `hval` (was: the int-erased `int`). It is a pyval name like any
         # `.get` read. Gated on `_uses_pyval` (which now also fires on such a param).
-        self._r4_pyval_params: Set[str] = set()
+        # (no new emitter field: the params join the existing `_pyval_locals`, and
+        # `_param_type_str` reads them back from there)
         if self._uses_pyval():
-            self._r4_pyval_params = {
+            self._pyval_locals |= {
                 str(_k) for _k, _a in (func.get("param_annotations") or {}).items()
                 if isinstance(_a, str) and _a.strip() in ("PyVal", "'PyVal'", '"PyVal"')}
-            self._pyval_locals |= self._r4_pyval_params
         # set-value-model-wall (self-tcb-reduction, Tier-5): the locals of THIS
         # function that are an emitter-local `Set[str]` value (annotated `Set[str]`
         # + `= set()` init). Their `= set()` lowers to `ref (StrSet.empty ())`,
