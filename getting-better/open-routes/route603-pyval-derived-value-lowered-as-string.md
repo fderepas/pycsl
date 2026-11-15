@@ -1,0 +1,3 @@
+# OPEN ROUTE #603 — A PyVal-derived value (`d.get(k) or "z"`, an element read of a narrowed list / tuple) is lowered as a Why3 `string`, so `isinstance(x, str)` is decided true and the str type launders the value past the no_exception / W-hash gates (len, +, join, dict membership): false ensures and false no_exception claims PROVE
+**Status: OPEN, Severity 1. Red team rt59 family R1 (scratchpad/rt59/FINDINGS.txt, families.txt, logs/). See FINDINGS for INTRODUCED (proves on int61, refused / fails on L9 and 73fd1874f) vs PRE-EXISTING members. Lands with the dict value model r4 (int61): every INTRODUCED member must be refused before L10.**
+Witnesses witnesses-r603/.
