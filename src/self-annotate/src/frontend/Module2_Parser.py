@@ -803,13 +803,51 @@ class _Tok:
 
 
 _OP_ALTERNATIVES = ['==>', '<==>', '//', '..', '+=', '-=', '*=', '->', '==', '!=', '>=', '<=', '+', '-', '*', '/', '%', '^', ':', ',', ';', '(', ')', '[', ']', '=', '.', '<', '>', '|']
-_TOKEN_RE = _re.compile(_re.escape('|') and '(?xs)\n    (?P<WS>\\s+)\n  | (?P<DECIMAL>\\d+\\.\\d+)\n  | (?P<NUMBER>\\d+)\n  | (?P<STRING>"(?:[^"\\\\]|\\\\.)*")\n  | (?P<BSNAME>\\\\[A-Za-z_][A-Za-z0-9_]*)\n  | (?P<NAME>[A-Za-z_][A-Za-z0-9_]*)\n  | (?P<OP>' + '|'.join((_re.escape(o) for o in _OP_ALTERNATIVES)) + ')\n')
-#@ \trusted reviewer: pycsl-self-annotate
+_TOKEN_RE = re.compile(r"""(?xs)
+    (?P<WS>\s+)
+  | (?P<DECIMAL>\d+\.\d+)
+  | (?P<NUMBER>\d+)
+  | (?P<STRING>"(?:[^"\\]|\\.)*")
+  | (?P<BSNAME>\\[A-Za-z_][A-Za-z0-9_]*)
+  | (?P<NAME>[A-Za-z_][A-Za-z0-9_]*)
+  | (?P<OP>==>|<==>|//|\.\.|\+=|\-=|\*=|\->|==|!=|>=|<=|\+|\-|\*|/|%|\^|:|,|;|\(|\)|\[|\]|=|\.|<|>|\|)
+""")
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _lex_contract(source: str):
-    pass
+def _lex_contract(source: str) -> Tuple[List[_Tok], str]:
+    """Tokenize a contract string (no `#@` prefix) into a list of `_Tok`.
+
+    Mirrors `pure_ast._lex` in shape (filter trivia, return token list) but is
+    regex-based: Python's `tokenize` rejects `\\result`/`\\forall` (`\\` is the
+    line-continuation character). A trailing NEWLINE is appended if missing so
+    the lexer is uniform whether or not the caller included one.
+    """
+    if not source.endswith("\n"):
+        source = source + "\n"
+    toks = []
+    pos = 0
+    n = len(source)
+    #@ loop invariant 0 <= pos
+    #@ loop variant n - pos
+    while pos < n:
+        m = _TOKEN_RE.match(source, pos)
+        if not m:
+            raise _ContractSyntaxError(
+                f"unexpected character {source[pos]!r} at offset {pos}")
+        # The token pattern always consumes at least one char (every alternative is
+        # non-empty), so `m.end() > pos` holds and this guard never fires; it states
+        # the loop's progress. `_st` is `m.start()`: the match is anchored at `pos`.
+        if m.end() <= pos:
+            raise _ContractSyntaxError(f"empty token at offset {pos}")
+        _st = pos
+        pos = m.end()
+        kind = m.lastgroup
+        if kind == "WS":
+            continue
+        toks.append(_Tok(kind, m.group(0), _st))
+    toks.append(_Tok("EOF", "", n))
+    return toks, source
 
 _IMPL_OPS = ('==>', '<==>')
 _EQ_OPS = ('==', '!=')
