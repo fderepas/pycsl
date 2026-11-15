@@ -6405,6 +6405,65 @@ argument. (A direct `E(..)` construction of a user class is also route #369's.) 
 constructor accepts, binding extra data to a local first. Measurements:
 `getting-better/open-routes/route598-exception-ctor-kwargs.md`.
 
+### 7.599 A handler admitted by one raising operation must be reachable only from modelled operations (route #599, run #7)
+
+Route #174 (§ handler reachability) admits a narrow `except C` whose class no modelled implicit exception lies below
+as soon as ONE operation of the `try` body raises C in the model -- an explicit `raise`, a callee's `raises`, an lvQ
+external-effect (`ext`) registry row. The handler is then reachable in the model only with the state at that
+operation; a later operation that raises C only in CPython reaches it in a state the proof never considers. rt58
+measured five such programs PROVED after lvQ's ext rows (`argparse.ArgumentParser()`, `subprocess.run`,
+`Path.mkdir`, `Path.cwd()`, `parse_args()` covering `except AttributeError` / `UnicodeDecodeError` /
+`FileNotFoundError` / `SystemExit` / `OSError`, then `s.mkdir()` on a str, `b.decode()`, `q.read_text()`,
+`sys.exit(k)`, `os.path.getsize(s)`) and one pre-existing twin (an explicit `raise OSError`, then
+`os.path.getsize`); CPython returns the handler's value. RULE (`PYCSL-R599-HANDLER-UNMODELLED-RAISER`, in a
+claiming function -- §7's route #171/#174 claim test -- for each such admitted class C): every call in the `try`
+body (any depth) must be an ext-modelled call or the construction of a builtin exception; a same-file callee or a
+method counts as unmodelled (it may raise C at an unmodelled operation of its own). When C is not below OSError,
+UnicodeError, SystemExit or EOFError (classes CPython raises only inside a call), every expression of the body
+must also be a name or a literal (no attribute read, operator, subscript ...) and every statement an assignment,
+expression statement, `if`, `pass`, `raise`, `return`, `break`, `continue` or ghost / proof statement. A class
+covered by a modelled implicit exception (IndexError, KeyError, ValueError, ZeroDivisionError, StopIteration and
+their bases) is unchanged: route #171's widened `no_exception` already makes every operation of the function prove
+it does not raise them. EXEMPT (a handler whose outcome cannot depend on the state it is entered in): the handler is
+one `return <e>` over literals and int / bool / str / float parameters the function never assigns, the `try` has no
+`finally`, the function's only claims are `ensures` clauses over `\result`, literals and those parameters (no class
+invariant, assertion or loop invariant), and the FIRST statement of the `try` body is a call over plain arguments
+that may raise a subclass of C in every state (an `ext` row, or a same-file `\abstract` function's `raises D when
+True`), so the model proves the handler's value under the path condition at the `try` itself (corpus `0449`-`0453`:
+`except SyntaxError: return 0` around an `\abstract` parser; witness `9959`: a CONDITIONAL cover is not enough). Advice: move every operation the handler is not meant for out of the `try` body. Related
+(lvQ's PATH-RECEIVER): `.mkdir()` / `.write_text()` are lowered to the path model only when the SOURCE shows the
+receiver is a `pathlib.Path` -- a parameter annotated `Path` / `pathlib.Path` / `PosixPath`, or a local every
+binding of which is a path expression (`Path(..)`, `Path.cwd()`, `Path.home()`, `<path>.parent`, a pathlib method
+returning a path, `a / b` with a path operand or a str-valued left operand); otherwise `PYCSL-R7Q-EXT-PATH-RECEIVER`
+(a `str` receiver raises AttributeError in CPython; the #31 model represents both as one string). Witnesses
+`9940`-`9952`, `9959`; controls `9960`-`9963`, `9966`. Measurements:
+`getting-better/open-routes/route599-handler-covered-by-one-op-reached-by-another.md`.
+
+### 7.601 Every element of a handler tuple must be a bare name (route #601, run #7)
+
+The front end lowers a handler tuple by its bare-name elements only, so `except (ZeroDivisionError,
+builtins.ValueError)` became `with ZeroDivisionError` and the raised ValueError escaped in the model where CPython
+catches it (rt58 d07, `\result == 2` PROVED, CPython 7). RULE (`PYCSL-R601-HANDLER-TUPLE-NON-NAME`, every function
+the file lowers -- a `\trusted` / abstract function is not lowered -- and module-level code): an element of an
+`except (...)` tuple that is not a bare name (a dotted name, a subscript, a call, a starred element) is refused. (A
+handler that is ONLY a dotted name still lowers to an undeclared exception and fails the Why3 type check.) Advice:
+import the class by name (`from mod import B`) and write `except (A, B):`. Witnesses `9953`, `9954`; control `9964`.
+Measurements: `getting-better/open-routes/route601-dotted-name-in-except-tuple-dropped.md`.
+
+### 7.602 A handler name must name the class it holds at run time (route #602, run #7)
+
+A handler name is lowered to an exception of that spelling, so `Err = ValueError; except Err:` became a fresh
+`exception Err` and the raised ValueError escaped in the model (rt58 d08, `\result == 0` PROVED, CPython 1). RULE
+(`PYCSL-R602-HANDLER-NAME-REBOUND`, same population as §7.601): a name used as a handler (alone or in a tuple) must
+not be bound in the module or in the enclosing function by anything but a `class` statement, an import of that
+same name, or a module-level `A = E` where `E` is a class of the file bound only by its `class` statement (an alias
+of a USER class: route #175's, whose rules judge raising and catching through it; control corpus `9612`) -- an
+assignment of anything else (also `global N; N = ...` in another function, which rebinds a BUILTIN name), an
+augmented / annotated / walrus / `for` / `with` / comprehension / `match` / `except ... as` target, a parameter, a
+`def`, or an `import ... as` rename is refused. Judged after Module 6 and routes #590 / #597 (a raised name rebound
+the same way keeps route #597's refusal). Advice: name the exception class itself in the handler. Witnesses
+`9955`-`9958`; control `9965`. Measurements: `getting-better/open-routes/route602-handler-name-alias-of-builtin.md`.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

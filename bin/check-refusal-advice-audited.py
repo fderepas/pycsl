@@ -1069,6 +1069,11 @@ AUDITED = {
         "Route #597. 'Rename the local / parameter / import that rebinds `E`, and raise the exception class by its own name': rt57 hs1930 with `E = int` renamed `T = int` and `raise E(\"a\")` under `except E` (getting-better/open-routes/witnesses-r597/advice/a597_rename_local; control 9684) VERIFIES `no_exception \\all` and `\\result == k + 1` at base and HEAD."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr598(f\'line {_r589.lineno}\' + (\'\' if _main589 else f" of {os.path.relpath(_pp589, _dirs589[0])} (a module this file imports, whos'): (FOLLOWABLE,
         "Route #598. 'pass only the arguments the constructor accepts (... bind the extra data to a local ...)': rt57 hr1840 as `q = 1` then `raise ValueError(\"a\")` (getting-better/open-routes/witnesses-r598/advice/a598_first_argument_only; control 9685) VERIFIES `no_exception \\all` and `\\result == k + 1` at base and HEAD; a builtin whose constructor accepts the keyword (`ImportError(\"a\", name=\"m\")`, control 9686) VERIFIES too."),
+    # driver run #7 -- route #599 (u44, red team rt58).
+    ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`except ' + _nm174 + '` is reached in the model only from the operation(s) of the `try` body that the model says raise it, but"): (FOLLOWABLE,
+        "Route #599. 'Move every operation the handler is not meant for out of the `try` body': rt58 c14b with `os.path.getsize(s)` moved after the `try` (control 9963) VERIFIES `\\result == 0` at HEAD in the default / typed / store models; the witness 9945 (the same file before the move) is refused."),
+    ('src/pycsl/module6_whyml/expressions.py', 'PyCSLIRError(f"PYCSL-R7Q-EXT-PATH-RECEIVER (route #599): the source does not show that the receiver of `{func_name}(..)` is a `pathlib.Path`'): (FOLLOWABLE,
+        "Route #599 (lvQ PATH-RECEIVER). 'Annotate the receiver as `Path`': rt58 c01 with `s: Path` (control 9966) VERIFIES `\\result == 0` at HEAD in the default / typed / store models; 'or bind it only from `<Path> / <str>`': control 9961 (`q = p / \"u44\"` before the `try`) VERIFIES."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1482,6 +1487,9 @@ AUDITED_HASH = {
     # driver run #6 -- routes #597 / #598 (u42).
     ('src/pycsl/pycsl.py', '_PyCSLSemErr597(f"""line {_r590.lineno}: PYCSL-R597-RAISE-NAME-REBOUND: `raise {_ast175.unparse(_e590)[:50]}`{(\' (as the cause)\' if _role590'): 'a21384a372bc',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr598(f\'line {_r589.lineno}\' + (\'\' if _main589 else f" of {os.path.relpath(_pp589, _dirs589[0])} (a module this file imports, whos'): 'a0e98c1768d4',
+    # driver run #7 -- route #599 (u44).
+    ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`except ' + _nm174 + '` is reached in the model only from the operation(s) of the `try` body that the model says raise it, but"): 'b9d59643d99d',
+    ('src/pycsl/module6_whyml/expressions.py', 'PyCSLIRError(f"PYCSL-R7Q-EXT-PATH-RECEIVER (route #599): the source does not show that the receiver of `{func_name}(..)` is a `pathlib.Path`'): 'a97598870924',
 }
 
 
