@@ -1733,6 +1733,15 @@ the [static-semantics reference §S.TY3.8](pycsl-static-semantics-reference.md#s
 
 ---
 
+## Appendix R4. PyVal annotation forms read by the frozen value model (dict-value-model-r4, run #7)
+
+No new `#@` directive. The value model is selected by ANNOTATIONS that mention the alias
+`PyVal` (`PyVal = Any`): `Dict[str, PyVal]` / `List[PyVal]` / `List[Dict[str, PyVal]]`
+bindings and parameters (as before), and now also a bare `x: PyVal` parameter and a
+`-> Tuple[...]` (fixed arity, possibly nested) or `-> Dict[str, ...]` return annotation that
+mentions `PyVal`. Semantics: translational reference App. R4; static rules: static semantics
+reference App. R4; witnesses `9820`-`9860`.
+
 ## Appendix C. Revision History
 
 | Version | Date | Changes |

@@ -22,6 +22,10 @@ class FunctionEmissionMixin:
                         int_type: str) -> str:
         """Return the WhyML parameter type string for a standalone function argument."""
         safe = whyml_ident(arg)
+        # dict-value-model-r4: a bare `PyVal` parameter is the certified `hval`.
+        if (arg in getattr(self, "_pyval_locals", set()) and self._uses_pyval()
+                and str(symbol_table.get(arg, "")).strip() in ("PyVal", "Any", "'PyVal'")):
+            return f"({safe}: hval)"
         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`): the
         # `local_refs`/`ghost_vars` `Set[str]` params are modelled as `seq string` (the
         # sequence of the set's elements) — the body only membership-tests them (`v in
@@ -443,7 +447,24 @@ class FunctionEmissionMixin:
         _rxm_cand: Dict[str, List[Any]] = {}
         # `re` must RESOLVE to the stdlib module (route #323's import test, as for
         # `_is_re_str_call`) for every source, the module constants included.
-        if _rxm_re_ok:
+        # lvS (run #7, cap-re-gate-widening): or, for the "const" / "rx" sources ONLY (the
+        # "lit" `re.match(..)` branch below still needs `_rxm_re_ok`), the module binds the
+        # stdlib `re` under ONE alias and nothing else: no import binds the name `re`, every
+        # import of the module `re` is the one `import re as A` (no `from re import ..`),
+        # nothing else imports as A, and A is neither a module method nor a local of this
+        # function. Module5 recorded `module_const_regexes` only under that same alias rule.
+        _rxm_al = [_i for _i in _rxm_imps if isinstance(_i, (list, tuple)) and len(_i) >= 5
+                   and (_i[0] == "re" or _i[2] == "re" or _i[1] == "re")]
+        _rxm_al_ok = (not _rxm_re_ok and bool(_rxm_consts) and len(_rxm_al) == 1
+                      and _rxm_al[0][1] == "re" and _rxm_al[0][2] == "re"
+                      and _rxm_al[0][4] is True and _rxm_al[0][3] == 0
+                      and isinstance(_rxm_al[0][0], str) and _rxm_al[0][0] != "re"
+                      and len([_i for _i in _rxm_imps if isinstance(_i, (list, tuple))
+                               and len(_i) >= 5 and _i[0] == _rxm_al[0][0]]) == 1
+                      and _rxm_al[0][0] not in (
+                          getattr(self, "_module_method_return_types", {}) or {})
+                      and _rxm_al[0][0] not in _rxm_st)
+        if _rxm_re_ok or _rxm_al_ok:
             _rxm_w: List[Any] = [(body_stmts, None)]
             while _rxm_w:
                 _rxm_x, _rxm_enc = _rxm_w.pop()
@@ -1153,6 +1174,193 @@ class FunctionEmissionMixin:
                                             continue
                                         _covers174 = False
                                         break
+                                # (run #7) ROUTE #599 — COVERAGE IS PER RAISING OPERATION, NOT
+                                # PER `try` BODY. A narrow class no modelled implicit exception
+                                # lies below is admitted above as soon as ONE operation of the
+                                # body raises it in the model (an explicit `raise`, a callee's
+                                # `raises`, an lvQ `ext` row); the handler is then reachable
+                                # only with the state at THAT operation, while a LATER operation
+                                # that raises the class only in CPython (`os.path.getsize`,
+                                # `sys.exit`, `q.read_text()`, `b.decode()`: receiver-less
+                                # facades) reaches it in a state the proof never considers.
+                                # MEASURED (rt58, witnesses-r599): `p = argparse.ArgumentParser()
+                                # ; x = 1; s.mkdir(..)` under `except AttributeError: return x`
+                                # PROVED `\result == 0`, CPython returns 1. RULE: every operation
+                                # of the body must be modelled for the class -- a call is one
+                                # only when it is an `ext` registry call (its row is every class
+                                # CPython raises there) or the construction of a builtin
+                                # exception; a same-file callee or method may raise the class at
+                                # an unmodelled operation of its own and counts as unmodelled.
+                                # For a class CPython raises only inside a call (the OSError and
+                                # UnicodeError families, SystemExit, EOFError) that is enough;
+                                # for any other class (AttributeError, TypeError, OverflowError,
+                                # RecursionError, ...) every expression must also be a name or a
+                                # literal and every statement a plain one, since attribute
+                                # reads, operators, subscripts and stores raise it as well.
+                                if (_covers174 and not _broad174
+                                        and not any(issubclass(getattr(_bi171, _m), _c174)
+                                                    for _m in _ph171())):
+                                    _soft599 = issubclass(_c174, (OSError, UnicodeError,
+                                                                  SystemExit, EOFError))
+                                    _u599 = None
+                                    _w599: List[Any] = [_n174.get("body", [])]
+                                    while _w599 and _u599 is None:
+                                        _x599 = _w599.pop()
+                                        if isinstance(_x599, dict):
+                                            _t599 = _x599.get("type")
+                                            _s599 = _x599.get("stmt")
+                                            if _t599 == "Call":
+                                                _f599 = _x599.get("func")
+                                                _k599 = (getattr(_bi171, _f599, None)
+                                                         if isinstance(_f599, str) else None)
+                                                if not (isinstance(_f599, str) and (
+                                                        any(isinstance(_r599, dict) and _r599.get("ext")
+                                                            for _r599 in ((getattr(self, "_module_func_raises", {})
+                                                                           or {}).get(_f599) or []))
+                                                        or (isinstance(_k599, type)
+                                                            and issubclass(_k599, BaseException)))):
+                                                    _u599 = ("the call `" + str(_f599) + "(..)`"
+                                                             if isinstance(_f599, str) else "a call")
+                                            elif (not _soft599 and _t599 is not None
+                                                  and _t599 not in ("Var", "Number", "Bool", "String",
+                                                                    "None", "ArrayLit", "Tuple", "MkTuple")):
+                                                _u599 = "a `" + str(_t599) + "` expression"
+                                            elif (not _soft599 and _s599 is not None
+                                                  and _s599 not in ("Assign", "Expr", "If", "Pass", "Raise",
+                                                                    "Return", "Break", "Continue",
+                                                                    "GhostAssign", "ProofAssert", "Label")):
+                                                _u599 = "a `" + str(_s599) + "` statement"
+                                            _w599.extend(_v599 for _v599 in _x599.values()
+                                                         if isinstance(_v599, (dict, list)))
+                                        elif isinstance(_x599, list):
+                                            _w599.extend(_x599)
+                                    # A handler whose outcome cannot depend on the state it is
+                                    # entered in is exempt (H): its body is ONE `return <e>`, `e`
+                                    # reads only literals and int / bool / str / float
+                                    # parameters the function never assigns, the `try` has no
+                                    # `finally`, the function's claims are `ensures` clauses
+                                    # over `\result`, literals and those parameters only (no
+                                    # heap read, no class invariant, no assertion), so every
+                                    # state Python can enter it in yields the value the model
+                                    # proved from the covering operation's state (measured:
+                                    # corpus 0449-0453, `except SyntaxError: return 0` around
+                                    # an `\abstract` parser, `ensures \result == 0 or 1`).
+                                    if _u599 is not None:
+                                        _hb599 = (_h174.get("body") or []) if isinstance(_h174, dict) else []
+                                        _st599 = func.get("symbol_table") or {}
+                                        _as599: Set[str] = set()
+                                        _wa599: List[Any] = [func.get("body", [])]
+                                        while _wa599:
+                                            _y599 = _wa599.pop()
+                                            if isinstance(_y599, dict):
+                                                for _tk599 in ("target", "targets", "name", "var"):
+                                                    _tv599 = _y599.get(_tk599) if _y599.get("stmt") else None
+                                                    if isinstance(_tv599, str):
+                                                        _as599.add(_tv599)
+                                                    elif isinstance(_tv599, list):
+                                                        _as599.update(_q for _q in _tv599 if isinstance(_q, str))
+                                                _wa599.extend(_v for _v in _y599.values()
+                                                              if isinstance(_v, (dict, list)))
+                                            elif isinstance(_y599, list):
+                                                _wa599.extend(_y599)
+                                        _sp599 = {str(_p) for _p in (func.get("formal_params") or [])
+                                                  if isinstance(_p, str) and _p not in _as599
+                                                  and _st599.get(_p) in ("int", "bool", "str", "float")}
+                                        _ex599: List[Any] = []
+                                        _okh599 = (len(_hb599) == 1 and isinstance(_hb599[0], dict)
+                                                   and _hb599[0].get("stmt") == "Return"
+                                                   and isinstance(_hb599[0].get("value"), dict)
+                                                   and not (_n174.get("finalbody") or [])
+                                                   and not any((_td599.get("class_invariants")
+                                                                and str(_td599.get("name", "")).lower()
+                                                                == str(func.get("self_type") or "").lower())
+                                                               for _td599 in (self.ir.get("type_decls", []) or [])))
+                                        # ... AND the FIRST statement of the `try` body is a call
+                                        # that may raise (a subclass of) the class in EVERY state
+                                        # (an `ext` row, law-free; or a same-file `\abstract`
+                                        # function's `raises D when True`) over plain arguments:
+                                        # the model then proves the handler's value under the
+                                        # path condition at the `try` itself, which every Python
+                                        # run entering the `try` satisfies (a conditional cover
+                                        # -- `if n > 100: raise ..` -- may be dead in the model)
+                                        _fs599 = ((_n174.get("body") or [None])[0]
+                                                  if isinstance(_n174.get("body"), list) else None)
+                                        _fc599 = (_fs599.get("value") if isinstance(_fs599, dict)
+                                                  and _fs599.get("stmt") in ("Expr", "Assign") else None)
+                                        _cov599 = False
+                                        if (_okh599 and isinstance(_fc599, dict) and _fc599.get("type") == "Call"
+                                                and isinstance(_fc599.get("func"), str)
+                                                and all(isinstance(_ar599, dict) and _ar599.get("type") in (
+                                                    "Var", "Number", "String", "Bool", "None")
+                                                        for _ar599 in (list(_fc599.get("args") or [])
+                                                                       + [_kw599.get("value") for _kw599 in
+                                                                          (_fc599.get("keywords") or [])
+                                                                          if isinstance(_kw599, dict)]))):
+                                            _rows599: List[Any] = [
+                                                _r for _r in ((getattr(self, "_module_func_raises", {})
+                                                               or {}).get(_fc599["func"]) or [])
+                                                if isinstance(_r, dict) and _r.get("ext")]
+                                            if not _rows599 and "." not in _fc599["func"]:
+                                                _ab599 = [_g for _g in (self.ir.get("functions", []) or [])
+                                                          if str(_g.get("name", "")) == _fc599["func"]]
+                                                if len(_ab599) == 1 and _ab599[0].get("abstract"):
+                                                    _rows599 = [
+                                                        _r for _r in ((_ab599[0].get("contracts") or {}).get("raises") or [])
+                                                        if isinstance(_r, dict) and (
+                                                            _r.get("condition") is None
+                                                            or (isinstance(_r.get("condition"), dict)
+                                                                and _r["condition"].get("value") is True))]
+                                            _cov599 = any(
+                                                isinstance(getattr(_bi171, str(_r.get("exc_type")), None), type)
+                                                and issubclass(getattr(_bi171, str(_r.get("exc_type"))), _c174)
+                                                for _r in _rows599)
+                                        _okh599 = _okh599 and _cov599
+                                        if _okh599:
+                                            _ex599 = [_hb599[0]["value"]] + list(_cc171.get("ensures", []) or [])
+                                            # no in-body assertion / loop invariant anywhere (a claim
+                                            # the handler's state could reach through the loop)
+                                            _wb599: List[Any] = [func.get("body", [])]
+                                            while _wb599 and _okh599:
+                                                _z599 = _wb599.pop()
+                                                if isinstance(_z599, dict):
+                                                    if (_z599.get("stmt") in ("Assert", "ProofAssert")
+                                                            or _z599.get("invariants") or _z599.get("variants")):
+                                                        _okh599 = False
+                                                    _wb599.extend(_v for _v in _z599.values()
+                                                                  if isinstance(_v, (dict, list)))
+                                                elif isinstance(_z599, list):
+                                                    _wb599.extend(_z599)
+                                        while _ex599 and _okh599:
+                                            _e599 = _ex599.pop()
+                                            if isinstance(_e599, dict):
+                                                _te599 = _e599.get("type")
+                                                if _te599 == "Var":
+                                                    _okh599 = _e599.get("name") in _sp599
+                                                elif _te599 not in ("Number", "Bool", "String", "None",
+                                                                    "Result", "BinOp", "UnaryOp",
+                                                                    "BoolOp", "Compare"):
+                                                    _okh599 = False
+                                                _ex599.extend(_v for _k, _v in _e599.items()
+                                                              if isinstance(_v, (dict, list)))
+                                            elif isinstance(_e599, list):
+                                                _ex599.extend(_e599)
+                                        if _okh599:
+                                            _u599 = None
+                                    if _u599 is not None:
+                                        raise PyCSLIRError(
+                                            "`except " + _nm174 + "` is reached in the model only "
+                                            "from the operation(s) of the `try` body that the model "
+                                            "says raise it, but " + _u599 + " in the same body may "
+                                            "also raise " + _nm174 + " in Python and is not modelled "
+                                            "as raising it, so Python can run the handler in a state "
+                                            "the proof never considers, and this function makes a "
+                                            "claim that depends on it (route #599; measured: "
+                                            "`Path.cwd(); x = 1; os.path.getsize(s)` under "
+                                            "`except OSError: return x` proved `\\result == 0`, "
+                                            "Python returns 1). Move every operation "
+                                            "the handler is not meant for out of the `try` body, or "
+                                            "test the condition before the operation.",
+                                            stage="module6-try", code="PYCSL-R599-HANDLER-UNMODELLED-RAISER")
                                 if _broad174 or not _covers174:
                                     raise PyCSLIRError(
                                         "`except " + (_nm174 or "") + "` can be reached by an "
@@ -5060,6 +5268,120 @@ class FunctionEmissionMixin:
             if _tq_ok1 and _tq_rv in self._seq_locals:
                 self._pyval_seq_locals.add(_tq_rv)
                 self._seq_value_types[_tq_rv] = _tq_rvt
+        # lvS (run #7): (5) a `-> Tuple[..]` function whose DECLARED native tuple type
+        # (`return_value_type`, cap-trusted-val-unit-return) has a `seq (t1, .., tn)` slot k
+        # (n >= 2) and whose ONLY `return` is the LAST top-level statement, a tuple display
+        # of the declared arity whose slot k is a seq-promoted list local x
+        # (`_function_body_eqs`: `return res, lines`): x is a TUPLE-ELEMENT seq local of that
+        # element type when every `.append(..)` of x is a tuple display of arity n and x
+        # does not escape (each occurrence is that return slot, a `for` iterable, an `if` /
+        # `while` test, a `not` operand or a `len(..)` argument). Its appends then snoc the
+        # real tuple (statements `_handle_expr_stmt`) and the tail return passes the seq
+        # as-is (statements `_stmts_to_whyml`, where the per-slot bridge of
+        # `_handle_return_stmt` would otherwise `materialize_str` it). Anything else keeps
+        # the old lowering (a Why3 type error today, fail-closed).
+        if (func.get("return_annotation") == "tuple" and not func.get("trusted")
+                and isinstance(_tq_rvt, str) and _tq_rvt.startswith("(")
+                and _tq_rvt.endswith(")") and "seq (" in _tq_rvt
+                and isinstance(body_stmts, list) and body_stmts
+                and isinstance(body_stmts[-1], dict)
+                and body_stmts[-1].get("stmt") == "Return"
+                and isinstance(body_stmts[-1].get("value"), dict)
+                and body_stmts[-1]["value"].get("type") == "Tuple"):
+            _t5_sl: List[str] = []
+            _t5_dp, _t5_cur = 0, ""
+            for _t5_ch in _tq_rvt[1:-1]:
+                if _t5_ch == "," and _t5_dp == 0:
+                    _t5_sl.append(_t5_cur.strip())
+                    _t5_cur = ""
+                    continue
+                if _t5_ch == "(":
+                    _t5_dp += 1
+                elif _t5_ch == ")":
+                    _t5_dp -= 1
+                _t5_cur += _t5_ch
+            _t5_sl.append(_t5_cur.strip())
+            _t5_ret = body_stmts[-1]
+            _t5_el = _t5_ret["value"].get("elts") or []
+            _t5_nret = 0
+            _t5_sr: List[Any] = [body_stmts]
+            while _t5_sr:
+                _t5_y = _t5_sr.pop()
+                if isinstance(_t5_y, dict):
+                    if _t5_y.get("stmt") == "Return":
+                        _t5_nret += 1
+                    _t5_sr.extend(_t5_y.values())
+                elif isinstance(_t5_y, (list, tuple)):
+                    _t5_sr.extend(_t5_y)
+            if _t5_nret == 1 and len(_t5_el) == len(_t5_sl) and len(_t5_sl) >= 2:
+                for _t5_k in range(len(_t5_sl)):
+                    _t5_e = _t5_el[_t5_k]
+                    _t5_st = _t5_sl[_t5_k]
+                    if not (isinstance(_t5_e, dict) and _t5_e.get("type") == "Var"
+                            and set(_t5_e) == {"type", "name"}
+                            and isinstance(_t5_e.get("name"), str)
+                            and _t5_e["name"] in self._seq_locals
+                            and _t5_e["name"] not in self._formal_params
+                            and _t5_st.startswith("seq (") and _t5_st.endswith(")")):
+                        continue
+                    _t5_x = _t5_e["name"]
+                    _t5_ar, _t5_dp2 = 1, 0
+                    for _t5_ch in _t5_st[len("seq ("):-1]:
+                        if _t5_ch == "(":
+                            _t5_dp2 += 1
+                        elif _t5_ch == ")":
+                            _t5_dp2 -= 1
+                        elif _t5_ch == "," and _t5_dp2 == 0:
+                            _t5_ar += 1
+                    _t5_ok = _t5_ar >= 2
+                    _t5_sa: List[Any] = [body_stmts]
+                    while _t5_sa and _t5_ok:
+                        _t5_y = _t5_sa.pop()
+                        if isinstance(_t5_y, dict):
+                            if (_t5_y.get("type") == "Call"
+                                    and isinstance(_t5_y.get("func"), str)
+                                    and _t5_y["func"].startswith(_t5_x + ".")):
+                                _t5_a = _t5_y.get("args") or []
+                                _t5_ok = (_t5_y["func"] == _t5_x + ".append"
+                                          and not _t5_y.get("keywords")
+                                          and len(_t5_a) == 1 and isinstance(_t5_a[0], dict)
+                                          and _t5_a[0].get("type") == "Tuple"
+                                          and len(_t5_a[0].get("elts") or []) == _t5_ar)
+                            _t5_sa.extend(_t5_y.values())
+                        elif isinstance(_t5_y, (list, tuple)):
+                            _t5_sa.extend(_t5_y)
+                    _t5_se: List[Any] = [(body_stmts, None, None)]
+                    _t5_nb = 0
+                    while _t5_se and _t5_ok:
+                        _t5_ne, _t5_pe, _t5_ke = _t5_se.pop()
+                        if isinstance(_t5_ne, dict):
+                            if _t5_ne.get("type") == "Var" and _t5_ne.get("name") == _t5_x:
+                                _t5_ok = _t5_ne is _t5_e or (isinstance(_t5_pe, dict) and (
+                                    (_t5_pe.get("stmt") == "For" and _t5_ke == "iter")
+                                    or (_t5_pe.get("stmt") in ("If", "While")
+                                        and _t5_ke == "test")
+                                    or (_t5_pe.get("type") == "UnaryOp"
+                                        and _t5_pe.get("op") == "not")
+                                    or (_t5_pe.get("type") == "Call"
+                                        and _t5_pe.get("func") == "len")))
+                            for _t5_kk, _t5_vv in _t5_ne.items():
+                                _t5_se.append((_t5_vv, _t5_ne, _t5_kk))
+                        elif isinstance(_t5_ne, (list, tuple)):
+                            for _t5_vv in _t5_ne:
+                                _t5_se.append((_t5_vv, _t5_pe, _t5_ke))
+                        elif isinstance(_t5_ne, str) and _t5_ne == _t5_x and _t5_ke != "name":
+                            # a bare-name slot is a binding: only the ONE initial
+                            # `x = []` (empty list display) is admitted; any other assign /
+                            # for / unpack target or `global` / `nonlocal` entry refuses
+                            _t5_nb += 1
+                            _t5_ok = (_t5_nb == 1 and _t5_ke == "target"
+                                      and isinstance(_t5_pe, dict)
+                                      and _t5_pe.get("stmt") in ("Assign", "AnnAssign")
+                                      and isinstance(_t5_pe.get("value"), dict)
+                                      and _t5_pe["value"].get("type") in ("ArrayLit", "ListLit")
+                                      and not _t5_pe["value"].get("elts"))
+                    if _t5_ok and _t5_nb == 1:
+                        self._seq_value_types[_t5_x] = _t5_st[len("seq "):]
         # (3) a local bound ONLY by `x = <call>` of a function whose call sites the
         # return-type map gives a `seq (t1, .., tn)` of tuples (flow (1) of the callee)
         # is that seq: a seq local of that element type, read `!x`, never an `int`.
@@ -5333,6 +5655,15 @@ class FunctionEmissionMixin:
         else:
             self._current_self_type = None
         self._pyval_locals: Set[str] = self._prescan_pyval_locals(body_stmts)
+        # dict-value-model-r4 (cv13 selection defect, `d374_3`): a bare `PyVal` PARAMETER is
+        # the certified `hval` (was: the int-erased `int`). It is a pyval name like any
+        # `.get` read. Gated on `_uses_pyval` (which now also fires on such a param).
+        # (no new emitter field: the params join the existing `_pyval_locals`, and
+        # `_param_type_str` reads them back from there)
+        if self._uses_pyval():
+            self._pyval_locals |= {
+                str(_k) for _k, _a in (func.get("param_annotations") or {}).items()
+                if isinstance(_a, str) and _a.strip() in ("PyVal", "'PyVal'", '"PyVal"')}
         # set-value-model-wall (self-tcb-reduction, Tier-5): the locals of THIS
         # function that are an emitter-local `Set[str]` value (annotated `Set[str]`
         # + `= set()` init). Their `= set()` lowers to `ref (StrSet.empty ())`,
@@ -5998,6 +6329,46 @@ class FunctionEmissionMixin:
                 if _rhs_is_pyval(st.get("value") or {}):
                     pyval.add(tgt)
                     changed = True
+            # dict-value-model-r4: `a, b, c = <PyVal>` (a pyval read, or a subscript of a
+            # `Dict[str, PyVal]` binding) binds each target to a real `hval` element
+            # (`_handle_tuple_unpack_stmt`), so the targets are pyval locals.
+            if self._uses_pyval():
+                _r4us: List[Any] = [body_stmts]
+                while _r4us:
+                    _r4ux = _r4us.pop()
+                    if isinstance(_r4ux, list):
+                        _r4us.extend(_r4ux)
+                        continue
+                    if not isinstance(_r4ux, dict):
+                        continue
+                    _r4us.extend(_v for _v in _r4ux.values() if isinstance(_v, (dict, list)))
+                    # `t = tuple(<PyVal>)` is the `HTuple` hval `hval_tuple v`.
+                    _r4tv = _r4ux.get("value") if _r4ux.get("stmt") == "Assign" else None
+                    if (isinstance(_r4tv, dict) and _r4tv.get("type") == "Call"
+                            and _r4tv.get("func") == "tuple"
+                            and len(_r4tv.get("args") or []) == 1
+                            and isinstance(_r4ux.get("target"), str)
+                            and _r4ux["target"] not in pyval
+                            and (_rhs_is_pyval(_r4tv["args"][0])
+                                 or (isinstance(_r4tv["args"][0], dict)
+                                     and _r4tv["args"][0].get("type") == "Var"
+                                     and _r4tv["args"][0].get("name") in pyval))):
+                        pyval.add(_r4ux["target"])
+                        changed = True
+                    if _r4ux.get("stmt") != "TupleUnpack":
+                        continue
+                    _r4uv = _r4ux.get("value") or {}
+                    _r4ut = [t for t in (_r4ux.get("targets") or []) if isinstance(t, str)]
+                    if (_rhs_is_pyval(_r4uv)
+                            or (isinstance(_r4uv, dict) and _r4uv.get("type") == "Subscript"
+                                and isinstance(_r4uv.get("value"), dict)
+                                and _r4uv["value"].get("type") == "Var"
+                                and getattr(self, "_dict_value_types", {}).get(
+                                    _r4uv["value"].get("name")) == "hval")):
+                        for _t in _r4ut:
+                            if _t != "_" and _t not in pyval:
+                                pyval.add(_t)
+                                changed = True
         # self-tcb-reduction _namedtuple_positional_access: a pyval local read as a
         # COLLECTION — `len(X)` or `X[<Number>]` (an ordered hval sequence like
         # `rec_info["fields"]`, not a string leaf) — must bind the RAW `hval` (so
@@ -11763,6 +12134,15 @@ class FunctionEmissionMixin:
         # `unit` (it computes nothing; the body is the proof).
         if func.get("lemma"):
             return_type = "unit"
+        # dict-value-model-r4 (cv13 O6): a `-> Tuple[..PyVal..]` return is the certified
+        # `hval` (an `HTuple`: the returned tuple literal is `_pyval_wrap`ped, `tuple(v)`
+        # is `hval_tuple v`), a `-> Dict[str, PyVal]` return the `map string (option
+        # hval)` carrier. `transpile` records the same type for the call sites.
+        if (self._uses_pyval() and func.get("r4_ret_pyval") == "tuple"
+                and not func.get("lemma")):
+            return_type = "hval"
+        elif self._uses_pyval() and func.get("r4_ret_pyval") == "dict":
+            return_type = "map string (option hval)"
         # `_func_return_type` is read by `_handle_return_stmt` to pick
         # the right Return exception (int / array / tuple); set it AFTER
         # the `List[T] → array int` override so the array-Return slot

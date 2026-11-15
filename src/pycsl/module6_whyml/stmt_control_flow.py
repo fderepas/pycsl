@@ -590,12 +590,31 @@ class ControlFlowStmtMixin:
             if iter_ir.get("type") == "Var" and getattr(self, "strict_hval_keys", False):
                 self._add_abstract_op(
                     "val function hval_keys_hget (m: map string (option hval)) (i: int) : hval")
+            # dict-value-model-r4: a TUPLE iterates its real elements like a list, and a
+            # dict (`HMap p`, any iterable form) iterates its KEYS in insertion order
+            # (`hpairs_keys p`, certified `keys_len`), faithfully rather than through the
+            # `hval_as_map` over-approximation (`--strict-hval-keys` keeps the
+            # uninterpreted key). HOISTED LENGTH (impl §2.2, fr4 R6/R8): the length is bound
+            # ONCE with the snapshot (`let (_hv, _hn) = ...`), so the loop condition,
+            # invariant and variant read an immutable int, never a 9-way `match`.
+            if getattr(self, "strict_hval_keys", False):
+                _hmk = (f"| HMap _ -> hval_values_len (hval_as_map {_hv}) "
+                        if iter_ir.get("type") == "Var" else "")
+            else:
+                _hmk = "| HMap _hp -> hpairs_len _hp "
+                _hmg = f"| HMap _hp -> hval_list_nth (hpairs_keys _hp) !{idx} "
+            _hn = f"_hn{idx}"
             _hlen = (f"(match {_hv} with HArr _hl -> hval_list_len _hl "
+                     f"| HTuple _hl -> hval_list_len _hl "
                      f"{_hmk}| _ -> hval_iter_len_other {_hv} end)")
+            self._for_iter_materialize = (
+                f"({_hv}, {_hn})",
+                f"(let {_hv} = {self._for_iter_materialize[1]} in ({_hv}, {_hlen}))")
             self._for_target_is_pyval = True
-            self._pyast_loop_variant_len = _hlen
-            return (_hlen,
+            self._pyast_loop_variant_len = _hn
+            return (_hn,
                     f"(match {_hv} with HArr _hl -> hval_list_nth _hl !{idx} "
+                    f"| HTuple _hl -> hval_list_nth _hl !{idx} "
                     f"{_hmg}| _ -> hval_iter_get_other {_hv} !{idx} end)", False)
         # route #296 (gen #37): the former dict-KEY arm for a bare `for x in <pyval local>`
         # (`hval_as_map` view, `x` bound to an arbitrary key `string`) is GONE. It treated
@@ -625,9 +644,16 @@ class ControlFlowStmtMixin:
                 and iter_ir["value"].get("name") in getattr(self, "_pyval_locals", set())):
             _proj = self._tdrl_hval_field_proj(iter_ir, local_refs, False, None)
             if _proj is not None:
-                self._pyast_loop_variant_len = f"(hval_len {_proj})"
-                return (f"(hval_len {_proj})",
-                        f"(hval_nth_str {_proj} !{idx})", False)
+                # dict-value-model-r4: snapshot the iterable ONCE with its HOISTED length
+                # (`let (_hv, _hn) = ...`, the R2b shape): the read's raising arms are an
+                # uninterpreted `any hval`, legal only in program code, and the loop
+                # condition / variant then read an immutable int.
+                _hv = f"_hv{idx}"
+                _hn = f"_hn{idx}"
+                self._for_iter_materialize = (
+                    f"({_hv}, {_hn})", f"(let {_hv} = {_proj} in ({_hv}, hval_len {_hv}))")
+                self._pyast_loop_variant_len = _hn
+                return (_hn, f"(hval_nth_str {_hv} !{idx})", False)
         # self-tcb-reduction giants (generic class-body lowering): `for child in
         # <classdef>.body` over a `py_classdef_node` param iterates the MODELLED
         # `class_body_ast node` psl cons-list — bound `psl_len (class_body_ast node)`,

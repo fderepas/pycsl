@@ -48,7 +48,14 @@ M6 = os.path.join(ROOT, "src", "pycsl", "module6_whyml")
 # An option-read arm answering a LITERAL value (not a constructor, not an opaque).
 ARM = re.compile(r'\|\s*None\s*->\s*(0\.0|0|""|\(HInt 0\)|\(IrOther ""\))[\s)]')
 
-MIN_SITES = 8
+# (run #7, dict-value-model-r4, DRIVER DECISION recorded in the run log) 8 -> 5: the three
+# hval absent-key sentinel arms `| None -> (HInt 0)` of expressions.py were REMOVED (the
+# absent arm is now `HNone` / the law-free `hval_get_other`), so the population is exactly
+# these 5 sites: expr_ghost_collections.py `| None -> 0` (the ghost `\map_get`) and the
+# four generic_fold.py `| None -> ""` ADT-fold accessors. A drop below them is still caught,
+# and the ("expressions.py", "(HInt 0)") BASELINE entry is RETIRED, so any reappearance of
+# `| None -> (HInt 0)` is flagged as unclassified.
+MIN_SITES = 5
 
 BASELINE = {
     ("expr_ghost_collections.py", "0"):
@@ -65,27 +72,6 @@ BASELINE = {
         "claim about a real program.** Route #57 is the same `| None -> 0` in the second "
         "position, undocumented and contradicting `.get`. Probed by relaunch #51: the two "
         "reachable spec shapes fail closed anyway.",
-    ("expressions.py", "(HInt 0)"):
-        "COLLAPSING-DEAD, ARGUMENT STATED: the `hval` value model's absent-key sentinel. "
-        "`hval` is a TAGGED union (HInt/HStr/...), so an `(HInt 0)` answer is "
-        "distinguishable from an absent value only if something reads the tag; the "
-        "hval-value-model wall is a recorded certified boundary of this campaign. "
-        "RE-MEASURED IN gen #30, and the answer SPLITS -- so \"COLLAPSING-DEAD\" above "
-        "is only half right. CORPUS SIDE: the comparison point this entry named is NOT "
-        "REACHABLE from ordinary Python. You cannot get a genuine `HInt 0` into the dict "
-        "-- an int store into a `Dict[str, PyVal]` is an L3-tc error (`This expression "
-        "has type int, but is expected to have type hval`) -- and `isinstance(v, int)` on "
-        "the read does not reach the `_pyval_locals` arm either. The sentinel IS emitted, "
-        "and the generated WhyML was read to confirm it: `let v = (match Map.get !d "
-        "\"zzz\" with | Some v_ -> v_ | None -> (HInt 0) end)`. MIRROR SIDE, AND THIS "
-        "PART IS NOT CLOSED: the 53-file mirror emission contains 30 GENUINE `HInt i` "
-        "constructions, so a present-with-value-0 hval really is constructible there and "
-        "really is indistinguishable from the absent sentinel. Nothing measured shows a "
-        "mirror proof that DEPENDS on telling them apart, and nothing shows one does not. "
-        "The honest label for the mirror side is therefore NOT \"collapsing-dead\" but "
-        "\"no reader found yet\". NEXT STEP, named so it is not re-derived: find a "
-        "mirror method whose contract distinguishes an absent key from a present 0 -- a "
-        "`.get` guard followed by a value use -- and probe THAT.",
     ("generic_fold.py", '""'):
         "COLLAPSING-DEAD, ARGUMENT STATED: the generated ADT-fold helpers "
         "(`<C>_gtype` / `<C>_gop`) read a term's type/op tag out of an option and answer "

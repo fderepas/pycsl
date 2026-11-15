@@ -223,6 +223,15 @@ Numbering blocks under `test-suite/corpus/pycsl-reference/` (reserved in
 | `0381`–`0390` | Inter-procedural propagation |
 | `0391`–`0395` | `\all` form |
 
+## PyVal wrong-tag sites are static TypeError refusals (dict-value-model-r4, run #7)
+
+TypeError is NOT in `KNOWN_EXCEPTIONS` (user decision log 848 (e)). The wrong-tag arms of the
+frozen PyVal value type (`len` / iteration / `tuple` / `join` / arithmetic / ordering / methods
+of a value that may have the wrong tag) are registered with the §7.131 static pass: REFUSED in a
+function claiming TypeError (`PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM`, annotations §7.600), ambient
+otherwise, recorded for route #430's callee summary. A NESTED PyVal subscript under a KeyError
+claim carries the presence `assert` (`[@expl:PyCSL-R4 KeyError ...]`), like a top-level dict read.
+
 ## Related skills and docs
 
 - `config/skills/pycsl-annotate/SKILL.md` — annotator guidance for

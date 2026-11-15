@@ -1801,6 +1801,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 es = self._coerce_to_int(self._expr_to_whyml(e, local_refs))
                 expr = f"(Seq.cons {es} {expr})"
             return expr
+        # T6 (run #7 lvR, cap-typed-local-lowering): a CALL whose declared WhyML return is
+        # `array string` (`return self._fold_blocks(..)` of a `-> List[str]` method) is
+        # bridged below by the generic `snapshot`, which outside `@mutable_state` is
+        # monomorphic `array int -> seq int` -- a Why3 type error against the `seq string`
+        # it must produce (fail-closed). Use its STRING twin `snapshot_str` (length- and
+        # element-preserving, fresh seq), the bridge the split-comprehension return already
+        # uses. Only that callee type, outside `@mutable_state`, routes here.
+        if (val_ir.get("type") in ("Call", "MethodCall")
+                and isinstance(val_ir.get("func"), str)
+                and not getattr(self, "_mutable_state_classes", None)
+                and self._call_return_whyml_type(val_ir["func"]) == "array string"):
+            self._add_abstract_op(
+                "val snapshot_str (a: array string) : seq string\n"
+                "    ensures { Seq.length result = Array.length a }\n"
+                "    ensures { forall i:int. 0 <= i < Array.length a ->"
+                " Seq.get result i = a[i] }")
+            return f"(snapshot_str {self._expr_to_whyml(val_ir, local_refs)})"
         return self._seq_operand(val_ir, local_refs)
 
     def _call_returns_string_collection(self, func_name: str) -> bool:
@@ -2412,6 +2429,33 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 and val_ir.get("name") in getattr(self, "_option_tuple_vars", {})):
             return self._emit_option_tuple_unpack(
                 val_ir, targets, rest, local_refs, declared_refs, indent, in_loop)
+        # dict-value-model-r4: `a, b, c = <PyVal>` unpacks an `HTuple` / `HArr` element by
+        # element (`hval_list_nth`); a wrong tag is the law-free `hval_iter_get_other`
+        # arm (a TypeError site), and under a ValueError claim the arity is asserted
+        # (`hval_len v = n`). The value is evaluated ONCE. Every target is a pyval local
+        # (`_prescan_pyval_locals`); a ref target is assigned, a let target bound.
+        if (self._uses_pyval() and targets
+                and all(isinstance(_t, str) and _t != "_"
+                        and _t in getattr(self, "_pyval_locals", set()) for _t in targets)):
+            self._add_abstract_op("val function hval_iter_get_other (h: hval) (i: int) : hval")
+            _r4uw = self._expr_to_whyml(val_ir, local_refs)
+            _r4ve = (not getattr(self, "_in_spec", False)
+                     and (getattr(self, "_current_no_exception_all", False)
+                          or bool({"ValueError", "Exception", "BaseException"}
+                                  & set(getattr(self, "_current_no_exception", set()) or set()))))
+            _r4lines = [f"{indent}let _r4u = {_r4uw} in"]
+            if _r4ve:
+                _r4lines.append(f"{indent}assert {{ [@expl:PyCSL-R4 ValueError: unpacking a PyVal "
+                                f"value of another length] hval_len _r4u = {len(targets)} }};")
+            _r4body = []
+            for _r4i, _r4t in enumerate(targets):
+                _r4el = (f"(match _r4u with HTuple _r4l -> hval_list_nth _r4l {_r4i} "
+                         f"| HArr _r4l -> hval_list_nth _r4l {_r4i} "
+                         f"| _ -> hval_iter_get_other _r4u {_r4i} end)")
+                # a pyval local is an immutable `let` (its reads are bare names)
+                _r4lines.append(f"{indent}let {whyml_ident(_r4t)} = {_r4el} in")
+            _r4rest = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            return "\n".join(_r4lines + _r4body + [_r4rest or f"{indent}()"])
         val_whyml = self._expr_to_whyml(val_ir, local_refs)
         safe_targets = [whyml_ident(t) for t in targets]
         # LEVER F1: string-triple partition/rpartition unpack — bypass the opaque
@@ -4437,6 +4481,36 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             f"Seq.snoc self.{safe_field} "
                             f"{self._pyval_wrap(raw_arg, local_refs)}")
                 elif (arr_name in getattr(self, "_seq_locals", set())
+                      and isinstance(getattr(self, "_func_return_type", None), str)
+                      and self._func_return_type.startswith("array pytuple_")
+                      and " " not in self._func_return_type[len("array "):]
+                      and isinstance(val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                                     else val["args"][0], dict)
+                      and (val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                           else val["args"][0]).get("type") == "Tuple"
+                      and len((val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                               else val["args"][0]).get("elts") or [])
+                      == len(next((_t3_r.get("fields") or [] for _t3_r in
+                                   (getattr(self, "_record_types", {}) or {}).values()
+                                   if isinstance(_t3_r, dict) and _t3_r.get("whyml_name")
+                                   == self._func_return_type[len("array "):]), []))):
+                    # T3 (run #7 lvR, cap-typed-local-lowering): in a scalar-slot
+                    # `-> List[Tuple[..]]` function (Module5's WL-03 record path: declared
+                    # `array pytuple_<tags>`, returned through `materialize_pytuple_<tags>`),
+                    # a seq-local `.append(<tuple display>)` of the record's arity grows the
+                    # seq by the REAL `pytuple_<tags>` record, slot i -> `field<i>`, each slot
+                    # lowered as itself -- not the `(any int)` the int coercion made of it,
+                    # which never type-checked against the record seq (fail-closed). A slot
+                    # of the wrong WhyML type is again a Why3 type error.
+                    _t3_rn = self._func_return_type[len("array "):]
+                    _t3_av = (val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                              else val["args"][0])
+                    _t3_fs = "; ".join(
+                        f"{self._field_label(_t3_rn, f'field{_t3_i}')} = "
+                        f"{self._expr_to_whyml(_t3_e, local_refs)}"
+                        for _t3_i, _t3_e in enumerate(list(_t3_av.get("elts") or [])))
+                    code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {{ {_t3_fs} }}"
+                elif (arr_name in getattr(self, "_seq_locals", set())
                       and isinstance((getattr(self, "_seq_value_types", {}) or {}).get(arr_name), str)
                       and (getattr(self, "_seq_value_types", {}) or {}).get(arr_name).startswith("(")
                       and isinstance(val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
@@ -4996,6 +5070,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                    "storing a container that may hold None into a container "
                                    "the record does not follow", None))
             _g521: List[Any] = list(_lit553s)
+            # dict-value-model-r4: a PyVal read NARROWED by a dominating `isinstance(x, C)`
+            # (marked `_r4_narrow` by `_emit_body_code`'s pre-pass) is of class C, never None.
+            _c521s = [_x521s for _x521s in _c521s
+                      if not (isinstance(_x521s[0], dict) and _x521s[0].get("_r4_narrow"))]
             if _c521s:
                 _q5_rec = _r521s
                 _q5_qs = [(_x521s[0], False) for _x521s in _c521s]
@@ -5323,6 +5401,68 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if isinstance(stmt, WhileStmt):
             return self._handle_while_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
         if isinstance(stmt, ReturnStmt):
+            # lvS (run #7): the TAIL return `return x, ..` of a `-> Tuple[..]` function whose
+            # declared native tuple type has a `seq (t1, .., tn)` slot k holding the
+            # TUPLE-ELEMENT seq local x of exactly that element type (`_reset_function_state`
+            # flow (5) recorded `_seq_value_types[x]`): x IS the declared slot value, so it
+            # passes as-is (`!x`). `_handle_return_stmt`'s tuple-tail arm picks ONE seq->array
+            # bridge from the whole declared type and would `materialize_str` it (a Why3
+            # type error). Every other slot lowers exactly as in that arm (`_expr_to_whyml`);
+            # a second seq-local slot, a raise-path return or any other shape keeps it.
+            _t5_vi = stmt.value.to_dict() if stmt.value is not None else None
+            _t5_rt = getattr(self, "_func_return_type", None)
+            _t5_svt = getattr(self, "_seq_value_types", {}) or {}
+            _t5_sql = getattr(self, "_seq_locals", set())
+            if (not in_loop and not self._has_early_ret and isinstance(_t5_vi, dict)
+                    and _t5_vi.get("type") == "Tuple" and isinstance(_t5_rt, str)
+                    and _t5_rt.startswith("(") and _t5_rt.endswith(")")
+                    and "array " in _t5_rt and "seq (" in _t5_rt):
+                _t5_sl: List[str] = []
+                _t5_dp, _t5_cur = 0, ""
+                for _t5_ch in _t5_rt[1:-1]:
+                    if _t5_ch == "," and _t5_dp == 0:
+                        _t5_sl.append(_t5_cur.strip())
+                        _t5_cur = ""
+                        continue
+                    if _t5_ch == "(":
+                        _t5_dp += 1
+                    elif _t5_ch == ")":
+                        _t5_dp -= 1
+                    _t5_cur += _t5_ch
+                _t5_sl.append(_t5_cur.strip())
+                _t5_el = _t5_vi.get("elts") or []
+                _t5_hit = [_k for _k in range(len(_t5_el))
+                           if isinstance(_t5_el[_k], dict) and _t5_el[_k].get("type") == "Var"
+                           and _t5_el[_k].get("name") in _t5_sql]
+                if (len(_t5_el) == len(_t5_sl) and len(_t5_hit) == 1
+                        and isinstance(_t5_svt.get(_t5_el[_t5_hit[0]]["name"]), str)
+                        and _t5_svt[_t5_el[_t5_hit[0]]["name"]].startswith("(")
+                        and _t5_sl[_t5_hit[0]] == "seq " + _t5_svt[_t5_el[_t5_hit[0]]["name"]]):
+                    return (indent + "(" + ", ".join(self._expr_to_whyml(_t5_e, local_refs)
+                                                     for _t5_e in _t5_el) + ")")
+            # lvS (run #7, cv13 Optional-list arm typing): `return x` of a `seq string` list
+            # local x from a function whose declared return is a synthesized
+            # `Optional[List[str]]` variant with the `seq string` Some arm (Module5 tag
+            # `list_str`) injects the list's value `!x` as-is into that arm.
+            # `_handle_return_stmt` bridges it with the int `materialize` for any
+            # non-`array string` declared type (a Why3 type error against the arm). The
+            # early / in-loop return raises the variant's `Return_<variant>` exactly as
+            # there; anything else keeps it.
+            _o2_vt = (getattr(self, "_variant_types", {}) or {}).get(_t5_rt) if isinstance(
+                _t5_rt, str) and _t5_rt.startswith("_union_") else None
+            if (isinstance(_t5_vi, dict) and _t5_vi.get("type") == "Var"
+                    and set(_t5_vi) == {"type", "name"}
+                    and _t5_vi.get("name") in _t5_sql
+                    and _t5_svt.get(_t5_vi.get("name")) == "string"
+                    and _t5_vi.get("name") not in getattr(self, "_pyval_seq_locals", set())
+                    and isinstance(_o2_vt, dict)):
+                _o2_cs = [(_cn, _c) for _cn, _c in (_o2_vt.get("constructors") or {}).items()
+                          if (_c or {}).get("payload")]
+                if len(_o2_cs) == 1 and _o2_cs[0][1].get("payload") == ["list_str"]:
+                    _o2_v = f"({_o2_cs[0][0]} !{whyml_ident(_t5_vi['name'])})"
+                    if in_loop or self._has_early_ret:
+                        return f"{indent}raise (Return_{_t5_rt} {_o2_v})"
+                    return f"{indent}{_o2_v}"
             return self._handle_return_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
         if isinstance(stmt, IfStmt):
             return self._handle_if_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
@@ -6769,10 +6909,48 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     _scan_dicts(x)
         _scan_dicts(body_stmts)
 
+        # T2b (run #7 lvR, cap-typed-local-lowering): the TARGET of a `for x in
+        # <str>.splitlines()` / `<str>.split(..)` loop iterates the faithful `array string`
+        # of that split (stmt_control_flow binds `x` to its element, a `string`), so an
+        # `.append(x)` of it is a string element source. Without this a `List[str]` local
+        # grown only from such a target stayed `seq int`-classified and its `sep.join(v)`
+        # fell to the opaque int `join_1` (a Why3 type error against the seq: fail-closed).
+        # Fail-closed: the target must not be bound anywhere else in the body (no
+        # `Assign`, no other `for`), and the receiver must itself be a string expression.
+        split_tgts: Set[str] = set()
+        other_bind: Set[str] = set()
+
+        def _scan_split_for(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") in ("For", "ForStmt") and isinstance(n.get("target"), str):
+                    _it = n.get("iter", {})
+                    _fn = _it.get("func") if isinstance(_it, dict) else None
+                    _ok = False
+                    if (isinstance(_it, dict) and _it.get("type") == "Call"
+                            and isinstance(_fn, str) and "." in _fn
+                            and _fn.rsplit(".", 1)[1] in ("splitlines", "split")):
+                        _rv = _it.get("receiver")
+                        if not isinstance(_rv, dict):
+                            _rv = {"type": "Var", "name": _fn.rsplit(".", 1)[0]}
+                        _ok = self._is_string_expr(_rv)
+                    (split_tgts if _ok else other_bind).add(n["target"])
+                if n.get("stmt") in ("Assign", "AnnAssign", "AugAssign") \
+                        and isinstance(n.get("target"), str):
+                    other_bind.add(n["target"])
+                for x in n.values():
+                    _scan_split_for(x)
+            elif isinstance(n, list):
+                for x in n:
+                    _scan_split_for(x)
+        _scan_split_for(body_stmts)
+        split_tgts -= other_bind
+
         def _src_is_str(src: Any) -> bool:
             if not isinstance(src, dict):
                 return False
             if self._is_string_expr(src):
+                return True
+            if src.get("type") == "Var" and src.get("name") in split_tgts:
                 return True
             if src.get("type") == "Call":
                 _fn = src.get("func", "")
@@ -9224,6 +9402,167 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         """Build the WhyML body code string with pre-declared ref variables.
         Mutates self._array_locals, self._has_early_ret."""
         bounded_int = func.get("bounded_int")
+        _r4_lka = None   # dict-value-model-r4: the literal-key distinctness assert (below)
+        # dict-value-model-r4 (impl §2.2, fr4 §3.3.2): ISINSTANCE NARROWING IS SUBSTITUTED
+        # in the guarded region. Over the body IR (a copy), every read of a PyVal name `x`
+        # in a region where `isinstance(x, str)` is known to hold -- the then-branch of
+        # `if isinstance(x, str) ...:`, the right operand of `isinstance(x, str) and E`, an
+        # IfExp body, the else-branch / the rest of the block after `if not (isinstance(x,
+        # str) ...): <always exits>` -- is MARKED `_r4_narrow: "str"`, which
+        # `_expr_to_whyml` lowers to the certified projection `(hstr_of x)` (= the `HStr`
+        # payload there) and `_is_string_expr` types as a string. A region that ASSIGNS
+        # `x` is not narrowed (fail-closed: the old lowering). A direct `return x` of a
+        # PyVal-returning function keeps the hval. Gated on `_uses_pyval` -> byte-inert.
+        if self._uses_pyval() and body_stmts:
+            _r4_ret_hval = (func.get("return_annotation") == "PyVal"
+                            or func.get("return_value_type") == "hval"
+                            or func.get("r4_ret_pyval") == "tuple")
+
+            # a `for x in <PyVal>` target is bound to a real `hval` element (it joins
+            # `_pyval_locals` only during the loop's own emission, after this pre-pass).
+            _r4_pvx: Set[str] = set()
+            _r4_st: List[Any] = [body_stmts]
+            while _r4_st:
+                _r4_x = _r4_st.pop()
+                if isinstance(_r4_x, list):
+                    _r4_st.extend(_r4_x)
+                elif isinstance(_r4_x, dict):
+                    if (_r4_x.get("stmt") == "For" and isinstance(_r4_x.get("target"), str)
+                            and not _r4_x.get("tuple_targets")
+                            and isinstance(_r4_x.get("iter"), dict)
+                            and self._expr_is_pyval(_r4_x["iter"])):
+                        _r4_pvx.add(_r4_x["target"])
+                    _r4_st.extend(_v for _v in _r4_x.values() if isinstance(_v, (dict, list)))
+
+            # (lambdas, not nested defs: the mirror-coverage ratchet counts def names)
+            from functools import reduce as _r4_reduce
+            _r4_is_pv = lambda nm: (isinstance(nm, str) and (
+                nm in _r4_pvx or self._expr_is_pyval({"type": "Var", "name": nm})))
+            # names `x` with `t` true  =>  isinstance(x, str)
+            _r4_pos = lambda t: (
+                set() if not isinstance(t, dict)
+                else {t["args"][0]["name"]} if (
+                    t.get("type") == "Call" and t.get("func") == "isinstance"
+                    and len(t.get("args") or []) == 2
+                    and isinstance(t["args"][0], dict) and t["args"][0].get("type") == "Var"
+                    and isinstance(t["args"][1], dict) and t["args"][1].get("type") == "Var"
+                    and t["args"][1].get("name") == "str"
+                    and _r4_is_pv(t["args"][0].get("name")))
+                else (_r4_pos(t.get("left")) | _r4_pos(t.get("right")))
+                if (t.get("type") == "BinOp" and t.get("op") == "and")
+                else set())
+            # names `x` with `t` FALSE  =>  isinstance(x, str)
+            _r4_neg = lambda t: (_r4_pos(t.get("expr")) if (
+                isinstance(t, dict) and t.get("type") == "UnaryOp" and t.get("op") == "not")
+                else set())
+            _r4_assigned = lambda n: (
+                set().union(*[_r4_assigned(_x) for _x in n]) if isinstance(n, list)
+                else ({n.get(_tk) for _tk in ("target", "targets", "tuple_targets")
+                       if isinstance(n.get(_tk), str) and n.get("stmt")}
+                      | {_y for _tk in ("target", "targets", "tuple_targets")
+                         if isinstance(n.get(_tk), list) for _y in n.get(_tk)
+                         if isinstance(_y, str)}
+                      | ({n["target"]} if (n.get("type") == "NamedExpr"
+                                           and isinstance(n.get("target"), str)) else set())
+                      | set().union(*[_r4_assigned(_v) for _v in n.values()
+                                      if isinstance(_v, (dict, list))]))
+                if isinstance(n, dict) else set())
+            _r4_exits = lambda stmts: (
+                isinstance(stmts, list) and bool(stmts) and isinstance(stmts[-1], dict)
+                and (stmts[-1].get("stmt") in ("Return", "Raise", "Continue", "Break")
+                     or (stmts[-1].get("stmt") == "If" and _r4_exits(stmts[-1].get("body"))
+                         and _r4_exits(stmts[-1].get("orelse")))))
+            _r4_expr = lambda e, nar: (
+                [_r4_expr(_x, nar) for _x in e] if isinstance(e, list)
+                else e if (not isinstance(e, dict) or e.get("stmt"))
+                else dict(e, _r4_narrow="str") if (e.get("type") == "Var"
+                                                    and e.get("name") in nar
+                                                    and not e.get("_r4_narrow"))
+                else e if e.get("type") in ("Lambda", "ListComp", "SetComp", "DictComp", "GenExp")
+                else dict(e, left=_r4_expr(e.get("left"), nar),
+                          right=_r4_expr(e.get("right"), nar | _r4_pos(e.get("left"))))
+                if (e.get("type") == "BinOp" and e.get("op") == "and")
+                else dict(e, test=_r4_expr(e.get("test"), nar),
+                          body=_r4_expr(e.get("body"), nar | _r4_pos(e.get("test"))),
+                          orelse=_r4_expr(e.get("orelse"), nar | _r4_neg(e.get("test"))))
+                if e.get("type") == "IfExp"
+                else {_k: (_r4_expr(_v, nar) if isinstance(_v, (dict, list)) else _v)
+                      for _k, _v in e.items()})
+            _r4_val = lambda _k, _v, _s, _live: (
+                _r4_stmts(_v, _live) if _k in ("body", "orelse", "finalbody", "cases")
+                else [(dict(_h, body=_r4_stmts(_h.get("body"), _live))
+                       if isinstance(_h, dict) else _h) for _h in (_v or [])]
+                if _k == "handlers"
+                else _v if (_k == "value" and _s.get("stmt") == "Return" and _r4_ret_hval
+                            and isinstance(_v, dict) and _v.get("type") == "Var")
+                else dict(_r4_expr(_v, _live), _r4_wrap=func["r4_ret_pyval"])
+                if (_k == "value" and _s.get("stmt") == "Return"
+                    and func.get("r4_ret_pyval") and isinstance(_v, dict))
+                else _r4_expr(_v, _live) if isinstance(_v, (dict, list))
+                else _v)
+            # one statement: (rewritten statements so far, names narrowed after them)
+            _r4_step = lambda acc, _s: (
+                (acc[0] + [_s], acc[1]) if not isinstance(_s, dict)
+                else (acc[0] + [dict(
+                          _s, test=_r4_expr(_s.get("test"), acc[1] - _r4_assigned(_s)),
+                          body=_r4_stmts(_s.get("body"), (acc[1] | _r4_pos(_s.get("test")))
+                                         - _r4_assigned(_s.get("body"))),
+                          orelse=_r4_stmts(_s.get("orelse"), (acc[1] | _r4_neg(_s.get("test")))
+                                           - _r4_assigned(_s.get("orelse"))))],
+                      (acc[1] - _r4_assigned(_s))
+                      | (_r4_neg(_s.get("test")) if (not _s.get("orelse")
+                                                      and _r4_exits(_s.get("body"))) else set()))
+                if _s.get("stmt") == "If"
+                else (acc[0] + [{_k: _r4_val(_k, _v, _s, acc[1] - _r4_assigned(_s))
+                                 for _k, _v in _s.items()}],
+                      acc[1] - _r4_assigned(_s)))
+            _r4_stmts = lambda stmts, nar: (
+                _r4_reduce(_r4_step, stmts, ([], set(nar)))[0] if isinstance(stmts, list)
+                else stmts)
+
+            body_stmts = _r4_stmts(body_stmts, set())
+            # dict-value-model-r4: the DISTINCT string-literal keys of this body's PyVal
+            # dict literals and literal-key reads, stated once as a proved `assert` at the
+            # body start (Z3 decides literal disequality; Alt-Ergo cannot, fr4 R5b), so a
+            # literal-key `pairs_get` read past another literal key unfolds the certified
+            # `pairs_get_cons` for every prover. A proved goal, then a hypothesis: no axiom.
+            _r4lk: Set[str] = set()
+            _r4ls: List[Any] = [body_stmts]
+            while _r4ls:
+                _r4lx = _r4ls.pop()
+                if isinstance(_r4lx, list):
+                    _r4ls.extend(_r4lx)
+                    continue
+                if not isinstance(_r4lx, dict):
+                    continue
+                _r4ls.extend(_v for _v in _r4lx.values() if isinstance(_v, (dict, list)))
+                if _r4lx.get("type") == "DictLit":
+                    _r4lk.update(_k.get("value") for _k in (_r4lx.get("keys") or [])
+                                 if isinstance(_k, dict) and _k.get("type") == "String"
+                                 and isinstance(_k.get("value"), str))
+                if (_r4lx.get("type") == "Call" and str(_r4lx.get("func", "")).endswith("get")
+                        and _r4lx.get("args") and isinstance(_r4lx["args"][0], dict)
+                        and _r4lx["args"][0].get("type") == "String"
+                        and isinstance(_r4lx["args"][0].get("value"), str)):
+                    _r4lk.add(_r4lx["args"][0]["value"])
+                if (_r4lx.get("type") == "Subscript" and isinstance(_r4lx.get("index"), dict)
+                        and _r4lx["index"].get("type") == "String"
+                        and isinstance(_r4lx["index"].get("value"), str)):
+                    _r4lk.add(_r4lx["index"]["value"])
+            _r4lkl = sorted(_r4lk)
+            _r4_lka = None
+            # only in a body that HOLDS a PyVal value (a pyval local / param, a
+            # `Dict[str, PyVal]` binding, a PyVal tuple / dict return)
+            _r4has = (bool(getattr(self, "_pyval_locals", set()))
+                      or any(_v == "hval" or (isinstance(_v, str) and "option hval" in _v)
+                             for _v in (func.get("dict_value_types") or {}).values())
+                      or bool(func.get("r4_ret_pyval")))
+            if _r4has and 2 <= len(_r4lkl) <= 12:
+                _r4_lka = (
+                    "    assert { [@expl:PyCSL-R4 distinct literal keys] "
+                    + " /\\ ".join(f"{whyml_string_literal(_a)} <> {whyml_string_literal(_b)}"
+                                     for _i, _a in enumerate(_r4lkl) for _b in _r4lkl[_i + 1:])
+                    + " };\n")
         append_targets = IRScanner.find_append_targets(body_stmts)
         # Expose append-targets to `_handle_len_call` so `len(X)` in
         # invariants/specs resolves to `!X_len` (the dynamic counter)
@@ -10036,6 +10375,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
         if not body_code.strip():
             body_code = "    ()"
+        if _r4_lka:
+            body_code = _r4_lka + body_code
         if self._has_early_ret:
             body_code = self._wrap_body_with_return_catch(body_code, return_type)
         return body_code

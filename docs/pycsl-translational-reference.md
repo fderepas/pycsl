@@ -8809,3 +8809,52 @@ mis-recognition cannot silently fall through to the WhyML `int` default).
 existing `symbol_table` value slot. Byte-identical for every non-Callable
 driver (the branch triggers only on `head == "Callable"`).
 
+
+## Appendix R4. The frozen certified PyVal value model (wall dict-value-model-r4, driver run #7)
+
+**τ(PyVal).** A `PyVal` (`= Any`) value — a `Dict[str, PyVal]` entry, a bare `PyVal` parameter, a
+`-> Tuple[..PyVal..]` / `-> Dict[str, PyVal]` return — is the FROZEN 9-constructor sum, emitted
+verbatim from module `DictR4Theory` of `getting-better/dict-r4-theory.mlw` (Rocq
+`Phase2m_PyValR4.v`, Lean `PyCSL/PyValR4.lean`; gated on `_uses_pyval`):
+
+    type hval = HNone | HBool bool | HInt int | HFloat real | HStr string
+              | HTuple hval_list | HArr hval_list | HMap hpairs | HNode hval
+    with hval_list = HNil | HCons hval hval_list
+    with hpairs    = PNil | PCons string hval hpairs
+
+The top-level dict stays `map string (option hval)`: ABSENCE is the outer `option` (no
+`HAbsent`), a stored `None` is `Some HNone`. Literals: `None` ⟶ `HNone`, `True`/`False` ⟶
+`HBool`, a float literal ⟶ `HFloat`, a tuple ⟶ `HTuple`, a list ⟶ `HArr`, a str ⟶ `HStr`; a
+value of any other / unknown type is the ERASED `HInt` carrier. A dict literal is the LEFT FOLD
+`pairs_set (.. (pairs_set PNil k1 v1) ..) kn vn` of the certified replace-first/append
+`pairs_set` (insertion order; a duplicate key is last-wins, one entry).
+
+**Route (e2).** `pairs_get` is `val function pairs_get (p: hpairs) (k: string) : option hval` with
+its two defining equations as constructor-triggered axioms (`pairs_get_nil`, `pairs_get_cons
+[pairs_get (PCons k' v t) k]`), each realised by the same-named axiom-free Rocq + Lean lemma of
+the certified recursive definition. They are the CERTIFIED-DEFINITIONAL family of
+`bin/check-assumed-facts.py` (matched byte for byte); the proof-axiom ledger stays 3.
+
+**Operations.**
+
+| Python | lowering |
+|---|---|
+| `d.get(k)` / nested `.get` | `match .. with Some v -> v \| None -> HNone end` (a non-dict receiver: the law-free `hval_get_other r k`) |
+| `d[k]`, nested `r[k]` | the read; the absent / non-dict arm is the law-free deterministic `hval_get_other r k` — under a KeyError claim the key's PRESENCE is asserted (`[@expl:PyCSL-R4 KeyError ...]` for a nested read) |
+| `v is None`, `v == None` | `match v with HNone -> true \| _ -> false end` |
+| `v == w`, `v == <bool / float literal>`, `v == <int>` | `hval_eq v w` (numeric tower: `True == 1`, `1 == 1.0`; `None != 0`; `(1,) != [1]`; dict equality order-independent) |
+| `if v` / `not v` / `v or {}` | `hval_truthy` (all 9 tags) / the per-tag select |
+| `isinstance(v, C)` | a tag `match`: every builtin class decides on the positive tags (`isinstance(True, int)` true); `HInt` (erased) answers opaque |
+| region guarded by `isinstance(x, str)` | every read of `x` is `(hstr_of x)` (narrowing substituted: then-branch, `and` right operand, IfExp body, the rest after `if not isinstance(x, str): <exit>`) |
+| `len(v)` | `hval_len v` (`HStr` `String.length`, `HTuple`/`HArr` list length, `HMap` entry count, other: law-free `hval_len_other`) |
+| `tuple(v)` | `hval_tuple v` (dict ⟶ its keys in insertion order; other: law-free `hval_tuple_other`) |
+| `for x in v` | snapshot with HOISTED length `let (_hv, _hn) = (let _hv = v in (_hv, <len>)) in while !i < _hn ... variant { _hn - !i }`; `HTuple`/`HArr` elements, `HMap` keys (`hpairs_keys`), other: law-free `hval_iter_*_other` |
+| `-> Tuple[..PyVal..]` | return type `hval`; the returned tuple literal is its `HTuple` |
+| `-> Dict[str, PyVal]` | return type `map string (option hval)` of wrapped values |
+| `v: PyVal` parameter | `(v: hval)` |
+
+The wrong-tag arms (`hval_opaque_str`, `hval_opaque_int`, `hval_len_other`, `hval_tuple_other`,
+`hval_iter_*_other`, `hval_in_other`, `hval_get_other`) are law-free `val function`s: never a concrete junk value.
+Their sites are TypeError sites, refused statically under a TypeError claim (static semantics
+App. R4, `PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM`); TypeError is not a VC class. Witnesses
+`9820`-`9860` (annotations §7.600).

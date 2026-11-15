@@ -492,6 +492,13 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
                     if _ma_b in _ma_builtin:
                         _ma_types[_ma_n] = _ma_b
         _ma_ret = str(f.get("return_annotation") or "").split("[")[0].strip().lower()
+        # (run #7, u45) ROUTE #606 -- a PyVal value may hold a float, which the dict value
+        # model types the Why3 real (`HFloat`; `hval_eq` / `hreal_eq` reflexive): every
+        # comparison in a function holding a PyVal value relies on FLOAT-FINITE too
+        # (conservatively: any annotation / symbol type naming `PyVal`).
+        _ma_pv = any("PyVal" in str(_ma_t)
+                     for _ma_src in (f.get("symbol_table") or {}, f.get("param_annotations") or {})
+                     for _ma_t in _ma_src.values()) or "PyVal" in str(f.get("return_annotation") or "")
         _ma_stack: List[Any] = [f.get("body", []), f.get("contracts", {})]
         while _ma_stack:
             _ma_node = _ma_stack.pop()
@@ -550,6 +557,9 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
                 _ma_float_uses.append("%s: %s on %s" % (
                     f["name"], _ma_what,
                     ", ".join(sorted(set(_ma_fseen))) or "a float literal"))
+            elif _ma_pv and (_ma_call or _ma_op in _ma_cmp):
+                _ma_float_uses.append("%s: %s in a function holding a PyVal value (a PyVal "
+                                      "float is a Why3 real, route #606)" % (f["name"], _ma_what))
             if _ma_seen and isinstance(_ma_op, str):
                 _ma_exact_uses.append("%s: %s on %s" % (f["name"], _ma_what, _ma_vals))
     # ROUTE #256 — FIELD-DISJOINT. The model gives every mutable field (a list/dict/set or a
@@ -7925,6 +7935,844 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _ct430 = {str(_f.get("name", "")): _f for _f in (_ir342.get("functions") or [])
                   if isinstance(_f, dict)}
         _sl430 = source_code.splitlines()
+        # dict-value-model-r4 (impl F6 (iii), user decision log 848 (e)): THE WRONG-TAG ARMS
+        # OF A PyVal VALUE ARE TypeError SITES, registered with this pass. A value read off a
+        # `PyVal` container (`Dict[str, PyVal]` / `List[PyVal]` / a bare `PyVal` binding, a
+        # `.get` / subscript / `or`-default of one, a local or loop target bound from one)
+        # is the certified tagged `hval`; `len(v)`, `tuple(v)` / `sorted(v)` / `list(v)` /
+        # `sep.join(v)`, iteration, arithmetic / ordering / unary operators and method calls
+        # on it raise TypeError in CPython on a wrong tag, where the model continues with
+        # the law-free wrong-tag value (`hval_len_other`, `hval_iter_*_other`,
+        # `hval_opaque_str` / `hval_opaque_int`, `hval_tuple_other`). TypeError is not a VC
+        # class (`KNOWN_EXCEPTIONS`), so -- exactly as §7.131's underivable hash -- such a
+        # site is REFUSED in a non-trusted function claiming TypeError
+        # (`PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM`), AMBIENT otherwise, and the function is
+        # recorded for route #430's callee summary. A site whose operand is a NAME narrowed
+        # by a dominating `isinstance(x, C)` (an `if` / `and` / IfExp guard, or a preceding
+        # `if not isinstance(x, C): <exit>`) is derived, not counted.
+        for _f4t, _ec4t in _fn346:
+            _ct4t: Set[str] = set()   # PyVal CONTAINERS (Dict[.., PyVal] / List[PyVal] ...)
+            _vl4t: Set[str] = set()   # PyVal VALUES (bare `PyVal` names, bound reads)
+            for _n4t in _ast341.walk(_f4t):
+                _an4t = (_n4t.annotation if isinstance(_n4t, (_ast341.AnnAssign, _ast341.arg))
+                         else None)
+                if _an4t is None:
+                    continue
+                _au4t = _ast341.unparse(_an4t)
+                if "PyVal" not in _au4t:
+                    continue
+                _nm4t = (_n4t.arg if isinstance(_n4t, _ast341.arg) else
+                         _n4t.target.id if isinstance(_n4t.target, _ast341.Name) else None)
+                if _nm4t is None:
+                    continue
+                if _au4t.strip() in ("PyVal", "Optional[PyVal]"):
+                    _vl4t.add(_nm4t)
+                else:
+                    _ct4t.add(_nm4t)
+            if not (_ct4t or _vl4t):
+                continue
+
+            # (lambdas, not nested defs: the mirror-coverage ratchet counts def names)
+            _isval4t = lambda _e4t: (
+                (_e4t.id in _vl4t) if isinstance(_e4t, _ast341.Name)
+                else ((isinstance(_e4t.value, _ast341.Name) and _e4t.value.id in _ct4t)
+                      or _isval4t(_e4t.value)) if isinstance(_e4t, _ast341.Subscript)
+                else ((isinstance(_e4t.func.value, _ast341.Name) and _e4t.func.value.id in _ct4t)
+                      or _isval4t(_e4t.func.value)) if (isinstance(_e4t, _ast341.Call)
+                                                        and isinstance(_e4t.func, _ast341.Attribute)
+                                                        and _e4t.func.attr == "get")
+                else _isval4t(_e4t.values[0]) if (isinstance(_e4t, _ast341.BoolOp) and _e4t.values)
+                else False)
+            _ch4t = True
+            while _ch4t:
+                _ch4t = False
+                for _n4t in _ast341.walk(_f4t):
+                    _tg4t, _vv4t = None, None
+                    if (isinstance(_n4t, _ast341.Assign) and len(_n4t.targets) == 1
+                            and isinstance(_n4t.targets[0], _ast341.Name)):
+                        _tg4t, _vv4t = _n4t.targets[0].id, _n4t.value
+                    elif (isinstance(_n4t, (_ast341.For, _ast341.comprehension))
+                          and isinstance(_n4t.target, _ast341.Name)):
+                        _tg4t, _vv4t = _n4t.target.id, _n4t.iter
+                    if (_tg4t and _tg4t not in _vl4t and _tg4t not in _ct4t
+                            and _vv4t is not None and _isval4t(_vv4t)):
+                        _vl4t.add(_tg4t)
+                        _ch4t = True
+            _par4t: Dict[int, Any] = {}
+            for _n4t in _ast341.walk(_f4t):
+                for _c4t in _ast341.iter_child_nodes(_n4t):
+                    _par4t[id(_c4t)] = _n4t
+
+            # `_t4t` (true if _pos4t, false otherwise) implies isinstance(_x4t, C)
+            _isin4t = lambda _t4t, _x4t, _pos4t: (
+                (isinstance(_t4t, _ast341.UnaryOp) and isinstance(_t4t.op, _ast341.Not)
+                 and _isin4t(_t4t.operand, _x4t, True)) if not _pos4t
+                else (isinstance(_t4t, _ast341.Call) and isinstance(_t4t.func, _ast341.Name)
+                      and _t4t.func.id == "isinstance" and len(_t4t.args) == 2
+                      and isinstance(_t4t.args[0], _ast341.Name) and _t4t.args[0].id == _x4t)
+                or (isinstance(_t4t, _ast341.BoolOp) and isinstance(_t4t.op, _ast341.And)
+                    and any(_isin4t(_y4t, _x4t, True) for _y4t in _t4t.values)))
+            _exits4t = lambda _b4t: bool(_b4t) and isinstance(_b4t[-1], (
+                _ast341.Return, _ast341.Raise, _ast341.Continue, _ast341.Break))
+            # walk up the parents of a NAME use: a dominating isinstance guard narrows it
+            _up4t = lambda _x4t, _c4t, _a4t: (
+                False if (_a4t is None or _a4t is _f4t)
+                else True if (
+                    (isinstance(_a4t, (_ast341.If, _ast341.While))
+                     and ((_c4t in _a4t.body and _isin4t(_a4t.test, _x4t, True))
+                          or (_c4t in _a4t.orelse and _isin4t(_a4t.test, _x4t, False))))
+                    or (isinstance(_a4t, _ast341.IfExp)
+                        and ((_c4t is _a4t.body and _isin4t(_a4t.test, _x4t, True))
+                             or (_c4t is _a4t.orelse and _isin4t(_a4t.test, _x4t, False))))
+                    or (isinstance(_a4t, _ast341.BoolOp) and isinstance(_a4t.op, _ast341.And)
+                        and _c4t in _a4t.values
+                        and any(_isin4t(_y4t, _x4t, True)
+                                for _y4t in _a4t.values[:_a4t.values.index(_c4t)]))
+                    or any(isinstance(getattr(_a4t, _fl4t, None), list)
+                           and _c4t in getattr(_a4t, _fl4t)
+                           and any(isinstance(_pv4t, _ast341.If) and not _pv4t.orelse
+                                   and _exits4t(_pv4t.body) and _isin4t(_pv4t.test, _x4t, False)
+                                   for _pv4t in getattr(_a4t, _fl4t)[
+                                       :getattr(_a4t, _fl4t).index(_c4t)])
+                           for _fl4t in ("body", "orelse", "finalbody")))
+                else _up4t(_x4t, _a4t, _par4t.get(id(_a4t))))
+            _narrowed4t = lambda _u4t: (isinstance(_u4t, _ast341.Name)
+                                        and _up4t(_u4t.id, _u4t, _par4t.get(id(_u4t))))
+            _site4t = None
+            for _n4t in _ast341.walk(_f4t):
+                _ops4t: List[Any] = []
+                if isinstance(_n4t, _ast341.Call):
+                    if (isinstance(_n4t.func, _ast341.Name) and _n4t.args and _n4t.func.id in (
+                            "len", "tuple", "sorted", "list", "set", "frozenset", "sum",
+                            "min", "max", "iter", "reversed", "enumerate", "zip", "dict")):
+                        _ops4t = [_n4t.args[0]]
+                    elif (isinstance(_n4t.func, _ast341.Attribute) and _n4t.func.attr == "join"
+                          and _n4t.args):
+                        _ops4t = [_n4t.args[0]]
+                    if (isinstance(_n4t.func, _ast341.Attribute)
+                            and _n4t.func.attr not in ("get", "items", "keys", "values", "copy")):
+                        _ops4t.append(_n4t.func.value)
+                elif isinstance(_n4t, _ast341.BinOp):
+                    _ops4t = [_n4t.left, _n4t.right]
+                elif isinstance(_n4t, _ast341.UnaryOp) and not isinstance(_n4t.op, _ast341.Not):
+                    _ops4t = [_n4t.operand]
+                elif isinstance(_n4t, _ast341.Compare):
+                    _cp4t = [_n4t.left] + list(_n4t.comparators)
+                    for _i4t, _o4t in enumerate(_n4t.ops):
+                        if isinstance(_o4t, (_ast341.Lt, _ast341.LtE, _ast341.Gt, _ast341.GtE)):
+                            _ops4t += [_cp4t[_i4t], _cp4t[_i4t + 1]]
+                        elif isinstance(_o4t, (_ast341.In, _ast341.NotIn)):
+                            _ops4t.append(_cp4t[_i4t + 1])
+                elif isinstance(_n4t, (_ast341.For, _ast341.comprehension)):
+                    _ops4t = [_n4t.iter]
+                elif isinstance(_n4t, _ast341.AugAssign):
+                    _ops4t = [_n4t.target, _n4t.value]
+                for _u4t in _ops4t:
+                    if _isval4t(_u4t) and not _narrowed4t(_u4t):
+                        _site4t = (_n4t, _u4t)
+                        break
+                if _site4t is not None:
+                    break
+            if _site4t is None:
+                continue
+            _irn4t = ((_ec4t.lower() + "__" + _f4t.name) if _ec4t else _f4t.name)
+            _und430.add(_irn4t)
+            _ir4t = _ct430.get(_irn4t) or {}
+            _cc4t = _ir4t.get("contracts") or {}
+            _cl4t = bool(_cc4t.get("no_exception_all")) or bool(
+                set(_cc4t.get("no_exception") or [])
+                & {"TypeError", "Exception", "BaseException"})
+            _li4t = min([_d.lineno for _d in _f4t.decorator_list] + [_f4t.lineno]) - 2
+            while not _cl4t and 0 <= _li4t < len(_sl430) and (
+                    _sl430[_li4t].lstrip().startswith("#@")):
+                _lt4t = _sl430[_li4t].strip()
+                if _lt4t.startswith("#@ no_exception") and (
+                        "\\all" in _lt4t or "TypeError" in _lt4t
+                        or "Exception" in _lt4t.replace("no_exception", "")):
+                    _cl4t = True
+                _li4t -= 1
+            if _cl4t and not (_ir4t.get("trusted") or _ir4t.get("abstract")):
+                raise _PyCSLSemErr341(
+                    f"'{_f4t.name}' line {getattr(_site4t[0], 'lineno', 0)}: "
+                    f"`{_ast341.unparse(_site4t[1])}` is a PyVal value (read off a "
+                    f"`Dict[str, PyVal]` / `PyVal` binding) used by "
+                    f"`{_ast341.unparse(_site4t[0])}`, which raises TypeError in CPython "
+                    f"when the value has the wrong type (a `len` / iteration / `tuple` / "
+                    f"`join` / arithmetic / ordering / method of a value that may be None, "
+                    f"an int, a str, a list, a dict ...), while this function claims "
+                    f"`#@ no_exception` covering TypeError and the model continues with "
+                    f"an uninterpreted wrong-tag value (dict-value-model-r4: TypeError is "
+                    f"not a VC class). Narrow it first (`if isinstance(x, str): ...`, or "
+                    f"`if not isinstance(x, list): return ...`), or drop the claim.",
+                    stage="ir-semantic", code="PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM")
+        # (run #7, u45) ROUTES #603 / #604 / #605 / #606 / #607 (red team rt59: the dict value
+        # model r4's PyVal values; 33 confirmed false proofs in 5 families). FRONT-END
+        # refusals, judged per non-`\trusted` function from the SOURCE, so Module 6's
+        # lowerings stay byte-identical (the mirror's emission must not move; `_run_pipeline`'s
+        # twin is `\trusted`). PyVal VALUES / CONTAINERS are derived exactly as the wrong-tag
+        # pass above (an annotation naming `PyVal`; a `.get` / subscript / `or`-default / loop
+        # target of one); in addition `tuple(V)` / `list(V)` / `sorted(V)` of a PyVal value is
+        # a PyVal SEQUENCE, and a STRING-LOWERED value is `<PyVal> or "<str>"` (Module 6 types
+        # it `string`: `HStr s -> s | _ -> hval_opaque_str v`), an index read `v[K]` / `seq[K]`
+        # of a PyVal value / sequence (`hval_nth_str`, a `string`), a name bound to one (a
+        # loop target is NOT: route #296 iterates the real elements), or a call of a same-file function RETURNING one under a non-PyVal
+        # return annotation (a LAUNDERING function; greatest set, by fixpoint).
+        #  #603 (R1): a TYPE TEST of a string-lowered value -- `isinstance(x, C)` / `type(x)` /
+        #    `str(x)` / `repr(x)` / `format(x)` / an f-string field `{x}` / `x.__class__` -- is
+        #    decided by the `string` type (`isinstance(x, str)` lowered to `1 = 1`, `f"{x}"`
+        #    to `x`), while CPython's x is the PyVal itself (5, [1], {..}) when truthy: REFUSED
+        #    in every function. In a function claiming no_exception over TypeError a
+        #    string-lowered value may only be compared (`==` / `!=`) with a literal, bound to a
+        #    plain name, returned, or tested for truthiness; any other use (a call argument,
+        #    `y: str = x`, `names.append(..)`, ...) LAUNDERS the PyVal past the claim gates
+        #    (`len`, `+`, `join`, a hash) and is REFUSED, and so is a call of a laundering
+        #    function (rt59 c21 `len(name(d))`).
+        #  #604 (R2): under a TypeError claim a subscript of a PyVal VALUE is a TypeError site
+        #    unless its receiver is a name narrowed by a dominating `isinstance(x, dict)` (a str
+        #    key) / `isinstance(x, list | tuple | str)` (an index): the model's KeyError check
+        #    has a `| _ -> true` arm for a non-map receiver. REFUSED.
+        #  #605 (R3): an index read of a PyVal value / sequence lowers to `hval_nth_str` with NO
+        #    bounds VC: REFUSED under a claim covering IndexError. In EVERY function an index
+        #    that may be negative is REFUSED (`hval_list_nth` maps i <= 0 to the FIRST element):
+        #    the index must be a non-negative literal, `len(..)`, a sum / product of such, or a
+        #    name every binding of which is one (or a `range(..)` / `enumerate(..)` counter), or
+        #    a name guarded by a dominating `if x >= 0` / an exiting `if .. x < 0`.
+        #  #606 (R4): `hval_eq` / `hreal_eq` are reflexive on a PyVal float: the declared
+        #    FLOAT-FINITE assumption (now reported by --soundness-report for a comparison in a
+        #    function holding a PyVal value). Under `--strict-float-finite` a comparison of a
+        #    PyVal / string-lowered value with a non-literal operand is REFUSED: the NaN
+        #    sentinel of the plain-float model has no PyVal twin.
+        #  #607 (R5): a bytes value (a bytes literal, a `bytes` / `bytearray` name or call,
+        #    `.encode()`) in a statement that binds or reads a PyVal value / container is
+        #    tagged `HArr` of ints by the value model (HBytes is not in the frozen tag set):
+        #    REFUSED.
+        _lau603: Set[str] = set()
+        _fin603 = False
+        _top603: Set[str] = {_d.name for _d in _t341.body
+                             if isinstance(_d, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))}
+        _sff603 = bool(getattr(args, "strict_float_finite", False))
+        # PyVal-annotated FIELDS (`self.f: Dict[str, PyVal] = ..`, a class-body `f: PyVal`):
+        # an attribute of that name is a PyVal container / value (by name, fail-closed)
+        _fac603: Set[str] = set()
+        _fav603: Set[str] = set()
+        for _n in _ast341.walk(_t341):
+            _nm = None
+            if isinstance(_n, _ast341.AnnAssign) and isinstance(_n.target, _ast341.Attribute):
+                _nm = _n.target.attr
+            elif isinstance(_n, _ast341.ClassDef):
+                for _x in _n.body:
+                    if (isinstance(_x, _ast341.AnnAssign) and isinstance(_x.target, _ast341.Name)
+                            and "PyVal" in _ast341.unparse(_x.annotation)):
+                        (_fav603 if _ast341.unparse(_x.annotation).strip() in (
+                            "PyVal", "Optional[PyVal]") else _fac603).add(_x.target.id)
+                continue
+            if _nm is not None and "PyVal" in _ast341.unparse(_n.annotation):
+                (_fav603 if _ast341.unparse(_n.annotation).strip() in (
+                    "PyVal", "Optional[PyVal]") else _fac603).add(_nm)
+        # each same-file function's parameter annotations (Module 5's name; `self` / `cls`
+        # dropped for a method): (positional list, by-name map, the `*args` / `**kw` one)
+        _pa603: Dict[str, Any] = {}
+        for _d in _t341.body:
+            for _q, _m in ([(_d.name, _d)] if isinstance(_d, (_ast341.FunctionDef,
+                                                             _ast341.AsyncFunctionDef))
+                           else [(_d.name.lower() + "__" + _x.name, _x) for _x in _d.body
+                                 if isinstance(_x, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))]
+                           if isinstance(_d, _ast341.ClassDef) else []):
+                _ps = list(_m.args.posonlyargs) + list(_m.args.args)
+                if isinstance(_d, _ast341.ClassDef) and _ps and not any(
+                        isinstance(_z, _ast341.Name) and _z.id == "staticmethod"
+                        for _z in _m.decorator_list):
+                    _ps = _ps[1:]
+                _an = lambda _p: (_ast341.unparse(_p.annotation) if _p.annotation is not None
+                                  else None)
+                _pa603[_q] = ([_an(_p) for _p in _ps],
+                              {_p.arg: _an(_p) for _p in _ps + list(_m.args.kwonlyargs)},
+                              _an(_m.args.vararg) if _m.args.vararg is not None else None)
+        # the top-level functions of this file returning bytes (a bytes VALUE at a call)
+        _bret603: Set[str] = {_d.name for _d in _t341.body
+                              if isinstance(_d, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                              and _d.returns is not None
+                              and _ast341.unparse(_d.returns).strip().strip("'\"") in (
+                                  "bytes", "bytearray", "Optional[bytes]", "Optional[bytearray]")}
+        while True:
+            _new603: Set[str] = set()
+            for _f603, _ec603 in _fn346:
+                _irn603 = ((_ec603.lower() + "__" + _f603.name) if _ec603 else _f603.name)
+                _ir603 = _ct430.get(_irn603) or {}
+                _tr603 = bool(_ir603.get("trusted") or _ir603.get("abstract"))
+                _ct603: Set[str] = set()
+                _vl603: Set[str] = set()
+                _by603: Set[str] = set()
+                _sk603: Set[str] = set()
+                for _n in _ast341.walk(_f603):
+                    _an = (_n.annotation if isinstance(_n, (_ast341.AnnAssign, _ast341.arg))
+                           else None)
+                    if _an is None:
+                        continue
+                    _nm = (_n.arg if isinstance(_n, _ast341.arg) else
+                           _n.target.id if isinstance(_n.target, _ast341.Name) else None)
+                    if _nm is None:
+                        continue
+                    _au = _ast341.unparse(_an).strip().strip("'\"")
+                    if _au in ("bytes", "bytearray", "Optional[bytes]", "Optional[bytearray]"):
+                        _by603.add(_nm)
+                    if _au == "str":
+                        _sk603.add(_nm)
+                    if "PyVal" not in _au:
+                        continue
+                    if _au in ("PyVal", "Optional[PyVal]"):
+                        _vl603.add(_nm)
+                    else:
+                        _ct603.add(_nm)
+                if not (_ct603 or _vl603 or _lau603 or _fac603 or _fav603):
+                    continue
+                _isc603 = lambda _e: (
+                    (isinstance(_e, _ast341.Name) and _e.id in _ct603)
+                    or (isinstance(_e, _ast341.Attribute) and _e.attr in _fac603))
+                _isv603 = lambda _e: (
+                    (_e.id in _vl603) if isinstance(_e, _ast341.Name)
+                    else (_e.attr in _fav603) if isinstance(_e, _ast341.Attribute)
+                    else (_isc603(_e.value) or _isv603(_e.value)) if isinstance(_e, _ast341.Subscript)
+                    else (_isc603(_e.func.value) or _isv603(_e.func.value)) if (
+                        isinstance(_e, _ast341.Call) and isinstance(_e.func, _ast341.Attribute)
+                        and _e.func.attr == "get")
+                    else _isv603(_e.values[0]) if (isinstance(_e, _ast341.BoolOp) and _e.values)
+                    else False)
+                _sq603: Set[str] = set()
+                _isq603 = lambda _e: (
+                    (isinstance(_e, _ast341.Name) and _e.id in _sq603)
+                    or (isinstance(_e, _ast341.Call) and isinstance(_e.func, _ast341.Name)
+                        and _e.func.id in ("tuple", "list", "sorted") and len(_e.args) == 1
+                        and (_isv603(_e.args[0]) or _isq603(_e.args[0]))))
+                _strk603 = lambda _s: (
+                    (isinstance(_s, _ast341.Constant) and isinstance(_s.value, str))
+                    or isinstance(_s, _ast341.JoinedStr)
+                    or (isinstance(_s, _ast341.Name) and _s.id in _sk603))
+                _idx603 = lambda _e: (
+                    isinstance(_e, _ast341.Subscript) and not isinstance(_e.slice, _ast341.Slice)
+                    and (_isv603(_e.value) or _isq603(_e.value)) and not _strk603(_e.slice))
+                _ors603 = lambda _e: (
+                    isinstance(_e, _ast341.BoolOp) and isinstance(_e.op, _ast341.Or)
+                    and len(_e.values) >= 2 and _isv603(_e.values[0])
+                    and isinstance(_e.values[-1], _ast341.Constant)
+                    and isinstance(_e.values[-1].value, str))
+                _lcl603 = lambda _e: (
+                    isinstance(_e, _ast341.Call)
+                    and ((isinstance(_e.func, _ast341.Name) and _e.func.id in _top603
+                          and _e.func.id in _lau603)
+                         or (_ec603 is not None and isinstance(_e.func, _ast341.Attribute)
+                             and isinstance(_e.func.value, _ast341.Name)
+                             and _e.func.value.id == "self"
+                             and (_ec603.lower() + "__" + _e.func.attr) in _lau603)))
+                _os603: Set[str] = set()
+                _sx603 = lambda _e: (_ors603(_e) or _idx603(_e) or _lcl603(_e)
+                                     or (isinstance(_e, _ast341.Name) and _e.id in _os603))
+                _ch603 = True
+                while _ch603:
+                    _ch603 = False
+                    for _n in _ast341.walk(_f603):
+                        _tg, _vv, _lp = None, None, False
+                        if (isinstance(_n, _ast341.Assign) and len(_n.targets) == 1
+                                and isinstance(_n.targets[0], _ast341.Name)):
+                            _tg, _vv = _n.targets[0].id, _n.value
+                        elif (isinstance(_n, (_ast341.AnnAssign, _ast341.NamedExpr))
+                              and isinstance(_n.target, _ast341.Name) and _n.value is not None):
+                            _tg, _vv = _n.target.id, _n.value
+                        elif (isinstance(_n, (_ast341.For, _ast341.comprehension))
+                              and isinstance(_n.target, _ast341.Name)):
+                            _tg, _vv, _lp = _n.target.id, _n.iter, True
+                        if (_tg is None and isinstance(_n, _ast341.Assign) and len(_n.targets) == 1
+                                and isinstance(_n.targets[0], (_ast341.Tuple, _ast341.List))):
+                            # `a, b = <laundering call>` / `a, b = x, 1`: every target that may
+                            # receive a string-lowered value is one (conservative)
+                            _el = _n.targets[0].elts
+                            _vs = (_n.value.elts if isinstance(_n.value, (_ast341.Tuple, _ast341.List))
+                                   and len(_n.value.elts) == len(_el) else None)
+                            for _i, _w in enumerate(_el):
+                                if (isinstance(_w, _ast341.Name) and _w.id not in _os603
+                                        and ((_vs is not None and _sx603(_vs[_i]))
+                                             or (_vs is None and (_lcl603(_n.value)
+                                                                  or _sx603(_n.value))))):
+                                    _os603.add(_w.id)
+                                    _ch603 = True
+                        if _tg is None:
+                            continue
+                        if (_tg not in _vl603 and _tg not in _ct603 and _isv603(_vv)):
+                            _vl603.add(_tg)
+                            _ch603 = True
+                        if not _lp and _tg not in _sq603 and _isq603(_vv):
+                            _sq603.add(_tg)
+                            _ch603 = True
+                        if _tg not in _os603 and not _lp and _sx603(_vv):
+                            _os603.add(_tg)
+                            _ch603 = True
+                if not _fin603:
+                    # LAUNDERING: a returned string-lowered value under a non-PyVal annotation
+                    _ra603 = (_ast341.unparse(_f603.returns) if _f603.returns is not None else "")
+                    if not _tr603 and "PyVal" not in _ra603:
+                        for _n in _ast341.walk(_f603):
+                            if not (isinstance(_n, _ast341.Return) and _n.value is not None):
+                                continue
+                            _rs603: List[Any] = [_n.value]
+                            while _rs603:
+                                _e = _rs603.pop()
+                                if _sx603(_e):
+                                    _new603.add(_irn603)
+                                    break
+                                if isinstance(_e, (_ast341.Tuple, _ast341.List)):
+                                    _rs603.extend(_e.elts)
+                                elif isinstance(_e, _ast341.IfExp):
+                                    _rs603.extend([_e.body, _e.orelse])
+                                elif isinstance(_e, _ast341.BoolOp):
+                                    _rs603.extend(_e.values)
+                    continue
+                if _tr603:
+                    continue
+                # the claim (IR record, then the `#@` lines above the def)
+                _cc603 = _ir603.get("contracts") or {}
+                _ne603: Set[str] = set(_cc603.get("no_exception") or [])
+                _al603 = bool(_cc603.get("no_exception_all"))
+                _li603 = min([_d.lineno for _d in _f603.decorator_list] + [_f603.lineno]) - 2
+                while 0 <= _li603 < len(_sl430) and _sl430[_li603].lstrip().startswith("#@"):
+                    _lt603 = _sl430[_li603].strip()
+                    if _lt603.startswith("#@ no_exception"):
+                        _al603 = _al603 or "\\all" in _lt603
+                        _ne603 |= set(_lt603[len("#@ no_exception"):].replace(",", " ").split())
+                    _li603 -= 1
+                _cT603 = _al603 or bool(_ne603 & {"TypeError", "Exception", "BaseException"})
+                _cI603 = _al603 or bool(_ne603 & {"IndexError", "LookupError", "Exception",
+                                                  "BaseException"})
+                _par603: Dict[int, Any] = {}
+                for _n in _ast341.walk(_f603):
+                    for _c in _ast341.iter_child_nodes(_n):
+                        _par603[id(_c)] = _n
+                _ln603 = lambda _z: getattr(_z, "lineno", 0)
+                # `_t` (true if _pos, false otherwise) implies isinstance(_x, C), C in _cs
+                _isin603 = lambda _t, _x, _pos, _cs: (
+                    (isinstance(_t, _ast341.UnaryOp) and isinstance(_t.op, _ast341.Not)
+                     and _isin603(_t.operand, _x, True, _cs)) if not _pos
+                    else (isinstance(_t, _ast341.Call) and isinstance(_t.func, _ast341.Name)
+                          and _t.func.id == "isinstance" and len(_t.args) == 2
+                          and isinstance(_t.args[0], _ast341.Name) and _t.args[0].id == _x
+                          and all(isinstance(_k, _ast341.Name) and _k.id in _cs
+                                  for _k in (_t.args[1].elts if isinstance(_t.args[1], _ast341.Tuple)
+                                             else [_t.args[1]])))
+                    or (isinstance(_t, _ast341.BoolOp) and isinstance(_t.op, _ast341.And)
+                        and any(_isin603(_y, _x, True, _cs) for _y in _t.values)))
+                # `_t` (true if _pos, false otherwise) implies _x >= 0
+                _gez603 = lambda _t, _x, _pos: (
+                    ((isinstance(_t, _ast341.Compare) and len(_t.ops) == 1
+                      and isinstance(_t.left, _ast341.Name) and _t.left.id == _x
+                      and isinstance(_t.ops[0], _ast341.Lt)
+                      and isinstance(_t.comparators[0], _ast341.Constant)
+                      and _t.comparators[0].value == 0)
+                     or (isinstance(_t, _ast341.BoolOp) and isinstance(_t.op, _ast341.Or)
+                         and any(_gez603(_y, _x, False) for _y in _t.values))
+                     or (isinstance(_t, _ast341.UnaryOp) and isinstance(_t.op, _ast341.Not)
+                         and _gez603(_t.operand, _x, True))) if not _pos
+                    else ((isinstance(_t, _ast341.Compare) and isinstance(_t.left, _ast341.Name)
+                           and _t.left.id == _x and isinstance(_t.ops[0], _ast341.GtE)
+                           and isinstance(_t.comparators[0], _ast341.Constant)
+                           and type(_t.comparators[0].value) is int
+                           and _t.comparators[0].value >= 0)
+                          or (isinstance(_t, _ast341.Compare) and isinstance(_t.left, _ast341.Constant)
+                              and type(_t.left.value) is int and _t.left.value >= 0
+                              and isinstance(_t.ops[0], _ast341.LtE)
+                              and isinstance(_t.comparators[0], _ast341.Name)
+                              and _t.comparators[0].id == _x)
+                          or (isinstance(_t, _ast341.BoolOp) and isinstance(_t.op, _ast341.And)
+                              and any(_gez603(_y, _x, True) for _y in _t.values))
+                          or (isinstance(_t, _ast341.UnaryOp) and isinstance(_t.op, _ast341.Not)
+                              and _gez603(_t.operand, _x, False))))
+                _exits603 = lambda _b: bool(_b) and isinstance(_b[-1], (
+                    _ast341.Return, _ast341.Raise, _ast341.Continue, _ast341.Break))
+                # walk up the parents of a use: a dominating guard `_g(test, pos)` holds
+                # (the function's own body is searched for a preceding exiting guard too)
+                _up603 = lambda _g, _c, _a: (
+                    False if _a is None
+                    else True if (
+                        (isinstance(_a, (_ast341.If, _ast341.While))
+                         and ((_c in _a.body and _g(_a.test, True))
+                              or (_c in _a.orelse and _g(_a.test, False))))
+                        or (isinstance(_a, _ast341.IfExp)
+                            and ((_c is _a.body and _g(_a.test, True))
+                                 or (_c is _a.orelse and _g(_a.test, False))))
+                        or (isinstance(_a, _ast341.BoolOp) and isinstance(_a.op, _ast341.And)
+                            and _c in _a.values
+                            and any(_g(_y, True) for _y in _a.values[:_a.values.index(_c)]))
+                        or any(isinstance(getattr(_a, _fl, None), list)
+                               and _c in getattr(_a, _fl)
+                               and any(isinstance(_pv, _ast341.If) and not _pv.orelse
+                                       and _exits603(_pv.body) and _g(_pv.test, False)
+                                       for _pv in getattr(_a, _fl)[:getattr(_a, _fl).index(_c)])
+                               for _fl in ("body", "orelse", "finalbody")))
+                    else False if _a is _f603
+                    else _up603(_g, _a, _par603.get(id(_a))))
+                _nar603 = lambda _e, _cs: (
+                    isinstance(_e, _ast341.Name)
+                    and _up603(lambda _t, _p: _isin603(_t, _e.id, _p, _cs), _e,
+                               _par603.get(id(_e))))
+                # #603 A: a type test / str conversion of a string-lowered value (any claim)
+                for _n in _ast341.walk(_f603):
+                    _u = None
+                    if (isinstance(_n, _ast341.Call) and isinstance(_n.func, _ast341.Name)
+                            and _n.func.id in ("isinstance", "type", "str", "repr", "format",
+                                               "ascii", "issubclass")
+                            and _n.args and _sx603(_n.args[0])):
+                        _u = _n.args[0]
+                    elif isinstance(_n, _ast341.FormattedValue) and _sx603(_n.value):
+                        _u = _n.value
+                    elif (isinstance(_n, _ast341.Attribute) and _n.attr == "__class__"
+                          and _sx603(_n.value)):
+                        _u = _n.value
+                    if _u is not None:
+                        raise _PyCSLSemErr341(
+                            f"'{_f603.name}' line {_ln603(_n)}: " + (
+                            "`%s` is a PyVal-derived value (`<PyVal> or \"<str>\"`, an element "
+                            "of a PyVal list / tuple, or the result of a function returning "
+                            "one) that the model lowers as a `string`, so `%s` is decided by "
+                            "the str type, while in CPython the value is the PyVal itself (an "
+                            "int, a list, a dict ... when truthy) (route #603; measured: "
+                            "`x = d.get(\"a\") or \"z\"; isinstance(x, str)` PROVED true for "
+                            "d = {\"a\": 5}). Narrow the PyVal value itself instead, before any `or` "
+                            "default (`v = d.get(\"a\")`, then `isinstance(v, str)`)"
+                            % (_ast341.unparse(_u)[:60],
+                                                  _ast341.unparse(_n)[:60])) + ".",
+                            stage="ir-semantic", code="PYCSL-R603-PYVAL-STR-LOWERED-TYPE-TEST")
+                # #603 B' (every function): a string-lowered value passed on AS A STR -- a
+                # same-file callee's non-PyVal parameter (its verified contract assumes a real
+                # str), a non-PyVal annotated binding, a list / set / dict display, a tuple
+                # display other than a returned / unpacked one, or a container insertion
+                for _n in _ast341.walk(_f603):
+                    _fl603: List[Any] = []
+                    if isinstance(_n, _ast341.Call):
+                        _cd = None
+                        if isinstance(_n.func, _ast341.Name) and _n.func.id in _top603:
+                            _cd = _pa603.get(_n.func.id)
+                        elif (_ec603 is not None and isinstance(_n.func, _ast341.Attribute)
+                              and isinstance(_n.func.value, _ast341.Name)
+                              and _n.func.value.id == "self"):
+                            _cd = _pa603.get(_ec603.lower() + "__" + _n.func.attr)
+                        if _cd is not None:
+                            for _i, _a in enumerate(_n.args):
+                                _pt = _cd[0][_i] if _i < len(_cd[0]) else _cd[2]
+                                if "PyVal" not in (_pt or ""):
+                                    _fl603.append(_a)
+                            for _k in _n.keywords:
+                                _pt = _cd[1].get(_k.arg, _cd[2]) if _k.arg else _cd[2]
+                                if "PyVal" not in (_pt or ""):
+                                    _fl603.append(_k.value)
+                        if (isinstance(_n.func, _ast341.Attribute)
+                                and _n.func.attr in ("append", "extend", "insert", "add",
+                                                     "setdefault", "update", "appendleft")):
+                            _fl603.extend(_n.args)
+                    elif (isinstance(_n, _ast341.AnnAssign) and _n.value is not None
+                          and "PyVal" not in _ast341.unparse(_n.annotation)):
+                        _fl603.append(_n.value)
+                    elif isinstance(_n, (_ast341.List, _ast341.Set)):
+                        _fl603.extend(_n.elts)
+                    elif isinstance(_n, _ast341.Dict):
+                        _fl603.extend([_k for _k in _n.keys if _k is not None] + list(_n.values))
+                    elif isinstance(_n, _ast341.Tuple) and not (
+                            isinstance(_par603.get(id(_n)), _ast341.Return)
+                            or (isinstance(_par603.get(id(_n)), _ast341.Assign)
+                                and _par603.get(id(_n)).value is _n
+                                and isinstance(_par603.get(id(_n)).targets[0],
+                                               (_ast341.Tuple, _ast341.List)))):
+                        _fl603.extend(_n.elts)
+                    elif (isinstance(_n, _ast341.Assign) and len(_n.targets) == 1
+                          and isinstance(_n.targets[0], _ast341.Subscript)):
+                        _fl603.append(_n.value)
+                    for _a in _fl603:
+                        if _sx603(_a):
+                            raise _PyCSLSemErr341(
+                                f"'{_f603.name}' line {_ln603(_n)}: " + (
+                                "`%s` is passed on AS A STR by `%s`, but it is a PyVal-derived "
+                                "value the model lowers as a `string` (`<PyVal> or \"<str>\"`, "
+                                "an element of a PyVal sequence, a laundering call) (to a "
+                                "parameter of a function of this file whose verified contract "
+                                "assumes a real str, an annotated binding, a container): the "
+                                "callee's / reader's facts then hold of an int, a list ... in "
+                                "CPython (route #603; measured: a str parameter's "
+                                "`isinstance(s, str)` contract made `g(d.get(\"a\") or \"z\")` "
+                                "PROVE True for d = {\"a\": 5}). Narrow the PyVal value itself "
+                                "instead (`v = d.get(\"a\")`, then pass `v` under "
+                                "`isinstance(v, str)`)"
+                                % (_ast341.unparse(_a)[:60], _ast341.unparse(_n).split("\n")[0][:60])) + ".",
+                                stage="ir-semantic", code="PYCSL-R603-PYVAL-STR-PASSED-AS-STR")
+                # #603 C / B: laundering under a TypeError claim
+                if _cT603:
+                    for _n in _ast341.walk(_f603):
+                        if _lcl603(_n):
+                            raise _PyCSLSemErr341(
+                                f"'{_f603.name}' line {_ln603(_n)}: " + (
+                                "`%s` calls a function of this file that returns a PyVal-derived "
+                                "value (`<PyVal> or \"<str>\"`, an element of a PyVal sequence) "
+                                "under a non-PyVal return annotation: the model types the result "
+                                "a `string`, so the TypeError a str operation raises on the "
+                                "PyVal (an int, a list ...) is never a proof obligation, while "
+                                "this function claims `#@ no_exception` covering TypeError "
+                                "(route #603; measured: `len(name(d))` with `name` returning "
+                                "`d.get(\"name\") or \"anon\"` PROVED `no_exception \\all`; "
+                                "CPython TypeError for {\"name\": 5}). Narrow the PyVal value in the callee "
+                                "instead (`v = d.get(\"name\")`, then return `v` only under "
+                                "`isinstance(v, str)`), or drop the claim"
+                                % _ast341.unparse(_n)[:60]) + ".",
+                                stage="ir-semantic", code="PYCSL-R603-PYVAL-STR-LAUNDERED-UNDER-CLAIM")
+                    for _n in _ast341.walk(_f603):
+                        if not _sx603(_n) or (isinstance(_n, _ast341.Name)
+                                              and not isinstance(_n.ctx, _ast341.Load)):
+                            continue
+                        _p = _par603.get(id(_n))
+                        _pp = _par603.get(id(_p)) if _p is not None else None
+                        _ok = (
+                            (isinstance(_p, _ast341.Assign) and _p.value is _n
+                             and len(_p.targets) == 1 and isinstance(_p.targets[0], _ast341.Name))
+                            or (isinstance(_p, _ast341.Return) and _p.value is _n)
+                            or (isinstance(_p, _ast341.Compare)
+                                and all(isinstance(_o, (_ast341.Eq, _ast341.NotEq)) for _o in _p.ops)
+                                and all(isinstance(_o, _ast341.Constant)
+                                        for _o in [_p.left] + list(_p.comparators) if _o is not _n))
+                            or (isinstance(_p, (_ast341.If, _ast341.While, _ast341.IfExp))
+                                and _p.test is _n)
+                            or (isinstance(_p, _ast341.UnaryOp) and isinstance(_p.op, _ast341.Not))
+                            or (isinstance(_p, _ast341.BoolOp)
+                                and ((isinstance(_pp, (_ast341.If, _ast341.While, _ast341.IfExp))
+                                      and _pp.test is _p)
+                                     or (isinstance(_pp, _ast341.UnaryOp)
+                                         and isinstance(_pp.op, _ast341.Not)))))
+                        if not _ok:
+                            raise _PyCSLSemErr341(
+                                f"'{_f603.name}' line {_ln603(_n)}: " + (
+                                "`%s` is a PyVal-derived value the model lowers as a "
+                                "`string` (`<PyVal> or \"<str>\"`, an element of a PyVal "
+                                "sequence), and `%s` passes it on as a str (a call argument, "
+                                "an annotated binding, a container element, an operator "
+                                "...): the TypeError a str operation raises on the PyVal (an "
+                                "int, a list ...) is then never a proof obligation, while "
+                                "this function claims `#@ no_exception` covering TypeError "
+                                "(route #603; measured: `width(d.get(\"name\") or \"anon\")`, "
+                                "`y: str = x`, `names.append(..)` + `\",\".join(names)` PROVED "
+                                "`no_exception \\all`; CPython TypeError). Narrow the PyVal value itself "
+                                "instead (`v = d.get(\"name\")`, then use `v` under "
+                                "`isinstance(v, str)`), or drop the claim"
+                                % (_ast341.unparse(_n)[:60],
+                                   _ast341.unparse(_p)[:60] if _p is not None else "?")) + ".",
+                                stage="ir-semantic", code="PYCSL-R603-PYVAL-STR-LAUNDERED-UNDER-CLAIM")
+                # #604 / #605: subscripts of a PyVal value / sequence
+                # the non-negative names (every binding non-negative; greatest fixpoint)
+                _bv603: Dict[int, Any] = {}
+                for _n in _ast341.walk(_f603):
+                    if (isinstance(_n, _ast341.Assign) and len(_n.targets) == 1
+                            and isinstance(_n.targets[0], _ast341.Name)):
+                        _bv603[id(_n.targets[0])] = ("v", _n.value)
+                    elif (isinstance(_n, _ast341.AnnAssign) and isinstance(_n.target, _ast341.Name)
+                          and _n.value is not None):
+                        _bv603[id(_n.target)] = ("v", _n.value)
+                    elif (isinstance(_n, _ast341.AugAssign) and isinstance(_n.target, _ast341.Name)
+                          and isinstance(_n.op, (_ast341.Add, _ast341.Mult))):
+                        _bv603[id(_n.target)] = ("v", _n.value)
+                    elif (isinstance(_n, (_ast341.For, _ast341.comprehension))
+                          and isinstance(_n.iter, _ast341.Call)
+                          and isinstance(_n.iter.func, _ast341.Name)):
+                        _ia = _n.iter.args
+                        if (_n.iter.func.id == "range" and isinstance(_n.target, _ast341.Name)
+                                and 1 <= len(_ia) <= 3 and not _n.iter.keywords):
+                            if len(_ia) == 1:
+                                _bv603[id(_n.target)] = ("nn", None)
+                            elif (len(_ia) == 2 or (isinstance(_ia[2], _ast341.Constant)
+                                                    and type(_ia[2].value) is int
+                                                    and _ia[2].value > 0)):
+                                _bv603[id(_n.target)] = ("v", _ia[0])
+                        elif (_n.iter.func.id == "enumerate" and len(_ia) == 1
+                              and not _n.iter.keywords
+                              and isinstance(_n.target, _ast341.Tuple) and _n.target.elts
+                              and isinstance(_n.target.elts[0], _ast341.Name)):
+                            _bv603[id(_n.target.elts[0])] = ("nn", None)
+                _bd603: Dict[str, List[Any]] = {}
+                for _a in (list(_f603.args.posonlyargs) + list(_f603.args.args)
+                           + list(_f603.args.kwonlyargs)
+                           + [_x for _x in (_f603.args.vararg, _f603.args.kwarg) if _x]):
+                    _bd603.setdefault(_a.arg, []).append(None)
+                for _n in _ast341.walk(_f603):
+                    if isinstance(_n, _ast341.Name) and not isinstance(_n.ctx, _ast341.Load):
+                        _bd603.setdefault(_n.id, []).append(_bv603.get(id(_n)))
+                    elif isinstance(_n, (_ast341.Global, _ast341.Nonlocal)):
+                        for _gn in _n.names:
+                            _bd603.setdefault(_gn, []).append(None)
+                _nnn603: Set[str] = {_k for _k, _bs in _bd603.items()
+                                     if all(_b is not None for _b in _bs)}
+                _nn603 = lambda _e: (
+                    (isinstance(_e, _ast341.Constant) and type(_e.value) is int
+                     and _e.value >= 0)
+                    or (isinstance(_e, _ast341.Call) and isinstance(_e.func, _ast341.Name)
+                        and _e.func.id == "len")
+                    or (isinstance(_e, _ast341.BinOp)
+                        and isinstance(_e.op, (_ast341.Add, _ast341.Mult, _ast341.FloorDiv,
+                                               _ast341.Mod))
+                        and _nn603(_e.left) and _nn603(_e.right))
+                    or (isinstance(_e, _ast341.Name) and _e.id in _nnn603))
+                _ch603 = True
+                while _ch603:
+                    _ch603 = False
+                    for _k in sorted(_nnn603):
+                        if not all(_b[0] == "nn" or _nn603(_b[1]) for _b in _bd603[_k]):
+                            _nnn603.discard(_k)
+                            _ch603 = True
+                for _n in _ast341.walk(_f603):
+                    if not (isinstance(_n, _ast341.Subscript)
+                            and not isinstance(_n.slice, _ast341.Slice)):
+                        continue
+                    _vv = _n.value
+                    _pv = _isv603(_vv)
+                    _ps = _isq603(_vv)
+                    if not (_pv or _ps):
+                        continue
+                    _sk = _strk603(_n.slice)
+                    if _cT603 and ((_pv and _sk and not _nar603(_vv, {"dict", "Dict"}))
+                                   or (_pv and not _sk and not _nar603(
+                                       _vv, {"list", "tuple", "str", "List", "Tuple"}))
+                                   or (_ps and _sk)):
+                        raise _PyCSLSemErr341(
+                            f"'{_f603.name}' line {_ln603(_n)}: " + (
+                            "`%s` subscripts a PyVal value that is not narrowed to %s by a "
+                            "dominating `isinstance` (a str key needs a dict, an index a "
+                            "list / tuple / str): CPython raises TypeError on any other "
+                            "type, but the model's KeyError check has a `| _ -> true` arm "
+                            "for a non-dict, while this function claims `#@ no_exception` "
+                            "covering TypeError (route #604; measured: `d[\"a\"][\"k\"]` "
+                            "with d[\"a\"] a list PROVED `no_exception \\all`). Bind the value to a "
+                            "name and narrow it first (`v = d[\"a\"]`, then `v[\"k\"]` "
+                            "under `isinstance(v, dict) and \"k\" in v`), or drop the claim"
+                            % (_ast341.unparse(_n)[:60], "a dict" if _sk else "a sequence")) + ".",
+                            stage="ir-semantic", code="PYCSL-R604-PYVAL-SUBSCRIPT-TYPEERROR-UNDER-CLAIM")
+                    if _sk:
+                        continue
+                    if _cI603 and isinstance(_n.ctx, _ast341.Load):
+                        raise _PyCSLSemErr341(
+                            f"'{_f603.name}' line {_ln603(_n)}: " + (
+                            "`%s` reads an element of a PyVal list / tuple / str (or of "
+                            "`tuple(..)` / `list(..)` / `sorted(..)` of one), which the "
+                            "model lowers to `hval_nth_str` with NO bounds proof "
+                            "obligation, while this function claims `#@ no_exception` "
+                            "covering IndexError (route #605; measured: "
+                            "`args = cfg.get(\"args\"); if isinstance(args, list): return "
+                            "args[0]` PROVED `no_exception IndexError`; CPython IndexError "
+                            "for []). Iterate it (`for a in args:`) or drop the claim"
+                            % _ast341.unparse(_n)[:60]) + ".",
+                            stage="ir-semantic", code="PYCSL-R605-PYVAL-INDEX-NO-BOUNDS-VC")
+                    _ix = _n.slice
+                    if not (_nn603(_ix) or (isinstance(_ix, _ast341.Name) and _up603(
+                            lambda _t, _p: _gez603(_t, _ix.id, _p), _n,
+                            _par603.get(id(_n))))):
+                        raise _PyCSLSemErr341(
+                            f"'{_f603.name}' line {_ln603(_n)}: " + (
+                            "`%s` indexes a PyVal list / tuple / str with `%s`, which may "
+                            "be negative: the model's element read (`hval_nth_str` / "
+                            "`hval_list_nth`) maps every index <= 0 to the FIRST element, "
+                            "while CPython counts a negative index from the END (route "
+                            "#605; `v[-1]` is the last element). Use a non-negative index "
+                            "(a literal, a sum / product of `len(..)` and literals, a "
+                            "`range` counter, or a name guarded by `if i >= 0:`)"
+                            % (_ast341.unparse(_n)[:60], _ast341.unparse(_ix)[:40])) + ".",
+                            stage="ir-semantic", code="PYCSL-R605-PYVAL-NEGATIVE-INDEX")
+                # #606: a PyVal comparison under --strict-float-finite
+                if _sff603:
+                    for _n in _ast341.walk(_f603):
+                        if not (isinstance(_n, _ast341.Compare) and any(
+                                isinstance(_o, (_ast341.Eq, _ast341.NotEq, _ast341.Lt,
+                                                _ast341.LtE, _ast341.Gt, _ast341.GtE))
+                                for _o in _n.ops)):
+                            continue
+                        _cp = [_n.left] + list(_n.comparators)
+                        if (any(_isv603(_o) or _sx603(_o) for _o in _cp)
+                                and sum(1 for _o in _cp if not isinstance(_o, _ast341.Constant)) >= 2):
+                            raise _PyCSLSemErr341(
+                                f"'{_f603.name}' line {_ln603(_n)}: " + (
+                                "`%s` compares a PyVal value with a non-literal operand under "
+                                "`--strict-float-finite`: a PyVal float is a Why3 real in the "
+                                "value model (`hval_eq` / `hreal_eq` are reflexive), so a NaN is "
+                                "not modelled and the FLOAT-FINITE assumption this flag drops "
+                                "would still be relied on (route #606; CPython: `v == v` is "
+                                "False for v = float(\"nan\")). Compare the PyVal value with a literal "
+                                "instead, or drop `--strict-float-finite`"
+                                % _ast341.unparse(_n)[:60]) + ".",
+                                stage="ir-semantic", code="PYCSL-R606-PYVAL-FLOAT-COMPARE-STRICT")
+                # #607: a bytes value in a statement binding / reading a PyVal value
+                _ra603 = (_ast341.unparse(_f603.returns) if _f603.returns is not None else "")
+                for _n in _ast341.walk(_f603):
+                    if not isinstance(_n, _ast341.stmt) or isinstance(_n, (
+                            _ast341.FunctionDef, _ast341.AsyncFunctionDef, _ast341.ClassDef)):
+                        continue
+                    _hx: List[Any] = (
+                        [_n.test] if isinstance(_n, (_ast341.If, _ast341.While))
+                        else [_n.target, _n.iter] if isinstance(_n, (_ast341.For,
+                                                                     _ast341.AsyncFor))
+                        else [_i.context_expr for _i in _n.items]
+                        if isinstance(_n, (_ast341.With, _ast341.AsyncWith))
+                        else [_n.subject] if isinstance(_n, _ast341.Match)
+                        else [] if isinstance(_n, _ast341.Try)
+                        else [_n])
+                    _hz = [_z for _h in _hx for _z in _ast341.walk(_h)]
+                    _hb = next((_z for _z in _hz if (
+                        (isinstance(_z, _ast341.Constant) and isinstance(_z.value, bytes))
+                        or (isinstance(_z, _ast341.Name) and _z.id in _by603)
+                        or (isinstance(_z, _ast341.Call) and isinstance(_z.func, _ast341.Attribute)
+                            and _z.func.attr == "encode")
+                        or (isinstance(_z, _ast341.Call) and isinstance(_z.func, _ast341.Name)
+                            and (_z.func.id in ("bytes", "bytearray", "memoryview")
+                                 or _z.func.id in _bret603))
+                        or (isinstance(_z, _ast341.Call) and isinstance(_z.func, _ast341.Attribute)
+                            and isinstance(_z.func.value, _ast341.Name)
+                            and _z.func.value.id in ("bytes", "bytearray")))), None)
+                    if _hb is None:
+                        continue
+                    if (any((isinstance(_z, _ast341.Name)
+                             and (_z.id in _ct603 or _z.id in _vl603 or _z.id in _sq603))
+                            or (isinstance(_z, _ast341.Attribute)
+                                and (_z.attr in _fac603 or _z.attr in _fav603))
+                            for _z in _hz)
+                            or (isinstance(_n, _ast341.AnnAssign)
+                                and "PyVal" in _ast341.unparse(_n.annotation))
+                            or (isinstance(_n, _ast341.Return) and "PyVal" in _ra603)):
+                        raise _PyCSLSemErr341(
+                            f"'{_f603.name}' line {_ln603(_n)}: " + (
+                            "`%s` puts the bytes value `%s` into a PyVal value / container "
+                            "(or compares it with one): the dict value model has no bytes "
+                            "tag and lowers a bytes literal as a LIST of ints (`HArr` of "
+                            "`HInt`), so `isinstance(v, list)` and `b\"\" == []` are decided "
+                            "true (route #607; CPython: False). Use a str value instead "
+                            "(keep bytes out of PyVal values)"
+                            % (_ast341.unparse(_n).split("\n")[0][:60],
+                               _ast341.unparse(_hb)[:30])) + ".",
+                            stage="ir-semantic", code="PYCSL-R607-PYVAL-BYTES-VALUE")
+            if _fin603:
+                break
+            if _new603 <= _lau603:
+                _fin603 = True
+            _lau603 |= _new603
+        # #607 at module / class-body level: a PyVal-annotated binding holding a bytes value
+        for _n in list(_t341.body) + [_x for _c in _t341.body if isinstance(_c, _ast341.ClassDef)
+                                      for _x in _c.body]:
+            if (isinstance(_n, _ast341.AnnAssign) and _n.value is not None
+                    and "PyVal" in _ast341.unparse(_n.annotation)
+                    and any((isinstance(_z, _ast341.Constant) and isinstance(_z.value, bytes))
+                            or (isinstance(_z, _ast341.Call) and isinstance(_z.func, _ast341.Attribute)
+                                and _z.func.attr == "encode")
+                            or (isinstance(_z, _ast341.Call) and isinstance(_z.func, _ast341.Name)
+                                and (_z.func.id in ("bytes", "bytearray", "memoryview")
+                                     or _z.func.id in _bret603))
+                            or (isinstance(_z, _ast341.Call) and isinstance(_z.func, _ast341.Attribute)
+                                and isinstance(_z.func.value, _ast341.Name)
+                                and _z.func.value.id in ("bytes", "bytearray"))
+                            for _z in _ast341.walk(_n.value))):
+                raise _PyCSLSemErr341(
+                    f"line {_n.lineno}: `{_ast341.unparse(_n)[:60]}` puts a bytes value into a "
+                    f"PyVal container: the dict value model has no bytes tag and lowers a bytes "
+                    f"literal as a LIST of ints (`HArr` of `HInt`), so `isinstance(v, list)` and "
+                    f"`b\"\" == []` are decided true (route #607; CPython: False). Use a str value "
+                    f"instead (keep bytes out of PyVal values).",
+                    stage="ir-semantic", code="PYCSL-R607-PYVAL-BYTES-VALUE")
         # (#49) gen #37, ROUTES #449 / #450 / #455 (red team 36): file-wide facts for the
         # CALL-BINDING checks run in each function below and the decorator-site check after
         # this loop. `_gn449`: the names a `global` / `nonlocal` statement names; `_mdf449`:
@@ -16794,6 +17642,156 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # merged the closure's): a class of the IR schema's name declared here is a user record,
     # not an IR node, for the emit_ir projector judge (`statements.py::_typed_local_vars`).
     transpiler.own_types_r567 = set(_r498_own[1]) - {None}
+    # (run #7) ROUTE #599 (lvQ PATH-RECEIVER sub-defect, rt58 c01) -- WHICH NAMES ARE
+    # PROVABLY A `pathlib.Path`. The #31 path model erases `Path` to `str` (one `string`
+    # in the value model), so lvQ's `PYCSL-R7Q-EXT-PATH-RECEIVER` check (`_is_string_expr`
+    # on the receiver) admitted a `str` receiver of `.mkdir()` / `.write_text()`, where
+    # CPython ALWAYS raises AttributeError (not in the ext row): under a handler covered by
+    # another operation the proof then never saw that path. The distinction exists only in
+    # the SOURCE, so it is computed here, per function (Module 5's name: `<class>__<m>` for
+    # a method of a top-level class, the bare name for a top-level def), and Module 6's ext
+    # lowering admits a receiver only from this table (fail-closed: absent -> refused).
+    # A name is a PATH when every binding of it in the function is a parameter annotated
+    # `Path` / `pathlib.Path` / `PosixPath` (not Optional), or a plain `n = <e>` /
+    # `n: T = <e>` / `n /= <e>` of a PATH EXPRESSION: `Path(..)`, `Path.cwd()`,
+    # `Path.home()`, a path name, `<p>.parent`, `<p>.resolve()` (and the other pathlib
+    # methods returning a path), or `a / b` where `b` is a path or `a` is a path or a
+    # str-valued operand (a `str` literal / f-string, a `str` / `Path` parameter, a call of
+    # a top-level function of this file annotated `-> str` / `-> Path`) -- CPython gives a
+    # Path there or raises TypeError before the call. Greatest fixpoint over the bindings.
+    _pn599: Dict[str, Set[str]] = {}
+    try:
+        import ast as _ast599
+        _t599: Any = _ast599.parse(source_code)
+    except Exception:
+        _t599 = None
+    if _t599 is not None:
+        _pt599 = {"Path", "PosixPath"}
+        _isp599 = (lambda _a: (isinstance(_a, _ast599.Name) and _a.id in _pt599)
+                   or (isinstance(_a, _ast599.Attribute) and _a.attr in _pt599
+                       and isinstance(_a.value, _ast599.Name) and _a.value.id == "pathlib")
+                   or (isinstance(_a, _ast599.Constant) and _a.value in _pt599))
+        _iss599 = (lambda _a: (isinstance(_a, _ast599.Name) and _a.id == "str")
+                   or (isinstance(_a, _ast599.Constant) and _a.value == "str"))
+        _sret599: Set[str] = {_d.name for _d in _t599.body
+                              if isinstance(_d, (_ast599.FunctionDef, _ast599.AsyncFunctionDef))
+                              and _d.returns is not None
+                              and (_isp599(_d.returns) or _iss599(_d.returns))}
+        _fns599: List[Tuple[str, Any]] = []
+        for _d in _t599.body:
+            if isinstance(_d, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                _fns599.append((_d.name, _d))
+            elif isinstance(_d, _ast599.ClassDef):
+                for _m in _d.body:
+                    if isinstance(_m, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                        _fns599.append((_d.name.lower() + "__" + _m.name, _m))
+        _seen599: Set[str] = set()
+        for _fq599, _fd599 in _fns599:
+            # every binding of every name in the function (nested scopes included: a
+            # same-spelled binding anywhere disqualifies, fail-closed)
+            _bd599: Dict[str, List[Any]] = {}
+            _al599 = (list(_fd599.args.posonlyargs) + list(_fd599.args.args)
+                      + list(_fd599.args.kwonlyargs)
+                      + [_x for _x in (_fd599.args.vararg, _fd599.args.kwarg) if _x is not None])
+            for _a599 in _al599:
+                _bd599.setdefault(_a599.arg, []).append(("param", _a599))
+            _dt599: Set[int] = set()
+            for _n599 in _ast599.walk(_fd599):
+                if isinstance(_n599, _ast599.Assign):
+                    _dt599.update(id(_tg) for _tg in _n599.targets if isinstance(_tg, _ast599.Name))
+                elif (isinstance(_n599, (_ast599.AnnAssign, _ast599.AugAssign))
+                      and isinstance(_n599.target, _ast599.Name)):
+                    _dt599.add(id(_n599.target))
+            for _n599 in _ast599.walk(_fd599):
+                if _n599 is _fd599:
+                    continue
+                if isinstance(_n599, _ast599.Assign):
+                    for _tg599 in _n599.targets:
+                        if isinstance(_tg599, _ast599.Name):
+                            _bd599.setdefault(_tg599.id, []).append(
+                                ("val", _n599.value) if len(_n599.targets) == 1 else ("other", None))
+                elif isinstance(_n599, _ast599.AnnAssign) and isinstance(_n599.target, _ast599.Name):
+                    _bd599.setdefault(_n599.target.id, []).append(
+                        ("val", _n599.value) if _n599.value is not None else ("other", None))
+                elif isinstance(_n599, _ast599.AugAssign) and isinstance(_n599.target, _ast599.Name):
+                    _bd599.setdefault(_n599.target.id, []).append(
+                        ("self_div", None) if isinstance(_n599.op, _ast599.Div) else ("other", None))
+                elif (isinstance(_n599, _ast599.Name)
+                      and isinstance(_n599.ctx, (_ast599.Store, _ast599.Del))
+                      and id(_n599) not in _dt599):
+                    # a store not covered above (for / with / walrus / comprehension /
+                    # tuple target / del): not a path binding
+                    _bd599.setdefault(_n599.id, []).append(("other", None))
+                elif isinstance(_n599, (_ast599.FunctionDef, _ast599.AsyncFunctionDef,
+                                        _ast599.ClassDef)):
+                    _bd599.setdefault(_n599.name, []).append(("other", None))
+                elif isinstance(_n599, (_ast599.Import, _ast599.ImportFrom)):
+                    for _al in _n599.names:
+                        _bd599.setdefault((_al.asname or _al.name).split(".")[0], []).append(("other", None))
+                elif isinstance(_n599, (_ast599.Global, _ast599.Nonlocal)):
+                    for _gn in _n599.names:
+                        _bd599.setdefault(_gn, []).append(("other", None))
+                elif isinstance(_n599, _ast599.ExceptHandler) and _n599.name:
+                    _bd599.setdefault(_n599.name, []).append(("other", None))
+                elif isinstance(_n599, (_ast599.MatchAs, _ast599.MatchStar)) and _n599.name:
+                    _bd599.setdefault(_n599.name, []).append(("other", None))
+                elif isinstance(_n599, _ast599.MatchMapping) and _n599.rest:
+                    _bd599.setdefault(_n599.rest, []).append(("other", None))
+            _A599: Set[str] = {_nm for _nm, _bs in _bd599.items() if _bs}
+            _sp599 = {_nm for _nm, _bs in _bd599.items()
+                      if _bs and all(_k == "param" and _b.annotation is not None
+                                     and (_iss599(_b.annotation) or _isp599(_b.annotation))
+                                     for _k, _b in _bs)}
+
+            _ch599 = True
+            while _ch599:
+                _ch599 = False
+                for _nm in sorted(_A599):
+                    for _k, _b in _bd599[_nm]:
+                        _ok599 = ((_k == "param" and _b.annotation is not None
+                                   and _isp599(_b.annotation)) or _k == "self_div")
+                        # a PATH EXPRESSION, by an explicit stack (each shape is one
+                        # disjunct: a path name, a path constructor, a path method / `.parent`
+                        # of a path expression, either operand of `/`, a str-valued left `/`)
+                        _st599: List[Any] = [_b] if _k == "val" else []
+                        while _st599 and not _ok599:
+                            _e = _st599.pop()
+                            if isinstance(_e, _ast599.Name):
+                                _ok599 = _e.id in _A599
+                            elif isinstance(_e, _ast599.Call):
+                                _f = _e.func
+                                if _isp599(_f) and not isinstance(_f, _ast599.Constant):
+                                    _ok599 = True
+                                elif (isinstance(_f, _ast599.Attribute) and _f.attr in ("cwd", "home")
+                                      and _isp599(_f.value) and not _e.args and not _e.keywords):
+                                    _ok599 = True
+                                elif (isinstance(_f, _ast599.Attribute)
+                                      and _f.attr in ("resolve", "absolute", "expanduser", "with_name",
+                                                      "with_suffix", "with_stem", "joinpath")):
+                                    _st599.append(_f.value)
+                            elif isinstance(_e, _ast599.Attribute) and _e.attr == "parent":
+                                _st599.append(_e.value)
+                            elif isinstance(_e, _ast599.BinOp) and isinstance(_e.op, _ast599.Div):
+                                _l = _e.left
+                                if ((isinstance(_l, _ast599.Constant) and isinstance(_l.value, str))
+                                        or isinstance(_l, _ast599.JoinedStr)
+                                        or (isinstance(_l, _ast599.Name) and _l.id in _sp599)
+                                        or (isinstance(_l, _ast599.Call)
+                                            and isinstance(_l.func, _ast599.Name)
+                                            and _l.func.id in _sret599 and _l.func.id not in _bd599)):
+                                    _ok599 = True
+                                else:
+                                    _st599.extend([_l, _e.right])
+                        if not _ok599:
+                            _A599.discard(_nm)
+                            _ch599 = True
+                            break
+            if _fq599 in _seen599:
+                _pn599[_fq599] = set()
+            else:
+                _pn599[_fq599] = _A599
+            _seen599.add(_fq599)
+    transpiler.path_names_r599 = _pn599
     # (run #6) ROUTE #579 -- IR-CLASS IDENTITY BY RESOLUTION, NEVER BY NAME. The emit_ir
     # isinstance recognizers (`isinstance(<emit_ir>, ast.Name)` -> `is_var`, `isinstance(
     # <emit_ir>, CSLFieldAccess)` -> `is_fieldget`) and route #567's narrowing judge read the
@@ -21237,6 +22235,43 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if _a490 is _fd490:
                         _own490.add(id(_n490))
             _rep490 = None
+            # dict-value-model-r4: a value read off a `PyVal`-annotated container (a
+            # `Dict[str, PyVal]` / `PyVal` binding or parameter, or a local bound from such
+            # a read) is NOT int-erased: it is the certified tagged `hval`, whose truth test
+            # (`hval_truthy`), `==` / membership (`hval_eq`, key presence) and iteration are
+            # faithful. Those uses ("truth" / "hash") are exempt below; arithmetic, unary
+            # operators and escapes stay judged here (a wrong tag is a TypeError site).
+            _pvs4r = set()
+            for _n490 in _ast486.walk(_fd490):
+                _an4r = (_n490.annotation if isinstance(_n490, (_ast486.AnnAssign, _ast486.arg))
+                          else None)
+                if _an4r is not None and "PyVal" in _ast486.unparse(_an4r):
+                    if isinstance(_n490, _ast486.arg):
+                        _pvs4r.add(_n490.arg)
+                    elif isinstance(_n490.target, _ast486.Name):
+                        _pvs4r.add(_n490.target.id)
+
+            # (lambdas, not nested defs: the mirror-coverage ratchet counts def names)
+            _pvroot4r = lambda _e4r: (
+                (_e4r.id in _pvs4r) if isinstance(_e4r, _ast486.Name)
+                else _pvroot4r(_e4r.value) if isinstance(_e4r, _ast486.Subscript)
+                else _pvroot4r(_e4r.func.value) if (isinstance(_e4r, _ast486.Call)
+                                                    and isinstance(_e4r.func, _ast486.Attribute)
+                                                    and _e4r.func.attr == "get")
+                else _pvroot4r(_e4r.values[0]) if (isinstance(_e4r, _ast486.BoolOp)
+                                                   and isinstance(_e4r.op, _ast486.Or)
+                                                   and _e4r.values)
+                else False)
+            _chg4r = bool(_pvs4r)
+            while _chg4r:
+                _chg4r = False
+                for _n490 in _ast486.walk(_fd490):
+                    if (isinstance(_n490, _ast486.Assign) and len(_n490.targets) == 1
+                            and isinstance(_n490.targets[0], _ast486.Name)
+                            and _n490.targets[0].id not in _pvs4r
+                            and _pvroot4r(_n490.value)):
+                        _pvs4r.add(_n490.targets[0].id)
+                        _chg4r = True
             for _n490 in _ast486.walk(_fd490):
                 # (use node, the operand, the use's description, truth-test?) to judge
                 _uses490 = []
@@ -21397,6 +22432,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _rep490 is not None:
                     break
                 for _u490, _why490, _truth490 in _uses490:
+                    if _truth490 in ("truth", "hash") and _pvs4r and _pvroot4r(_u490):
+                        continue        # dict-value-model-r4: a faithful hval use (above)
                     if _truth490 == "esc" and (_K490.get(id(_u490), _UNK490)
                                                & frozenset(["tuple", "dict"])):
                         continue        # a tuple's positions / a record-like dict's keys
@@ -26291,6 +27328,160 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         f"path would be proved of the other one. Catch `{_s175}` "
                                         f"by its own name.",
                                         stage="whyml-emit", code="PYCSL-R175-USER-EXCEPTION-SUBCLASS")
+    # (run #7) ROUTES #601 / #602 -- A HANDLER CLASS THE FRONT END CANNOT NAME FAITHFULLY.
+    # #601: Module 5's `_py_stmt_try` keeps only the `ast.Name` elements of an `except
+    # (A, mod.B)` tuple, so `mod.B` is silently DROPPED from the arm and the model lets it
+    # escape where CPython catches it (rt58 d07: `except (ZeroDivisionError,
+    # builtins.ValueError)` lowered to `with ZeroDivisionError`, `\result == 2` PROVED,
+    # CPython 7). #602: a handler NAME is lowered to an exception of that spelling, so
+    # `Err = ValueError; except Err:` became a fresh `exception Err` and the raised
+    # ValueError escaped in the model (rt58 d08, `\result == 0` PROVED, CPython 1). RULE, in
+    # every function this file lowers (a `\trusted` / abstract one is not lowered; anything
+    # else, module level included, is judged): every element of a handler tuple must be a
+    # bare name, and a handler name must not be bound in the module or the enclosing
+    # function by anything but a `class` statement or an import of that same name (an
+    # assignment, an `as` rename, a loop / `with` / walrus / `global` target, ...).
+    # Refused rather than resolved: `_py_stmt_try`'s mirror twin is VERIFIED. Placed AFTER
+    # Module 6 and routes #590 / #597 (whose raise-name rules judge the same names first).
+    if _t599 is not None:
+        _tr601 = {str(_f601.get("name")) for _f601 in (ir_data.get("functions") or [])
+                  if isinstance(_f601, dict) and _f601.get("name") in _r498_own[0]
+                  and (_f601.get("trusted") or _f601.get("abstract"))}
+        # the judged units: each top-level def, each method of a top-level class (Module
+        # 5's name), and every other top-level / class-body statement (name "")
+        _units601: List[Tuple[str, Any]] = []
+        for _d in _t599.body:
+            if isinstance(_d, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                _units601.append((_d.name, _d))
+            elif isinstance(_d, _ast599.ClassDef):
+                for _m in _d.body:
+                    if isinstance(_m, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                        _units601.append((_d.name.lower() + "__" + _m.name, _m))
+                    else:
+                        _units601.append(("", _m))
+            else:
+                _units601.append(("", _d))
+        # the module-level classes of this file bound ONLY by their `class` statement (no
+        # store, parameter, `global`, `def` or import of the name anywhere in the file)
+        _cl601: Set[str] = {_d.name for _d in _t599.body if isinstance(_d, _ast599.ClassDef)}
+        for _n in _ast599.walk(_t599):
+            if isinstance(_n, _ast599.Name) and isinstance(_n.ctx, (_ast599.Store, _ast599.Del)):
+                _cl601.discard(_n.id)
+            elif isinstance(_n, _ast599.arg):
+                _cl601.discard(_n.arg)
+            elif isinstance(_n, (_ast599.Global, _ast599.Nonlocal)):
+                _cl601.difference_update(_n.names)
+            elif isinstance(_n, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                _cl601.discard(_n.name)
+            elif isinstance(_n, (_ast599.Import, _ast599.ImportFrom)):
+                _cl601.difference_update((_al.asname or _al.name).split(".")[0] for _al in _n.names)
+        _cl601 -= {_d.name for _d in _ast599.walk(_t599)
+                   if isinstance(_d, _ast599.ClassDef) and _d not in _t599.body}
+        # one binding census per scope root (the module, each function): name -> kinds
+        _bk601: Dict[int, Dict[str, Set[str]]] = {}
+        for _root601 in [_t599] + [_u for _q, _u in _units601
+                                   if isinstance(_u, (_ast599.FunctionDef, _ast599.AsyncFunctionDef))]:
+            _bk: Dict[str, Set[str]] = {}
+            _stk601: List[Any] = (list(_root601.body) if _root601 is _t599
+                                  else list(_root601.body) + [_root601.args])
+            while _stk601:
+                _n = _stk601.pop()
+                if _root601 is _t599 and isinstance(_n, (_ast599.FunctionDef,
+                                                        _ast599.AsyncFunctionDef, _ast599.Lambda)):
+                    # module scope: a def binds its name; its body is another scope
+                    if not isinstance(_n, _ast599.Lambda):
+                        _bk.setdefault(_n.name, set()).add("def")
+                    continue
+                if isinstance(_n, _ast599.ClassDef):
+                    _bk.setdefault(_n.name, set()).add("class")
+                    if _root601 is _t599:
+                        continue
+                elif isinstance(_n, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                    _bk.setdefault(_n.name, set()).add("def")
+                elif isinstance(_n, (_ast599.Import, _ast599.ImportFrom)):
+                    for _al in _n.names:
+                        _bn = (_al.asname or _al.name).split(".")[0]
+                        _bk.setdefault(_bn, set()).add(
+                            "import" if (_al.asname is None or _al.asname == _al.name) else "rename")
+                elif (_root601 is _t599 and isinstance(_n, _ast599.Assign) and len(_n.targets) == 1
+                      and isinstance(_n.targets[0], _ast599.Name) and isinstance(_n.value, _ast599.Name)
+                      and _n.value.id in _cl601):
+                    # `A = E` at module level, `E` a class of this file: route #175's (an alias
+                    # of a USER class), whose rules judge raising and catching through it
+                    _bk.setdefault(_n.targets[0].id, set()).add("classalias")
+                    continue
+                elif isinstance(_n, _ast599.Name) and isinstance(_n.ctx, (_ast599.Store, _ast599.Del)):
+                    _bk.setdefault(_n.id, set()).add("store")
+                elif isinstance(_n, _ast599.arg):
+                    _bk.setdefault(_n.arg, set()).add("store")
+                elif isinstance(_n, (_ast599.Global, _ast599.Nonlocal)):
+                    for _gn in _n.names:
+                        _bk.setdefault(_gn, set()).add("store")
+                elif isinstance(_n, _ast599.ExceptHandler) and _n.name:
+                    _bk.setdefault(_n.name, set()).add("store")
+                elif isinstance(_n, (_ast599.MatchAs, _ast599.MatchStar)) and _n.name:
+                    _bk.setdefault(_n.name, set()).add("store")
+                elif isinstance(_n, _ast599.MatchMapping) and _n.rest:
+                    _bk.setdefault(_n.rest, set()).add("store")
+                _stk601.extend(_ast599.iter_child_nodes(_n))
+            _bk601[id(_root601)] = _bk
+        # a module-level function may assign a global (`global Err; Err = ValueError`)
+        for _q, _u in _units601:
+            if isinstance(_u, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                for _n in _ast599.walk(_u):
+                    if isinstance(_n, _ast599.Global):
+                        for _gn in _n.names:
+                            _bk601[id(_t599)].setdefault(_gn, set()).add("store")
+        for _q601, _u601 in _units601:
+            if _q601 and _q601 in _tr601:
+                continue
+            _fb601 = (_bk601.get(id(_u601), {})
+                      if isinstance(_u601, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)) else {})
+            for _n601 in _ast599.walk(_u601):
+                if not (isinstance(_n601, _ast599.ExceptHandler) and _n601.type is not None):
+                    continue
+                _ty601 = _n601.type
+                _why601 = None
+                _code601 = ""
+                if isinstance(_ty601, _ast599.Tuple):
+                    for _el601 in _ty601.elts:
+                        if not isinstance(_el601, _ast599.Name):
+                            _why601 = ("the element `%s` of the handler tuple is not a bare name, "
+                                       "and the front end keeps only the bare names of the tuple: "
+                                       "`%s` is DROPPED from the handler, so in the model it "
+                                       "escapes where Python catches it (route #601; measured: "
+                                       "`except (ZeroDivisionError, builtins.ValueError)` proved "
+                                       "the value of the path the handler replaces)"
+                                       % (_ast599.unparse(_el601)[:60], _ast599.unparse(_el601)[:60]))
+                            _code601 = "PYCSL-R601-HANDLER-TUPLE-NON-NAME"
+                            break
+                if _why601 is None:
+                    for _el601 in (_ty601.elts if isinstance(_ty601, _ast599.Tuple) else [_ty601]):
+                        if not isinstance(_el601, _ast599.Name):
+                            continue
+                        _kd601 = (_fb601.get(_el601.id) or set()) | (
+                            _bk601[id(_t599)].get(_el601.id) or set())
+                        if _kd601 - {"class", "import", "classalias"}:
+                            _why601 = ("the handler name `%s` is bound in this module or function "
+                                       "by something other than a `class` statement or an import "
+                                       "of that name (%s), but the front end lowers a handler name "
+                                       "to an exception OF THAT SPELLING, so the class the name "
+                                       "holds at run time is not the one the model catches "
+                                       "(route #602; measured: `Err = ValueError` + `except Err:` "
+                                       "let the raised ValueError escape in the model and proved "
+                                       "the value of the path the handler replaces)"
+                                       % (_el601.id, ", ".join(sorted(_kd601 - {"class", "import", "classalias"}))))
+                            _code601 = "PYCSL-R602-HANDLER-NAME-REBOUND"
+                            break
+                if _why601 is not None:
+                    from errors import PyCSLSemanticError as _R601Err
+                    raise _R601Err(
+                        "%s: %s. Name the exception class itself in the handler: import it "
+                        "by name (`from mod import B`, then `except (A, B):`) or write the "
+                        "builtin class directly."
+                        % (_code601, _why601),
+                        filename=args.file, line=int(getattr(_n601, "lineno", 0) or 0),
+                        stage="ir-semantic", code=_code601)
     # (#49) ROUTE #179 — A CONSTRUCTOR THAT RAISES IS LOWERED AS A RECORD LITERAL, AND THE
     # RAISE IS GONE. `__init__` (and a dataclass `__post_init__`) is synthesised into a record
     # value; a `raise` in it never reaches the model. MEASURED (gen #29): `C(-1)` with
@@ -38459,7 +39650,11 @@ def _synthesize_block(rec: dict) -> str:
 
 def _synthesize_legacy_text(records: "List[dict]") -> str:
     """Canonical, lossless legacy-format text — ONE block per record, no dedup."""
-    return "\n\n".join(_synthesize_block(r) for r in records)
+    # The generator join spelled as a for/append then join (same calls, same order).
+    _parts: List[str] = []
+    for r in records:
+        _parts.append(_synthesize_block(r))
+    return "\n\n".join(_parts)
 
 
 def _residual_selectors_from_records(records: "List[dict]") -> "Optional[List[str]]":
@@ -38471,8 +39666,10 @@ def _residual_selectors_from_records(records: "List[dict]") -> "Optional[List[st
     for rec in records:
         if _record_is_valid(rec):
             continue
-        loc = (rec.get("term") or {}).get("loc") or {}
-        fn, ln = loc.get("file-name"), loc.get("start-line")
+        term = rec.get("term") or {}
+        loc = term.get("loc") or {}
+        fn = loc.get("file-name")
+        ln = loc.get("start-line")
         if fn is None or ln is None:
             return None
         s = f"{fn}:{ln}"
@@ -38512,12 +39709,14 @@ def _function_body_eqs(mlw_code: str) -> "Tuple[List[Tuple[str, int]], List[str]
     lines = mlw_code.splitlines()
     res: List[Tuple[str, int]] = []
     cur: Optional[str] = None
-    for i, line in enumerate(lines):
+    for i in range(len(lines)):
+        line: str = lines[i]
         m = _LET_FN_RE.match(line)
         if m:
             cur = m.group(1)
         elif cur is not None and _BODY_EQ_RE.match(line):
-            res.append((cur, i))
+            _c: str = cur
+            res.append((_c, i))
             cur = None
     return res, lines
 

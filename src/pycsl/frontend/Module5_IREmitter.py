@@ -951,11 +951,30 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # `[str, NAME]`), unrolled by `_handle_for_stmt`. Absent -> byte-identical.
         _mrx_cand: Dict[str, str] = {}
         _mrx_reimp = 0
-        for _mrx_child in getattr(node, "body", []):
+        # lvS (run #7, cap-re-gate-widening): the module may instead bind the stdlib `re`
+        # under ONE alias, `import re as A` (pycsl.py's `_LET_FN_RE = _re.compile(..)`).
+        # Admitted only when there is NO plain module-top `import re` (that case is the
+        # unchanged lvO path above) and EXACTLY ONE module-top `import re as A`; then
+        # `A.compile(<literal>)` is the source, but only in a statement AFTER the import (an
+        # earlier one is a NameError at import), and A is held to every rule `re` is held
+        # to below plus: no other binding of A anywhere, by any import (a nested `import re
+        # as A` included), `except .. as A` or a `match` capture.
+        _mrx_rn = "re"
+        _mrx_rn_at = -1
+        _mrx_alias: List[Any] = []
+        for _mrx_i, _mrx_child in enumerate(getattr(node, "body", [])):
             if isinstance(_mrx_child, ast.Import):
                 for _mrx_al in _mrx_child.names:
                     if _mrx_al.name == "re" and _mrx_al.asname is None:
                         _mrx_reimp += 1
+                    elif _mrx_al.name == "re":
+                        _mrx_alias.append((_mrx_al.asname, _mrx_i))
+        if _mrx_reimp == 0 and len(_mrx_alias) == 1:
+            _mrx_rn, _mrx_rn_at = _mrx_alias[0]
+            _mrx_reimp = 1
+        for _mrx_i, _mrx_child in enumerate(getattr(node, "body", [])):
+            if _mrx_i <= _mrx_rn_at:
+                continue
             if not (isinstance(_mrx_child, ast.Assign) and len(_mrx_child.targets) == 1
                     and isinstance(_mrx_child.targets[0], ast.Name)):
                 continue
@@ -963,7 +982,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if (isinstance(_mrx_v, ast.Call) and isinstance(_mrx_v.func, ast.Attribute)
                     and _mrx_v.func.attr == "compile"
                     and isinstance(_mrx_v.func.value, ast.Name)
-                    and _mrx_v.func.value.id == "re"
+                    and _mrx_v.func.value.id == _mrx_rn
                     and len(_mrx_v.args) == 1 and not _mrx_v.keywords
                     and isinstance(_mrx_v.args[0], ast.Constant)
                     and type(_mrx_v.args[0].value) is str):
@@ -977,31 +996,42 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             _mrx_bad: Set[str] = {d.variable for d in getattr(node, "csl_shared_decls", [])}
             _mrx_stores: Dict[str, int] = {}
             _mrx_rebound_re = False
+            _mrx_rn_binds = 0
             for _mrx_n in ast.walk(node):
+                if _mrx_rn != "re" and (
+                        (isinstance(_mrx_n, ast.ExceptHandler) and _mrx_n.name == _mrx_rn)
+                        or (type(_mrx_n).__name__ in ("MatchAs", "MatchStar")
+                            and getattr(_mrx_n, "name", None) == _mrx_rn)
+                        or (type(_mrx_n).__name__ == "MatchMapping"
+                            and getattr(_mrx_n, "rest", None) == _mrx_rn)):
+                    _mrx_rebound_re = True
                 if isinstance(_mrx_n, (ast.Global, ast.Nonlocal)):
                     _mrx_bad.update(_mrx_n.names)
                 elif isinstance(_mrx_n, ast.arg):
                     _mrx_bad.add(_mrx_n.arg)
-                    _mrx_rebound_re = _mrx_rebound_re or _mrx_n.arg == "re"
+                    _mrx_rebound_re = _mrx_rebound_re or _mrx_n.arg == _mrx_rn
                 elif isinstance(_mrx_n, (ast.FunctionDef, ast.AsyncFunctionDef,
                                          ast.ClassDef)):
                     _mrx_bad.add(_mrx_n.name)
-                    _mrx_rebound_re = _mrx_rebound_re or _mrx_n.name == "re"
+                    _mrx_rebound_re = _mrx_rebound_re or _mrx_n.name == _mrx_rn
                 elif isinstance(_mrx_n, (ast.Import, ast.ImportFrom)):
                     for _mrx_al in _mrx_n.names:
                         _mrx_bound = _mrx_al.asname or _mrx_al.name.split(".")[0]
                         _mrx_bad.add(_mrx_bound)
-                        if _mrx_bound == "re" and not (
+                        if _mrx_bound == _mrx_rn and not (
                                 isinstance(_mrx_n, ast.Import) and _mrx_al.name == "re"
-                                and _mrx_al.asname is None):
+                                and _mrx_al.asname == (None if _mrx_rn == "re" else _mrx_rn)):
                             _mrx_rebound_re = True
+                        elif _mrx_bound == _mrx_rn:
+                            _mrx_rn_binds += 1
                 elif isinstance(_mrx_n, ast.Name):
                     _mrx_ctx = type(getattr(_mrx_n, "ctx", None)).__name__
                     if _mrx_ctx != "Load":
                         _mrx_stores[_mrx_n.id] = _mrx_stores.get(_mrx_n.id, 0) + 1
                         if _mrx_ctx == "Del":
                             _mrx_bad.add(_mrx_n.id)
-            if "re" not in _mrx_stores and not _mrx_rebound_re:
+            if (_mrx_rn not in _mrx_stores and not _mrx_rebound_re
+                    and (_mrx_rn == "re" or _mrx_rn_binds == 1)):
                 _mrx_ok = {_k: _v for _k, _v in _mrx_cand.items()
                            if _msl_counts.get(_k, 0) == 1 and _mrx_stores.get(_k, 0) == 1
                            and _k not in _mrx_bad}
@@ -7413,6 +7443,31 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         # `x: Optional[τ] = None` local of the SAME type.
                         return_annotation = self._normalize_union_annotation(
                             node.returns, node.name, dedup=True)
+                        # lvS (run #7, cv13 Optional-list arm typing): the Some arm of a
+                        # VERIFIED (non-`\trusted`) function's `-> Optional[List[str]]`
+                        # return is the list's real `seq string` value (tag `list_str`,
+                        # Module6 `_emit_type_decls`), not the int-erased `list` arm
+                        # (`Arm_i_0 int`), against which every list return was a Why3 type
+                        # error. Exactly `Optional[List[str]]` (`List` / `list`, the bare
+                        # `str` element); any other arm, union or a trusted stub is unchanged.
+                        _ol_s = node.returns.slice
+                        if (head == "Optional" and not getattr(node, "csl_trusted", False)
+                                and isinstance(return_annotation, str)
+                                and return_annotation.startswith("_union_")
+                                and isinstance(_ol_s, ast.Subscript)
+                                and isinstance(_ol_s.value, ast.Name)
+                                and _ol_s.value.id in ("List", "list")
+                                and isinstance(_ol_s.slice, ast.Name)
+                                and _ol_s.slice.id == "str"):
+                            for _ol_td in self.program_ir.get("type_decls", []):
+                                if (isinstance(_ol_td, dict) and _ol_td.get("kind") == "variant"
+                                        and _ol_td.get("name") == return_annotation):
+                                    _ol_cs = _ol_td.get("constructors") or []
+                                    if (len(_ol_cs) == 2
+                                            and _ol_cs[0].get("payload") == ["list"]
+                                            and _ol_cs[1].get("payload") == []):
+                                        _ol_cs[0]["payload"] = ["list_str"]
+                                    break
                     else:
                         return_annotation = head.lower()
                         # item34.md CF5: capture a `List[str]`/`List[int]` return's ELEMENT
@@ -8338,6 +8393,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                else {}),
             "return_annotation": ("str" if node_returns_is_path else return_annotation),
             "return_value_type": return_value_type,
+            # dict-value-model-r4 (cv13 selection defects O6, `d027_2`): a `-> Tuple[..]`
+            # (any arity, `...`, nested) or `-> Dict[str, ..]` return that MENTIONS `PyVal`
+            # returns the certified value type (an `HTuple` hval / a `map string (option
+            # hval)`). Emitted ONLY for such an annotation -> every other IR byte-identical.
+            **({"r4_ret_pyval": ("tuple" if node.returns.value.id in ("Tuple", "tuple")
+                                 else "dict")}
+               if (isinstance(node.returns, ast.Subscript)
+                   and isinstance(node.returns.value, ast.Name)
+                   and ((node.returns.value.id in ("Tuple", "tuple")
+                         and "PyVal" in ast.unparse(node.returns))
+                        or ast.unparse(node.returns).replace(" ", "") in (
+                            "Dict[str,PyVal]", "dict[str,PyVal]")))
+               else {}),
             # typing-engagement ty1 / 28-0000-typing-spec-4: `-> NoReturn` (PEP
             # 484) sets the IR flag consumed by Module 6 (`ensures { false }`,
             # NR1) and the non-vacuity gate (NR4 exemption). Emitted ONLY when

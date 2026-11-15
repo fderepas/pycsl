@@ -141,12 +141,21 @@ class _Harvester:
     def _assign(self) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _normalize_leading(self, raw_lines: List[str]) -> List[str]:
-        return []
+        _hit = False
+        for ln in raw_lines:
+            if _match_block_hdr(ln) is not None:
+                _hit = True
+                break
+        if not _hit:
+            _out: List[str] = []
+            for ln2 in raw_lines:
+                _out.append(ln2.strip())
+            return _out
+        return self._fold_blocks(raw_lines)
 
     #@ requires 0 <= i and n <= len(raw_lines)
     #@ ensures True

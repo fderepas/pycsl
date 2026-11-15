@@ -713,11 +713,10 @@ def _why3_typecheck(mlw_filename: str):
 # parsed as a per-goal verdict (each goal is keyed by its own File+Sub-goal
 # header block).
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
+def _parse_goal_blocks(output: str) -> List[Tuple[str, str]]:
     """Split goal-block text into per-goal (header, result_line) pairs by COUNTING
     `Prover result is:` lines. Used only by `_check_goal_conservation` over the
     synthesised canonical text (one block per record) to count goals — the live
@@ -800,7 +799,7 @@ def _check_goal_conservation(first_full_output: str, merged_output: str) -> None
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _parse_why3_json(stdout: str) -> "List[dict]":
+def _parse_why3_json(stdout: str) -> List[Dict[str, PyVal]]:
     """Parse `why3 prove --json` output into a list of records in document order.
     why3 emits a STREAM of concatenated JSON objects (one per goal), NOT a single
     array — so a plain json.loads fails with 'Extra data'. raw_decode in a loop
@@ -826,11 +825,10 @@ def _parse_why3_json(stdout: str) -> "List[dict]":
     return out
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _json_goal_records(stdout: str) -> "List[dict]":
+def _json_goal_records(stdout: str) -> List[Dict[str, PyVal]]:
     """The goal-verdict records (those carrying a prover result) from --json output."""
     return [r for r in _parse_why3_json(stdout) if "prover-result" in r]
 
@@ -851,11 +849,10 @@ def _record_is_valid(rec: Dict[str, PyVal]) -> bool:
     return _record_answer(rec) == "Valid"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _record_key(rec: dict) -> "Tuple":
+def _record_key(rec: Dict[str, PyVal]) -> Tuple[Tuple[PyVal, PyVal, PyVal, PyVal, PyVal], PyVal, Tuple[PyVal, ...]]:
     """Cross-prover alignment key (everything but occurrence). Two split sub-goals
     can be byte-identical here — the merge disambiguates by occurrence index."""
     term = rec.get("term") or {}
@@ -896,7 +893,7 @@ def _merge_records_best_of_n(record_lists: "List[List[dict]]") -> "List[dict]":
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _synthesize_block(rec: dict) -> str:
+def _synthesize_block(rec: Dict[str, PyVal]) -> str:
     """Render one record as a legacy why3 goal block (File + Sub-goal + result), so
     the text-based downstream and the Tier-0 guard consume it unchanged. The verdict
     token is 'Valid (...)' ONLY for a real Valid; every non-Valid answer renders with
@@ -931,30 +928,33 @@ def _synthesize_block(rec: dict) -> str:
             f"Prover result is: {tok} ({t:.2f}s, {steps} steps).")
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _synthesize_legacy_text(records: "List[dict]") -> str:
+def _synthesize_legacy_text(records: List[Dict[str, PyVal]]) -> str:
     """Canonical, lossless legacy-format text — ONE block per record, no dedup."""
-    return "\n\n".join(_synthesize_block(r) for r in records)
+    _parts: List[str] = []
+    for r in records:
+        _parts.append(_synthesize_block(r))
+    return "\n\n".join(_parts)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _residual_selectors_from_records(records: "List[dict]") -> "Optional[List[str]]":
+def _residual_selectors_from_records(records: List[Dict[str, PyVal]]) -> Optional[List[str]]:
     """`<file>:<line>` selectors for every non-Valid record (deduped). None if any
     residual lacks a locatable loc — caller falls back to a full-file re-run (sound,
     proves only MORE). Empty list iff there are no residuals."""
-    sels: "List[str]" = []
-    seen: "Set[str]" = set()
+    sels: List[str] = []
+    seen: Set[str] = set()
     for rec in records:
         if _record_is_valid(rec):
             continue
-        loc = (rec.get("term") or {}).get("loc") or {}
-        fn, ln = loc.get("file-name"), loc.get("start-line")
+        term = rec.get("term") or {}
+        loc = term.get("loc") or {}
+        fn = loc.get("file-name")
+        ln = loc.get("start-line")
         if fn is None or ln is None:
             return None
         s = f"{fn}:{ln}"
@@ -987,23 +987,26 @@ _BODY_EQ_RE = _re.compile(r'^  =(\s|$)')
 _LET_FN_RE = _re.compile(r'^  let (?:rec )?(?:function )?(?:ghost )?(\w+)\b')
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _function_body_eqs(mlw_code: str) -> "Tuple[List[Tuple[str, int]], List[str]]":
+def _function_body_eqs(mlw_code: str) -> Tuple[List[Tuple[str, int]], List[str]]:
     """Return ([(fname, body_eq_line_index)], lines) for every top-level body-bearing
     function. The body `=` is the first `^  =` line after a `^  let <name>` header
     (only contract clauses sit between them). `val` stubs (no `=`) are skipped."""
     lines = mlw_code.splitlines()
     res: List[Tuple[str, int]] = []
     cur: Optional[str] = None
-    for i, line in enumerate(lines):
+    #@ loop invariant 0 <= i and i <= len(lines)
+    #@ loop variant len(lines) - i
+    for i in range(len(lines)):
+        line: str = lines[i]
         m = _LET_FN_RE.match(line)
         if m:
             cur = m.group(1)
         elif cur is not None and _BODY_EQ_RE.match(line):
-            res.append((cur, i))
+            _c: str = cur
+            res.append((_c, i))
             cur = None
     return res, lines
 

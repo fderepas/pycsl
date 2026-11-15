@@ -544,6 +544,21 @@ class AbstractOpsMixin:
                         _last = _i
                 if _last is not None:
                     out.insert(_last + 1, _ua)
+        # lvS (run #7, cv13 O7): the hval-element filter fold `hval_seq_filter_in` is over
+        # `seq hval`; a module whose only `seq` is that fold and a `seq hval` signature had
+        # no `use seq.Seq` (`unbound type symbol 'seq'`, fail-closed). Same late pull,
+        # byte-inert unless the fold was declared.
+        if ((any("hval_seq_filter_in" in str(_d)
+                 for _d in (getattr(self, "_abstract_ops", {}) or {}).values())
+             or any(isinstance(_e, tuple) and _e and _e[0] == "hval_seq_filter_in"
+                    for _e in (getattr(self, "_late_content_ops", None) or [])))
+                and "  use seq.Seq" not in out):
+            _lsq = None
+            for _i, _l in enumerate(out):
+                if _l.startswith("  use "):
+                    _lsq = _i
+            if _lsq is not None:
+                out.insert(_lsq + 1, "  use seq.Seq")
         if not getattr(self, "_needs_array_init", False):
             return
         line = "  use array.Init"

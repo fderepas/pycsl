@@ -126,13 +126,16 @@ _TYPED_EXPR_HANDLERS = {
 # `emit_ir` sum; string-valued keys yield a `string`, sub-node keys yield an `emit_ir`.
 # ("field" is the FieldGet member-name — a string, routed like "attr"/"name".)
 _EMIT_IR_PROJ = {
-    "type": "kind_of", "name": "name_of", "attr": "name_of", "field": "name_of",
-    "func": "func_of", "value": "irget_value_of", "object": "object_of", "index": "sindex_of",
+    # routes #586/#587 (run #7 u43): every key a SEVERAL-class field reads the receiver's
+    # constructor (`iratt_<k>_of` / `iratts_<k>_of`, opaque where no constructor carries it),
+    # not one class's `name_of` / `func_of` / `object_of` / `sindex_of` / `op_of` / `left_of`.
+    "type": "kind_of", "name": "iratts_name_of", "attr": "iratts_attr_of", "field": "iratts_field_of",
+    "func": "iratts_func_of", "value": "irget_value_of", "object": "iratt_object_of", "index": "iratt_index_of",
     "args": "args_of",   # resync-campaign.md R1: the args LIST → `array emit_ir`
     # cf6.md M1.1: match pattern/case keys — `pattern` (KIND) / `ctor` (NAME) are strings;
     # `captures` is a reflected node list (`args_of`); `body` is an OPAQUE stmt-list
     # (`stmts_of : → array int`); `guard` is a single node (`svalue_of`).
-    "pattern": "kind_of", "ctor": "name_of", "captures": "args_of",
+    "pattern": "kind_of", "ctor": "iratts_ctor_of", "captures": "args_of",
     # `alternatives` (an `Or` match-pattern's alternative sub-pattern LIST) joins the
     # node-list family on the same footing as `captures` — reflected `array emit_ir`,
     # no theory change. Reference lock: corpus 0893 (positive) / 0894 (negative twin).
@@ -146,13 +149,13 @@ _EMIT_IR_PROJ = {
     "lower": "irget_lower_of", "upper": "irget_upper_of",   # 07-03-refactor R4: SliceExpr bound sub-nodes
     # tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections — `op` is the operator
     # STRING (`op_of`); `left`/`right` are the SUB-NODES (`left_of`/`right_of`, → emit_ir).
-    "op": "op_of", "left": "left_of", "right": "right_of",
+    "op": "iratts_op_of", "left": "iratt_left_of", "right": "iratt_right_of",
     # orelse_of mini-M1: IfExpr's `orelse` (else sub-node) is UNAMBIGUOUS (used nowhere
     # else) → the table entry suffices. IfExpr's `body` (then sub-node) COLLIDES with the
     # If/For/While/Try stmt-list `body` (→ `stmts_of`, above); disambiguated at the
     # `.get(key, default)` call site by the default-argument shape (empty-dict `{}` default
     # → `body_of`; empty-list `[]`/no default → `stmts_of`), NOT here in the table.
-    "orelse": "orelse_of",
+    "orelse": "iratt_orelse_of",
 }
 # `pattern` is CONTEXT-DEPENDENT: SUBSCRIPT `c["pattern"]` → a sub-NODE (below); `.get("pattern")`
 # → the KIND string (here). Different code paths read each tuple, so it appears in both.
@@ -241,25 +244,37 @@ _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
 _EMIT_IR_FIELD_SLOT = "(*__pycsl_field_proj_slot__*)"
 _EMIT_IR_FIELD_PROJ_DEFS = {
     # dict view: `.get("value"[, {}])` / `["value"]` (the wire keys; an Attribute node carries `object`, not `value`).
-    "irget_value_of": ["  let function irget_value_of (e: emit_ir) : emit_ir =",
+    # route #596 (run #7 u43): a node whose constructor carries no `value` reads the OPAQUE
+    # `irget_value_unk e`, not the `IrOther ""` placeholder (DictComp / MapValueIs / StmtIR ...).
+    "irget_value_of": ["  val function irget_value_unk (e: emit_ir) : emit_ir",
+                       "  let function irget_value_of (e: emit_ir) : emit_ir =",
                        "    match e with IrSub v _ -> v | IrStarred v -> v | IrNamedExpr _ v -> v"
-                       " | IrSliceAccess v _ -> v | IrMapSet _ _ v -> v | _ -> IrOther \"\" end",
+                       " | IrSliceAccess v _ -> v | IrMapSet _ _ v -> v | _ -> irget_value_unk e end",
                        # the Subscript size-decrease law `size_svalue_dec` gave the old read (a
                        # recursion on `node.get("value")` under a Subscript test terminates). PROVEN.
                        "  lemma size_irget_value_dec : forall e: emit_ir. is_sub e ->"
                        " size (irget_value_of e) < size e", ""],
-    "irget_lower_of": ["  let function irget_lower_of (e: emit_ir) : emit_ir =",
+    "irget_lower_of": ["  val function irget_lower_unk (e: emit_ir) : emit_ir",
+                       "  let function irget_lower_of (e: emit_ir) : emit_ir =",
                        "    match e with IrSlice l _ -> l | IrSliceN l _ _ ->"
                        " (match l with IrOSome x -> x | IrONone -> IrNone end)"
-                       " | _ -> IrOther \"\" end", ""],
-    "irget_upper_of": ["  let function irget_upper_of (e: emit_ir) : emit_ir =",
+                       " | _ -> irget_lower_unk e end", ""],
+    "irget_upper_of": ["  val function irget_upper_unk (e: emit_ir) : emit_ir",
+                       "  let function irget_upper_of (e: emit_ir) : emit_ir =",
                        "    match e with IrSlice _ u -> u | IrSliceN _ u _ ->"
                        " (match u with IrOSome x -> x | IrONone -> IrNone end)"
-                       " | _ -> IrOther \"\" end", ""],
+                       " | _ -> irget_upper_unk e end", ""],
     # a match-case's `guard` has no constructor in the sum: an OPAQUE read (the model does not decide it).
     "irget_guard_of": ["  val function irget_guard_of (e: emit_ir) : emit_ir", ""],
     # `c["pattern"]`: a match-case's pattern sub-node, likewise no constructor: opaque.
     "irget_pattern_of": ["  val function irget_pattern_of (e: emit_ir) : emit_ir", ""],
+    # route #588 (run #7 u43): the Python truthiness of an emit_ir VALUE (a local bound to a
+    # read): a constructed node is a truthy object; `IrNone` (the model's None / an absent
+    # bound) and `IrOther` (an unmodelled class) are undecided.
+    "ir_truthy_v": ["  val function ir_truthy_unk (e: emit_ir) : bool",
+                    "  let function ir_truthy_v (e: emit_ir) : bool =",
+                    "    match e with IrNone -> ir_truthy_unk e | IrOther _ -> ir_truthy_unk e"
+                    " | _ -> true end", ""],
 }
 # ATTRIBUTE view (`x.value`, `x.slice`, ... on an emit_ir value, the catch-all of
 # `_handle_attribute_expr`): for each field name, the arms of the constructors that carry it
@@ -269,37 +284,96 @@ _EMIT_IR_FIELD_PROJ_DEFS = {
 # uses; a name no constructor carries as a node is an opaque `val` (the model does not decide
 # it). `ast.Attribute.value` is the object, `ast.Subscript.slice` the index, `ast.UnaryOp`
 # keeps `operand`.
+# ROUTES #586/#587/#596 (driver run #7, executor u43): the table is extended to EVERY emit_ir
+# sub-node field the constructor table (`_IRNODE_CTORS`) and the gated comprehension / lambda /
+# quantifier ctors carry (the 2-child `.dict/.key/.head/.tail/.left/.right/.lo/.hi/.size/.default`
+# reads no longer go to IrBinOp's shared `left_of`/`right_of`), and `_EMIT_IR_STR_ATTR_ARMS` gives
+# the STRING fields (`.op/.name/.var/.ctor/.func/.label/.base*/.arr`) the same per-constructor
+# arms (`iratts_<attr>_of`) instead of one class's `op_of`/`name_of`/`func_of`. A receiver whose
+# constructor carries no arm (an unmodelled IR class: a StmtIR node, `IfExpr.test`, a gated ctor
+# that is off in this file, ...) reads an OPAQUE `iratt[s]_<attr>_unk e`, never the `IrOther ""` /
+# `""` placeholder, so the model decides nothing CPython does not.
 _EMIT_IR_ATTR_ARMS = {
     'arg': [('IrFootprint _ v -> v', '_uses_clause_ir')],
-    'body': [('IrForallItems _ _ _ v -> v', None), ('IrTer3 _ v _ -> v', None), ('IrIfExpr v _ -> v', None), ('IrLambda _ v -> v', '_uses_stmt_ir')],
+    'body': [('IrForallItems _ _ _ v -> v', None), ('IrTer3 _ v _ -> v', None), ('IrIfExpr v _ -> v', None), ('IrLambda _ v -> v', '_uses_stmt_ir'), ('IrForall _ v _ _ -> v', None), ('IrExists _ v _ _ -> v', None)],
     'col': [('IrValid2D _ _ v -> v', None)],
     'collection': [('IrCSLIn _ v -> v', '_uses_clause_ir'), ('IrCSLNotIn _ v -> v', '_uses_clause_ir')],
     'cols': [('IrLength2D _ _ v -> v', None)],
     'condition': [('IrRaisesDecl _ v -> v', '_uses_clause_ir')],
+    'default': [('IrGhostMake _ v -> v', None)],
+    'dict': [('IrMapGet v _ -> v', None), ('IrMapSet v _ _ -> v', None), ('IrHasKey v _ -> v', None), ('IrMapRemove v _ -> v', None)],
     'elem': [('IrSetAdd _ v -> v', None), ('IrSetRemove _ v -> v', None), ('IrSetMem v _ -> v', None), ('IrMem v _ -> v', None)],
     'element': [('IrCSLIn v _ -> v', '_uses_clause_ir'), ('IrCSLNotIn v _ -> v', '_uses_clause_ir')],
+    'elt': [('IrListComp v _ -> v', '_uses_stmt_ir'), ('IrSetComp v _ -> v', '_uses_stmt_ir'), ('IrGenExp v _ -> v', '_uses_stmt_ir')],
     'expr': [('IrOld v -> v', None), ('IrUnaryOp _ v -> v', None), ('IrAt v _ -> v', None), ('IrClassInvariant v -> v', '_uses_clause_ir'), ('IrLoopInvariant v -> v', '_uses_clause_ir'), ('IrLoopVariant v -> v', '_uses_clause_ir'), ('IrEnsures v -> v', '_uses_clause_ir'), ('IrRequires v -> v', '_uses_clause_ir'), ('IrFunctionVariant v _ -> v', None), ('IrMutexInvariant _ v -> v', '_uses_clause_ir')],
+    'head': [('IrCons v _ -> v', None)],
+    'hi': [('IrIsSorted _ _ v -> v', None), ('IrSum _ _ v -> v', None), ('IrSetCard _ _ v -> v', None), ('IrStrSub _ _ v -> v', None), ('IrGhostCopyRange _ _ v -> v', None)],
     'high': [('IrAssignsRegion _ _ v -> v', None)],
     'index': [('IrSub _ v -> v', None), ('IrNth _ v -> v', None), ('IrGhostArraySetDecl _ v _ -> v', '_uses_clause_ir')],
+    'key': [('IrMapGet _ v -> v', None), ('IrMapSet _ v _ -> v', None), ('IrHasKey _ v -> v', None), ('IrMapRemove _ v -> v', None), ('IrDictComp v _ _ -> v', '_uses_stmt_ir')],
+    'left': [('IrBinOp _ v _ -> v', None), ('IrArrayEq v _ -> v', None), ('IrPermutation v _ -> v', None), ('IrMapEq v _ -> v', None), ('IrSetUnion v _ -> v', None), ('IrSetInter v _ -> v', None), ('IrSetDiff v _ -> v', None), ('IrSetSubset v _ -> v', None), ('IrSetEq v _ -> v', None), ('IrAppend v _ -> v', None), ('IrStrConcat v _ -> v', None)],
     'len1': [('IrSeparated _ v _ _ -> v', None)],
     'len2': [('IrSeparated _ _ _ v -> v', None)],
     'length': [('IrValid _ v -> v', None)],
     'list': [('IrHd v -> v', None), ('IrTl v -> v', None), ('IrListLength v -> v', None), ('IrNth v _ -> v', None), ('IrMem _ v -> v', None)],
+    'lo': [('IrIsSorted _ v _ -> v', None), ('IrSum _ v _ -> v', None), ('IrSetCard _ v _ -> v', None), ('IrStrSub _ v _ -> v', None), ('IrGhostCopyRange _ v _ -> v', None)],
     'low': [('IrAssignsRegion _ v _ -> v', None)],
     'lower': [('IrSlice v _ -> v', None), ('IrSliceN l _ _ -> (match l with IrOSome v -> v | IrONone -> IrNone end)', None)],
     'object': [('IrAttr v _ -> v', None)],
     'operand': [('IrUnaryOp _ v -> v', None)],
     'orelse': [('IrTer3 _ _ v -> v', None), ('IrIfExpr _ v -> v', None)],
     'payload': [('IrInterfaceClause _ v -> v', '_uses_clause_ir')],
+    'right': [('IrBinOp _ _ v -> v', None), ('IrArrayEq _ v -> v', None), ('IrPermutation _ v -> v', None), ('IrMapEq _ v -> v', None), ('IrSetUnion _ v -> v', None), ('IrSetInter _ v -> v', None), ('IrSetDiff _ v -> v', None), ('IrSetSubset _ v -> v', None), ('IrSetEq _ v -> v', None), ('IrAppend _ v -> v', None), ('IrStrConcat _ v -> v', None)],
     'row': [('IrValid2D _ v _ -> v', None)],
     'rows': [('IrLength2D _ v _ -> v', None)],
     'set': [('IrSetAdd v _ -> v', None), ('IrSetRemove v _ -> v', None), ('IrSetMem _ v -> v', None), ('IrSetCard v _ _ -> v', None)],
+    'size': [('IrGhostMake v _ -> v', None)],
     'slice': [('IrSub _ v -> v', None), ('IrSliceAccess _ v -> v', None)],
     'string': [('IrStrLength v -> v', None), ('IrStrSub v _ _ -> v', None)],
+    'tail': [('IrCons _ v -> v', None)],
     'test': [('IrTer3 v _ _ -> v', None)],
     'tuple': [('IrFst v -> v', None), ('IrSnd v -> v', None), ('IrProj v _ -> v', '_uses_csl_proj')],
     'upper': [('IrSlice _ v -> v', None), ('IrSliceN _ u _ -> (match u with IrOSome v -> v | IrONone -> IrNone end)', None)],
-    'value': [('IrAttr v _ -> v', None), ('IrSub v _ -> v', None), ('IrMapSet _ _ v -> v', None), ('IrSliceAccess v _ -> v', None), ('IrStarred v -> v', None), ('IrNamedExpr _ v -> v', None), ('IrGhostAssignDecl _ v _ _ -> v', '_uses_clause_ir'), ('IrGhostArraySetDecl _ _ v -> v', '_uses_clause_ir')],
+    'value': [('IrAttr v _ -> v', None), ('IrSub v _ -> v', None), ('IrMapSet _ _ v -> v', None), ('IrSliceAccess v _ -> v', None), ('IrStarred v -> v', None), ('IrNamedExpr _ v -> v', None), ('IrGhostAssignDecl _ v _ _ -> v', '_uses_clause_ir'), ('IrGhostArraySetDecl _ _ v -> v', '_uses_clause_ir'), ('IrDictComp _ v _ -> v', '_uses_stmt_ir')],
+}
+_EMIT_IR_STR_ATTR_ARMS = {
+    'op': [('IrBinOp v _ _ -> v', None), ('IrUnaryOp v _ -> v', None), ('IrGhostAssignDecl _ _ v _ -> v', '_uses_clause_ir')],
+    'name': [('IrVar v -> v', None), ('IrInGlobals v -> v', None), ('IrInScope v -> v', None), ('IrSharedStateDecl v _ -> v', '_uses_clause_ir'), ('IrTouchesFieldDecl v _ -> v', '_uses_clause_ir')],
+    'var': [('IrArrayLen v -> v', None), ('IrCtorTest v _ -> v', None), ('IrCtorPayload v _ _ -> v', None), ('IrForall v _ _ _ -> v', None), ('IrExists v _ _ _ -> v', None)],
+    'ctor': [('IrCtorTest _ v -> v', None), ('IrCtorPayload _ v _ -> v', None)],
+    'func': [('IrCall v _ _ -> v', None), ('IrCallN v _ -> v', None), ('IrCallKw v _ _ _ -> v', '_uses_call_kw'), ('IrMethodCall _ v _ _ -> v', '_uses_method_recv')],
+    'label': [('IrAt _ v -> v', None)],
+    'base': [('IrValid v _ -> v', None), ('IrLength2D v _ _ -> v', None), ('IrValid2D v _ _ -> v', None), ('IrIsSorted v _ _ -> v', None), ('IrSum v _ _ -> v', None), ('IrAssignsRegion v _ _ -> v', None)],
+    'base1': [('IrSeparated v _ _ _ -> v', None)],
+    'base2': [('IrSeparated _ _ v _ -> v', None)],
+    'arr': [('IrGhostCopy v -> v', None), ('IrGhostCopyRange v _ _ -> v', None)],
+    # dict view only (`.get("attr")` / `.get("field")`; the attribute view keeps `name_of`)
+    'attr': [('IrAttr _ v -> v', None)],
+    'field': [('IrFieldGet _ v -> v', None), ('IrOldField _ v -> v', None)],
+    # dict view only: the STRING content `.get("value"[, ""])` of a String node (was `value_of`,
+    # whose `""` default decided a Number / RawWhyml node's value)
+    'value': [('IrStr v -> v', None)],
+}
+# ROUTE #588 (run #7 u43): the TRUTHINESS of a projected emit_ir child (`if x.get("value"):`,
+# `if x.value:`) was decided `true` for every receiver. It is now `irtru_<proj> x` (spliced by
+# `transpile`): `true` on a constructor that carries the field (an IR / ast child node is a truthy
+# object), the option's presence on an optional bound (IrSliceN), OPAQUE on every other receiver
+# (a StmtIR, an absent wire key, an unmodelled class). Arms of the non-`iratt_` projectors:
+_EMIT_IR_TRUTHY_ARMS = {
+    "svalue_of": [("IrSub v _ -> v", None)],
+    "sindex_of": [("IrSub _ v -> v", None)],
+    "object_of": [("IrAttr v _ -> v", None)],
+    "avalue_of": [("IrAttr v _ -> v", None), ("IrSub v _ -> v", None)],
+    "arg0_of": [("IrCall _ v _ -> v", None), ("IrCallKw _ _ v _ -> v", "_uses_call_kw"),
+                ("IrMethodCall _ _ v _ -> v", "_uses_method_recv")],
+    "irget_value_of": [("IrSub v _ -> v", None), ("IrStarred v -> v", None),
+                       ("IrNamedExpr _ v -> v", None), ("IrSliceAccess v _ -> v", None),
+                       ("IrMapSet _ _ v -> v", None)],
+    "irget_lower_of": [("IrSlice v _ -> v", None),
+                       ("IrSliceN l _ _ -> (match l with IrOSome v -> v | IrONone -> IrNone end)", None)],
+    "irget_upper_of": [("IrSlice _ v -> v", None),
+                       ("IrSliceN _ u _ -> (match u with IrOSome v -> v | IrONone -> IrNone end)", None)],
+    "irget_guard_of": [], "irget_pattern_of": [],
 }
 _EMIT_IR_NODE_ATTRS = {"dict": "left_of", "key": "right_of", "head": "left_of", "tail": "right_of",
                        "left": "left_of", "right": "right_of",
@@ -394,9 +468,13 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 # subscript-only default) is unperturbed. `.id` stays the global `_EMIT_IR_STR_ATTRS`
 # `name_of` (checked first).
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
-    "_py_stmt_augassign": {"value": "avalue_of", "slice": "sindex_of",
+    "_py_stmt_augassign": {"value": "iratt_value_of", "slice": "iratt_slice_of",
                            "attr": "name_of"},
 })
+# route #586 (run #7 u43): the SCOPED `.slice` / `.value` entries below read the per-constructor
+# `iratt_slice_of` / `iratt_value_of` (a superset of `sindex_of` / `avalue_of`: identical on IrSub /
+# IrAttr, the field of the node on every other carrier, opaque elsewhere) -- a method merely NAMED like
+# one of these handlers no longer reads the Subscript projector's `IrOther ""` on a SliceAccess.
 # value-model campaign increment 2 (P1 — SCOPED `.slice`→sindex_of for the annotation
 # walkers): a type-annotation node's `.slice` is the type ARGUMENT (a Subscript's index
 # child, `sindex_of`), NOT the `.value` head (`svalue_of`, the default). Global `.slice`
@@ -407,29 +485,29 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 # (`_py_expr_subscript`, `_py_stmt_assign`, which pass `.slice` to `_py_expr_to_ir`, an
 # emit_ir-local path).
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
-    "_typeddict_field_type": {"slice": "sindex_of"},
+    "_typeddict_field_type": {"slice": "iratt_slice_of"},
 })
 # value-model campaign increment 5 (combined): P1-scoped `.slice`->sindex_of for the two
 # converted Optional[str] annotation walkers. `_normalize_final_annotation`'s `Final[T].slice`
 # and `_m5_get_dict_key_type`'s `Dict[K,V].slice` both read the type ARGUMENT (sindex_of),
 # NOT the `.value` head. SCOPED via `_current_emitting_func` -> corpus/consumer-inert.
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
-    "_normalize_final_annotation": {"slice": "sindex_of"},
-    "_m5_get_dict_key_type": {"slice": "sindex_of"},
-    "_m5_get_dict_value_type": {"slice": "sindex_of"},
+    "_normalize_final_annotation": {"slice": "iratt_slice_of"},
+    "_m5_get_dict_key_type": {"slice": "iratt_slice_of"},
+    "_m5_get_dict_value_type": {"slice": "iratt_slice_of"},
 })
 # value-model campaign increment 10 (loop-over-irlist): the two legacy leaf resolvers read
 # `inner = annotation.slice` (the `Union[...].slice` type-arg tuple) then `for elt in inner.elts`.
 # `.slice`->sindex_of (P1) so `inner` is the tuple; `inner.elts`-> the IrMkTupleN irlist loop.
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
-    "_m5_get_type_name_legacy": {"slice": "sindex_of"},
-    "_field_type_from_annotation": {"slice": "sindex_of"},
+    "_m5_get_type_name_legacy": {"slice": "iratt_slice_of"},
+    "_field_type_from_annotation": {"slice": "iratt_slice_of"},
 })
 # 7b (self-tcb-reduction L4b): `_collect_type_params`'s legacy `Generic[T]` branch reads
 # `b.slice` (the Subscript type-arg, `sindex_of`) off a `for b in node.bases` emit_ir loop
 # var — NOT the `.value` head. SCOPED via `_current_emitting_func` -> corpus-inert.
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
-    "_collect_type_params": {"slice": "sindex_of"},
+    "_collect_type_params": {"slice": "iratt_slice_of"},
 })
 # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `_classify_literal_value`'s
 # `v = elt.value` reads the CONSTANT-leaf VALUE off `elt` (an `ast.Constant` self-annotated
@@ -774,7 +852,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (`if func.get("abstract")`) is `hval_truthy`, NEVER the int `<> 0` coercion
         # (an hval has no int value -> `<hval> <> 0` is an L3-tc error). Per-method
         # scoped -> byte-inert for the corpus and every other mirror.
-        if (self._emitting_compute_return_type()
+        # dict-value-model-r4 (impl §2.2): EVERY PyVal truth test (`if v`, `not v`, an
+        # IfExp / `while` test, a BoolOp operand) is the certified 9-arm `hval_truthy`.
+        if ((self._emitting_compute_return_type() or self._uses_pyval())
                 and self._expr_is_pyval(ir_expr if isinstance(ir_expr, dict) else {})):
             return f"(hval_truthy {whyml_str})"
         # opaque-nested-map-reader SPLIT form: truthiness of an inner-alias local
@@ -869,11 +949,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # 07-03-refactor R4: `if <emit_ir sub-node>:` (an Optional[ExprIR] field, e.g.
         # `if sl.get("lower")`) is a present-guard; the sub-node is always-present in the model, so
         # `true` is a sound over-approx for the type-safety+frame contract. @mutable_state.
+        # ROUTE #588 (run #7 u43): that `true` decided the branch for every receiver (an absent
+        # key / a None field / an unmodelled class is falsy in CPython). The truthiness is now the
+        # receiver-chosen `irtru_<proj> <recv>` (`_EMIT_IR_TRUTHY_ARMS`, spliced by `transpile`):
+        # `true` only where the receiver's constructor carries the field, opaque elsewhere.
         if (getattr(self, "_current_self_type", None) in getattr(self, "_mutable_state_classes", set())
                 and any(whyml_str.startswith(p) for p in
                         ("(svalue_of ", "(avalue_of ", "(object_of ", "(sindex_of ",
                          "(arg0_of ", "(irget_", "(iratt_"))):
-            return "true"
+            _d588, _end588 = 0, -1
+            for _i588, _c588 in enumerate(whyml_str):
+                _d588 += 1 if _c588 == "(" else -1 if _c588 == ")" else 0
+                if _d588 == 0:
+                    _end588 = _i588
+                    break
+            _m588 = (re.match(r"\((\w+) (.*)\)$", whyml_str, re.S)
+                     if _end588 == len(whyml_str) - 1 else None)
+            if _m588 is None:
+                # not one projector application: the value's own truthiness (`ir_truthy_v`)
+                return f"(ir_truthy_v {whyml_str})"
+            return f"(irtru_{_m588.group(1)} {_m588.group(2)})"
         # cf6.md M1.6: `if existing_caps:` on an emit_ir-element ARRAY LOCAL is array-emptiness.
         if (t == "Var"
                 and getattr(self, "_array_elem_types", {}).get(ir_expr.get("name")) == "emit_ir"):
@@ -1012,9 +1107,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # is truthy iff present — modeled always-present (`true`), like the emit_ir
             # `is None` comparison; sound for the type-safety+frame contracts (both arms
             # type-check, no self-field write). Gated by the emit_ir tags.
+            # ROUTE #588 (run #7 u43): `true` decided `if v:` for a local bound to an absent
+            # / None child (`v = x.get("value")`). A constructed node is a truthy object; the
+            # model's None (`IrNone`) and an unmodelled / opaque read are undecided (`ir_truthy_v`).
             if (name in getattr(self, "_emit_ir_local_vars", set())
                     or self._is_emit_ir_expr(ir_expr)):
-                return "true"
+                return f"(ir_truthy_v {whyml_str})"
             # ROUTE #31, the last word: an array local that reached here has no
             # modelled length at all, and the historical answer `true` is FALSE of an
             # empty list. Refuse rather than invent a branch decision.
@@ -1479,7 +1577,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # fresh `any` per evaluation; in a spec (no `any`) the literal is REFUSED.
             # No new axiom (ledger stays 3).
             _r299_star = (
-                (t == "ArrayLit" and any(
+                (t in ("ArrayLit", "Tuple") and any(
                     not isinstance(_r299_e, dict) or _r299_e.get("type") == "Starred"
                     for _r299_e in (v_ir.get("elts", []) or [])))
                 or (t == "DictLit" and any(
@@ -1492,25 +1590,55 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         "a list/dict literal with a starred (`*x` / `**m`) element, stored "
                         "as a heterogeneous (PyVal) value, is not modelled in a "
                         "specification (route #299)")
-                return "(HArr (any hval_list))" if t == "ArrayLit" else "(HMap (any hpairs))"
-            if t == "ArrayLit":
+                return ("(HArr (any hval_list))" if t == "ArrayLit"
+                        else "(HTuple (any hval_list))" if t == "Tuple"
+                        else "(HMap (any hpairs))")
+            # dict-value-model-r4 (frozen 9-constructor type): the scalar literals get
+            # their OWN tags -- `None` -> `HNone`, `True`/`False` -> `HBool`, a float
+            # literal -> `HFloat` -- and a tuple literal is an `HTuple` (distinct from a
+            # list: `(1,) != [1]`, a tuple of hashables is hashable). A non-literal value
+            # of a non-str type stays the ERASED `HInt` carrier (its isinstance answers
+            # are opaque, `_handle_isinstance`), so no Python value is forced onto a tag
+            # it does not have.
+            if t == "None":
+                return "HNone"
+            if t == "Bool":
+                return "(HBool true)" if v_ir.get("value") else "(HBool false)"
+            if t == "Number" and isinstance(v_ir.get("value"), float):
+                _r4f = repr(float(v_ir.get("value")))
+                if "e" not in _r4f and "n" not in _r4f and not _r4f.startswith("-"):
+                    return f"(HFloat {_r4f})"
+            if t == "ArrayLit" or t == "Tuple":
                 acc = "HNil"
                 for e in reversed(v_ir.get("elts", []) or []):
                     acc = f"(HCons {self._pyval_wrap(e, local_refs)} {acc})"
-                return f"(HArr {acc})"
+                return f"(HArr {acc})" if t == "ArrayLit" else f"(HTuple {acc})"
             if t == "DictLit":
-                # R3: build the HMap carrier as an assoc list — PREPEND each
-                # (key, hval) binding onto `PNil` (`hpairs = PNil | PCons key hval
-                # hpairs`), NOT a `map_update_some` Map.set chain. The map carrier
-                # was non-iterable; the assoc list makes the read (`pairs_get`) a
-                # terminating structural fold. Distinct keys → prepend order is
-                # observationally irrelevant.
+                # dict-value-model-r4 (impl F7, insertion order DECIDED): a dict literal is
+                # the LEFT FOLD of the certified replace-first/append `pairs_set` --
+                # `pairs_set (.. (pairs_set PNil k1 v1) ..) kn vn` -- so iteration order is
+                # Python's insertion order and a duplicate key is last-wins with ONE entry
+                # (certified `build_fold_read_back` / `build_nodup`). Was: PREPEND (`PCons`),
+                # whose iteration order was reversed and whose duplicates were two entries.
+                # When every key is a DISTINCT string LITERAL the fold is, by the definition
+                # of `pairs_set` (a new key is APPENDED), exactly the cons chain in insertion
+                # order `PCons k1 v1 (.. (PCons kn vn PNil))`; that normal form is emitted
+                # (the provers then read it without unfolding `pairs_set` on literal keys).
+                _r4ks = v_ir.get("keys", []) or []
+                _r4kv = [k.get("value") for k in _r4ks
+                         if isinstance(k, dict) and k.get("type") == "String"]
+                if len(_r4kv) == len(_r4ks) and len(set(_r4kv)) == len(_r4kv):
+                    acc = "PNil"
+                    for k_ir, ve_ir in reversed(list(zip(_r4ks, v_ir.get("values", []) or []))):
+                        acc = (f"(PCons {self._expr_to_whyml(k_ir, local_refs)} "
+                               f"{self._pyval_wrap(ve_ir, local_refs)} {acc})")
+                    return f"(HMap {acc})"
                 acc = "PNil"
                 for k_ir, ve_ir in zip(v_ir.get("keys", []) or [],
                                        v_ir.get("values", []) or []):
                     k_low = self._expr_to_whyml(k_ir, local_refs)
-                    acc = (f"(PCons {k_low} "
-                           f"{self._pyval_wrap(ve_ir, local_refs)} {acc})")
+                    acc = (f"(pairs_set {acc} {k_low} "
+                           f"{self._pyval_wrap(ve_ir, local_refs)})")
                 return f"(HMap {acc})"
             # an IR-node construction (`{"type": "Var", …}`) carries an emit_ir node.
             if self._is_emit_ir_expr(v_ir):
@@ -1629,21 +1757,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _pvm = whyml_ident(_sv.get("name"))
                 _kir = rhs.get("index", {})
                 _kw = self._expr_to_whyml(_kir, local_refs or set(), invariant_ctx, subst)
+                # dict-value-model-r4 (impl F6 (i)): the missing-key / non-map arms of a
+                # subscript raise (KeyError / TypeError): an UNINTERPRETED continuation.
+                _dk_dead = f"(hval_get_other {_pvm} {_kw})"
                 _rawh = (f"(match {_pvm} with HMap m_mem -> "
                          f"(match pairs_get m_mem {_kw} with Some v_ -> v_ "
-                         f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
+                         f"| None -> {_dk_dead} end) | _ -> {_dk_dead} end)")
                 # ch31 SOUNDNESS: `hval_str_mem` reads FALSE on every non-`HArr` carrier,
                 # so `"a" in rec["fields"]` with `rec["fields"] = {"a": 1}` was False
                 # (CPython: True; model-level claim proved, spike `head_in_map`). Now the
                 # R2b carrier dispatch: `HArr` -> the same `hval_list_str_mem` fold (the
                 # TypedDict field-name list keeps its exact lowering), `HMap` -> key
                 # presence, any other carrier -> the uninterpreted `hval_in_other`.
-                self._add_abstract_op(
-                    "val function hval_in_other (k: string) (h: hval) : bool")
+                # dict-value-model-r4: `hval_in_other` is declared by the r4 theory.
                 _mem = (f"(let _hin = {_rawh} in let _kin = {left} in match _hin with "
                         f"HMap _pin -> (match pairs_get _pin _kin with None -> false "
                         f"| Some _ -> true end) "
                         f"| HArr _lin -> hval_list_str_mem _lin _kin "
+                        f"| HTuple _lin -> hval_list_str_mem _lin _kin "
                         f"| _ -> hval_in_other _kin _hin end)")
                 return f"(not {_mem})" if negate else _mem
         # dict-value-wall R2b: `"k" in <hval expr>` (a pyval local / `.get` / subscript read)
@@ -1660,11 +1791,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and not (rhs.get("type") == "Var"
                          and rhs.get("name") in getattr(self, "_dict_value_types", {}))
                 and self._expr_is_pyval(rhs)):
-            self._add_abstract_op("val function hval_in_other (k: string) (h: hval) : bool")
+            # dict-value-model-r4: `hval_in_other` is declared by the r4 theory.
             _mem = (f"(let _hin = {right} in let _kin = {left} in match _hin with "
                     f"HMap _pin -> (match pairs_get _pin _kin with None -> false "
                     f"| Some _ -> true end) "
                     f"| HArr _lin -> hval_list_str_mem _lin _kin "
+                    f"| HTuple _lin -> hval_list_str_mem _lin _kin "
                     f"| _ -> hval_in_other _kin _hin end)")
             return f"(not {_mem})" if negate else _mem
         # r2c (gen #37): an HVAL needle in an hval collection (`func not in
@@ -5039,6 +5171,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and (((getattr(self, "_module_func_raises", {}) or {}).get(ir.get("func"))
                       or [{}])[0].get("ext") in ("Path.cwd", "json.dumps"))):
             return True
+        # dict-value-model-r4: a PyVal read NARROWED by a dominating `isinstance(x, str)`
+        # (`_emit_body_code`'s pre-pass) lowers to `hstr_of x`: a string.
+        if ir.get("_r4_narrow") == "str":
+            return True
         # (#49) ROUTE #231 — an f-string part carrying a conversion and/or a format spec
         # (`{v!r}`, `{b:02x}`) is `format(conv(v), spec)`: always a `str`, whatever `v`
         # is. `_expr_to_whyml` lowers it to an opaque `string`-returning
@@ -5592,6 +5728,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _fparts = ir.get("parts") or []
             if _fparts and all(self._is_string_expr(_fp) for _fp in _fparts):
                 return True
+            # lvS (run #7, cv13 O19): the typing half of `_handle_fstring_expr`'s hval-segment
+            # gate -- the SAME condition on the same parts (at least one PyVal segment, every
+            # segment string-typed or PyVal), so classifier and lowering agree.
+            if (_fparts and not self._in_spec
+                    and any(isinstance(_fp, dict) and not self._is_string_expr(_fp)
+                            and self._expr_is_pyval(_fp) for _fp in _fparts)
+                    and all(isinstance(_fp, dict) and (self._is_string_expr(_fp)
+                                                       or self._expr_is_pyval(_fp))
+                            for _fp in _fparts)):
+                return True
             return (bool(ir.get("parts"))
                     and (getattr(self, "_current_self_type", None)
                          in getattr(self, "_mutable_state_classes", set())
@@ -5715,6 +5861,91 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to_dict() is faithful for its purposes.
         expr = node.to_dict()
         raw_op = expr["op"]
+        # dict-value-model-r4 (impl F5): `==` / `!=` with a PyVal operand against a bool /
+        # float literal or another PyVal is the CERTIFIED `hval_eq` (numeric tower: `True ==
+        # 1`, `1 == 1.0`; `(1,) != [1]`). Taken FIRST, before the generic float / bool
+        # comparison paths would compare the raw `hval` against a `real` / `bool` (an L3-tc
+        # error). Both operands are pure reads or literals (no sequencing concern).
+        if (raw_op in ("==", "!=") and not expr.get("py_is") and self._uses_pyval()
+                and isinstance(expr.get("left"), dict) and isinstance(expr.get("right"), dict)):
+            _r4l, _r4r = expr["left"], expr["right"]
+            _r4lp, _r4rp = self._expr_is_pyval(_r4l), self._expr_is_pyval(_r4r)
+            _r4lit = lambda _e: (_e.get("type") == "Bool"
+                                 or (_e.get("type") == "Number"
+                                     and isinstance(_e.get("value"), float)))
+            # a STRING-key subscript of a pyval local (`r["k"]`) lowers to its `hstr_of`
+            # projection (`_handle_subscript`): against a str literal it is a string compare
+            # (was: the projection hashed to an int against the literal's hash).
+            _r4sk = lambda _e: (_e.get("type") == "Subscript" and isinstance(_e.get("value"), dict)
+                                and _e["value"].get("type") == "Var"
+                                and _e["value"].get("name") in getattr(self, "_pyval_locals", set())
+                                and _e["value"].get("name") not in getattr(self, "_pyval_coll_locals", set())
+                                and isinstance(_e.get("index"), dict)
+                                and _e["index"].get("type") == "String")
+            if ((_r4sk(_r4l) and _r4r.get("type") == "String")
+                    or (_r4sk(_r4r) and _r4l.get("type") == "String")):
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _r4eq = (f"(str_eq_op {self._expr_to_whyml(_r4l, local_refs, invariant_ctx, subst)} "
+                         f"{self._expr_to_whyml(_r4r, local_refs, invariant_ctx, subst)})")
+                return _r4eq if raw_op == "==" else f"(not {_r4eq})"
+            if (_r4lp and _r4lit(_r4r)) or (_r4rp and _r4lit(_r4l)):
+                # `v == <bool / float literal>`: the INLINE unfolding of the certified
+                # `hval_eq v <lit>` at that literal (a flat tag match the provers decide
+                # without unfolding the recursive `hval_eq`).
+                _r4pv = _r4l if _r4lp else _r4r
+                _r4lt = _r4r if _r4lp else _r4l
+                _r4pw = self._expr_to_whyml(_r4pv, local_refs, invariant_ctx, subst)
+                _r4lv = _r4lt.get("value")
+                # the RHS of the CERTIFIED unfolding lemmas (Rocq + Lean + companion module
+                # DictR4LemmasLit): `hval_eq_bool_lit` (n := hbool_int x),
+                # `hval_eq_intfloat_lit` (an integral float literal n.0 = from_int n),
+                # `hval_eq_float_lit` (a NON-integral float literal, `hreal_int_of c = None`).
+                if _r4lt.get("type") == "Bool":
+                    _r4n = f"hbool_int {'true' if _r4lv else 'false'}"
+                    _r4eq = (f"(match {_r4pw} with HInt i -> i = {_r4n} | HBool b -> hbool_int b = {_r4n} "
+                             f"| HFloat f -> (match hreal_int_of f with Some j -> j = {_r4n} "
+                             f"| None -> false end) | _ -> false end)")
+                elif float(_r4lv).is_integer():
+                    _r4n = str(int(_r4lv)) if int(_r4lv) >= 0 else f"({int(_r4lv)})"
+                    _r4eq = (f"(match {_r4pw} with HInt i -> i = {_r4n} | HBool b -> hbool_int b = {_r4n} "
+                             f"| HFloat f -> (match hreal_int_of f with Some j -> j = {_r4n} "
+                             f"| None -> false end) | _ -> false end)")
+                else:
+                    _r4fw = self._pyval_wrap(_r4lt, local_refs)
+                    if not _r4fw.startswith("(HFloat "):
+                        _r4eq = None
+                    else:
+                        _r4eq = (f"(match {_r4pw} with HFloat f -> "
+                                 f"hreal_eq f {_r4fw[len('(HFloat '):-1]} | _ -> false end)")
+                if _r4eq:
+                    return _r4eq if raw_op == "==" else f"(not {_r4eq})"
+            if _r4lp and _r4rp:
+                _r4a = (self._expr_to_whyml(_r4l, local_refs, invariant_ctx, subst) if _r4lp
+                        else self._pyval_wrap(_r4l, local_refs))
+                _r4b = (self._expr_to_whyml(_r4r, local_refs, invariant_ctx, subst) if _r4rp
+                        else self._pyval_wrap(_r4r, local_refs))
+                if _r4a and _r4b and not _r4a.startswith("(HInt ") and not _r4b.startswith("(HInt "):
+                    _r4eq = f"(hval_eq {_r4a} {_r4b})"
+                    return _r4eq if raw_op == "==" else f"(not {_r4eq})"
+        # dict-value-model-r4: an ARITHMETIC / ORDERING operand that is a PyVal value
+        # (not against a str) is its certified int projection `hint_of v` (`HInt i -> i`,
+        # `HBool b -> 0/1`, any other tag the law-free `hval_opaque_int`: a TypeError site,
+        # registered with the §7.131 pass). The node is re-emitted with the operand marked.
+        if (raw_op in ("+", "-", "*", "//", "%", "<", "<=", ">", ">=") and self._uses_pyval()
+                and isinstance(expr.get("left"), dict) and isinstance(expr.get("right"), dict)
+                and not self._is_string_expr(expr["left"]) and not self._is_string_expr(expr["right"])
+                and expr["left"].get("type") != "String" and expr["right"].get("type") != "String"
+                and (self._expr_is_pyval(expr["left"]) or self._expr_is_pyval(expr["right"]))
+                and not (self._expr_is_pyval(expr["left"]) and self._expr_is_pyval(expr["right"])
+                         and raw_op == "+")):
+            _r4m = dict(expr)
+            for _r4s in ("left", "right"):
+                if self._expr_is_pyval(expr[_r4s]):
+                    _r4m[_r4s] = dict(expr[_r4s], _r4_proj="int")
+            return self._handle_binop(OpaqueExpr(kind="BinOp", raw=_r4m), local_refs,
+                                      invariant_ctx, subst)
         # (#49) ROUTE #417 — SEQUENCE REPETITION IS MODELLED ONLY FOR `[x] * n`. The
         #   `[default] * size` arm below kept the FIRST element and dropped the rest, so
         #   `[1, 2] * 3` lowered to `Array.make 3 1` (length 3, CPython 6) and `[] * 3` to
@@ -6522,6 +6753,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # unlike a derived `=` on the algebraic option). Both arms reachable (the
             # converted callee genuinely `return None`s or returns a tuple) → the guarded
             # unpack is NON-VACUOUS. Read the RAW `!x` (deref), NOT the projected read.
+            # T5 (run #7 lvR, cap-typed-local-lowering): `f(..) is None` / `is not None` of
+            # a BARE call whose declared WhyML return is an OPTION OF A TUPLE
+            # (`-> Optional[Tuple[..]]`, emitted `option (t1, .., tn)`) is the FAITHFUL
+            # option presence test -- a `match .. with None/Some` discriminant, as for an
+            # `_option_tuple_vars` local below. It compared the option with the int
+            # `pycsl_none`, a Why3 type error (fail-closed). Only that callee type routes
+            # here.
+            if (isinstance(_nn, dict) and _nn.get("type") == "Call"
+                    and isinstance(_nn.get("func"), str) and "." not in _nn["func"]):
+                _t5_rt = self._call_return_whyml_type(_nn["func"])
+                if isinstance(_t5_rt, str) and _t5_rt.startswith("option ("):
+                    _t5_v = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
+                    _chk = f"(match {_t5_v} with None -> true | Some _ -> false end)"
+                    return _chk if raw_op == "==" else f"(not {_chk})"
             if (isinstance(_nn, dict) and _nn.get("type") == "Var"
                     and _nn.get("name") in getattr(self, "_option_tuple_vars", {})):
                 _ov = f"!{whyml_ident(_nn.get('name'))}"
@@ -6603,6 +6848,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             for _h in _EMIT_IR_EXTRA_NODE_KEYS_BY_FUNC)):
                 _es = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
                 _chk = f"(match {_es} with IrNone -> true | _ -> false end)"
+                return _chk if raw_op == "==" else f"(not {_chk})"
+            # ROUTE #594 (run #7 u43): `child.value is None` on a raw `ast.stmt` (the pyast_stmt
+            # class-body / module walk) was decided by the always-present answer below, while an
+            # `ast.AnnAssign` without a value (`x: int`) has `value is None` in CPython. An
+            # `ast.Assign` always carries its value (decided `false`); every other statement's
+            # presence is OPAQUE (`stmt_value_isnone_unk`), so the model decides neither branch.
+            _ps594 = (self._pyast_stmt_read(_nn, local_refs, invariant_ctx, subst)
+                      if isinstance(_nn, dict) and _nn.get("type") == "Attribute" else None)
+            if isinstance(_ps594, str) and _ps594.startswith("(stmt_value "):
+                self._add_abstract_op("val function stmt_value_isnone_unk (s: pyast_stmt) : bool")
+                _x594 = _ps594[len("(stmt_value "):-1]
+                _chk = (f"(match {_x594} with PSAssign _ _ -> false"
+                        f" | _ -> stmt_value_isnone_unk {_x594} end)")
                 return _chk if raw_op == "==" else f"(not {_chk})"
             if self._is_emit_ir_expr(_nn):
                 return "false" if raw_op == "==" else "true"
@@ -6735,6 +6993,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # it cannot decide, so the test is UNDECIDED (no new fact, no new model). The
             # decided arms (`None#empty` / bound-never-None) stay gated where their
             # binding records are kept.
+            # dict-value-model-r4: a PyVal operand has its OWN `None` tag: `v is None` /
+            # `v == None` is the faithful constructor test (absent `.get` reads and a stored
+            # `None` are both `HNone`; presence is the outer `option`).
+            if self._uses_pyval() and isinstance(_nn, dict) and self._expr_is_pyval(_nn):
+                _o4n = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
+                _c4n = f"(match {_o4n} with HNone -> true | _ -> false end)"
+                return _c4n if raw_op == "==" else f"(not {_c4n})"
             if (self._is_string_expr(_nn)
                     and not (isinstance(_nn, dict) and _nn.get("type") == "None")):
                 self._add_abstract_op("val function pycsl_none_str : string")
@@ -7444,7 +7709,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # the `HInt` carrier can equal an int; a str / list / dict / IR node
                     # never does. (HInt is the erased carrier -- None is `HInt pycsl_none`,
                     # a tuple `HInt (any int)` -- so its compare stays undecided there.)
-                    eq = f"(match {_pvw} with HInt i_eq -> i_eq = {_otw} | _ -> false end)"
+                    # dict-value-model-r4 (impl F5): Python `==` across the numeric tower is
+                    # the CERTIFIED `hval_eq` against the other operand TAGGED as the value it
+                    # is (`_pyval_wrap`: an int `HInt`, `True` `HBool`, `None` `HNone`, a float
+                    # literal `HFloat`): `True == 1`, `1 == 1.0` hold, `None != 0`. `v is None`
+                    # (`py_is`) is the same test (None is a singleton, only `HNone` equals it).
+                    # the RHS of the CERTIFIED `hval_eq_int_lit` (Rocq + Lean + companion
+                    # DictR4LemmasLit) at n := the int operand, bound first so the lemma's
+                    # pattern variables cannot capture it.
+                    eq = (f"(let _r4n = {_otw} in match {_pvw} with HInt i -> i = _r4n "
+                          f"| HBool b -> hbool_int b = _r4n "
+                          f"| HFloat f -> (match hreal_int_of f with Some j -> j = _r4n "
+                          f"| None -> false end) | _ -> false end)")
                     return eq if raw_op == "==" else f"(not {eq})"
                 # self-tcb-reduction `_compute_return_type` PATH(b): a pyval `.get` operand
                 # (`func.get("return_value_type")` / `func.get("name")`) compared to a STRING
@@ -7475,9 +7751,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # `hpairs_key_eq` (the hval theory's R2a-specified `val function`,
                     # `result <-> a = b`) keeps the compare a LOGIC term: measured, the
                     # program `str_eq_op` call made the loop witness VC time out.
-                    eq = (f"(match {_pvw} with HStr _s_eq -> (hpairs_key_eq _s_eq {_otw}) "
+                    # the RHS of the certified `hval_eq_str_lit` (a str literal t)
+                    eq = (f"(match {_pvw} with HStr s -> hpairs_key_eq s {_otw} "
                           f"| _ -> false end)")
                     return eq if raw_op == "==" else f"(not {eq})"
+            # dict-value-model-r4 (impl F5): two PyVal operands compare by the CERTIFIED
+            # structural `hval_eq` (numeric tower, `(1,) != [1]`, dict equality
+            # order-independent). Program body only (was: the `hstr_of` string projection
+            # of both sides, or an L3-tc error).
+            if (_lpv and _rpv and not getattr(self, "_in_spec", False)
+                    and self._uses_pyval()):
+                eq = f"(hval_eq {left} {right})"
+                return eq if raw_op == "==" else f"(not {eq})"
             ls = self._is_string_expr(expr["left"])
             rs = self._is_string_expr(expr["right"])
             if ls and rs:
@@ -8088,6 +8373,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (atype == "Result" and self._in_spec
                 and getattr(self, "_func_return_type", None) == "array string"):
             return f"(Array.length {args[0]})"
+        # lvS (run #7): the same for a declared `seq hval` return (`-> List[Dict[str,
+        # PyVal]]` / `-> List[PyVal]`, K4): `len(\result)` is its `Seq.length` (it fell to
+        # the opaque `iter_length : int -> int`, a Why3 type error against the seq).
+        if (atype == "Result" and self._in_spec
+                and getattr(self, "_func_return_type", None) == "seq hval"):
+            return f"(Seq.length {args[0]})"
+        # lvS (run #7): `len(\result[k])` in a contract of a `-> Tuple[..]` function whose
+        # DECLARED native tuple slot k is a `seq (t1, .., tn)` (the tuple-element list slot
+        # its tail return passes as-is) is that seq's `Seq.length`; it fell to the opaque
+        # `iter_length : int -> int`, a Why3 type error against the seq (fail-closed). Spec
+        # context, an int-literal index, a `seq (..)` slot only.
+        if (atype == "Subscript" and self._in_spec and args
+                and isinstance(arg_ir.get("value"), dict)
+                and arg_ir["value"].get("type") == "Result"
+                and isinstance(arg_ir.get("index"), dict)
+                and arg_ir["index"].get("type") == "Number"
+                and type(arg_ir["index"].get("value")) is int
+                and isinstance(getattr(self, "_func_return_type", None), str)
+                and self._func_return_type.startswith("(")
+                and self._func_return_type.endswith(")")):
+            _t5_sl: List[str] = []
+            _t5_dp, _t5_cur = 0, ""
+            for _t5_ch in self._func_return_type[1:-1]:
+                if _t5_ch == "," and _t5_dp == 0:
+                    _t5_sl.append(_t5_cur.strip())
+                    _t5_cur = ""
+                    continue
+                if _t5_ch == "(":
+                    _t5_dp += 1
+                elif _t5_ch == ")":
+                    _t5_dp -= 1
+                _t5_cur += _t5_ch
+            _t5_sl.append(_t5_cur.strip())
+            _t5_k = arg_ir["index"]["value"]
+            if (len(_t5_sl) >= 2 and 0 <= _t5_k < len(_t5_sl)
+                    and _t5_sl[_t5_k].startswith("seq (") and _t5_sl[_t5_k].endswith(")")):
+                return f"(Seq.length {args[0]})"
         # R5-str: `len(<str>.split(sep))` / `len(<str>.splitlines())` outside `@mutable_state`
         # — the argument lowered to the receiver-passing `array string` op (`_handle_call_expr`),
         # so its length is the ARRAY length, not the opaque `iter_length : int -> int`.
@@ -8096,6 +8418,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and getattr(self, "_current_self_type", None)
                 not in getattr(self, "_mutable_state_classes", set())):
             return f"(Array.length {args[0]})"
+        # T4 (run #7 lvR, cap-typed-local-lowering): `len(f(..))` of a BARE call of a
+        # module function whose declaration Module5 typed as a scalar-slot
+        # `-> List[Tuple[..]]` (`return_annotation` "list", `return_value_type` the
+        # synthesized `pytuple_<tags>` record, so it is declared `array pytuple_<tags>`)
+        # is the ARRAY length -- the opaque `iter_length : int -> int` fallback mistypes
+        # against that array (fail-closed). Only that callee shape routes here; every
+        # other `len(<call>)` is unchanged.
+        if atype == "Call" and args and isinstance(arg_ir.get("func"), str) \
+                and "." not in arg_ir.get("func"):
+            _t4_fn = arg_ir.get("func")
+            for _t4_f in (self.ir.get("functions", []) or []):
+                if _t4_f.get("name") == _t4_fn and not _t4_f.get("self_type"):
+                    _t4_rv = _t4_f.get("return_value_type")
+                    if (_t4_f.get("return_annotation") == "list"
+                            and isinstance(_t4_rv, str) and _t4_rv.startswith("pytuple_")
+                            and _t4_rv in {(_t4_r or {}).get("whyml_name") for _t4_r in
+                                           (getattr(self, "_record_types", {}) or {}).values()
+                                           if isinstance(_t4_r, dict)}):
+                        return f"(Array.length {args[0]})"
+                    break
         # nested-list-mutable.md: a matrix-routed (in-place inner-mutated int-leaf)
         # nested list `a` is a built-in `matrix int`. `len(a)` = `a.rows` (outer row
         # count); `len(a[i])` = `a.columns` (the rectangular per-row length). Emit the
@@ -8195,10 +8537,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # reads 0, so `len({"z": 1})` PROVED 0 (CPython: 1). The HArr arm keeps the
             # certified fold; a dict / str / erased value has the UNINTERPRETED length
             # `hval_len_other` (no postcondition -> no axiom; ledger stays 3).
-            self._add_abstract_op("val function hval_len_other (h: hval) : int")
+            # dict-value-model-r4: `hval_len_other` is declared by the r4 theory.
+            # dict-value-model-r4: the certified `hval_len` is polymorphic over HStr /
+            # HTuple / HArr / HMap, and every other tag is the law-free `hval_len_other`
+            # (a TypeError site, §7.131 static pass).
             _lv = whyml_ident(arg_ir['name'])
-            return (f"(match {_lv} with HArr _ -> (hval_len {_lv}) "
-                    f"| _ -> (hval_len_other {_lv}) end)")
+            return f"(hval_len {_lv})"
         # ch31 (dict-value-wall, hval builtins): `len(<hval expr>)` on a NON-Var pyval read
         # (`len(d.get("s"))`, `len(rec["fields"])`) fell to the opaque `iter_length : int ->
         # int`, an L3-tc error against `hval`. Lowered by CARRIER: `HArr` -> the certified
@@ -8208,12 +8552,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # Body context only; the operand is bound once. Fail-closed: a non-pyval arg skips.
         if (not self._in_spec and atype != "Var" and isinstance(arg_ir, dict)
                 and self._expr_is_pyval(arg_ir)):
-            self._add_abstract_op("val function hval_len_other (h: hval) : int")
-            self._add_abstract_op("val function hstr_len (s: string) : int\n"
-                                  "    ensures { result = String.length s }")
-            return (f"(let _hln = {args[0]} in match _hln with "
-                    f"HArr _lln -> hval_list_len _lln | HStr _sln -> hstr_len _sln "
-                    f"| _ -> hval_len_other _hln end)")
+            # dict-value-model-r4: `hval_len_other` is declared by the r4 theory.
+            return f"(hval_len {args[0]})"
         # §B′: len(d[k]) where d is a seq-valued dict (`Dict[_, List[int]]`) — the
         # read is a `seq int`, so its length is `Seq.length`.
         if atype == "Subscript":
@@ -11594,6 +11934,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         " is not typed as a path / str here, so the call cannot be lowered to "
                         "the open-world path model. Annotate the receiver as `Path` (or bind "
                         "it from `<Path> / <str>`) and pass a `str`.")
+                # (run #7) ROUTE #599: `_is_string_expr` is true of a `str` as of a `Path`
+                # (the #31 model erases one to the other), and CPython raises AttributeError
+                # on `<str>.mkdir()` / `.write_text()` (rt58 c01 PROVED a handler's value it
+                # never modelled). The receiver must be a name the SOURCE shows is a
+                # `pathlib.Path` (`_run_pipeline`'s per-function table; absent: refused).
+                _x7pn = (getattr(self, "path_names_r599", None) or {}).get(
+                    getattr(self, "_current_sig_func_name", None))
+                if not (isinstance(_x7pn, set) and func_name.split(".")[0] in _x7pn):
+                    raise PyCSLIRError(
+                        f"PYCSL-R7Q-EXT-PATH-RECEIVER (route #599): the source does not show "
+                        f"that the receiver of `{func_name}(..)` is a `pathlib.Path`, and the "
+                        f"call is modelled as `pathlib.Path.{_x7k}` (the file imports `Path` "
+                        f"from `pathlib`): a "
+                        f"`str` receiver (the path model represents both as one string) makes "
+                        f"CPython raise AttributeError there, which the model does not raise "
+                        f"(measured: a `str` parameter's `.mkdir()` under an "
+                        f"`except AttributeError` handler proved the other path's value). "
+                        f"Annotate the receiver as `Path`, or bind it only from `Path(..)` / "
+                        f"`<Path> / <str>`.",
+                        stage="module6-call", code="PYCSL-R7Q-EXT-PATH-RECEIVER")
                 _x7p = self._expr_to_whyml(_x7rv, local_refs, invariant_ctx, subst)
                 if _x7k == "mkdir":
                     _x7b = lambda _n: ("true" if (_x7kw.get(_n) or {}).get("value") is True
@@ -14432,14 +14792,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # No new axiom (a `val function` without postcondition) -> ledger stays 3.
         if (isinstance(_a0, dict) and isinstance(_a1, dict)
                 and self._expr_is_pyval(_a0)):
-            _ctors = ("HStr", "HInt", "HArr", "HMap", "HNode")
+            # dict-value-model-r4: the FROZEN 9 tags. The POSITIVE tags (HNone, HBool,
+            # HFloat, HStr, HTuple, HArr, HMap, HNode) are built only from a value of that
+            # Python type (`_pyval_wrap`), so every builtin class DECIDES on them
+            # (`isinstance(True, int)` is True: HBool answers `int` true). `HInt` stays the
+            # ERASED carrier (an int, or a value of unknown type coerced to int, possibly a
+            # user object), so EVERY class stays OPAQUE on it.
+            _ctors = ("HNone", "HBool", "HInt", "HFloat", "HStr", "HTuple", "HArr",
+                      "HMap", "HNode")
+            _pos_true = {"HNone": ("NoneType",), "HBool": ("bool", "int"),
+                         "HFloat": ("float",), "HStr": ("str",), "HTuple": ("tuple",),
+                         "HArr": ("list",), "HMap": ("dict",), "HNode": ("dict",)}
             _decided = {
-                "dict": {"HMap": "true", "HNode": "true", "HStr": "false", "HArr": "false"},
-                "str": {"HStr": "true", "HMap": "false", "HNode": "false", "HArr": "false"},
-                "list": {"HArr": "true", "HMap": "false", "HNode": "false", "HStr": "false"},
-            }
-            _scalar_names = ("int", "bool", "float", "complex", "tuple", "set",
-                             "frozenset", "bytes", "bytearray", "NoneType")
+                _dn: {_dc: ("true" if _dn in _pos_true[_dc] else "false")
+                      for _dc in _ctors if _dc != "HInt"}
+                for _dn in ("dict", "str", "list", "tuple", "bool", "int", "float",
+                            "NoneType")}
+            _scalar_names = ("complex", "set", "frozenset", "bytes", "bytearray")
             _tnodes = (_a1.get("elts") or [] if _a1.get("type") in ("Tuple", "ArrayLit")
                        else [_a1])
             _names = [(t.get("name") if isinstance(t, dict) and t.get("type") == "Var"
@@ -14501,7 +14870,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 else:
                     _opq = "(any bool)"
                 _arms = " | ".join(
-                    f"{_c} _ -> {(_opq if _ans[_c] == 'opaque' else _ans[_c])}"
+                    f"{_c}{'' if _c == 'HNone' else ' _'} -> "
+                    f"{(_opq if _ans[_c] == 'opaque' else _ans[_c])}"
                     for _c in _ctors)
                 if _in_spec_ctx and "opaque" in _ans.values():
                     return f"(let h_ii = {_sv} in match h_ii with {_arms} end)"
@@ -15085,7 +15455,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         `or`-default recognizer reuses to stay off int-erasure."""
         if not isinstance(e, dict):
             return False
+        if e.get("_r4_narrow") or e.get("_r4_proj"):
+            return False   # dict-value-model-r4: projected to its `HStr` / `HInt` payload
         t = e.get("type")
+        # dict-value-model-r4: `tuple(<pyval>)` is an `HTuple` hval, and a call of a
+        # same-file `-> Tuple[..PyVal..]` function returns one.
+        if t == "Call" and isinstance(e.get("func"), str) and getattr(self, "ir", None):
+            _r4ta = (e.get("args") or [{}])[0] if len(e.get("args") or []) == 1 else None
+            if (e.get("func") == "tuple" and isinstance(_r4ta, dict)
+                    and (self._expr_is_pyval(_r4ta)
+                         or (_r4ta.get("type") == "BinOp" and _r4ta.get("op") == "or"
+                             and self._expr_is_pyval(_r4ta.get("left") or {})
+                             and isinstance(_r4ta.get("right"), dict)
+                             and _r4ta["right"].get("type") in ("ArrayLit", "DictLit", "Tuple")
+                             and not _r4ta["right"].get("elts")
+                             and not _r4ta["right"].get("keys")))):
+                return True
+            _r4fn = e.get("func").split(".")[-1]
+            if any(isinstance(_f, dict) and _f.get("r4_ret_pyval") == "tuple"
+                   and str(_f.get("name", "")).split("__")[-1] == _r4fn
+                   for _f in (self.ir.get("functions", []) or [])):
+                return True
         if t == "Var":
             return e.get("name") in getattr(self, "_pyval_locals", set())
         if t == "Call":
@@ -15266,7 +15656,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 f"| HMap PNil -> {_dflt} | HMap _ -> v_or "
                 f"| HInt i_or -> if i_or <> 0 then v_or else {_dflt} "
                 f"| HStr _ -> if hval_truthy v_or then v_or else {_dflt} "
-                f"| HNode _ -> v_or end)")
+                f"| HNode _ -> v_or "
+                # dict-value-model-r4: the frozen tags' Python truthiness (None falsy,
+                # a bool by value, a float non-zero, a tuple non-empty).
+                f"| HNone -> {_dflt} | HBool b_or -> if b_or then v_or else {_dflt} "
+                f"| HFloat f_or -> if not (hreal_eq f_or 0.0) then v_or else {_dflt} "
+                f"| HTuple HNil -> {_dflt} | HTuple _ -> v_or end)")
 
     def _recognize_attr_receiver_idiom(self, expr: Dict[str, Any],
                                        local_refs: Optional[Set[str]],
@@ -15363,8 +15758,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # test). Scoped via `_current_emitting_func` → corpus/consumer-inert.
                     _proj = ("num_of" if (_k == "value"
                                  and (getattr(self, "_current_emitting_func", None) or "").endswith("_is_null_byte_lit"))
-                             else "value_of" if _k == "value"
-                             else "body_of" if (_k == "body" and self._get_default_is_empty_dict(expr))
+                             else "iratts_value_of" if _k == "value"
+                             else "iratt_body_of" if (_k == "body" and self._get_default_is_empty_dict(expr))
                              else _EMIT_IR_PROJ.get(_k))
                     if _proj:
                         _rv = self._expr_to_whyml(_rcv, local_refs or set(),
@@ -15474,10 +15869,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # bool/if context (`_to_bool`) can apply `hval_truthy` to the raw value
                 # instead of the string projection — WITHOUT re-lowering (which would lack
                 # local_refs). Matched by string-equality of the projected result below.
+                # dict-value-model-r4: absent -> `HNone` (Python `None`); a non-map
+                # receiver raises AttributeError (dead arm, uninterpreted in program code).
+                _k8_dead = f"(hval_get_other {_rvw} {_kw})"
+
                 self._last_hval_get_raw = (
                     f"(match {_rvw} with HMap m_k8 -> "
                     f"(match pairs_get m_k8 {_kw} with Some v_ -> v_ "
-                    f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
+                    f"| None -> HNone end) | _ -> {_k8_dead} end)")
                 # dict-value-wall Step 1 (found re-running the hval false twins): this
                 # DOUBLED read mapped a present NON-string value to `None` and then to "",
                 # and a MISSING key (Python `None`) to "" -- once ch27 made the hval readers
@@ -15485,7 +15884,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # `{"a": {"x": 5}}` (CPython 5) and for `{"a": {}}` (CPython None). A present
                 # value now projects through `hstr_of` (opaque for a non-string), and a
                 # missing key is route #238's `None` spelling `HInt pycsl_none`, projected.
-                self._add_abstract_op("val function pycsl_none : int")
                 _optstr = (f"(match {_rvw} with HMap m_k8 -> "
                            f"(match pairs_get m_k8 {_kw} with "
                            f"Some v_ -> Some (hstr_of v_) | None -> None end) "
@@ -15493,7 +15891,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if getattr(self, "_get_return_raw_option", False):
                     return _optstr
                 _res_str = (f"(match {_optstr} with Some s -> s "
-                            f"| None -> hstr_of (HInt pycsl_none) end)")
+                            f"| None -> hstr_of HNone end)")
                 # (R5 twin) a `.get` on a receiver that is not a dict raises AttributeError:
                 # under an active `no_exception` context the receiver must be a map.
                 if (not getattr(self, "_in_spec", False)
@@ -15591,6 +15989,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # feeds a `.get` chain) -> corpus byte-inert.
         if recv in getattr(self, "_pyval_locals", set()):
             _k = args[0]
+            # lvS (run #7): the receiver is the LOCAL's WhyML name (`whyml_ident`): a
+            # Python local named like a WhyML keyword (`rec`) is declared `py_rec`, and the
+            # raw name was a Why3 syntax error (fail-closed). Every other name is unchanged.
+            _k7_rw = whyml_ident(recv)
             if len(args) == 2:
                 # `.get(k, D)` -> unwrap the option-hval to an hval. R3: the carrier
                 # is the assoc list `hpairs`, so the lookup is the `pairs_get` fold.
@@ -15617,10 +16019,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _kb306 = f"let k_r306 = {_k} in "
                         _k = "k_r306"
                     return (f"({_kb306}let dflt_r306 = {_empty} in "
-                            f"(match {recv} with HMap m_k7 -> "
+                            f"(match {_k7_rw} with HMap m_k7 -> "
                             f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
                             f"| None -> dflt_r306 end) | _ -> dflt_r306 end))")
-                return (f"(match {recv} with HMap m_k7 -> "
+                return (f"(match {_k7_rw} with HMap m_k7 -> "
                         f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
                         f"| None -> {_empty} end) | _ -> {_empty} end)")
             # `.get(k)` (leaf, no default) -> unwrap the option-pyval to a `pyval`, the
@@ -15631,10 +16033,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # ROUTE #238: the absent key is Python `None` -- route #44's opaque
             # `pycsl_none` under the erased `HInt` carrier (the SAME spelling `_pyval_wrap`
             # gives a literal `None`), never the definite `HInt 0` (`== 0` proved True).
-            self._add_abstract_op("val function pycsl_none : int")
-            _k7_leaf = (f"(match {recv} with HMap m_k7 -> "
+            # dict-value-model-r4: the absent key is Python `None`, now its own tag `HNone`;
+            # a non-map receiver raises AttributeError (dead arm: an UNINTERPRETED value
+            # in program code, never a concrete junk; `HNone` in a contract).
+            _k7_dead = f"(hval_get_other {_k7_rw} {_k})"
+
+            _k7_leaf = (f"(match {_k7_rw} with HMap m_k7 -> "
                         f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
-                        f"| None -> (HInt pycsl_none) end) | _ -> (HInt pycsl_none) end)")
+                        f"| None -> HNone end) | _ -> {_k7_dead} end)")
             # self-tcb-reduction _namedtuple_positional_access: the leaf read is a RAW
             # `hval`. A bool/if context (`for k, v in ...: if v.get("is_namedtuple"):`)
             # must test its Python-truthiness via `hval_truthy`, NOT the `str_eq_op … ""`
@@ -15782,7 +16188,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # (a `string`), not the `svalue_of` sub-node. General (semantically the
                 # string-content read) + byte-inert. Overrides the default table below.
                 if _scoped_val is None and _k2 == "value" and self._get_default_is_str_literal(expr):
-                    _scoped_val = "value_of"
+                    _scoped_val = "iratts_value_of"
                 # orelse_of mini-M1: same "body" disambiguation as the subscript-receiver
                 # site above — an empty-dict `{}` default routes to the IfExpr scalar
                 # `body_of`, everything else keeps the table's `stmts_of`.
@@ -15794,7 +16200,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # shape, mirroring `body`/`body_of`. `_try_union_is_none_match` reads
                 # `stmt.get("orelse", [])` (list default) → `stmts_of`.
                 _proj = (_scoped_val or (_scoped2 or {}).get(_k2)
-                         or ("body_of" if (_k2 == "body" and self._get_default_is_empty_dict(expr))
+                         or ("iratt_body_of" if (_k2 == "body" and self._get_default_is_empty_dict(expr))
                              else "orelse_stmts_of" if (_k2 == "orelse"
                                                         and not self._get_default_is_empty_dict(expr))
                              else _EMIT_IR_PROJ.get(_k2)))
@@ -15843,8 +16249,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     default = self._pyval_wrap((expr.get("args") or [None, None])[1],
                                                local_refs or set())
                 else:
-                    self._add_abstract_op("val function pycsl_none : int")
-                    default = "(HInt pycsl_none)"
+                    default = "HNone"   # dict-value-model-r4: Python `None` is `HNone`
             else:
                 default = (args[1] if len(args) >= 2
                            else self._dv_absent_opaque(_field_nu))   # ROUTE #57
@@ -15941,8 +16346,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # missing key -- route #44's opaque `pycsl_none` under the erased `HInt`
             # carrier (the spelling `_pyval_wrap` gives a literal `None`), never the
             # definite `HInt 0` (`d.get("k") == 0` PROVED True with "k" absent).
-            self._add_abstract_op("val function pycsl_none : int")
-            default = "(HInt pycsl_none)"
+            default = "HNone"   # dict-value-model-r4: Python `None` is `HNone`
         else:
             default = self._dv_absent_opaque(nu)   # ROUTE #57
         # LEVER F2 (see the self-field-dict twin above): thread the raw `option ν` into
@@ -18720,13 +19124,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # set by the assign binder), return the RAW `hval` value (`Some v_ -> v_`) so
             # the target types `hval` (for `hval_len`/`hval_nth_str`), NOT the HStr string
             # projection a string-consumed read (`rec_info["whyml_name"]`) needs.
+            # dict-value-model-r4 (impl F6 (i)/(ii)): the raising arms of a NESTED PyVal
+            # subscript (absent key: KeyError; non-dict: TypeError) are UNINTERPRETED
+            # (`any hval`), never a concrete junk value; under a claim covering KeyError the
+            # key's PRESENCE is asserted, as for a top-level dict read.
+            _r4dd = f"(hval_get_other {_pv} {index})"
+
+            _r4kc = (not getattr(self, "_in_spec", False) and not invariant_ctx
+                     and (getattr(self, "_current_no_exception_all", False)
+                          or bool({"KeyError", "LookupError", "Exception", "BaseException"}
+                                  & set(getattr(self, "_current_no_exception", set()) or set()))))
+            _r4rd = (f"(match {_pv} with HMap m_pvs -> "
+                     f"(match pairs_get m_pvs {index} with Some v_ -> v_ "
+                     f"| None -> {_r4dd} end) | _ -> {_r4dd} end)")
+            if _r4kc:
+                _r4rd = (f"(begin assert {{ [@expl:PyCSL-R4 KeyError: a nested PyVal subscript "
+                         f"on an absent key] match {_pv} with HMap _r4m -> pairs_mem _r4m "
+                         f"{index} | _ -> true end }}; {_r4rd} end)")
             if getattr(self, "_pyval_get_raw_coll", False):
-                return (f"(match {_pv} with HMap m_pvs -> "
-                        f"(match pairs_get m_pvs {index} with Some v_ -> v_ "
-                        f"| None -> (HMap PNil) end) | _ -> (HMap PNil) end)")
-            return (f"(match {_pv} with HMap m_pvs -> "
-                    f"(match pairs_get m_pvs {index} with Some (HStr _s) -> _s "
-                    f"| _ -> \"\" end) | _ -> \"\" end)")
+                return _r4rd
+            return f"(hstr_of {_r4rd})"
         # self-tcb-reduction (union/match cluster): a subscript whose BASE is itself an
         # hval-valued expression (`vinfo["constructors"][ctor_name]` — the inner
         # `vinfo["constructors"]` reads an `hval` HMap off the `map string (option hval)`
@@ -18735,10 +19152,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # on `_expr_is_pyval(base)` being a Subscript -> corpus/mirror byte-inert.
         if (isinstance(value, dict) and value.get("type") == "Subscript"
                 and self._expr_is_pyval(value)):
+            # dict-value-model-r4 (impl F6 (i)/(ii)): the raising arms of a NESTED PyVal
+            # subscript (absent key: KeyError; non-dict: TypeError) are UNINTERPRETED
+            # (`any hval`), never a concrete junk value; under a claim covering KeyError the
+            # key's PRESENCE is asserted, as for a top-level dict read.
+            _r4dd = f"(hval_get_other _r4b {index})"
+
+            _r4kc = (not getattr(self, "_in_spec", False) and not invariant_ctx
+                     and (getattr(self, "_current_no_exception_all", False)
+                          or bool({"KeyError", "LookupError", "Exception", "BaseException"}
+                                  & set(getattr(self, "_current_no_exception", set()) or set()))))
             _bh = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
-            return (f"(match {_bh} with HMap m_pcii -> "
-                    f"(match pairs_get m_pcii {index} with Some v_ -> v_ "
-                    f"| None -> (HMap PNil) end) | _ -> (HMap PNil) end)")
+            _r4rd = (f"(match _r4b with HMap m_pcii -> "
+                     f"(match pairs_get m_pcii {index} with Some v_ -> v_ "
+                     f"| None -> {_r4dd} end) | _ -> {_r4dd} end)")
+            if _r4kc:
+                _r4rd = (f"begin assert {{ [@expl:PyCSL-R4 KeyError: a nested PyVal subscript "
+                         f"on an absent key] match _r4b with HMap _r4m -> pairs_mem _r4m "
+                         f"{index} | _ -> true end }}; {_r4rd} end")
+            return f"(let _r4b = {_bh} in {_r4rd})"
         # §26: `X[k]` where X aliases a self dict-field → `Map.get self.<field> <k>` (the
         # getattr-bound-local read; `known_sizes[var_name]`). Mirrors the field-dict get.
         if isinstance(value, dict) and value.get("type") == "Var":
@@ -18780,8 +19212,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 else:
                     self._add_abstract_op("val str_hash_op (s: string) : int")
                     _key = f"(str_hash_op {index})"
-                return (f"(match Map.get {_recv} {_key} with "
-                        f"| Some _v -> _v | None -> (HMap PNil) end)")
+                # dict-value-model-r4 (impl F6): the absent key RAISES KeyError: an
+                # uninterpreted continuation in program code, asserted absent under a
+                # KeyError claim (the top-level `map_get` trigger).
+                _r4dd = f"(hval_get_other HNone {_key})"
+
+                return self._wrap_with_no_exception_assert(
+                    ("map_get", None), [_recv, _key],
+                    f"(match Map.get {_recv} {_key} with "
+                    f"| Some _v -> _v | None -> {_r4dd} end)")
         # faithful-string-op.md §3.4: `<string>.split(sep)[i]` / `.rsplit(sep,k)[i]` → the
         # i-th piece — a substring of the receiver (str_split_elem_op). Length law only;
         # content unmodeled, so `[0]`/`[1]`/`[-1]` share the op (the bound holds for any i).
@@ -19215,6 +19654,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # The missing-key placeholder is typed per ν (consolidated).
                 default = self._dv_missing_default(
                     getattr(self, "_dict_value_types", {}).get(dvar))
+                # dict-value-model-r4 (impl F6 (i)): the missing-key arm of a
+                # `Dict[str, PyVal]` subscript RAISES KeyError; in un-claimed program code
+                # its continuation is UNINTERPRETED (`any hval`), never the concrete junk
+                # `(HInt 0)` (an accidental value); under a KeyError claim the presence
+                # assert below makes it dead.
+                if default == "(HInt 0)":
+                    default = f"(hval_get_other HNone {k})"
                 # list-comprehension-lowering.md L5: a self-field dict read
                 # (`self._abstract_ops[k]`) has no `dvar`; its value type comes from the
                 # record field → a `string` field defaults to "" (not the int `0`).
@@ -20248,6 +20694,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
             # self-tcb-reduction T1.a: `<emit_ir>.kind` is the DISCRIMINANT (`kind_of`, a string),
             # not a sub-node — so `inner.kind == "Subscript"` routes through `str_eq_op`.
+            # route #587 (run #7 u43): a string field several classes carry reads the
+            # receiver's constructor (`iratts_<attr>_of`); `.kind` / `.id` / `.attr` keep theirs.
+            if attr in _EMIT_IR_STR_ATTR_ARMS and attr not in ("attr", "field", "value"):
+                return f"(iratts_{attr}_of {_os})"
             if attr in _EMIT_IR_STR_ATTRS:
                 return f"({_EMIT_IR_STR_ATTRS[attr]} {_os})"
             # self-tcb-reduction T1.a: a node-LIST attr (`node.elts`/`node.parts`/…) → the args
@@ -20264,13 +20714,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _cef = getattr(self, "_current_emitting_func", None) or ""
             for _hname, _projmap in _EMIT_IR_HANDLER_ATTR_PROJ.items():
                 if attr in _projmap and (_cef == _hname or _cef.endswith("__" + _hname)):
+                    # route #586 (run #7 u43): the swap-family slots (`left_of`/`right_of`/
+                    # `ter_*_of`) are ONE class's projectors; the per-constructor arms below
+                    # read the field the node really carries.
+                    if _projmap[attr] in ("left_of", "right_of", "ter_fst_of", "ter_snd_of",
+                                          "ter_thd_of"):
+                        break
                     return f"({_projmap[attr]} {_os})"
             # 2-child-cluster mini-M1: an unambiguous 2-child-dataclass sub-node attr
             # (`node.dict`/`node.key`/`node.head`/`node.tail`) → its DISTINCT left_of/right_of
             # projector, avoiding the svalue_of collision when a handler reads both children
             # of the SAME node (e.g. `_handle_map_get_expr`'s `node.dict` and `node.key`).
-            if attr in _EMIT_IR_NODE_ATTRS:
-                return f"({_EMIT_IR_NODE_ATTRS[attr]} {_os})"
+            # route #586 (run #7 u43): `_EMIT_IR_NODE_ATTRS` routed `.dict/.key/.head/.tail/.left/
+            # .right/.lo/.hi/.size/.default` to IrBinOp's `left_of`/`right_of` (`IrOther ""` on every
+            # other class); they now take the per-constructor `iratt_<attr>_of` below.
             # ROUTES #583/#584/#585 (run #6 u37, u38): the catch-all read of an attribute on an
             # emit_ir value is chosen by the receiver's CONSTRUCTOR. `(iratt_<attr>_of x)` reads
             # the sub-node each constructor carrying that field holds, IrOther "" elsewhere
@@ -20926,7 +21383,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # all three of which are plain module functions and so could never satisfy
                 # the `@mutable_state` gate. Strictly MORE faithful: a real `str_concat_op`
                 # over real strings instead of an uninterpreted hash.
-                or getattr(self, "_func_return_type", None) == "string")):
+                or getattr(self, "_func_return_type", None) == "string"
+                # lvS (run #7, cv13 O19): an f-string whose every segment is string-typed
+                # or a PyVal (`hval`) value (`f"{fn}:{ln}"` over `.get` reads of a
+                # `Dict[str, PyVal]`) IS a Python `str` whatever the function returns: each
+                # hval segment is formatted by carrier in `_fstring_str_part` (an `HStr s`
+                # IS `s`; every other carrier the program `val hval_fmt_other`, no
+                # `function`, never a constant). At least one hval segment; an int /
+                # opaque segment keeps the int-model joiner below (fail-closed).
+                or (any(isinstance(_o19p, dict) and not self._is_string_expr(_o19p)
+                        and self._expr_is_pyval(_o19p) for _o19p in parts)
+                    and all(isinstance(_o19p, dict) and (self._is_string_expr(_o19p)
+                                                         or self._expr_is_pyval(_o19p))
+                            for _o19p in parts)))):
             self._add_abstract_op("val int_to_string (n: int) : string")
             self._add_abstract_op(
                 "val str_concat_op (a: string) (b: string) : string\n"
@@ -22280,6 +22749,73 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and src_ir.get("name") in getattr(self, "_seq_locals", set())):
             return None
         elt = _d.get("elt", {})
+        # lvS (run #7, cv13 O7): the hval-ELEMENT FILTER `[r for r in S if "<k>" in r]` over
+        # a `seq hval` S (a bare call of a module function declared `-> List[Dict[str,
+        # PyVal]]` / `-> List[PyVal]`, i.e. `seq hval`) is the DEFINITIONAL fold
+        # `hval_seq_filter_in "<k>" S (Seq.length S)`: a `let rec function` (no axiom, no
+        # assumed ensures) keeping, in order, each element the dict-value-wall R2b
+        # membership holds of -- a dict (`HMap`) tests KEY presence, a list / tuple
+        # (`HArr` / `HTuple`) element equality with a str, every other carrier the
+        # uninterpreted `hval_in_other` (CPython: substring / TypeError), the SAME term
+        # `_emit_membership` gives `"<k>" in r` in a body. The element must be the bare
+        # target, ONE filter of exactly that shape, one generator; body context only.
+        # Anything else falls through unchanged.
+        _o7_ifs = g.get("ifs") or []
+        _o7_src_rt = None
+        if (isinstance(src_ir, dict) and src_ir.get("type") == "Call"
+                and src_ir.get("receiver") is None and not src_ir.get("keywords")
+                and isinstance(src_ir.get("func"), str) and "." not in src_ir["func"]
+                and src_ir["func"] not in (getattr(self, "_current_symbol_table", {}) or {})):
+            # the callee's DECLARATION (K4: `return_annotation` "list" with element
+            # `return_value_type` "hval" is declared `seq hval`), as lvR's T4 reads it
+            for _o7_fn in ((getattr(self, "ir", None) or {}).get("functions", []) or []):
+                if (isinstance(_o7_fn, dict) and _o7_fn.get("name") == src_ir["func"]
+                        and not _o7_fn.get("self_type")):
+                    if (_o7_fn.get("return_annotation") == "list"
+                            and _o7_fn.get("return_value_type") == "hval"):
+                        _o7_src_rt = "seq hval"
+                    break
+        _o7_f = _o7_ifs[0] if len(_o7_ifs) == 1 else None
+        if (_o7_src_rt == "seq hval" and not self._in_spec and not invariant_ctx
+                and isinstance(elt, dict) and elt.get("type") == "Var"
+                and elt.get("name") == target and set(elt) == {"type", "name"}
+                and isinstance(_o7_f, dict) and _o7_f.get("type") in ("BinOp", "Compare")
+                and _o7_f.get("op") == "in"
+                and isinstance(_o7_f.get("left"), dict)
+                and _o7_f["left"].get("type") == "String"
+                and type(_o7_f["left"].get("value")) is str
+                and isinstance(_o7_f.get("right"), dict)
+                and _o7_f["right"].get("type") == "Var"
+                and _o7_f["right"].get("name") == target
+                and set(_o7_f["right"]) == {"type", "name"}):
+            # Declared as a LATE op, spliced just before the using function
+            # (`_insert_late_content_ops`): it reads the r4 views (`hval_list_str_mem`,
+            # `hval_in_other`, `pairs_get`), which the early abstract-op block may precede.
+            _o7_late = getattr(self, "_late_content_ops", None)
+            if not isinstance(_o7_late, list):
+                return None
+            if not any(isinstance(_o7_e, tuple) and _o7_e and _o7_e[0] == "hval_seq_filter_in"
+                       for _o7_e in _o7_late):
+                _o7_late.append(("hval_seq_filter_in",
+                "let rec function hval_seq_filter_in (k: string) (s: seq hval) (n: int)"
+                " : seq hval\n"
+                "    requires { 0 <= n <= Seq.length s }\n"
+                "    variant { n }\n"
+                "  = if n = 0 then Seq.empty else\n"
+                "      let r = hval_seq_filter_in k s (n - 1) in\n"
+                "      let h = Seq.get s (n - 1) in\n"
+                "      if (match h with HMap p -> (match pairs_get p k with None -> false"
+                " | Some _ -> true end)\n"
+                "          | HArr l -> hval_list_str_mem l k"
+                " | HTuple l -> hval_list_str_mem l k\n"
+                "          | _ -> hval_in_other k h end)\n"
+                "      then Seq.snoc r h else r",
+                                 getattr(self, "_current_emitting_func", None)))
+            _o7_sw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+            _o7_kw = self._expr_to_whyml(_o7_f["left"], local_refs or set(),
+                                         invariant_ctx, subst)
+            return (f"(let _o7_s = {_o7_sw} in "
+                    f"hval_seq_filter_in {_o7_kw} _o7_s (Seq.length _o7_s))")
         # variadic content-law comprehension (FABLE-sanctioned): a comprehension
         # `[self.<disp>(t) for t in <array emit_ir>]` whose element is a RECURSIVE IR
         # DISPATCHER call (`_csl_to_ir`/`_py_expr_to_ir`, emit_ir -> emit_ir) over the
@@ -22844,9 +23380,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _pvm = whyml_ident(_sv.get("name"))
         _kw = self._expr_to_whyml(arg.get("index", {}), local_refs or set(),
                                   invariant_ctx, subst)
+        # dict-value-model-r4 (impl F6 (i)): the raising arms are uninterpreted.
+        _dk_dead = f"(hval_get_other {_pvm} {_kw})"
+
         return (f"(match {_pvm} with HMap m_mem -> "
                 f"(match pairs_get m_mem {_kw} with Some v_ -> v_ "
-                f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
+                f"| None -> {_dk_dead} end) | _ -> {_dk_dead} end)")
 
     def _tdrl_present_map_term(self, node: Any) -> Optional[str]:
         """cap-6/7: the real `present` map term. `present = set(kv.keys())` is modelled as
@@ -22980,6 +23519,53 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # temporary would then be dead and the operand evaluated at its old position.
         if isinstance(expr, dict) and expr.get("_pycsl_seq"):
             return expr["_pycsl_seq"]
+        # dict-value-model-r4 (impl §2.2): a PyVal read narrowed by a dominating
+        # `isinstance(x, str)` is the certified projection of its `HStr` payload.
+        # dict-value-model-r4 (cv13 O6/O7): the RETURNED value of a `-> Tuple[..PyVal..]` /
+        # `-> Dict[str, PyVal]` function (marked by `_emit_body_code`'s pre-pass): a tuple
+        # literal is the `HTuple` it is (`_pyval_wrap`), a dict literal the `map string
+        # (option hval)` of its wrapped values; anything else is already of that type.
+        if isinstance(expr, dict) and expr.get("_r4_wrap"):
+            _r4k = expr["_r4_wrap"]
+            _r4e = {_k: _v for _k, _v in expr.items() if _k != "_r4_wrap"}
+            if _r4k == "tuple" and _r4e.get("type") == "Tuple":
+                return self._pyval_wrap(_r4e, local_refs)
+            if _r4k == "dict" and _r4e.get("type") == "DictLit" and not any(
+                    not isinstance(_kk, dict) or _kk.get("type") == "None"
+                    for _kk in (_r4e.get("keys") or [])):
+                self._add_abstract_op(
+                    "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)\n"
+                    "    ensures { result = Map.set m k (Some v) }")
+                _r4acc = "(const (None: option hval))"
+                for _kk, _vv in zip(_r4e.get("keys") or [], _r4e.get("values") or []):
+                    _r4acc = (f"(map_update_some {_r4acc} "
+                              f"{self._expr_to_whyml(_kk, local_refs, invariant_ctx, subst)} "
+                              f"{self._pyval_wrap(_vv, local_refs)})")
+                return _r4acc
+            return self._expr_to_whyml(_r4e, local_refs, invariant_ctx, subst)
+        # dict-value-model-r4 (cv13 O7b): `tuple(v)` of a PyVal is the certified
+        # `hval_tuple` (a list / tuple keeps its elements, a dict gives its keys in
+        # insertion order, any other tag the law-free TypeError arm `hval_tuple_other`).
+        if (isinstance(expr, dict) and expr.get("type") == "Call" and expr.get("func") == "tuple"
+                and len(expr.get("args") or []) == 1 and not expr.get("keywords")
+                and isinstance(expr["args"][0], dict) and self._uses_pyval()
+                and (self._expr_is_pyval(expr["args"][0])
+                     or (expr["args"][0].get("type") == "BinOp"
+                         and expr["args"][0].get("op") == "or"
+                         and self._expr_is_pyval(expr["args"][0].get("left") or {})
+                         and isinstance(expr["args"][0].get("right"), dict)
+                         and expr["args"][0]["right"].get("type") in ("ArrayLit", "DictLit", "Tuple")
+                         and not expr["args"][0]["right"].get("elts")
+                         and not expr["args"][0]["right"].get("keys")))):
+            return f"(hval_tuple {self._expr_to_whyml(expr['args'][0], local_refs, invariant_ctx, subst)})"
+        if isinstance(expr, dict) and expr.get("_r4_proj") == "int":
+            _r4w = self._expr_to_whyml({_k: _v for _k, _v in expr.items() if _k != "_r4_proj"},
+                                       local_refs, invariant_ctx, subst)
+            return f"(hint_of {_r4w})" if _r4w else _r4w
+        if isinstance(expr, dict) and expr.get("_r4_narrow") == "str":
+            _r4w = self._expr_to_whyml({_k: _v for _k, _v in expr.items() if _k != "_r4_narrow"},
+                                       local_refs, invariant_ctx, subst)
+            return f"(hstr_of {_r4w})" if _r4w else _r4w
         if (isinstance(expr, OpaqueExpr) and isinstance(expr.raw, dict)
                 and expr.raw.get("_pycsl_seq")):
             return expr.raw["_pycsl_seq"]

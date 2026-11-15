@@ -6372,6 +6372,38 @@ call `<x>.n(...)` of a name made a possible method only by these forms is refuse
 name of its `def`, or give the name its own `def` (with a contract) that calls it. Measurements:
 `getting-better/open-routes/route595-classbody-alias-match-capture.md`.
 
+### 7.596 A read on an IR node value that the node's class does not carry is opaque; a field several classes carry is read by the receiver's constructor; truthiness and `is None` of such a read are not decided (routes #596 / #586 / #587 / #588 / #594, run #7)
+
+Routes #583-#585 (§7.583-§7.585) chose some reflection reads by the receiver's constructor, but every projector kept a
+PLACEHOLDER default -- `IrOther ""` for a node child, `""` for a string field -- and several field names still went to
+ONE class's projector. Inside a `@mutable_state` class, after a test that pins the receiver's class, a read that class
+does not carry (or carries through another projector) was the placeholder, and the model decided the branch: `if
+x.kind == "IfExpr": if x.test.kind == "Var": return 1` PROVED `\result == 0` (the IfExpr node is not modelled with
+its test); every StmtIR receiver (`x.kind == "Assign"` admits only `IrOther "Assign"`) likewise; `.dict` of a
+`MapGet` read IrBinOp's `left_of`; `.op` of a `UnaryOp` read IrBinOp's `op_of` (`""`); `if x.get("value"):` was
+`true`; `child.value is None` on a raw `ast.AnnAssign` was `false`. CPython takes the other branch each time.
+
+RULE (Module 6; every edited method's mirror twin `\trusted` or absent; no axiom, no new ADT arm, no `\trusted`):
+- A read on an emit_ir value is chosen by the receiver's CONSTRUCTOR, and a receiver whose constructor carries no such
+  field reads an OPAQUE value -- `<proj>_unk e`, a `val function` of the receiver: deterministic, decided by nothing.
+  - node fields (attribute view and the dict view's `left`/`right`/`index`/`object`/`orelse`/`body` `{}`):
+    `iratt_<f>_of`, one arm per constructor carrying `<f>` as an emit_ir child (`_EMIT_IR_ATTR_ARMS`, generated from
+    `_IRNODE_CTORS` + the ADT, gated constructors keep their gate); `_EMIT_IR_NODE_ATTRS` (`.dict/.key/.head/.tail/
+    .left/.right/.lo/.hi/.size/.default` -> `left_of`/`right_of`) and the swap-family handler slots are retired;
+  - string fields (`.op/.name/.var/.ctor/.func/.label/.base/.base1/.base2/.arr`, dict view `name/attr/field/func/ctor/
+    op` and the string `.get("value"[, ""])`): `iratts_<f>_of` (`_EMIT_IR_STR_ATTR_ARMS`); `.kind`, `.id`, `.attr`
+    keep `kind_of` / `name_of`;
+  - `irget_value_of` / `irget_lower_of` / `irget_upper_of` (the dict view): default opaque.
+  The definitions are spliced into the emit_ir theory only when the emitted text uses them (the §7.584 slot), so every
+  other file's theory is byte-identical.
+- TRUTHINESS: `if <projected child>:` is `irtru_<proj> <receiver>` -- `true` on a constructor that carries the field
+  (an IR / ast child is a truthy object), the option's presence on an optional bound (`IrSliceN`), opaque elsewhere;
+  `if v:` on an emit_ir LOCAL is `ir_truthy_v v` (`IrNone` / `IrOther` undecided, any other node `true`).
+- `child.value is None` on a raw `ast.stmt` (the pyast_stmt class-body / module walk): `ast.Assign` always carries its
+  value (`false`), every other statement's presence is opaque (`stmt_value_isnone_unk`).
+Witnesses 9740-9773 (expected FAIL), controls 9776-9778 (PASS); route docs
+`getting-better/open-routes/route596-*.md` (and #586 / #587 / #588 / #594), `getting-better/run7-u43-projectors.md`.
+
 ### 7.597 A raised name is judged by every binding that can reach the raise (route #597, run #6)
 
 §7.590 resolved the raised name by the module-level classes only, so a name rebound inside the function to a
@@ -6404,6 +6436,203 @@ keyword, a missing required parameter); a class whose constructor is not read (d
 argument. (A direct `E(..)` construction of a user class is also route #369's.) Advice: pass only the arguments the
 constructor accepts, binding extra data to a local first. Measurements:
 `getting-better/open-routes/route598-exception-ctor-kwargs.md`.
+
+### 7.599 A handler admitted by one raising operation must be reachable only from modelled operations (route #599, run #7)
+
+Route #174 (§ handler reachability) admits a narrow `except C` whose class no modelled implicit exception lies below
+as soon as ONE operation of the `try` body raises C in the model -- an explicit `raise`, a callee's `raises`, an lvQ
+external-effect (`ext`) registry row. The handler is then reachable in the model only with the state at that
+operation; a later operation that raises C only in CPython reaches it in a state the proof never considers. rt58
+measured five such programs PROVED after lvQ's ext rows (`argparse.ArgumentParser()`, `subprocess.run`,
+`Path.mkdir`, `Path.cwd()`, `parse_args()` covering `except AttributeError` / `UnicodeDecodeError` /
+`FileNotFoundError` / `SystemExit` / `OSError`, then `s.mkdir()` on a str, `b.decode()`, `q.read_text()`,
+`sys.exit(k)`, `os.path.getsize(s)`) and one pre-existing twin (an explicit `raise OSError`, then
+`os.path.getsize`); CPython returns the handler's value. RULE (`PYCSL-R599-HANDLER-UNMODELLED-RAISER`, in a
+claiming function -- §7's route #171/#174 claim test -- for each such admitted class C): every call in the `try`
+body (any depth) must be an ext-modelled call or the construction of a builtin exception; a same-file callee or a
+method counts as unmodelled (it may raise C at an unmodelled operation of its own). When C is not below OSError,
+UnicodeError, SystemExit or EOFError (classes CPython raises only inside a call), every expression of the body
+must also be a name or a literal (no attribute read, operator, subscript ...) and every statement an assignment,
+expression statement, `if`, `pass`, `raise`, `return`, `break`, `continue` or ghost / proof statement. A class
+covered by a modelled implicit exception (IndexError, KeyError, ValueError, ZeroDivisionError, StopIteration and
+their bases) is unchanged: route #171's widened `no_exception` already makes every operation of the function prove
+it does not raise them. EXEMPT (a handler whose outcome cannot depend on the state it is entered in): the handler is
+one `return <e>` over literals and int / bool / str / float parameters the function never assigns, the `try` has no
+`finally`, the function's only claims are `ensures` clauses over `\result`, literals and those parameters (no class
+invariant, assertion or loop invariant), and the FIRST statement of the `try` body is a call over plain arguments
+that may raise a subclass of C in every state (an `ext` row, or a same-file `\abstract` function's `raises D when
+True`), so the model proves the handler's value under the path condition at the `try` itself (corpus `0449`-`0453`:
+`except SyntaxError: return 0` around an `\abstract` parser; witness `9959`: a CONDITIONAL cover is not enough). Advice: move every operation the handler is not meant for out of the `try` body. Related
+(lvQ's PATH-RECEIVER): `.mkdir()` / `.write_text()` are lowered to the path model only when the SOURCE shows the
+receiver is a `pathlib.Path` -- a parameter annotated `Path` / `pathlib.Path` / `PosixPath`, or a local every
+binding of which is a path expression (`Path(..)`, `Path.cwd()`, `Path.home()`, `<path>.parent`, a pathlib method
+returning a path, `a / b` with a path operand or a str-valued left operand); otherwise `PYCSL-R7Q-EXT-PATH-RECEIVER`
+(a `str` receiver raises AttributeError in CPython; the #31 model represents both as one string). Witnesses
+`9940`-`9952`, `9959`; controls `9960`-`9963`, `9966`. Measurements:
+`getting-better/open-routes/route599-handler-covered-by-one-op-reached-by-another.md`.
+
+### 7.601 Every element of a handler tuple must be a bare name (route #601, run #7)
+
+The front end lowers a handler tuple by its bare-name elements only, so `except (ZeroDivisionError,
+builtins.ValueError)` became `with ZeroDivisionError` and the raised ValueError escaped in the model where CPython
+catches it (rt58 d07, `\result == 2` PROVED, CPython 7). RULE (`PYCSL-R601-HANDLER-TUPLE-NON-NAME`, every function
+the file lowers -- a `\trusted` / abstract function is not lowered -- and module-level code): an element of an
+`except (...)` tuple that is not a bare name (a dotted name, a subscript, a call, a starred element) is refused. (A
+handler that is ONLY a dotted name still lowers to an undeclared exception and fails the Why3 type check.) Advice:
+import the class by name (`from mod import B`) and write `except (A, B):`. Witnesses `9953`, `9954`; control `9964`.
+Measurements: `getting-better/open-routes/route601-dotted-name-in-except-tuple-dropped.md`.
+
+### 7.602 A handler name must name the class it holds at run time (route #602, run #7)
+
+A handler name is lowered to an exception of that spelling, so `Err = ValueError; except Err:` became a fresh
+`exception Err` and the raised ValueError escaped in the model (rt58 d08, `\result == 0` PROVED, CPython 1). RULE
+(`PYCSL-R602-HANDLER-NAME-REBOUND`, same population as §7.601): a name used as a handler (alone or in a tuple) must
+not be bound in the module or in the enclosing function by anything but a `class` statement, an import of that
+same name, or a module-level `A = E` where `E` is a class of the file bound only by its `class` statement (an alias
+of a USER class: route #175's, whose rules judge raising and catching through it; control corpus `9612`) -- an
+assignment of anything else (also `global N; N = ...` in another function, which rebinds a BUILTIN name), an
+augmented / annotated / walrus / `for` / `with` / comprehension / `match` / `except ... as` target, a parameter, a
+`def`, or an `import ... as` rename is refused. Judged after Module 6 and routes #590 / #597 (a raised name rebound
+the same way keeps route #597's refusal). Advice: name the exception class itself in the handler. Witnesses
+`9955`-`9958`; control `9965`. Measurements: `getting-better/open-routes/route602-handler-name-alias-of-builtin.md`.
+
+### 7.603 A PyVal-derived value lowered as a `string` is not type-tested nor passed on as a str (route #603, run #7)
+
+`x = d.get("a") or "z"` is lowered to a Why3 `string` (`HStr s -> s | _ -> hval_opaque_str v`), and so is an index read
+`v[K]` of a PyVal list / tuple (`hval_nth_str`); CPython's `x` is the PyVal itself (5, [1],
+{...}) when truthy. `isinstance(x, str)` was decided `1 = 1` (rt59 c01 on a local literal dict -- INTRODUCED by the
+dict value model r4 -- and c17 / c12 / c19 / k02 / v01 / v02 / v04, `\result == 0` PROVED, CPython 1), `f"{x}" == x`
+`str_eq_op x x` (k12), and the `str` type LAUNDERED the PyVal past the claim gates: a `-> str` helper returning it
+(c21 `len(name(d))`, c22, c34 `key(d) in _KNOWN`), a call argument (c23), `y: str = x` (c26), `names.append(..)` then
+`",".join` (c24) PROVED `#@ no_exception \all`; CPython TypeError. RULES (pycsl.py `_run_pipeline`, a front-end pass
+over each non-`\trusted` function; PyVal values / containers derived as §7.600's wrong-tag pass, plus every attribute whose NAME is a PyVal-annotated
+field of the file (`self.cfg: Dict[str, PyVal] = ..`, a class-body `f: PyVal`; by name, fail-closed -- rt59-style
+`self.cfg.get("a") or "z"` then `isinstance(x, str)` emitted `1 = 1` and type-checked at int61 and 73fd1874f,
+probe `witnesses-r603/u45-probes/s2_field_or_str_isinstance.py`); a STRING-LOWERED
+value is `<PyVal> or "<str literal>"`, an index read of a PyVal value or of `tuple(V)` / `list(V)` / `sorted(V)`, a
+name bound to one (`=`, an annotated binding, a walrus; not a loop target: route #296 iterates the real elements, corpus `3495`), or a call of a same-file function that returns one under a non-PyVal
+return annotation -- a LAUNDERING function, greatest set by fixpoint):
+(a) `PYCSL-R603-PYVAL-STR-LOWERED-TYPE-TEST`, every function: `isinstance(x, ..)` / `issubclass` / `type(x)` /
+`str(x)` / `repr(x)` / `ascii(x)` / `format(x, ..)` / an f-string field `{x}` / `x.__class__` of a string-lowered value
+is refused. Advice: narrow the PyVal value itself before any `or` default (control `9990`).
+(b) `PYCSL-R603-PYVAL-STR-PASSED-AS-STR`, every function: a string-lowered value passed on AS A STR -- an argument
+bound to a non-PyVal parameter of a function / method of this file (its verified contract assumes a real str:
+`is_s(s: str) -> isinstance(s, str)` made `is_s(d.get("a") or "z")` PROVE True, CPython False; witness `9995`), a
+non-PyVal annotated binding (`y: str = x`), an element of a list / set / dict display or of a tuple display that is
+neither returned nor unpacked, a container insertion (`.append` / `.extend` / `.insert` / `.add` / `.setdefault` /
+`.update`), a subscript store -- is refused (`9975`: `names.append(d.get("name") or "anon")`). Advice: narrow the
+PyVal value itself and pass it under `isinstance(v, str)` (advice file `a603_narrow_then_pass`). A tuple-unpack target
+of a laundering call / of a tuple display holding one is string-lowered too.
+(c) `PYCSL-R603-PYVAL-STR-LAUNDERED-UNDER-CLAIM`, a function claiming TypeError (`\all`, `TypeError`, `Exception`,
+`BaseException`): a call of a laundering function is refused (`9974` c21 `len(name(d))`, `9988` c34); a string-lowered
+value may only be bound to a plain name, returned, compared (`==` / `!=`) with literals or tested for truthiness --
+any other use is refused (the backstop; `9971`: `"anon".startswith(x)`). Advice: narrow in the callee (`return v` only
+under `isinstance(v, str)`, control `9991`), or drop the claim (advice file `a603_drop_claim`). Claim-gated: an
+unclaimed caller of the same helper is admitted (`9999`; a TypeError is an exceptional exit). Witnesses `9970`-`9975`,
+`9988`, `9995`; controls `9989`, `9990`, `9991`, `9999`. Module 6's lowerings are unchanged (mirror-inert). Advice files
+`getting-better/open-routes/witnesses-r603/advice/`.
+Measurements: `getting-better/open-routes/route603-pyval-derived-value-lowered-as-string.md`.
+
+### 7.604 A subscript of a PyVal value is a TypeError site under a TypeError claim (route #604, run #7)
+
+`d["a"]["k"]` with `d["a"]` a list / str / int lowered to `match r with HMap -> pairs_get .. | _ -> hval_get_other r
+"k"` and the KeyError presence assert has a `| _ -> true` arm; §7.600's wrong-tag pass did not list subscripts, so
+`#@ no_exception \all` PROVED (rt59 d04 d14 d15 d16 d19; d14 / d16 PRE-EXISTING at 73fd1874f); CPython TypeError.
+RULE (`PYCSL-R604-PYVAL-SUBSCRIPT-TYPEERROR-UNDER-CLAIM`, a non-`\trusted` function claiming TypeError): a subscript of
+a PyVal VALUE (not of a `Dict[str, PyVal]` container) is refused unless its receiver is a NAME narrowed by a
+dominating `isinstance(v, dict)` (a str key: a str literal, an f-string or a `str`-annotated name) /
+`isinstance(v, list | tuple | str)` (any other index); a str key on `tuple(V)` / `list(V)` / `sorted(V)` is refused.
+Advice: bind the value to a name and narrow it (`v = d["a"]`, then `v["k"]` under `isinstance(v, dict) and "k" in
+v`, control `9992`). Witnesses `9976`, `9977`. Measurements: `getting-better/open-routes/route604-pyval-subscript-non-dict-no-typeerror-site.md`.
+
+### 7.605 An index read of a PyVal sequence has no bounds proof obligation; a negative index is refused (route #605, run #7)
+
+`v[K]` of a PyVal narrowed to list / tuple / str and `ks[K]` of `ks = tuple(<PyVal>)` lower to `hval_nth_str v K` with
+NO bounds VC, so `#@ no_exception IndexError` PROVED out of range (rt59 h02 h03 h04 h05 h15 h16, h10 `tuple(<PyVal>)`
+INTRODUCED); and `hval_list_nth` maps every index <= 0 to the FIRST element, so a negative index was held only by an
+accidental L3-tc failure (b01 b18 b19 b22-b30). RULES (non-`\trusted` functions): (a)
+`PYCSL-R605-PYVAL-INDEX-NO-BOUNDS-VC`: under a claim covering IndexError (`\all`, `IndexError`, `LookupError`,
+`Exception`, `BaseException`) an index read (not a str key, not a slice) of a PyVal value / sequence is refused.
+Advice: iterate it (control `9993`) or drop the claim. (b) `PYCSL-R605-PYVAL-NEGATIVE-INDEX`, every function: the
+index must be syntactically non-negative -- a non-negative int literal, `len(..)`, a sum / product / floor quotient
+/ remainder of such, a name EVERY binding of which is one (or a `range(..)` counter with a non-negative start and a
+positive literal step, an `enumerate(..)` counter), or a name guarded by a dominating `if i >= 0` / an exiting `if
+.. i < 0` (`or`-chains included); anything else (a negative literal, `-` / unary minus, a parameter, a call) is
+refused. Advice: a non-negative literal under a length guard (control `9994`). Plain lists keep their faithful
+negative-index lowering (the rule reads PyVal values only). Witnesses `9978`-`9982`. Measurements:
+`getting-better/open-routes/route605-pyval-sequence-index-no-indexerror-vc.md`.
+
+### 7.606 A PyVal float relies on FLOAT-FINITE; `--strict-float-finite` refuses PyVal comparisons (route #606, run #7)
+
+`isinstance(v, float)` narrows to `HFloat f` and `v == v` is the certified `hval_eq` = `hreal_eq f f` = true; CPython
+NaN != NaN (rt59 g01, g04, g13 PROVED; INTRODUCED: base lowered the opaque `pycsl_py_eq`). FLOAT-FINITE is the
+DECLARED assumption (§T.10.5), but `--soundness-report` did not list it for these programs and `--strict-float-finite`
+emitted byte-identical WhyML. NOW: (a) `--soundness-report` lists FLOAT-FINITE for every comparison / `min` / `max` in
+a function whose parameter / symbol / return type names `PyVal` ("`==` in a function holding a PyVal value",
+conservative); in the DEFAULT mode `v == v` proves under the declared assumption exactly as the plain-float twin
+`2500` (control `9996`, `# pycsl-model-assumption: FLOAT-FINITE`). (b) under `--strict-float-finite`
+(`PYCSL-R606-PYVAL-FLOAT-COMPARE-STRICT`, non-`\trusted` functions) a comparison (`==` `!=` `<` `<=` `>` `>=`) with a
+PyVal / string-lowered operand and at least two non-literal operands is refused: the plain-float NaN sentinel has no
+PyVal twin (the certified theory is unchanged). A comparison with a literal is admitted (control `9997`). Witnesses
+`9983`, `9984` (both `# pycsl-flags: --strict-float-finite`). Measurements:
+`getting-better/open-routes/route606-pyval-float-nan-eq-reflexive.md`.
+
+### 7.607 A bytes value never flows into a PyVal value (route #607, run #7)
+
+The frozen 9-tag `hval` has no bytes tag (HBytes excluded), and a bytes literal in a PyVal position was lowered as
+`HArr` of `HInt` code points: `isinstance(v, list)` true, `isinstance(v, bytes)` false, `b"" == []` (the certified
+hval_eq) true (rt59 o13 PRE-EXISTING tag, o15 INTRODUCED consequence, o16); CPython the opposite. RULE
+(`PYCSL-R607-PYVAL-BYTES-VALUE`, non-`\trusted` functions and module-level PyVal-annotated bindings): a bytes literal,
+a `bytes` / `bytearray`-annotated name, a `bytes(..)` / `bytearray(..)` / `memoryview(..)` / `bytes.<ctor>(..)` call, a
+call of a same-file function annotated `-> bytes`, or a `.encode()` call in a statement (for
+a compound statement: its header -- `if` / `while` test, `for` target / iterable, `with` items, `match` subject) that
+binds a `PyVal`-annotated target, mentions a PyVal value / container / sequence, or returns from a `-> ..PyVal..`
+function is refused. Advice: use a str value instead (control `9998`, a bytes value kept apart). Witnesses `9985`,
+`9986`, `9987` (a module-level `Dict[str, PyVal]` constant). Measurements: `getting-better/open-routes/route607-pyval-bytes-literal-as-int-list.md`.
+
+### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
+
+A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /
+`-> Dict[str, PyVal]` return) is the frozen type `HNone | HBool | HInt | HFloat | HStr | HTuple |
+HArr | HMap | HNode`, certified in Rocq (`Phase2m_PyValR4.v`) and Lean (`PyCSL/PyValR4.lean`) and
+emitted verbatim (translational reference App. R4). Absent ≠ stored `None` (the outer `option`):
+`d.get("b") is None and "b" not in d` and `d.get("a") is None and "a" in d` for `{"a": None}`
+(`9820`/`9821`). `==` is the certified `hval_eq`: `True == 1` (`9822`/`9823`), `1 == 1.0`
+(`9824`/`9825`), `None != 0` (`9828`/`9829`) — a comparison against a literal is the RHS of the
+certified one-level unfolding lemma (`hval_eq_int_lit` / `_bool_lit` / `_intfloat_lit` / `_float_lit`
+/ `_none_lit` / `_str_lit`, Rocq + Lean + companion `DictR4LemmasLit`); between two PyVal values it is
+the certified `hval_eq` itself: `(1,) != [1]` (`9826`/`9827`). Truthiness of every
+tag (`9830`/`9831`). `isinstance(x, str)` narrowing is substituted in the guarded region (`return
+g` after the test returns the `str`, `9832`/`9833`). A dict literal is insertion-ordered with
+last-wins duplicates (the first key of `{"b": 1, "a": 2, "b": 3}` is `"b"`, `9859`; `tuple(d)` is
+`("b", "a")` with length 2, `9834`/`9835`).
+Route (e2): a value fact about a nested dict with several literal keys proves through the
+certified `pairs_get_nil` / `pairs_get_cons` equations (`9844`/`9845`). Typed / store memory
+models: `9847`-`9858`.
+
+**Wrong-tag arms.** Every arm that is not Python's answer for the tag — `len` of a non-sequence
+(`hval_len_other`), iteration of a non-iterable (`hval_iter_len_other` / `hval_iter_get_other`),
+`tuple` of a non-iterable (`hval_tuple_other`), the `str` / `int` projection of another tag
+(`hval_opaque_str` / `hval_opaque_int`), `in` on a str / scalar (`hval_in_other`) — is an
+UNINTERPRETED law-free `val function` (never a concrete junk value), and its site is a TypeError
+site: in a non-trusted function claiming TypeError (`#@ no_exception \all`, or a list naming
+`TypeError` / `Exception` / `BaseException`) a use of an un-narrowed PyVal value by `len` /
+`tuple` / `sorted` / `list` / `set` / `sum` / `min` / `max` / `iter` / `reversed` / `enumerate` /
+`zip` / `dict`, `sep.join`, iteration, an arithmetic / unary / ordering operator, `in`, an
+augmented assignment or a method call (but `.get` / `.items` / `.keys` / `.values` / `.copy`) is
+REFUSED (`PYCSL-R4-HVAL-WRONG-TAG-UNDER-CLAIM`, `9838`); a dominating `isinstance` derives it
+(`9860`: `len` of a narrowed str is the certified `String.length`; OPEN LIMIT: `\result >= 0` for it times out); outside a claim it is ambient, and the function enters route #430's callee summary.
+
+**Raising reads.** The absent-key / non-dict arm of `d[k]` and of a nested `r[k]` is the
+law-free, deterministic `hval_get_other <receiver> <key>` (two reads of one absent key agree) (was the junk `(HInt 0)` / `(HMap PNil)` / `""`); under a KeyError claim
+a NESTED read asserts the key's presence (`9836` FAIL, `9837` PASS), as the top-level read did.
+
+**Stores** are unchanged (the r2c escape check): the three alias shapes are refused (`9840` nested
+shared inner, `9841` `b = a`, `9842` a parameter root) and an alias program with a false `ensures`
+is not proved (`9843`). Key canonicalisation: a nested PyVal dict is keyed by `str`
+(HVAL-STR-KEYS), so `{1: "a", True: "b"}` as a PyVal value is not representable and its false
+`len == 2` claim is refused at the type check (`9846`); `hval_canon` serves the hashed-key
+positions.
 
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
@@ -6910,6 +7139,35 @@ other-arity append or any other mutation keeps the base lowering. Witnesses (mus
 `9512`, `9514`, `9516`, `9518`, `9520`, `9521` (a caller sees only the callee's contract),
 `9524`; controls (PASS) `9511`, `9513`, `9515`, `9517`, `9519`, `9522` (other-arity append: base
 lowering kept), `9523`.
+
+### 7.322 An aliased `re` import feeds the match model; a tuple-seq slot, an `Optional[List[str]]` arm, an hval filter and an hval f-string are typed by value (lvS, run #7)
+
+(1) The lvO match model (§7.320) also applies when the module binds the stdlib `re` under ONE
+alias and never plainly: no module-top `import re`, exactly one module-top `import re as A`, no
+other binding of `A` anywhere (an import, a store, a `del`, a parameter, a def / class name, an
+`except .. as A`, a `match` capture), `A` neither a module method nor a local; only `A.compile(<str
+literal>)` statements AFTER the import are module constants, and only the "const" / unrolled
+sources follow (a `re.match(<literal>, s)` source still needs the plain import). (2) In a
+`-> Tuple[..]` function whose declared native tuple type has a `seq (t1, .., tn)` slot (§7.321) and
+whose ONLY `return` is the last top-level statement, a tuple display whose slot holds a seq list
+local bound once by `x = []`, appended only by tuple displays of arity n and otherwise read only as
+a `for` iterable, a test, a `not` operand or a `len` argument, that local grows by the real tuple
+and the tail return passes it as the slot value (was `materialize_str`, a Why3 type error);
+`len(\result[k])` of such a slot in a contract is its `Seq.length`. (3) The Some arm of a verified
+(non-`\trusted`) `-> Optional[List[str]]` return is the list's `seq string` value (was the
+int-erased `Arm_i_0 int`); `return x` of a `seq string` local injects `!x`, on the raise path too.
+(4) `[r for r in f(..) if "<k>" in r]` over the `seq hval` of a `-> List[Dict[str, PyVal]]` callee
+is the DEFINITIONAL fold `hval_seq_filter_in` (a `let rec function`: no axiom, no assumed
+`ensures`) of the dict-value-wall R2b membership (`HMap`: key presence; `HArr` / `HTuple`: str
+element equality; any other carrier the uninterpreted `hval_in_other`); `len(\result)` of a `seq
+hval` return is its `Seq.length`. (5) An f-string whose segments are string-typed or PyVal values,
+at least one PyVal, is a Python `str` (classifier and lowering agree): an `HStr s` segment is `s`,
+any other carrier the program `val hval_fmt_other` (no `function`: `True` / `1` and `-0.0` /
+`0.0` share carriers but not texts). A `.get` on a PyVal local named like a WhyML keyword
+(`rec`) reads its WhyML name. Implicit `ValueError` of formatting a huge `int` segment is not
+modelled (no `no_exception` claim reaches it here). Witnesses (must FAIL) `9901`-`9904`, `9906`,
+`9907`, `9909`, `9911`, `9913`, `9915`; controls (PASS) `9900`, `9905`, `9908`, `9910`, `9912`,
+`9914`.
 
 ---
 
