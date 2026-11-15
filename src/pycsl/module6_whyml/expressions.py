@@ -5728,6 +5728,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _fparts = ir.get("parts") or []
             if _fparts and all(self._is_string_expr(_fp) for _fp in _fparts):
                 return True
+            # lvS (run #7, cv13 O19): the typing half of `_handle_fstring_expr`'s hval-segment
+            # gate -- the SAME condition on the same parts (at least one PyVal segment, every
+            # segment string-typed or PyVal), so classifier and lowering agree.
+            if (_fparts and not self._in_spec
+                    and any(isinstance(_fp, dict) and not self._is_string_expr(_fp)
+                            and self._expr_is_pyval(_fp) for _fp in _fparts)
+                    and all(isinstance(_fp, dict) and (self._is_string_expr(_fp)
+                                                       or self._expr_is_pyval(_fp))
+                            for _fp in _fparts)):
+                return True
             return (bool(ir.get("parts"))
                     and (getattr(self, "_current_self_type", None)
                          in getattr(self, "_mutable_state_classes", set())
@@ -8363,6 +8373,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (atype == "Result" and self._in_spec
                 and getattr(self, "_func_return_type", None) == "array string"):
             return f"(Array.length {args[0]})"
+        # lvS (run #7): the same for a declared `seq hval` return (`-> List[Dict[str,
+        # PyVal]]` / `-> List[PyVal]`, K4): `len(\result)` is its `Seq.length` (it fell to
+        # the opaque `iter_length : int -> int`, a Why3 type error against the seq).
+        if (atype == "Result" and self._in_spec
+                and getattr(self, "_func_return_type", None) == "seq hval"):
+            return f"(Seq.length {args[0]})"
+        # lvS (run #7): `len(\result[k])` in a contract of a `-> Tuple[..]` function whose
+        # DECLARED native tuple slot k is a `seq (t1, .., tn)` (the tuple-element list slot
+        # its tail return passes as-is) is that seq's `Seq.length`; it fell to the opaque
+        # `iter_length : int -> int`, a Why3 type error against the seq (fail-closed). Spec
+        # context, an int-literal index, a `seq (..)` slot only.
+        if (atype == "Subscript" and self._in_spec and args
+                and isinstance(arg_ir.get("value"), dict)
+                and arg_ir["value"].get("type") == "Result"
+                and isinstance(arg_ir.get("index"), dict)
+                and arg_ir["index"].get("type") == "Number"
+                and type(arg_ir["index"].get("value")) is int
+                and isinstance(getattr(self, "_func_return_type", None), str)
+                and self._func_return_type.startswith("(")
+                and self._func_return_type.endswith(")")):
+            _t5_sl: List[str] = []
+            _t5_dp, _t5_cur = 0, ""
+            for _t5_ch in self._func_return_type[1:-1]:
+                if _t5_ch == "," and _t5_dp == 0:
+                    _t5_sl.append(_t5_cur.strip())
+                    _t5_cur = ""
+                    continue
+                if _t5_ch == "(":
+                    _t5_dp += 1
+                elif _t5_ch == ")":
+                    _t5_dp -= 1
+                _t5_cur += _t5_ch
+            _t5_sl.append(_t5_cur.strip())
+            _t5_k = arg_ir["index"]["value"]
+            if (len(_t5_sl) >= 2 and 0 <= _t5_k < len(_t5_sl)
+                    and _t5_sl[_t5_k].startswith("seq (") and _t5_sl[_t5_k].endswith(")")):
+                return f"(Seq.length {args[0]})"
         # R5-str: `len(<str>.split(sep))` / `len(<str>.splitlines())` outside `@mutable_state`
         # — the argument lowered to the receiver-passing `array string` op (`_handle_call_expr`),
         # so its length is the ARRAY length, not the opaque `iter_length : int -> int`.
@@ -15922,6 +15969,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # feeds a `.get` chain) -> corpus byte-inert.
         if recv in getattr(self, "_pyval_locals", set()):
             _k = args[0]
+            # lvS (run #7): the receiver is the LOCAL's WhyML name (`whyml_ident`): a
+            # Python local named like a WhyML keyword (`rec`) is declared `py_rec`, and the
+            # raw name was a Why3 syntax error (fail-closed). Every other name is unchanged.
+            _k7_rw = whyml_ident(recv)
             if len(args) == 2:
                 # `.get(k, D)` -> unwrap the option-hval to an hval. R3: the carrier
                 # is the assoc list `hpairs`, so the lookup is the `pairs_get` fold.
@@ -15948,10 +15999,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _kb306 = f"let k_r306 = {_k} in "
                         _k = "k_r306"
                     return (f"({_kb306}let dflt_r306 = {_empty} in "
-                            f"(match {recv} with HMap m_k7 -> "
+                            f"(match {_k7_rw} with HMap m_k7 -> "
                             f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
                             f"| None -> dflt_r306 end) | _ -> dflt_r306 end))")
-                return (f"(match {recv} with HMap m_k7 -> "
+                return (f"(match {_k7_rw} with HMap m_k7 -> "
                         f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
                         f"| None -> {_empty} end) | _ -> {_empty} end)")
             # `.get(k)` (leaf, no default) -> unwrap the option-pyval to a `pyval`, the
@@ -15965,9 +16016,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # dict-value-model-r4: the absent key is Python `None`, now its own tag `HNone`;
             # a non-map receiver raises AttributeError (dead arm: an UNINTERPRETED value
             # in program code, never a concrete junk; `HNone` in a contract).
-            _k7_dead = f"(hval_get_other {recv} {_k})"
+            _k7_dead = f"(hval_get_other {_k7_rw} {_k})"
 
-            _k7_leaf = (f"(match {recv} with HMap m_k7 -> "
+            _k7_leaf = (f"(match {_k7_rw} with HMap m_k7 -> "
                         f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
                         f"| None -> HNone end) | _ -> {_k7_dead} end)")
             # self-tcb-reduction _namedtuple_positional_access: the leaf read is a RAW
@@ -21312,7 +21363,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # all three of which are plain module functions and so could never satisfy
                 # the `@mutable_state` gate. Strictly MORE faithful: a real `str_concat_op`
                 # over real strings instead of an uninterpreted hash.
-                or getattr(self, "_func_return_type", None) == "string")):
+                or getattr(self, "_func_return_type", None) == "string"
+                # lvS (run #7, cv13 O19): an f-string whose every segment is string-typed
+                # or a PyVal (`hval`) value (`f"{fn}:{ln}"` over `.get` reads of a
+                # `Dict[str, PyVal]`) IS a Python `str` whatever the function returns: each
+                # hval segment is formatted by carrier in `_fstring_str_part` (an `HStr s`
+                # IS `s`; every other carrier the program `val hval_fmt_other`, no
+                # `function`, never a constant). At least one hval segment; an int /
+                # opaque segment keeps the int-model joiner below (fail-closed).
+                or (any(isinstance(_o19p, dict) and not self._is_string_expr(_o19p)
+                        and self._expr_is_pyval(_o19p) for _o19p in parts)
+                    and all(isinstance(_o19p, dict) and (self._is_string_expr(_o19p)
+                                                         or self._expr_is_pyval(_o19p))
+                            for _o19p in parts)))):
             self._add_abstract_op("val int_to_string (n: int) : string")
             self._add_abstract_op(
                 "val str_concat_op (a: string) (b: string) : string\n"
@@ -22666,6 +22729,73 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and src_ir.get("name") in getattr(self, "_seq_locals", set())):
             return None
         elt = _d.get("elt", {})
+        # lvS (run #7, cv13 O7): the hval-ELEMENT FILTER `[r for r in S if "<k>" in r]` over
+        # a `seq hval` S (a bare call of a module function declared `-> List[Dict[str,
+        # PyVal]]` / `-> List[PyVal]`, i.e. `seq hval`) is the DEFINITIONAL fold
+        # `hval_seq_filter_in "<k>" S (Seq.length S)`: a `let rec function` (no axiom, no
+        # assumed ensures) keeping, in order, each element the dict-value-wall R2b
+        # membership holds of -- a dict (`HMap`) tests KEY presence, a list / tuple
+        # (`HArr` / `HTuple`) element equality with a str, every other carrier the
+        # uninterpreted `hval_in_other` (CPython: substring / TypeError), the SAME term
+        # `_emit_membership` gives `"<k>" in r` in a body. The element must be the bare
+        # target, ONE filter of exactly that shape, one generator; body context only.
+        # Anything else falls through unchanged.
+        _o7_ifs = g.get("ifs") or []
+        _o7_src_rt = None
+        if (isinstance(src_ir, dict) and src_ir.get("type") == "Call"
+                and src_ir.get("receiver") is None and not src_ir.get("keywords")
+                and isinstance(src_ir.get("func"), str) and "." not in src_ir["func"]
+                and src_ir["func"] not in (getattr(self, "_current_symbol_table", {}) or {})):
+            # the callee's DECLARATION (K4: `return_annotation` "list" with element
+            # `return_value_type` "hval" is declared `seq hval`), as lvR's T4 reads it
+            for _o7_fn in ((getattr(self, "ir", None) or {}).get("functions", []) or []):
+                if (isinstance(_o7_fn, dict) and _o7_fn.get("name") == src_ir["func"]
+                        and not _o7_fn.get("self_type")):
+                    if (_o7_fn.get("return_annotation") == "list"
+                            and _o7_fn.get("return_value_type") == "hval"):
+                        _o7_src_rt = "seq hval"
+                    break
+        _o7_f = _o7_ifs[0] if len(_o7_ifs) == 1 else None
+        if (_o7_src_rt == "seq hval" and not self._in_spec and not invariant_ctx
+                and isinstance(elt, dict) and elt.get("type") == "Var"
+                and elt.get("name") == target and set(elt) == {"type", "name"}
+                and isinstance(_o7_f, dict) and _o7_f.get("type") in ("BinOp", "Compare")
+                and _o7_f.get("op") == "in"
+                and isinstance(_o7_f.get("left"), dict)
+                and _o7_f["left"].get("type") == "String"
+                and type(_o7_f["left"].get("value")) is str
+                and isinstance(_o7_f.get("right"), dict)
+                and _o7_f["right"].get("type") == "Var"
+                and _o7_f["right"].get("name") == target
+                and set(_o7_f["right"]) == {"type", "name"}):
+            # Declared as a LATE op, spliced just before the using function
+            # (`_insert_late_content_ops`): it reads the r4 views (`hval_list_str_mem`,
+            # `hval_in_other`, `pairs_get`), which the early abstract-op block may precede.
+            _o7_late = getattr(self, "_late_content_ops", None)
+            if not isinstance(_o7_late, list):
+                return None
+            if not any(isinstance(_o7_e, tuple) and _o7_e and _o7_e[0] == "hval_seq_filter_in"
+                       for _o7_e in _o7_late):
+                _o7_late.append(("hval_seq_filter_in",
+                "let rec function hval_seq_filter_in (k: string) (s: seq hval) (n: int)"
+                " : seq hval\n"
+                "    requires { 0 <= n <= Seq.length s }\n"
+                "    variant { n }\n"
+                "  = if n = 0 then Seq.empty else\n"
+                "      let r = hval_seq_filter_in k s (n - 1) in\n"
+                "      let h = Seq.get s (n - 1) in\n"
+                "      if (match h with HMap p -> (match pairs_get p k with None -> false"
+                " | Some _ -> true end)\n"
+                "          | HArr l -> hval_list_str_mem l k"
+                " | HTuple l -> hval_list_str_mem l k\n"
+                "          | _ -> hval_in_other k h end)\n"
+                "      then Seq.snoc r h else r",
+                                 getattr(self, "_current_emitting_func", None)))
+            _o7_sw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+            _o7_kw = self._expr_to_whyml(_o7_f["left"], local_refs or set(),
+                                         invariant_ctx, subst)
+            return (f"(let _o7_s = {_o7_sw} in "
+                    f"hval_seq_filter_in {_o7_kw} _o7_s (Seq.length _o7_s))")
         # variadic content-law comprehension (FABLE-sanctioned): a comprehension
         # `[self.<disp>(t) for t in <array emit_ir>]` whose element is a RECURSIVE IR
         # DISPATCHER call (`_csl_to_ir`/`_py_expr_to_ir`, emit_ir -> emit_ir) over the
