@@ -6590,6 +6590,62 @@ binds a `PyVal`-annotated target, mentions a PyVal value / container / sequence,
 function is refused. Advice: use a str value instead (control `9998`, a bytes value kept apart). Witnesses `9985`,
 `9986`, `9987` (a module-level `Dict[str, PyVal]` constant). Measurements: `getting-better/open-routes/route607-pyval-bytes-literal-as-int-list.md`.
 
+### 7.608 A string-lowered PyVal value decides no str-only fact; unannotated PyVal fields, aliases and loop elements are tracked (route #608, run #7)
+
+§7.603's string-lowered values (`x = d.get("a") or "z"`, an element `v[K]` of a PyVal list / tuple, a laundering call)
+are Why3 `string`s whose non-str case is `hval_opaque_str v`; u45 refused their TYPE TESTS everywhere but every other
+use only under a TypeError claim, so plain reads decided STR-ONLY facts while CPython's value is the PyVal itself:
+`len(x[0])` one character (rt60 a01, a17), `for ch in x` characters (d01), `x * 0 == ""` (d05), `x[0:0] == ""` (d24)
+PROVED without a claim (all PRE-EXISTING: they prove at L9 85c8b0004 too); CPython 2 / 2 / 2 / False / False. RULES
+(pycsl.py `_run_pipeline`, the §7.603 front-end pass, non-`\trusted` functions; Module 6's lowerings unchanged):
+(a) `PYCSL-R608-PYVAL-STR-LOWERED-STR-FACT`, every function without a TypeError claim (a claim keeps §7.603 (c)'s
+stricter backstop): a string-lowered value may only be bound to a plain / annotated name (not a `global` / `nonlocal`
+one), returned, an operand of a returned or unpacked tuple display, compared with `==` / `!=` (CPython's non-str value
+never equals a str; the opaque string may equal anything), used as a KEY -- `x in C`, a load `C[x]`, `C.get(x[, d])` --
+against a receiver that is not a PyVal value / sequence (nor a PyVal container other than a dict-annotated one) when no
+class of the file defines `__contains__` / `__getitem__` / `get` (CPython never finds a non-str among str keys), tested
+for truthiness / `not`, the first operand of a further `x or "<str>"`, or the argument of `len(..)` (the length of the
+uninterpreted `hval_opaque_str` is opaque for a non-str value) -- an index or slice OF it, an iteration, an operator, a
+call argument, a method, an attribute, `"a" in x` ... is refused (witnesses `10030`-`10034`; the
+laundering-call twin `len(name(d)[0])` `10038` and the `#@ assert len(x[0]) == 1` twin `10039`, both PROVED at base). An augmented
+assignment of a string-lowered name (`x *= 0`, `x += "a"`) and a `#@` line inside the function naming a string-lowered
+name are refused under the same code, in every function (witness `10040`; `#@ assert x * 0 == ""` only failed L3-tc by
+accident). Advice: narrow the PyVal value itself first (`v = d.get("a")`, then use `v` under `isinstance(v, str)`;
+advice file `a608_narrow_value` = control `10046`); control `10045` (`x in ("z", "q")`, `len(x)`) stays admitted, and so
+do the mirror's honest shapes (`self_type in generics` / `generics[self_type]` in `_collect_generic_decls`, `payload[0]
+== arm_tag`, `.get(var_name)`; the mirror's emission is byte-identical).
+(b) F2, TRACKING (no new code: the §7.603 rules then fire): a PyVal FIELD stored WITHOUT an annotation (`self.cfg = cfg`,
+`cfg: Dict[str, PyVal]`; rt60 a05 `isinstance(self.cfg.get("a") or "z", str)` lowered `1 = 1`, PROVED, CPython 1) is
+tracked by name: per scope the PyVal names are the PyVal-annotated parameters / bindings (module-level ones included),
+the plain names and loop targets bound from one, and a store `<e>.f = V` / `<e>.f += V` / `setattr(<e>, "f", V)` whose
+value mentions one (outside a comparison or `len` / `isinstance` / `bool` / `id` / `hash` / `type`) tracks f (a bare
+name / field keeps its kind, a `.get` / subscript is a value, anything else BOTH; fixpoint) -- witness `10035`, control
+`10047`. In each function a plain alias of a PyVal container (`c = cfg`), a binding from a call of a same-file function
+/ method whose return annotation names PyVal, and a loop / comprehension target over an iterable built from a PyVal
+container (`for c in cs` with `cs: List[Dict[str, PyVal]]`, `.values()`, the second slot of `.items()`; not the str
+keys of a dict-annotated container, `.keys()`, `range(..)`, an `enumerate` counter) are PyVal containers / values too
+(witness `10037`: `for c in cs: isinstance(c.get("a") or "z", str)` PROVED `\result == 0` at base, CPython 1).
+Fail-closed by name. Collateral (declared): corpus `3600` (expected PASS) is now refused by §7.603 (b) -- its loop element
+`func` of `funcs: List[Dict[str, PyVal]]` is tracked, and `t: str = func.get("self_type") or ""` is the str-annotated
+binding of a string-lowered value that §7.603 (b) refuses for a PyVal-annotated container.
+Measurements: `getting-better/open-routes/route608-pyval-str-lowered-plain-reads-and-unannotated-field.md`.
+
+### 7.609 A PyVal subscript read inside a handler that catches its exception is refused (route #609, run #7)
+
+`try: y = v[0] except IndexError: return 0` on a narrowed PyVal list: route #171 widens the function to `no_exception
+IndexError`, but the read lowers to `hval_nth_str` with NO bounds obligation, so the handler is dead in the proof and
+`\result == 1` PROVED (rt60 d22, PRE-EXISTING); CPython 0 for `[]`. u45's §7.605 (a) fired only on a DECLARED claim.
+RULE (`PYCSL-R609-PYVAL-READ-UNDER-HANDLER`, non-`\trusted` functions, every function): a subscript READ of a PyVal value
+/ sequence (§7.605's population) lexically inside the BODY of a `try` (any enclosing depth) one of whose handlers
+catches what CPython raises there -- for an index: IndexError, KeyError (a dict receiver), TypeError (an int receiver),
+LookupError, Exception, BaseException, a bare `except:` or a non-name handler type; for a str key on a value not narrowed
+to a dict: TypeError, Exception, BaseException -- or inside `with (contextlib.)suppress(..)` of one, is refused. Advice:
+test the condition before the read, outside the `try` (`if len(v) == 0: return 0` then `y = v[0]`; advice file
+`a609_test_before_read` = control `10048`). Witness `10036`. (`except Exception` around the read was already refused by
+route #174's handler-reachability rule, and a same-file callee doing the read by route #178's implicit-raise call rule;
+`with suppress(IndexError)` by route #257; u46 probes q07 / q04 / q08 -- the first now reports R609.)
+Measurements: `getting-better/open-routes/route609-pyval-index-handler-dead-via-171.md`.
+
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
 A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /
