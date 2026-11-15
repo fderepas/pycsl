@@ -12,6 +12,7 @@ PyVal = Any
 #@ assigns \nothing
 def count_terms(records: List[Dict[str, PyVal]]) -> int:
     n = 0
+    #@ loop invariant n >= 0
     for rec in records:
         term = rec.get("term") or {}
         if term:

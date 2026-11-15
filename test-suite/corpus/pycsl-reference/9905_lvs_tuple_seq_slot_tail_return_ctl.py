@@ -13,6 +13,7 @@ from typing import List, Tuple
 def numbered(xs: List[str]) -> Tuple[List[Tuple[str, int]], List[str]]:
     res: List[Tuple[str, int]] = []
     #@ loop invariant len(res) == i
+    #@ loop invariant i <= len(xs)
     for i in range(len(xs)):
         x: str = xs[i]
         res.append((x, i))
