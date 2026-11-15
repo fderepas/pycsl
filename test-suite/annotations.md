@@ -6496,6 +6496,100 @@ augmented / annotated / walrus / `for` / `with` / comprehension / `match` / `exc
 the same way keeps route #597's refusal). Advice: name the exception class itself in the handler. Witnesses
 `9955`-`9958`; control `9965`. Measurements: `getting-better/open-routes/route602-handler-name-alias-of-builtin.md`.
 
+### 7.603 A PyVal-derived value lowered as a `string` is not type-tested nor passed on as a str (route #603, run #7)
+
+`x = d.get("a") or "z"` is lowered to a Why3 `string` (`HStr s -> s | _ -> hval_opaque_str v`), and so is an index read
+`v[K]` of a PyVal list / tuple (`hval_nth_str`); CPython's `x` is the PyVal itself (5, [1],
+{...}) when truthy. `isinstance(x, str)` was decided `1 = 1` (rt59 c01 on a local literal dict -- INTRODUCED by the
+dict value model r4 -- and c17 / c12 / c19 / k02 / v01 / v02 / v04, `\result == 0` PROVED, CPython 1), `f"{x}" == x`
+`str_eq_op x x` (k12), and the `str` type LAUNDERED the PyVal past the claim gates: a `-> str` helper returning it
+(c21 `len(name(d))`, c22, c34 `key(d) in _KNOWN`), a call argument (c23), `y: str = x` (c26), `names.append(..)` then
+`",".join` (c24) PROVED `#@ no_exception \all`; CPython TypeError. RULES (pycsl.py `_run_pipeline`, a front-end pass
+over each non-`\trusted` function; PyVal values / containers derived as §7.600's wrong-tag pass, plus every attribute whose NAME is a PyVal-annotated
+field of the file (`self.cfg: Dict[str, PyVal] = ..`, a class-body `f: PyVal`; by name, fail-closed -- rt59-style
+`self.cfg.get("a") or "z"` then `isinstance(x, str)` emitted `1 = 1` and type-checked at int61 and 73fd1874f,
+probe `witnesses-r603/u45-probes/s2_field_or_str_isinstance.py`); a STRING-LOWERED
+value is `<PyVal> or "<str literal>"`, an index read of a PyVal value or of `tuple(V)` / `list(V)` / `sorted(V)`, a
+name bound to one (`=`, an annotated binding, a walrus; not a loop target: route #296 iterates the real elements, corpus `3495`), or a call of a same-file function that returns one under a non-PyVal
+return annotation -- a LAUNDERING function, greatest set by fixpoint):
+(a) `PYCSL-R603-PYVAL-STR-LOWERED-TYPE-TEST`, every function: `isinstance(x, ..)` / `issubclass` / `type(x)` /
+`str(x)` / `repr(x)` / `ascii(x)` / `format(x, ..)` / an f-string field `{x}` / `x.__class__` of a string-lowered value
+is refused. Advice: narrow the PyVal value itself before any `or` default (control `9990`).
+(b) `PYCSL-R603-PYVAL-STR-PASSED-AS-STR`, every function: a string-lowered value passed on AS A STR -- an argument
+bound to a non-PyVal parameter of a function / method of this file (its verified contract assumes a real str:
+`is_s(s: str) -> isinstance(s, str)` made `is_s(d.get("a") or "z")` PROVE True, CPython False; witness `9995`), a
+non-PyVal annotated binding (`y: str = x`), an element of a list / set / dict display or of a tuple display that is
+neither returned nor unpacked, a container insertion (`.append` / `.extend` / `.insert` / `.add` / `.setdefault` /
+`.update`), a subscript store -- is refused (`9975`: `names.append(d.get("name") or "anon")`). Advice: narrow the
+PyVal value itself and pass it under `isinstance(v, str)` (advice file `a603_narrow_then_pass`). A tuple-unpack target
+of a laundering call / of a tuple display holding one is string-lowered too.
+(c) `PYCSL-R603-PYVAL-STR-LAUNDERED-UNDER-CLAIM`, a function claiming TypeError (`\all`, `TypeError`, `Exception`,
+`BaseException`): a call of a laundering function is refused (`9974` c21 `len(name(d))`, `9988` c34); a string-lowered
+value may only be bound to a plain name, returned, compared (`==` / `!=`) with literals or tested for truthiness --
+any other use is refused (the backstop; `9971`: `"anon".startswith(x)`). Advice: narrow in the callee (`return v` only
+under `isinstance(v, str)`, control `9991`), or drop the claim (advice file `a603_drop_claim`). Claim-gated: an
+unclaimed caller of the same helper is admitted (`9999`; a TypeError is an exceptional exit). Witnesses `9970`-`9975`,
+`9988`, `9995`; controls `9989`, `9990`, `9991`, `9999`. Module 6's lowerings are unchanged (mirror-inert). Advice files
+`getting-better/open-routes/witnesses-r603/advice/`.
+Measurements: `getting-better/open-routes/route603-pyval-derived-value-lowered-as-string.md`.
+
+### 7.604 A subscript of a PyVal value is a TypeError site under a TypeError claim (route #604, run #7)
+
+`d["a"]["k"]` with `d["a"]` a list / str / int lowered to `match r with HMap -> pairs_get .. | _ -> hval_get_other r
+"k"` and the KeyError presence assert has a `| _ -> true` arm; §7.600's wrong-tag pass did not list subscripts, so
+`#@ no_exception \all` PROVED (rt59 d04 d14 d15 d16 d19; d14 / d16 PRE-EXISTING at 73fd1874f); CPython TypeError.
+RULE (`PYCSL-R604-PYVAL-SUBSCRIPT-TYPEERROR-UNDER-CLAIM`, a non-`\trusted` function claiming TypeError): a subscript of
+a PyVal VALUE (not of a `Dict[str, PyVal]` container) is refused unless its receiver is a NAME narrowed by a
+dominating `isinstance(v, dict)` (a str key: a str literal, an f-string or a `str`-annotated name) /
+`isinstance(v, list | tuple | str)` (any other index); a str key on `tuple(V)` / `list(V)` / `sorted(V)` is refused.
+Advice: bind the value to a name and narrow it (`v = d["a"]`, then `v["k"]` under `isinstance(v, dict) and "k" in
+v`, control `9992`). Witnesses `9976`, `9977`. Measurements: `getting-better/open-routes/route604-pyval-subscript-non-dict-no-typeerror-site.md`.
+
+### 7.605 An index read of a PyVal sequence has no bounds proof obligation; a negative index is refused (route #605, run #7)
+
+`v[K]` of a PyVal narrowed to list / tuple / str and `ks[K]` of `ks = tuple(<PyVal>)` lower to `hval_nth_str v K` with
+NO bounds VC, so `#@ no_exception IndexError` PROVED out of range (rt59 h02 h03 h04 h05 h15 h16, h10 `tuple(<PyVal>)`
+INTRODUCED); and `hval_list_nth` maps every index <= 0 to the FIRST element, so a negative index was held only by an
+accidental L3-tc failure (b01 b18 b19 b22-b30). RULES (non-`\trusted` functions): (a)
+`PYCSL-R605-PYVAL-INDEX-NO-BOUNDS-VC`: under a claim covering IndexError (`\all`, `IndexError`, `LookupError`,
+`Exception`, `BaseException`) an index read (not a str key, not a slice) of a PyVal value / sequence is refused.
+Advice: iterate it (control `9993`) or drop the claim. (b) `PYCSL-R605-PYVAL-NEGATIVE-INDEX`, every function: the
+index must be syntactically non-negative -- a non-negative int literal, `len(..)`, a sum / product / floor quotient
+/ remainder of such, a name EVERY binding of which is one (or a `range(..)` counter with a non-negative start and a
+positive literal step, an `enumerate(..)` counter), or a name guarded by a dominating `if i >= 0` / an exiting `if
+.. i < 0` (`or`-chains included); anything else (a negative literal, `-` / unary minus, a parameter, a call) is
+refused. Advice: a non-negative literal under a length guard (control `9994`). Plain lists keep their faithful
+negative-index lowering (the rule reads PyVal values only). Witnesses `9978`-`9982`. Measurements:
+`getting-better/open-routes/route605-pyval-sequence-index-no-indexerror-vc.md`.
+
+### 7.606 A PyVal float relies on FLOAT-FINITE; `--strict-float-finite` refuses PyVal comparisons (route #606, run #7)
+
+`isinstance(v, float)` narrows to `HFloat f` and `v == v` is the certified `hval_eq` = `hreal_eq f f` = true; CPython
+NaN != NaN (rt59 g01, g04, g13 PROVED; INTRODUCED: base lowered the opaque `pycsl_py_eq`). FLOAT-FINITE is the
+DECLARED assumption (§T.10.5), but `--soundness-report` did not list it for these programs and `--strict-float-finite`
+emitted byte-identical WhyML. NOW: (a) `--soundness-report` lists FLOAT-FINITE for every comparison / `min` / `max` in
+a function whose parameter / symbol / return type names `PyVal` ("`==` in a function holding a PyVal value",
+conservative); in the DEFAULT mode `v == v` proves under the declared assumption exactly as the plain-float twin
+`2500` (control `9996`, `# pycsl-model-assumption: FLOAT-FINITE`). (b) under `--strict-float-finite`
+(`PYCSL-R606-PYVAL-FLOAT-COMPARE-STRICT`, non-`\trusted` functions) a comparison (`==` `!=` `<` `<=` `>` `>=`) with a
+PyVal / string-lowered operand and at least two non-literal operands is refused: the plain-float NaN sentinel has no
+PyVal twin (the certified theory is unchanged). A comparison with a literal is admitted (control `9997`). Witnesses
+`9983`, `9984` (both `# pycsl-flags: --strict-float-finite`). Measurements:
+`getting-better/open-routes/route606-pyval-float-nan-eq-reflexive.md`.
+
+### 7.607 A bytes value never flows into a PyVal value (route #607, run #7)
+
+The frozen 9-tag `hval` has no bytes tag (HBytes excluded), and a bytes literal in a PyVal position was lowered as
+`HArr` of `HInt` code points: `isinstance(v, list)` true, `isinstance(v, bytes)` false, `b"" == []` (the certified
+hval_eq) true (rt59 o13 PRE-EXISTING tag, o15 INTRODUCED consequence, o16); CPython the opposite. RULE
+(`PYCSL-R607-PYVAL-BYTES-VALUE`, non-`\trusted` functions and module-level PyVal-annotated bindings): a bytes literal,
+a `bytes` / `bytearray`-annotated name, a `bytes(..)` / `bytearray(..)` / `memoryview(..)` / `bytes.<ctor>(..)` call, a
+call of a same-file function annotated `-> bytes`, or a `.encode()` call in a statement (for
+a compound statement: its header -- `if` / `while` test, `for` target / iterable, `with` items, `match` subject) that
+binds a `PyVal`-annotated target, mentions a PyVal value / container / sequence, or returns from a `-> ..PyVal..`
+function is refused. Advice: use a str value instead (control `9998`, a bytes value kept apart). Witnesses `9985`,
+`9986`, `9987` (a module-level `Dict[str, PyVal]` constant). Measurements: `getting-better/open-routes/route607-pyval-bytes-literal-as-int-list.md`.
+
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
 A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /
