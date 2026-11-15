@@ -8408,6 +8408,143 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if _nm is not None and "PyVal" in _ast341.unparse(_n.annotation):
                 (_fav603 if _ast341.unparse(_n.annotation).strip() in (
                     "PyVal", "Optional[PyVal]") else _fac603).add(_nm)
+        # (run #7, u46) ROUTE #608 F2: a field STORED WITHOUT an annotation from a PyVal
+        # value / container (`self.cfg = cfg` with `cfg: Dict[str, PyVal]`; Module 6 types the
+        # field from the stored value) is tracked by name too (rt60 a05: `self.cfg.get("a") or
+        # "z"` then `isinstance(x, str)` lowered `1 = 1`, PROVED). Per scope (each function,
+        # and the module), the PyVal names are the PyVal-annotated parameters / bindings and,
+        # to a fixpoint, the plain names bound from one; a store `<e>.f = V` / `<e>.f += V` /
+        # `setattr(<e>, "f", V)` whose value V mentions a PyVal name / tracked field (outside
+        # a comparison, `len` / `isinstance` / `bool` / `id` / `hash` / `type`) tracks f:
+        # a bare name / field keeps its kind, a `.get` / subscript of one is a value, anything
+        # else is BOTH (fail-closed). Greatest set, by fixpoint over the fields.
+        # the same-file functions (by name) / methods (by attribute name, any class:
+        # fail-closed) whose RETURN annotation names PyVal: a call of one is a PyVal value
+        # ("v": `PyVal` / `Optional[PyVal]`) or container ("c": any other)
+        _rkf608: Dict[str, Set[str]] = {}
+        _rkm608: Dict[str, Set[str]] = {}
+        for _d in _t341.body:
+            for _m, _tb in ([(_d, _rkf608)] if isinstance(_d, (_ast341.FunctionDef,
+                                                               _ast341.AsyncFunctionDef))
+                            else [(_x, _rkm608) for _x in _d.body if isinstance(
+                                _x, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))]
+                            if isinstance(_d, _ast341.ClassDef) else []):
+                _ra = (_ast341.unparse(_m.returns).strip().strip("'\"")
+                       if _m.returns is not None else "")
+                if "PyVal" in _ra:
+                    _tb.setdefault(_m.name, set()).add(
+                        "v" if _ra in ("PyVal", "Optional[PyVal]") else "c")
+        # the module-level PyVal-annotated names (seen by every scope: fail-closed)
+        _mpc608: Set[str] = set()
+        _mpv608: Set[str] = set()
+        for _x in _t341.body:
+            if (isinstance(_x, _ast341.AnnAssign) and isinstance(_x.target, _ast341.Name)
+                    and "PyVal" in _ast341.unparse(_x.annotation)):
+                (_mpv608 if _ast341.unparse(_x.annotation).strip().strip("'\"") in (
+                    "PyVal", "Optional[PyVal]") else _mpc608).add(_x.target.id)
+        _ch608 = True
+        while _ch608:
+            _ch608 = False
+            for _sc608 in [_t341] + [_z for _z in _ast341.walk(_t341) if isinstance(
+                    _z, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))]:
+                _pc608: Set[str] = set(_mpc608)
+                _pv608: Set[str] = set(_mpv608)
+                for _z in ([_x for _x in _sc608.body if isinstance(_x, _ast341.AnnAssign)]
+                           if _sc608 is _t341 else
+                           list(_ast341.walk(_sc608.args)) + list(_ast341.walk(_sc608))):
+                    _za = (_z.annotation if isinstance(_z, (_ast341.AnnAssign, _ast341.arg))
+                           else None)
+                    _zn = (_z.arg if isinstance(_z, _ast341.arg) else
+                           _z.target.id if isinstance(_z, _ast341.AnnAssign)
+                           and isinstance(_z.target, _ast341.Name) else None)
+                    if _za is None or _zn is None or "PyVal" not in _ast341.unparse(_za):
+                        continue
+                    (_pv608 if _ast341.unparse(_za).strip().strip("'\"") in (
+                        "PyVal", "Optional[PyVal]") else _pc608).add(_zn)
+                # the kinds of an expression: "c" container, "v" value (a set; {} = none)
+                _kd608 = lambda _e: (
+                    ({"c"} if _e.id in _pc608 else set()) | ({"v"} if _e.id in _pv608 else set())
+                    if isinstance(_e, _ast341.Name)
+                    else ({"c"} if _e.attr in _fac603 else set())
+                    | ({"v"} if _e.attr in _fav603 else set())
+                    if isinstance(_e, _ast341.Attribute) and _e.attr in (_fac603 | _fav603)
+                    else ({"v"} if _kd608(_e.value) else set())
+                    if isinstance(_e, _ast341.Subscript)
+                    else ({"v"} if _kd608(_e.func.value) else set())
+                    if (isinstance(_e, _ast341.Call) and isinstance(_e.func, _ast341.Attribute)
+                        and _e.func.attr == "get")
+                    else set(_rkf608.get(_e.func.id, set()))
+                    if (isinstance(_e, _ast341.Call) and isinstance(_e.func, _ast341.Name)
+                        and _e.func.id in _rkf608)
+                    else set(_rkm608.get(_e.func.attr, set()))
+                    if (isinstance(_e, _ast341.Call) and isinstance(_e.func, _ast341.Attribute)
+                        and _e.func.attr in _rkm608)
+                    else set().union(*[_kd608(_y) for _y in _e.values])
+                    if isinstance(_e, _ast341.BoolOp)
+                    else (_kd608(_e.body) | _kd608(_e.orelse))
+                    if isinstance(_e, _ast341.IfExp)
+                    else set()
+                    if (isinstance(_e, (_ast341.Compare, _ast341.Constant))
+                        or (isinstance(_e, _ast341.Call) and isinstance(_e.func, _ast341.Name)
+                            and _e.func.id in ("len", "isinstance", "bool", "id", "hash",
+                                               "type")))
+                    else ({"c", "v"} if any(_kd608(_y)
+                                            for _y in list(_ast341.iter_child_nodes(_e))
+                                            + [_g.iter for _g in getattr(_e, "generators", [])]
+                                            if isinstance(_y, _ast341.expr)) else set()))
+                _chl608 = True
+                while _chl608:
+                    _chl608 = False
+                    for _z in _ast341.walk(_sc608):
+                        # a loop / comprehension target over a PyVal-built iterable: both
+                        if (isinstance(_z, (_ast341.For, _ast341.AsyncFor, _ast341.comprehension))
+                                and _kd608(_z.iter)):
+                            for _w in _ast341.walk(_z.target):
+                                if isinstance(_w, _ast341.Name) and (
+                                        _w.id not in _pc608 or _w.id not in _pv608):
+                                    _pc608.add(_w.id)
+                                    _pv608.add(_w.id)
+                                    _chl608 = True
+                        if (isinstance(_z, (_ast341.Assign, _ast341.NamedExpr))
+                                or (isinstance(_z, _ast341.AnnAssign) and _z.value is not None)):
+                            _zts = _z.targets if isinstance(_z, _ast341.Assign) else [_z.target]
+                            for _zt in _zts:
+                                if isinstance(_zt, _ast341.Name):
+                                    _zk = _kd608(_z.value)
+                                    if "c" in _zk and _zt.id not in _pc608:
+                                        _pc608.add(_zt.id)
+                                        _chl608 = True
+                                    if "v" in _zk and _zt.id not in _pv608:
+                                        _pv608.add(_zt.id)
+                                        _chl608 = True
+                for _z in _ast341.walk(_sc608):
+                    _zs: List[Any] = []
+                    if isinstance(_z, (_ast341.Assign, _ast341.AugAssign, _ast341.AnnAssign)):
+                        for _zt in (_z.targets if isinstance(_z, _ast341.Assign) else [_z.target]):
+                            if (isinstance(_zt, (_ast341.Tuple, _ast341.List))
+                                    and isinstance(_z.value, (_ast341.Tuple, _ast341.List))
+                                    and len(_zt.elts) == len(_z.value.elts)):
+                                _zs.extend(zip(_zt.elts, _z.value.elts))
+                            elif isinstance(_zt, (_ast341.Tuple, _ast341.List)):
+                                _zs.extend((_y, _z.value) for _y in _zt.elts)
+                            elif _z.value is not None:
+                                _zs.append((_zt, _z.value))
+                    elif (isinstance(_z, _ast341.Call) and isinstance(_z.func, _ast341.Name)
+                          and _z.func.id == "setattr" and len(_z.args) == 3
+                          and isinstance(_z.args[1], _ast341.Constant)
+                          and isinstance(_z.args[1].value, str)):
+                        _zs.append((_ast341.Attribute(value=_z.args[0], attr=_z.args[1].value,
+                                                      ctx=_ast341.Store()), _z.args[2]))
+                    for _zt, _zv in _zs:
+                        if not isinstance(_zt, _ast341.Attribute):
+                            continue
+                        _zk = _kd608(_zv)
+                        if "c" in _zk and _zt.attr not in _fac603:
+                            _fac603.add(_zt.attr)
+                            _ch608 = True
+                        if "v" in _zk and _zt.attr not in _fav603:
+                            _fav603.add(_zt.attr)
+                            _ch608 = True
         # each same-file function's parameter annotations (Module 5's name; `self` / `cls`
         # dropped for a method): (positional list, by-name map, the `*args` / `**kw` one)
         _pa603: Dict[str, Any] = {}
@@ -8463,11 +8600,29 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _vl603.add(_nm)
                     else:
                         _ct603.add(_nm)
-                if not (_ct603 or _vl603 or _lau603 or _fac603 or _fav603):
+                # (run #7, u46) route #608 F2: the DICT-annotated PyVal containers of this
+                # function (iterating one yields its str keys)
+                _dct608: Set[str] = set()
+                for _n in _ast341.walk(_f603):
+                    _an = (_n.annotation if isinstance(_n, (_ast341.AnnAssign, _ast341.arg))
+                           else None)
+                    _nm = (None if _an is None else _n.arg if isinstance(_n, _ast341.arg)
+                           else _n.target.id if isinstance(_n.target, _ast341.Name) else None)
+                    if _nm is not None and _ast341.unparse(_an).strip().strip("'\"").startswith((
+                            "Dict[", "dict[", "Mapping[", "MutableMapping[", "typing.Dict[")):
+                        _dct608.add(_nm)
+                if not (_ct603 or _vl603 or _lau603 or _fac603 or _fav603 or _rkf608
+                        or _rkm608):
                     continue
                 _isc603 = lambda _e: (
                     (isinstance(_e, _ast341.Name) and _e.id in _ct603)
-                    or (isinstance(_e, _ast341.Attribute) and _e.attr in _fac603))
+                    or (isinstance(_e, _ast341.Attribute) and _e.attr in _fac603)
+                    # (u46, route #608 F2) a call of a same-file PyVal-container function
+                    or (isinstance(_e, _ast341.Call) and (
+                        (isinstance(_e.func, _ast341.Name)
+                         and "c" in _rkf608.get(_e.func.id, set()))
+                        or (isinstance(_e.func, _ast341.Attribute)
+                            and "c" in _rkm608.get(_e.func.attr, set())))))
                 _isv603 = lambda _e: (
                     (_e.id in _vl603) if isinstance(_e, _ast341.Name)
                     else (_e.attr in _fav603) if isinstance(_e, _ast341.Attribute)
@@ -8475,6 +8630,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     else (_isc603(_e.func.value) or _isv603(_e.func.value)) if (
                         isinstance(_e, _ast341.Call) and isinstance(_e.func, _ast341.Attribute)
                         and _e.func.attr == "get")
+                    # (u46, route #608 F2) a call of a same-file PyVal-value function
+                    else ("v" in _rkf608.get(_e.func.id, set())) if (
+                        isinstance(_e, _ast341.Call) and isinstance(_e.func, _ast341.Name))
+                    else ("v" in _rkm608.get(_e.func.attr, set())) if (
+                        isinstance(_e, _ast341.Call) and isinstance(_e.func, _ast341.Attribute))
                     else _isv603(_e.values[0]) if (isinstance(_e, _ast341.BoolOp) and _e.values)
                     else False)
                 _sq603: Set[str] = set()
@@ -8534,11 +8694,58 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                                   or _sx603(_n.value))))):
                                     _os603.add(_w.id)
                                     _ch603 = True
+                        # (run #7, u46) route #608 F2: a loop / comprehension target over an
+                        # iterable built from a PyVal CONTAINER (`for c in cs` with `cs:
+                        # List[Dict[str, PyVal]]`, `.values()`, a field ...) is an element of
+                        # it -- a PyVal container AND value (fail-closed; rt60-style `x =
+                        # c.get("a") or "z"; isinstance(x, str)` emitted `1 = 1`, probe
+                        # u46 q02) -- except the str keys of a dict-annotated container /
+                        # `.keys()` / the first slot of `.items()` / an `enumerate` counter
+                        if isinstance(_n, (_ast341.For, _ast341.comprehension)):
+                            _it = _n.iter
+                            _itf = (_it.func.attr if isinstance(_it, _ast341.Call)
+                                    and isinstance(_it.func, _ast341.Attribute) else
+                                    _it.func.id if isinstance(_it, _ast341.Call)
+                                    and isinstance(_it.func, _ast341.Name) else None)
+                            if (not (isinstance(_it, _ast341.Name) and _it.id in _dct608)
+                                    and _itf not in ("keys", "range")
+                                    and any((isinstance(_z, _ast341.Name) and _z.id in _ct603)
+                                            or (isinstance(_z, _ast341.Attribute)
+                                                and _z.attr in _fac603)
+                                            for _z in _ast341.walk(_it))):
+                                _el = ([_n.target.elts[1]] if _itf in ("items", "enumerate")
+                                       and isinstance(_n.target, _ast341.Tuple)
+                                       and len(_n.target.elts) == 2 else [_n.target])
+                                for _w in [_z for _e in _el for _z in _ast341.walk(_e)
+                                           if isinstance(_z, _ast341.Name)]:
+                                    if _w.id not in _ct603 or _w.id not in _vl603:
+                                        _ct603.add(_w.id)
+                                        _vl603.add(_w.id)
+                                        _ch603 = True
                         if _tg is None:
                             continue
                         if (_tg not in _vl603 and _tg not in _ct603 and _isv603(_vv)):
                             _vl603.add(_tg)
                             _ch603 = True
+                        # (run #7, u46) route #608 F2: a plain alias of a PyVal CONTAINER
+                        # (`c = cfg`, a container field) is one too (fail-closed), and so is a
+                        # binding from a call of a same-file function / method whose return
+                        # annotation names PyVal (by the annotation's kind)
+                        if (not _lp and _tg not in _vl603 and _tg not in _ct603
+                                and _isc603(_vv)):
+                            _ct603.add(_tg)
+                            _ch603 = True
+                        if not _lp and isinstance(_vv, _ast341.Call):
+                            _rk = (_rkf608.get(_vv.func.id, set())
+                                   if isinstance(_vv.func, _ast341.Name)
+                                   else _rkm608.get(_vv.func.attr, set())
+                                   if isinstance(_vv.func, _ast341.Attribute) else set())
+                            if "c" in _rk and _tg not in _ct603:
+                                _ct603.add(_tg)
+                                _ch603 = True
+                            if "v" in _rk and _tg not in _vl603:
+                                _vl603.add(_tg)
+                                _ch603 = True
                         if not _lp and _tg not in _sq603 and _isq603(_vv):
                             _sq603.add(_tg)
                             _ch603 = True
@@ -8739,6 +8946,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 "`isinstance(v, str)`)"
                                 % (_ast341.unparse(_a)[:60], _ast341.unparse(_n).split("\n")[0][:60])) + ".",
                                 stage="ir-semantic", code="PYCSL-R603-PYVAL-STR-PASSED-AS-STR")
+                # (u46, route #608) a `global` / `nonlocal` name carries a string-lowered
+                # value out of this function, where it is not tracked: never a plain binding
+                _gl608 = {_g for _z in _ast341.walk(_f603)
+                          if isinstance(_z, (_ast341.Global, _ast341.Nonlocal))
+                          for _g in _z.names}
                 # #603 C / B: laundering under a TypeError claim
                 if _cT603:
                     for _n in _ast341.walk(_f603):
@@ -8766,7 +8978,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _pp = _par603.get(id(_p)) if _p is not None else None
                         _ok = (
                             (isinstance(_p, _ast341.Assign) and _p.value is _n
-                             and len(_p.targets) == 1 and isinstance(_p.targets[0], _ast341.Name))
+                             and len(_p.targets) == 1 and isinstance(_p.targets[0], _ast341.Name)
+                             # (u46, route #608) not a `global` / `nonlocal` name
+                             and _p.targets[0].id not in _gl608)
                             or (isinstance(_p, _ast341.Return) and _p.value is _n)
                             or (isinstance(_p, _ast341.Compare)
                                 and all(isinstance(_o, (_ast341.Eq, _ast341.NotEq)) for _o in _p.ops)
@@ -8798,6 +9012,181 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 % (_ast341.unparse(_n)[:60],
                                    _ast341.unparse(_p)[:60] if _p is not None else "?")) + ".",
                                 stage="ir-semantic", code="PYCSL-R603-PYVAL-STR-LAUNDERED-UNDER-CLAIM")
+                # (run #7, u46) ROUTE #608 F1 (every function WITHOUT a TypeError claim): a
+                # string-lowered value decides STR-ONLY facts in a plain read -- `x[0]` is a
+                # one-char string (`str_sub_op`), `for ch in x` iterates chars, `x * 0 == ""`
+                # (`str_repeat_op`), `x[0:0] == ""`, a str method -- while CPython's x is the PyVal
+                # itself (a list, an int ...) on which the same operation SUCCEEDS with another
+                # result (rt60 a01 a17 d01 d05 d24 PROVED). Admitted uses are those whose result
+                # is opaque for a non-str value or which cannot decide a str-only fact: a plain
+                # name binding (`=`, an annotated binding), a `return`, the operand of a returned
+                # / unpacked tuple display, `==` / `!=` with literals, `in` / `not in` a display of
+                # literals (x on the left), a truthiness test, `not`, `len(x)` (the length of the
+                # uninterpreted `hval_opaque_str`), or the first operand of a further string-lowered
+                # `x or "<str>"`. Anything else (an index, a slice, an iteration, an operator, a
+                # call argument, a method, an attribute ...) is REFUSED. A `#@` annotation line in
+                # the function naming a string-lowered NAME is refused too (its str facts are
+                # decided by the same lowering).
+                if not _cT603:
+                    # a KEY use (`x in C`, `C[x]`, `C.get(x)`) of a string-lowered x against
+                    # a receiver whose keys / elements are real strs (a str-keyed dict, a
+                    # typed str collection -- not a PyVal value / sequence, not a PyVal
+                    # container other than a dict-annotated one) is opaque for a non-str x:
+                    # CPython never finds a non-str among str keys (or raises TypeError),
+                    # and the uninterpreted `hval_opaque_str` may equal any key. Not when a
+                    # class of this file defines the protocol method (its contract may
+                    # assume a str).
+                    _dun608 = {_x.name for _c in _ast341.walk(_t341)
+                               if isinstance(_c, _ast341.ClassDef) for _x in _c.body
+                               if isinstance(_x, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))}
+                    _kr608 = lambda _c: (
+                        not (_isv603(_c) or _isq603(_c) or _sx603(_c))
+                        and (not _isc603(_c)
+                             or (isinstance(_c, _ast341.Name) and _c.id in _dct608)))
+                    for _n in _ast341.walk(_f603):
+                        if not _sx603(_n) or (isinstance(_n, _ast341.Name)
+                                              and not isinstance(_n.ctx, _ast341.Load)):
+                            continue
+                        _p = _par603.get(id(_n))
+                        _pp = _par603.get(id(_p)) if _p is not None else None
+                        _ok = (
+                            (isinstance(_p, _ast341.Compare) and _p.left is _n
+                             and len(_p.ops) == 1
+                             and isinstance(_p.ops[0], (_ast341.In, _ast341.NotIn))
+                             and "__contains__" not in _dun608 and _kr608(_p.comparators[0]))
+                            or (isinstance(_p, _ast341.Subscript) and _p.slice is _n
+                                and isinstance(_p.ctx, _ast341.Load)
+                                and "__getitem__" not in _dun608 and _kr608(_p.value))
+                            or (isinstance(_p, _ast341.Call) and isinstance(_p.func, _ast341.Attribute)
+                                and _p.func.attr == "get" and _p.args and _p.args[0] is _n
+                                and len(_p.args) <= 2 and not _p.keywords
+                                and "get" not in _dun608 and _kr608(_p.func.value))
+                            or
+                            (isinstance(_p, _ast341.Assign) and _p.value is _n
+                             and len(_p.targets) == 1 and isinstance(_p.targets[0], _ast341.Name)
+                             and _p.targets[0].id not in _gl608)
+                            or (isinstance(_p, _ast341.AnnAssign) and _p.value is _n
+                                and isinstance(_p.target, _ast341.Name)
+                                and _p.target.id not in _gl608)
+                            or (isinstance(_p, _ast341.Return) and _p.value is _n)
+                            or (isinstance(_p, _ast341.Tuple)
+                                and (isinstance(_pp, _ast341.Return)
+                                     or (isinstance(_pp, _ast341.Assign) and _pp.value is _p
+                                         and len(_pp.targets) == 1
+                                         and isinstance(_pp.targets[0], (_ast341.Tuple,
+                                                                         _ast341.List)))))
+                            # `==` / `!=` with any operand: CPython's non-str value never
+                            # equals a str, and the opaque string may equal anything (a NaN's
+                            # reflexivity is the declared FLOAT-FINITE assumption, refused
+                            # under --strict-float-finite by R606)
+                            or (isinstance(_p, _ast341.Compare)
+                                and all(isinstance(_o, (_ast341.Eq, _ast341.NotEq)) for _o in _p.ops))
+                            or (isinstance(_p, _ast341.Compare) and _p.left is _n
+                                and len(_p.ops) == 1
+                                and isinstance(_p.ops[0], (_ast341.In, _ast341.NotIn))
+                                and isinstance(_p.comparators[0], (_ast341.Tuple, _ast341.List,
+                                                                   _ast341.Set))
+                                and all(isinstance(_o, _ast341.Constant)
+                                        for _o in _p.comparators[0].elts))
+                            or (isinstance(_p, (_ast341.If, _ast341.While, _ast341.IfExp))
+                                and _p.test is _n)
+                            or (isinstance(_p, _ast341.UnaryOp) and isinstance(_p.op, _ast341.Not))
+                            or (isinstance(_p, _ast341.BoolOp)
+                                and ((isinstance(_pp, (_ast341.If, _ast341.While, _ast341.IfExp))
+                                      and _pp.test is _p)
+                                     or (isinstance(_pp, _ast341.UnaryOp)
+                                         and isinstance(_pp.op, _ast341.Not))
+                                     or (_sx603(_p) and _p.values[0] is _n)))
+                            or (isinstance(_p, _ast341.Call) and isinstance(_p.func, _ast341.Name)
+                                and _p.func.id == "len" and _p.args == [_n]
+                                and not _p.keywords and "len" not in _bound341
+                                and "len" not in _imp341))
+                        if not _ok:
+                            raise _PyCSLSemErr341(
+                                f"'{_f603.name}' line {_ln603(_n)}: " + (
+                                "`%s` decides a STR-ONLY fact of `%s`, a PyVal-derived value the "
+                                "model lowers as a `string` (`<PyVal> or \"<str>\"`, an element of a "
+                                "PyVal sequence, a laundering call): an index is one character, "
+                                "an iteration yields characters, `x * 0` is \"\", a slice is a "
+                                "str, a str method ..., while in CPython the value is the PyVal "
+                                "itself (a list, an int ...) on which the operation succeeds with "
+                                "another result (route #608; measured: `x = d.get(\"a\") or "
+                                "\"z\"; len(x[0])` PROVED 1, CPython 2 for {\"a\": [\"ab\"]}). "
+                                "Narrow the PyVal value itself first (`v = d.get(\"a\")`, then "
+                                "use `v` under `isinstance(v, str)`)"
+                                % (_ast341.unparse(_p).split("\n")[0][:60] if _p is not None
+                                   else "?", _ast341.unparse(_n)[:60])) + ".",
+                                stage="ir-semantic", code="PYCSL-R608-PYVAL-STR-LOWERED-STR-FACT")
+                # an augmented assignment of a string-lowered NAME (`x *= 0`, `x += "a"`) is
+                # the str operator on it (`x *= 0` then `x == ""` decided True; CPython [] for a
+                # list), in every function (a claim's backstop above skips store targets)
+                for _n in _ast341.walk(_f603):
+                    if (isinstance(_n, _ast341.AugAssign) and isinstance(_n.target, _ast341.Name)
+                            and _n.target.id in _os603):
+                        raise _PyCSLSemErr341(
+                            f"'{_f603.name}' line {_ln603(_n)}: " + (
+                            "`%s` applies a str operator to `%s`, a PyVal-derived value the "
+                            "model lowers as a `string` (`<PyVal> or \"<str>\"`, an element of a "
+                            "PyVal sequence, a laundering call): `x *= 0` makes it \"\", `x += "
+                            "\"a\"` appends a character, while in CPython the value is the PyVal "
+                            "itself (a list, an int ...) on which the operator succeeds with "
+                            "another result (route #608; `[1] * 0 == \"\"` is False). Narrow the "
+                            "PyVal value itself first (`v = d.get(\"a\")`, then use `v` under "
+                            "`isinstance(v, str)`)"
+                            % (_ast341.unparse(_n).split("\n")[0][:60], _n.target.id)) + ".",
+                            stage="ir-semantic", code="PYCSL-R608-PYVAL-STR-LOWERED-STR-FACT")
+                # the `#@` lines inside this function's span that name a string-lowered name
+                # (every function; a claim does not make them faithful)
+                _os608 = {_z for _z in _os603}
+                if _os608:
+                    import re as _re608
+                    _ea608 = max([getattr(_z, "end_lineno", 0) or 0
+                                  for _z in _ast341.walk(_f603)] + [_f603.lineno])
+                    for _li608 in range(_f603.lineno, min(_ea608, len(_sl430))):
+                        _lt608 = _sl430[_li608].strip()
+                        if not _lt608.startswith("#@"):
+                            continue
+                        _hit608 = next((_z for _z in sorted(_os608) if _re608.search(
+                            r"(?<![\w.])" + _re608.escape(_z) + r"(?!\w)", _lt608[2:])), None)
+                        if _hit608 is not None:
+                            raise _PyCSLSemErr341(
+                                f"'{_f603.name}' line {_li608 + 1}: " + (
+                                "`%s` names `%s`, a PyVal-derived value the model lowers as a "
+                                "`string` (`<PyVal> or \"<str>\"`, an element of a PyVal "
+                                "sequence, a laundering call): its str facts are decided by the "
+                                "str type, while in CPython the value is the PyVal itself (a "
+                                "list, an int ...) (route #608; measured: `#@ assert x * 0 == "
+                                "\"\"` on `x = d.get(\"a\") or \"z\"`). Narrow the PyVal value "
+                                "itself first (`v = d.get(\"a\")`, then use `v` under "
+                                "`isinstance(v, str)`)"
+                                % (_lt608[:60], _hit608)) + ".",
+                                stage="ir-semantic", code="PYCSL-R608-PYVAL-STR-LOWERED-STR-FACT")
+                # (u46) route #609: the exception classes caught around a node -- the handlers
+                # of every enclosing `try` whose BODY holds it (a bare / non-name handler type:
+                # BaseException, fail-closed) and the arguments of an enclosing
+                # `with (contextlib.)suppress(..)`
+                _cau609 = lambda _t: {
+                    (_y.id if isinstance(_y, _ast341.Name)
+                     else _y.attr if isinstance(_y, _ast341.Attribute) else "BaseException")
+                    for _y in (_t.elts if isinstance(_t, _ast341.Tuple) else [_t])}
+                _hd609 = lambda _c, _a: (
+                    set() if _a is None
+                    else ((set().union(*[{"BaseException"} if _h.type is None
+                                         else _cau609(_h.type) for _h in _a.handlers])
+                           if isinstance(_a, (_ast341.Try, getattr(_ast341, "TryStar",
+                                                                    _ast341.Try)))
+                           and _c in _a.body else set())
+                          | (set().union(*[_cau609(_ast341.Tuple(elts=list(_i.context_expr.args)))
+                                           for _i in _a.items
+                                           if isinstance(_i.context_expr, _ast341.Call)
+                                           and ((isinstance(_i.context_expr.func, _ast341.Name)
+                                                 and _i.context_expr.func.id == "suppress")
+                                                or (isinstance(_i.context_expr.func,
+                                                               _ast341.Attribute)
+                                                    and _i.context_expr.func.attr == "suppress"))])
+                             if isinstance(_a, (_ast341.With, _ast341.AsyncWith))
+                             and _c in _a.body else set())
+                          | (set() if _a is _f603 else _hd609(_a, _par603.get(id(_a))))))
                 # #604 / #605: subscripts of a PyVal value / sequence
                 # the non-negative names (every binding non-negative; greatest fixpoint)
                 _bv603: Dict[int, Any] = {}
@@ -8885,6 +9274,35 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             "under `isinstance(v, dict) and \"k\" in v`), or drop the claim"
                             % (_ast341.unparse(_n)[:60], "a dict" if _sk else "a sequence")) + ".",
                             stage="ir-semantic", code="PYCSL-R604-PYVAL-SUBSCRIPT-TYPEERROR-UNDER-CLAIM")
+                    # (run #7, u46) ROUTE #609: a PyVal subscript READ inside a `try` body whose
+                    # handler catches what CPython raises there (an index: IndexError / KeyError
+                    # / TypeError and their bases; a str key on a value not narrowed to a dict:
+                    # TypeError and its bases), or inside `with suppress(..)` of one, has NO
+                    # raising proof obligation (`hval_nth_str` has no bounds VC; the KeyError
+                    # check has a `| _ -> true` arm for a non-map), so route #171's widening
+                    # proves the handler dead while CPython takes it (rt60 d22: `try: y = v[0]
+                    # except IndexError: return 0` PROVED `\result == 1`, CPython 0 for []).
+                    if isinstance(_n.ctx, _ast341.Load):
+                        _hc = _hd609(_n, _par603.get(id(_n)))
+                        _hx = _hc & ({"TypeError", "Exception", "BaseException"} if _sk else
+                                     {"IndexError", "LookupError", "KeyError", "TypeError",
+                                      "Exception", "BaseException"})
+                        if _sk and _pv and _nar603(_vv, {"dict", "Dict"}):
+                            _hx = set()
+                        if _hx:
+                            raise _PyCSLSemErr341(
+                                f"'{_f603.name}' line {_ln603(_n)}: " + (
+                                "`%s` reads a PyVal value / sequence inside a `try` body (or "
+                                "`with suppress(..)`) that catches %s, but the model's read has "
+                                "no raising proof obligation (`hval_nth_str` has no bounds check; "
+                                "the KeyError check is true for a non-dict), so the proof treats "
+                                "the handler as dead while CPython raises there and runs it "
+                                "(route #609; measured: `try: y = v[0] except IndexError: return "
+                                "0` PROVED `\\result == 1`, CPython 0 for v = []). Test the "
+                                "condition before the read instead (`if len(v) > 0: y = v[0]`), "
+                                "outside the `try`"
+                                % (_ast341.unparse(_n)[:60], " / ".join(sorted(_hx)))) + ".",
+                                stage="ir-semantic", code="PYCSL-R609-PYVAL-READ-UNDER-HANDLER")
                     if _sk:
                         continue
                     if _cI603 and isinstance(_n.ctx, _ast341.Load):

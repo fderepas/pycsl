@@ -1095,6 +1095,15 @@ AUDITED = {
         "Route #607. 'Use a str value instead (keep bytes out of PyVal values)': witnesses-r607/advice/a607_str_value (control 9998: a str value in the PyVal dict, the bytes value kept apart) VERIFIES `\\result == 1` / `\\result == 2` at HEAD (u45) in the default model (typed / store: the shape fails L3-tc / times out identically at int61 e9e12b6a8, a pre-existing model limit, emission byte-identical); the witnesses 9985 / 9986 / 9987 are refused."),
     ('src/pycsl/pycsl.py', "_PyCSLSemErr341(f'line {_n.lineno}: `{_ast341.unparse(_n)[:60]}` puts a bytes value into a PyVal container: the dict value model has no byte"): (FOLLOWABLE,
         "Route #607. 'Use a str value instead (keep bytes out of PyVal values)': witnesses-r607/advice/a607_str_value (control 9998: a str value in the PyVal dict, the bytes value kept apart) VERIFIES `\\result == 1` / `\\result == 2` at HEAD (u45) in the default model (typed / store: the shape fails L3-tc / times out identically at int61 e9e12b6a8, a pre-existing model limit, emission byte-identical); the witnesses 9985 / 9986 / 9987 are refused."),
+    # driver run #7 -- routes #608 / #609 (u46).
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + \'`%s` applies a str operator to `%s`, a PyVal-derived value the model lowers as a `s'): (FOLLOWABLE,
+        'Route #608. \'Narrow the PyVal value itself first (`v = d.get("a")`, then use `v` under `isinstance(v, str)`)\': witnesses-r608/advice/a608_narrow_value (control 10046: the PyVal value narrowed by `isinstance(v, str)`, then `len(v)`) VERIFIES `\\result == 2` (CPython 2) at HEAD (u46) in the default model (typed / store: emitted and type-checked); the witness(es) 10040 are refused.'),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + \'`%s` decides a STR-ONLY fact of `%s`, a PyVal-derived value the model lowers as a `'): (FOLLOWABLE,
+        'Route #608. \'Narrow the PyVal value itself first (`v = d.get("a")`, then use `v` under `isinstance(v, str)`)\': witnesses-r608/advice/a608_narrow_value (control 10046: the PyVal value narrowed by `isinstance(v, str)`, then `len(v)`) VERIFIES `\\result == 2` (CPython 2) at HEAD (u46) in the default model (typed / store: emitted and type-checked); the witness(es) 10030-10034 / 10038 are refused.'),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_li608 + 1}: " + \'`%s` names `%s`, a PyVal-derived value the model lowers as a `string` (`<PyVal> or '): (FOLLOWABLE,
+        'Route #608. \'Narrow the PyVal value itself first (`v = d.get("a")`, then use `v` under `isinstance(v, str)`)\': witnesses-r608/advice/a608_narrow_value (control 10046: the PyVal value narrowed by `isinstance(v, str)`, then `len(v)`) VERIFIES `\\result == 2` (CPython 2) at HEAD (u46) in the default model (typed / store: emitted and type-checked); the witness(es) 10039 are refused.'),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + "`%s` reads a PyVal value / sequence inside a `try` body (or `with suppress(..)`) th'): (FOLLOWABLE,
+        "Route #609. 'Test the condition before the read instead (`if len(v) > 0: y = v[0]`), outside the `try`': witnesses-r609/advice/a609_test_before_read (control 10048: `if len(v) == 0: return 0` then `y = v[0]`, no `try`) VERIFIES `\\result == 1` (CPython 1) at HEAD (u46) in the default model (typed / store: emitted and type-checked); the witness 10036 is refused."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1522,6 +1531,11 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + \'`%s` compares a PyVal value with a non-literal operand under `--strict-float-finite'): '9668ca74b44b',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + \'`%s` puts the bytes value `%s` into a PyVal value / container (or compares it with '): '40c3f9ba4b10',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr341(f'line {_n.lineno}: `{_ast341.unparse(_n)[:60]}` puts a bytes value into a PyVal container: the dict value model has no byte"): '0a78bd92fedd',
+    # driver run #7 -- routes #608 / #609 (u46).
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + \'`%s` applies a str operator to `%s`, a PyVal-derived value the model lowers as a `s'): 'ea26534b28d6',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + \'`%s` decides a STR-ONLY fact of `%s`, a PyVal-derived value the model lowers as a `'): '132d0aa552c5',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_li608 + 1}: " + \'`%s` names `%s`, a PyVal-derived value the model lowers as a `string` (`<PyVal> or '): 'e0b2c6645d1f',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + "`%s` reads a PyVal value / sequence inside a `try` body (or `with suppress(..)`) th'): '59d30f721b27',
 }
 
 
