@@ -7,7 +7,6 @@ from __future__ import annotations
 from typing import Iterator, List
 
 
-#@ requires True
 #@ ensures len(\result) == 3
 #@ assigns \nothing
 #@ no_exception \all

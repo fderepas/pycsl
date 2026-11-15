@@ -10,8 +10,6 @@ from typing import Iterator, List
 K = 0
 
 
-#@ requires True
-#@ ensures True
 #@ assigns \nothing
 #@ no_exception \all
 def g() -> Iterator[int]:
@@ -19,7 +17,6 @@ def g() -> Iterator[int]:
     yield K
 
 
-#@ requires True
 #@ ensures \result == 0
 def total() -> int:
     global K

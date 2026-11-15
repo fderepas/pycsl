@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import Iterator, List
 
 
-#@ requires True
 #@ ensures len(\result) == 1
 #@ assigns \nothing
 def first(s: str) -> Iterator[str]:

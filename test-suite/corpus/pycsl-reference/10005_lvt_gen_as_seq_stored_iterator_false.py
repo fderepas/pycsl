@@ -8,8 +8,6 @@ from __future__ import annotations
 from typing import Iterator, List
 
 
-#@ requires True
-#@ ensures True
 #@ assigns \nothing
 #@ no_exception \all
 def two(s: str) -> Iterator[str]:
@@ -17,7 +15,6 @@ def two(s: str) -> Iterator[str]:
     yield "x"
 
 
-#@ requires True
 #@ ensures \result == 4
 #@ assigns \nothing
 def twice(s: str) -> int:

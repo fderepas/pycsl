@@ -11,7 +11,6 @@ import re
 _P = re.compile(r"(?P<A>x|(y))")
 
 
-#@ requires True
 #@ ensures \result == "B"
 #@ assigns \nothing
 def kind(s: str) -> str:

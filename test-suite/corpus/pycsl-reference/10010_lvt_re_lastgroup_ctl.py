@@ -11,8 +11,7 @@ import re
 _P = re.compile(r"(?P<A>a+)|(?P<B>b+)")
 
 
-#@ requires True
-#@ ensures True
+#@ ensures \str_length(\result) >= 0
 #@ assigns \nothing
 def kind(s: str) -> str:
     m = _P.match(s, 0)

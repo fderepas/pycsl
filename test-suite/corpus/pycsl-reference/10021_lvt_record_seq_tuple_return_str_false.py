@@ -13,7 +13,6 @@ class Tk:
         self.start: int = start
 
 
-#@ requires True
 #@ ensures \result[1] == s
 #@ assigns \nothing
 def lex(s: str) -> Tuple[List[Tk], str]:

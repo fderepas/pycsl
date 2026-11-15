@@ -7,8 +7,6 @@ from __future__ import annotations
 from typing import Iterator, List
 
 
-#@ requires True
-#@ ensures True
 #@ assigns \nothing
 #@ no_exception \all
 def chars(s: str) -> Iterator[str]:
@@ -21,7 +19,6 @@ def chars(s: str) -> Iterator[str]:
         i += 1
 
 
-#@ requires True
 #@ ensures \result >= 0
 #@ assigns \nothing
 def count(s: str) -> int:

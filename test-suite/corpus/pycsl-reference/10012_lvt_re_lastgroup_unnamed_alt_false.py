@@ -10,7 +10,6 @@ import re
 _P = re.compile(r"(?P<A>a+)|b+")
 
 
-#@ requires True
 #@ ensures len(\result) >= 0
 #@ assigns \nothing
 def kind(s: str) -> str:

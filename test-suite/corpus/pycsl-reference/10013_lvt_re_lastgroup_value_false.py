@@ -9,7 +9,6 @@ import re
 _P = re.compile(r"(?P<A>a+)|(?P<B>b+)")
 
 
-#@ requires True
 #@ ensures \result == "A"
 #@ assigns \nothing
 def kind(s: str) -> str:
