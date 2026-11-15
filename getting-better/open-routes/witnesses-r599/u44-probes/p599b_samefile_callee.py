@@ -2,7 +2,6 @@ from __future__ import annotations
 import os
 
 
-#@ ensures True
 #@ assigns \nothing
 def g(s: str) -> int:
     return os.path.getsize(s)
