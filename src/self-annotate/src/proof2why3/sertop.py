@@ -26,12 +26,53 @@ def sertop_available() -> bool:
 def sertop_version() -> str:
     return ""
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
+#@ no_exception \all
 def _sexp_tokens(s: str) -> Iterator[str]:
-    return None
+    """Tokenize an s-expression string: emit '(', ')', and atoms.
+
+    Quoted atoms (`"..."`) are returned with the quotes preserved so
+    downstream parsing can distinguish them from bare identifiers.
+    """
+    i = 0
+    n = len(s)
+    #@ loop invariant 0 <= i
+    #@ loop variant n - i
+    while i < n:
+        c = s[i]
+        if s[i].isspace():
+            i += 1
+            continue
+        if c == "(":
+            yield "("
+            i += 1
+            continue
+        if c == ")":
+            yield ")"
+            i += 1
+            continue
+        if c == '"':
+            j = i + 1
+            #@ loop invariant i < j
+            #@ loop variant n - j
+            while j < n and s[j] != '"':
+                if s[j] == "\\":
+                    j += 2
+                    continue
+                j += 1
+            yield s[i:j + 1]
+            i = j + 1
+            continue
+        j = i
+        #@ loop invariant i <= j
+        #@ loop variant n - j
+        while j < n and not s[j].isspace() and s[j] != "(" and s[j] != ")":
+            j += 1
+        yield s[i:j]
+        i = j
+
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

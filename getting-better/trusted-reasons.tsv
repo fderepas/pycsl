@@ -66,7 +66,6 @@ frontend/Module1_Ingestor.py	_Harvester._build	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._assign	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._fold_blocks	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._emit_suite	unclassified	-
-frontend/Module2_Parser.py	_lex_contract	unclassified	-
 frontend/Module2_Parser.py	_ContractParser.__init__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/Module2_Parser.py	_ContractParser._try	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_contract	unclassified	-
@@ -344,7 +343,6 @@ proof2why3/normalize.py	_alpha_rename	cost-scale:int-erasure-seam	THE INT-ERASUR
 proof2why3/parser.py	normalize_surface	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/parser.py	parse_type_expr	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/sertop.py	sertop_version	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-proof2why3/sertop.py	_sexp_tokens	unclassified	-
 proof2why3/sertop.py	_sexp_parse	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 proof2why3/sertop.py	parse_sexp	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/sertop.py	run_sertop_batch	unclassified	-

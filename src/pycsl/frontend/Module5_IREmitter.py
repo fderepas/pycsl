@@ -7599,6 +7599,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 elif _tr_n in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
                                     _tr_parts.append("emit_ir")
                                     _tr_deep = True
+                                elif (not getattr(node, "csl_trusted", False)
+                                        and not getattr(node, "csl_abstract", False)
+                                        and self._m5_get_list_record_elem(_tr_x) is not None
+                                        and isinstance(_tr_x.slice, ast.Name)):
+                                    # lvT (run #7, record-list tuple return): a `List[R]` slot,
+                                    # R a known record class, of a VERIFIED function is the
+                                    # `seq <R>` its `.append(R(..))` accumulator builds, passed
+                                    # as-is by the tail return (Module6 `_stmts_to_whyml`): no
+                                    # bridge, nothing erased. A `\trusted` / `\abstract` stub
+                                    # of this shape is unchanged (its slots still int-erase).
+                                    from module6_whyml.identifiers import whyml_ident as _tr_wi
+                                    _tr_parts.append(
+                                        "seq " + _tr_wi(self._m5_get_list_record_elem(_tr_x).lower()))
+                                    _tr_deep = True
                                 elif (isinstance(_tr_x, ast.Subscript)
                                         and isinstance(_tr_x.value, ast.Name)
                                         and _tr_x.value.id in ("List", "list")

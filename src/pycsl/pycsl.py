@@ -1410,6 +1410,245 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # this module by its own name (`import <stem>; <stem>.OPS.append(..)`).
     if str(getattr(args, "file", "") or ""):
         unified_ast.pycsl_module_stem = _Path(str(getattr(args, "file", ""))).stem
+    # (run #7 lvT) GENERATOR-AS-SEQ: a PURE, TERMINATING, EXCEPTION-FREE generator
+    # function is lowered as THE LIST OF ITS YIELDS (`-> Iterator[T]` becomes `-> List[T]`,
+    # `yield e` becomes an append to a fresh accumulator, a bare `return` / the fall-through
+    # returns it). Python's call only BUILDS the generator; running the body eagerly at the
+    # call is observationally identical ONLY when (a) the body cannot raise, (b) it
+    # terminates, (c) it has no effect and reads nothing a consumer could change between
+    # two `next()` calls, and (d) every consumer iterates the fresh generator object at
+    # once (no `it = g(); next(it); list(it)`, no identity, no `.send`). Each is checked
+    # here or discharged by the proof, FAIL-CLOSED: any miss leaves the def untouched,
+    # so route #271's generator rules below see it exactly as before.
+    #   (a) the contract carries `no_exception \all` (every implicit exception is a proof
+    #       obligation, route #304) and no `raises`; no `raise` / `assert` / `try` / `with`.
+    #   (b) no `\diverges` and no recursion (no call but `len` / `range` / an argument-less
+    #       allow-listed str predicate): every loop's termination is then a WhyML proof
+    #       obligation.
+    #   (c) `assigns \nothing`; every parameter is a positional `str` / `int` / `bool` /
+    #       `float` (immutable); every name read is a parameter, a body local or the
+    #       un-rebound builtin `len` / `range`; stores only to plain names; no
+    #       nested def / lambda / class / global / nonlocal / walrus / await.
+    #   (d) every reference to the generator's name in the module is a call that is the
+    #       sole argument of `list(...)`, the iterable of a `for`, or the iterable of a
+    #       comprehension; the name is bound by exactly one module-level def and never
+    #       rebound. Only THIS pipeline (the file being proved) lowers it; an importer's
+    #       dependency sub-pipeline (`ir_resolve`) still sees the generator.
+    # The def must be module-level, undecorated, `-> Iterator[T]` / `-> Iterable[T]` with
+    # `T` in str/int/bool/float, and every `yield <e>` an expression statement. Inline by
+    # rule (mirror twin `_run_pipeline` is `\trusted`; no helper is extracted).
+    _gs_mod = unified_ast
+    # only a module-level def carrying `no_exception \all` that contains a `yield` is a
+    # candidate; with none, nothing below runs (every other file is untouched)
+    _gs_any = [_d for _d in (getattr(_gs_mod, "body", None) or [])
+               if _d.__class__.__name__ == "FunctionDef"
+               and getattr(_d, "csl_no_exception_all", False)
+               and any(_n.__class__.__name__ in ("Yield", "YieldFrom") for _n in _ast.walk(_d))]
+    _gs_par = {}
+    for _gs_n in (_ast.walk(_gs_mod) if _gs_any else ()):
+        for _gs_c in _ast.iter_child_nodes(_gs_n):
+            _gs_par[id(_gs_c)] = _gs_n
+    _gs_shadow = False
+    for _gs_n in (_ast.walk(_gs_mod) if _gs_any else ()):
+        _gs_k = _gs_n.__class__.__name__
+        if ((_gs_k in ("FunctionDef", "AsyncFunctionDef", "ClassDef")
+                and _gs_n.name in ("len", "range", "list"))
+                or (_gs_k == "Name" and _gs_n.ctx.__class__.__name__ != "Load"
+                    and _gs_n.id in ("len", "range", "list"))
+                or (_gs_k == "alias" and (_gs_n.asname or _gs_n.name) in ("len", "range", "list"))
+                or (_gs_k in ("Global", "Nonlocal")
+                    and any(_x in ("len", "range", "list") for _x in _gs_n.names))):
+            _gs_shadow = True
+    _GS_OPS = {"Add", "Sub", "Mult", "Div", "FloorDiv", "Mod", "Pow", "LShift", "RShift",
+               "BitOr", "BitXor", "BitAnd", "And", "Or", "Not", "Invert", "UAdd", "USub",
+               "Eq", "NotEq", "Lt", "LtE", "Gt", "GtE", "Is", "IsNot", "In", "NotIn",
+               "Load", "Store"}
+    _GS_STMT = {"Expr", "Assign", "AugAssign", "AnnAssign", "If", "While", "For", "Break",
+                "Continue", "Pass", "Return"}
+    _GS_EXPR = {"Name", "Constant", "BinOp", "UnaryOp", "BoolOp", "Compare", "IfExp",
+                "Subscript", "Slice", "Call", "Attribute", "Yield", "arguments", "arg"}
+    _GS_STRM = {"isspace", "isdigit", "isalpha", "isalnum", "isupper", "islower",
+                "isidentifier"}
+    _GS_SCAL = ("str", "int", "bool", "float")
+    for _gs_d in _gs_any if not _gs_shadow else []:
+        if _gs_d.__class__.__name__ != "FunctionDef":
+            continue
+        _gs_ys = [_n for _n in _ast.walk(_gs_d)
+                  if _n.__class__.__name__ in ("Yield", "YieldFrom")]
+        if not _gs_ys:
+            continue
+        _gs_ok = True
+        _gs_rt = _gs_d.returns
+        if not (_gs_rt.__class__.__name__ == "Subscript"
+                and _gs_rt.value.__class__.__name__ == "Name"
+                and _gs_rt.value.id in ("Iterator", "Iterable")
+                and _gs_rt.slice.__class__.__name__ == "Name"
+                and _gs_rt.slice.id in _GS_SCAL):
+            _gs_ok = False
+        if (_gs_d.decorator_list or getattr(_gs_d, "csl_trusted", False)
+                or getattr(_gs_d, "csl_abstract", False)
+                or getattr(_gs_d, "csl_diverges", False)
+                or not getattr(_gs_d, "csl_no_exception_all", False)
+                or getattr(_gs_d, "csl_raises", None)
+                or getattr(_gs_d, "csl_function_variants", None)
+                or getattr(_gs_d, "type_params", None)):
+            _gs_ok = False
+        _gs_as = getattr(_gs_d, "csl_assigns", None) or []
+        if not (_gs_as and all(
+                getattr(_a, "targets", None)
+                and all(_t.__class__.__name__ == "Nothing" for _t in _a.targets)
+                for _a in _gs_as)):
+            _gs_ok = False
+        _gs_a = _gs_d.args
+        if (getattr(_gs_a, "posonlyargs", None) or _gs_a.vararg is not None
+                or _gs_a.kwonlyargs or _gs_a.kwarg is not None or _gs_a.defaults
+                or not all(_p.annotation.__class__.__name__ == "Name"
+                           and _p.annotation.id in _GS_SCAL for _p in _gs_a.args)):
+            _gs_ok = False
+        _gs_params = {_p.arg for _p in _gs_a.args}
+        _gs_locals = set()
+        for _gs_s in _gs_d.body:
+            for _gs_n in _ast.walk(_gs_s):
+                if (_gs_n.__class__.__name__ == "Name"
+                        and _gs_n.ctx.__class__.__name__ == "Store"):
+                    _gs_locals.add(_gs_n.id)
+        if any(_x.startswith("_pycsl_") for _x in _gs_locals | _gs_params):
+            _gs_ok = False
+        for _gs_s in _gs_d.body if _gs_ok else []:
+            for _gs_n in _ast.walk(_gs_s):
+                _gs_k = _gs_n.__class__.__name__
+                _gs_p = _gs_par.get(id(_gs_n))
+                _gs_pk = _gs_p.__class__.__name__
+                if _gs_k in _GS_OPS:
+                    continue
+                if _gs_k not in _GS_STMT and _gs_k not in _GS_EXPR:
+                    _gs_ok = False
+                    break
+                if _gs_k == "Return" and _gs_n.value is not None:
+                    _gs_ok = False
+                    break
+                if _gs_k == "Yield":
+                    if not (_gs_pk == "Expr" and _gs_p.value is _gs_n
+                            and _gs_n.value is not None
+                            and not any(_y.__class__.__name__ in ("Yield", "YieldFrom")
+                                        for _y in _ast.walk(_gs_n.value))):
+                        _gs_ok = False
+                        break
+                if _gs_k == "Expr" and _gs_n.value.__class__.__name__ not in ("Yield", "Constant"):
+                    _gs_ok = False
+                    break
+                if _gs_k in ("Assign", "AugAssign", "AnnAssign", "For"):
+                    _gs_ts = (_gs_n.targets if _gs_k == "Assign" else [_gs_n.target])
+                    if not all(_t.__class__.__name__ == "Name" for _t in _gs_ts):
+                        _gs_ok = False
+                        break
+                    if _gs_k == "AnnAssign" and _gs_n.value is None:
+                        _gs_ok = False
+                        break
+                    if _gs_k == "For" and _gs_n.orelse:
+                        _gs_ok = False
+                        break
+                if _gs_k == "While" and _gs_n.orelse:
+                    _gs_ok = False
+                    break
+                if _gs_k == "Name" and _gs_n.ctx.__class__.__name__ == "Load":
+                    if _gs_pk == "AnnAssign" and _gs_p.annotation is _gs_n:
+                        if _gs_n.id not in _GS_SCAL:
+                            _gs_ok = False
+                            break
+                    elif _gs_n.id in ("len", "range"):
+                        if not (_gs_pk == "Call" and _gs_p.func is _gs_n):
+                            _gs_ok = False
+                            break
+                    elif _gs_n.id not in _gs_params and _gs_n.id not in _gs_locals:
+                        _gs_ok = False
+                        break
+                if _gs_k == "Attribute":
+                    if not (_gs_pk == "Call" and _gs_p.func is _gs_n
+                            and _gs_n.attr in _GS_STRM):
+                        _gs_ok = False
+                        break
+                if _gs_k == "Call":
+                    _gs_f = _gs_n.func
+                    if _gs_n.keywords or any(_x.__class__.__name__ == "Starred"
+                                             for _x in _gs_n.args):
+                        _gs_ok = False
+                        break
+                    if not ((_gs_f.__class__.__name__ == "Name" and _gs_f.id in ("len", "range"))
+                            or (_gs_f.__class__.__name__ == "Attribute" and not _gs_n.args)):
+                        _gs_ok = False
+                        break
+            if not _gs_ok:
+                break
+        if not _gs_ok:
+            continue
+        # (d) the consumers, over the WHOLE module (lowered or not: fail-closed)
+        _gs_nm = _gs_d.name
+        for _gs_n in _ast.walk(_gs_mod):
+            _gs_k = _gs_n.__class__.__name__
+            if _gs_k in ("FunctionDef", "AsyncFunctionDef", "ClassDef"):
+                if _gs_n.name == _gs_nm and _gs_n is not _gs_d:
+                    _gs_ok = False
+            elif _gs_k == "alias":
+                if (_gs_n.asname or _gs_n.name) == _gs_nm:
+                    _gs_ok = False
+            elif _gs_k in ("Global", "Nonlocal"):
+                if _gs_nm in _gs_n.names:
+                    _gs_ok = False
+            elif _gs_k == "Attribute":
+                if _gs_n.attr == _gs_nm:
+                    _gs_ok = False
+            elif _gs_k == "Name" and _gs_n.id == _gs_nm:
+                _gs_c = _gs_par.get(id(_gs_n))
+                _gs_cc = _gs_par.get(id(_gs_c))
+                _gs_ck = _gs_cc.__class__.__name__
+                if not (_gs_n.ctx.__class__.__name__ == "Load"
+                        and _gs_c.__class__.__name__ == "Call" and _gs_c.func is _gs_n
+                        and ((_gs_ck == "Call" and _gs_cc.func.__class__.__name__ == "Name"
+                              and _gs_cc.func.id == "list" and len(_gs_cc.args) == 1
+                              and _gs_cc.args[0] is _gs_c
+                              and not _gs_cc.keywords)
+                             or (_gs_ck in ("For", "comprehension")
+                                 and _gs_cc.iter is _gs_c))):
+                    _gs_ok = False
+            if not _gs_ok:
+                break
+        if not _gs_ok:
+            continue
+        # the rewrite: `_pycsl_gen_acc: List[T] = []`, appends, `return _pycsl_gen_acc`
+        _gs_T = _gs_rt.slice.id
+        _gs_ln = getattr(_gs_d, "lineno", 1) or 1
+        _gs_fix = []           # (new node, source line) pairs, located at the end
+        for _gs_y in _gs_ys:
+            _gs_e = _gs_par[id(_gs_y)]
+            _gs_ap = _ast.parse("_pycsl_gen_acc.append(0)").body[0].value
+            _gs_fix.append((_gs_ap, getattr(_gs_e, "lineno", _gs_ln) or _gs_ln))
+            _gs_ap.args = [_gs_y.value]
+            _gs_e.value = _gs_ap
+        for _gs_n in list(_ast.walk(_gs_d)):
+            if _gs_n.__class__.__name__ == "Return" and _gs_n.value is None:
+                _gs_n.value = _ast.parse("_pycsl_gen_acc").body[0].value
+                _gs_fix.append((_gs_n.value, getattr(_gs_n, "lineno", _gs_ln) or _gs_ln))
+        _gs_b0 = _gs_d.body
+        _gs_doc = (1 if (_gs_b0 and _gs_b0[0].__class__.__name__ == "Expr"
+                         and _gs_b0[0].value.__class__.__name__ == "Constant"
+                         and isinstance(_gs_b0[0].value.value, str)) else 0)
+        _gs_init = _ast.parse("_pycsl_gen_acc: List[%s] = []" % _gs_T).body[0]
+        _gs_ret = _ast.parse("return _pycsl_gen_acc").body[0]
+        _gs_rt2 = _ast.parse("List[%s]" % _gs_T).body[0].value
+        _gs_fix.append((_gs_init, _gs_ln))
+        _gs_fix.append((_gs_ret, getattr(_gs_d, "end_lineno", _gs_ln) or _gs_ln))
+        _gs_fix.append((_gs_rt2, _gs_ln))
+        for _gs_t, _gs_l in _gs_fix:
+            for _gs_x in _ast.walk(_gs_t):
+                if "lineno" in getattr(_gs_x, "_attributes", ()):
+                    _gs_x.lineno = _gs_l
+                    _gs_x.end_lineno = _gs_l
+                    _gs_x.col_offset = 0
+                    _gs_x.end_col_offset = 0
+        _gs_d.body = _gs_b0[:_gs_doc] + [_gs_init] + _gs_b0[_gs_doc:] + [_gs_ret]
+        _gs_d.returns = _gs_rt2
+        _gs_d.pycsl_generator_as_seq = True
     # [Module 5] IR Generation
     emitter = Module5_IREmitter(unified_ast)
     json_ir = emitter.generate_json()

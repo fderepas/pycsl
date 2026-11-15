@@ -7169,6 +7169,47 @@ modelled (no `no_exception` claim reaches it here). Witnesses (must FAIL) `9901`
 `9907`, `9909`, `9911`, `9913`, `9915`; controls (PASS) `9900`, `9905`, `9908`, `9910`, `9912`,
 `9914`.
 
+### 7.323 A pure terminating exception-free generator is the list of its yields; `m.lastgroup` of an all-named-alternatives pattern is a law-free `str`; a `List[<record>]` tuple slot is a `seq` (lvT, run #7)
+
+(1) GENERATOR-AS-SEQ. A module-level, undecorated generator function `def g(p1: T1, ..) ->
+Iterator[T]` / `-> Iterable[T]` (`T`, `Ti` among `str` / `int` / `bool` / `float`, positional
+parameters, no defaults) is lowered as the LIST OF ITS YIELDS -- the return type becomes `List[T]`,
+`yield e` appends `e` to a fresh accumulator, a bare `return` and the fall-through return it, and the
+contract's `\result` is that list -- ONLY when running the body eagerly at the call is observationally
+identical to CPython's lazy generator: (a) EXCEPTION-FREE: the contract carries `#@ no_exception \all`
+(every implicit exception is a proof obligation of the lowered body) and no `raises`; no `raise`,
+`assert`, `try` or `with`. (b) TERMINATING: no `#@ \diverges`, no call but `len` / `range` / the
+argument-less str predicates `isspace` `isdigit` `isalpha` `isalnum` `isupper` `islower`
+`isidentifier` (so no recursion), and every loop's termination is a WhyML obligation. (c) PURE and a
+function of its arguments: `#@ assigns \nothing`; every name read is a parameter, a body local or an
+un-rebound builtin `len` / `range`; stores only to plain names; no nested def / lambda / class /
+`global` / `nonlocal` / walrus / `await` / `yield from`; every `yield <e>` an expression statement.
+(d) CONSUMED AT ONCE: every reference to `g` in the module is a call that is the sole argument of
+`list(..)`, the iterable of a `for` or of a comprehension, and `g` is bound by exactly one module-level
+def (so no stored generator object is advanced, re-iterated or compared). The lowering is a pre-pass of
+the main pipeline (`_run_pipeline`, before Module 5) for the file being proved; an importer's dependency
+sub-pipeline still sees the generator. A generator failing any condition is untouched and route #271
+governs it exactly as before (its `ensures` and its calls are refused). Witnesses (must FAIL) `10001`
+(false length), `10002` (IndexError under the claim), `10003` (`raise`), `10004` (non-local read),
+`10005` (stored generator), `10006` (infinite), `10007` (no `no_exception \all`); controls (PASS)
+`10000`, `10008`.
+
+(2) RE-LASTGROUP. The lvO match model (§7.320) also admits the read `m.lastgroup` of a match local
+whose source is a literal / module-constant pattern EVERY top-level alternative of which is ONE named
+capturing group (CPython's own parser decides it): a successful match then always closes the matched
+alternative's group last, so `lastgroup` is a `str`, never None. It lowers to the law-free `val
+function re_lastgroup_op (h: int) : string` after the `h <> 0` VC (AttributeError on None); nothing
+else is claimed (not even that the value is one of the names). Any other pattern, or an unrolled
+`(str, NAME)` source, leaves `m.lastgroup` an escaping occurrence (the opaque lowering). Witnesses
+(must FAIL) `10011` (on None), `10012` (an unnamed alternative: CPython None), `10013`, `10014` (a
+claim on the value); control (PASS) `10010`.
+
+(3) RECORD-SEQ TUPLE SLOT. In a VERIFIED (not `\trusted` / `\abstract`) `-> Tuple[..]` function, a
+`List[R]` slot with `R` a known record class of the file is the `seq r` its `.append(R(..))`
+accumulator builds (Module 5's declared native tuple type), and the tail return `return x, ..` passes
+that seq local as-is (Module 6 `_stmts_to_whyml`); a value of another element type there is a Why3
+type error. Witnesses (must FAIL) `10021`, `10022`; control (PASS) `10020`.
+
 ---
 
 ## 10. Concurrent Model Annotations

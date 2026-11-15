@@ -3774,6 +3774,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Python's `re.sub` also accepts a CALLABLE replacement and that result is not a
         function of the argument values this model can see. All of those keep the
         existing opaque-int lowering."""
+        # lvT (run #7, re-lastgroup): `m.lastgroup` of a MATCH LOCAL lowers to the `string`
+        # op `re_lastgroup_op` (`_handle_attribute_expr`), so the classifier agrees (a
+        # receiving local is pre-declared a string).
+        if (isinstance(expr, dict) and expr.get("type") == "Attribute"
+                and expr.get("attr") == "lastgroup"
+                and isinstance(expr.get("object"), dict)
+                and expr["object"].get("type") == "Var"
+                and set(expr["object"]) == {"type", "name"}
+                and expr["object"].get("name") in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})):
+            return True
         if not isinstance(expr, dict) or expr.get("type") != "Call":
             return False
         fn = expr.get("func")
@@ -19822,6 +19832,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _x7t = "int" if attr == "returncode" else "string"
             self._add_abstract_op(f"val function ext_cp_{attr}_op (h: int) : {_x7t}")
             return f"(ext_cp_{attr}_op {_x7h})"
+        # lvT (run #7, re-lastgroup): `m.lastgroup` of a MATCH LOCAL is the LAW-FREE
+        # `val function re_lastgroup_op (h: int) : string`, after the `m <> 0` VC
+        # (AttributeError on None). `_reset_function_state` admits the read only for a
+        # pattern every top-level alternative of which is one named group, so CPython's
+        # value is always a `str` (never None); nothing else is claimed (not even that it
+        # is one of the group names).
+        if (attr == "lastgroup" and isinstance(obj_ir, dict) and obj_ir.get("type") == "Var"
+                and set(obj_ir) == {"type", "name"}
+                and obj_ir.get("name") in (((getattr(self, "_re_compiled_locals", None) or {}).get("<re_m>") or {}).get("locals") or {})
+                and not invariant_ctx and not getattr(self, "_in_spec", False)):
+            _lgh = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
+            self._add_abstract_op("val function re_lastgroup_op (h: int) : string")
+            return (f"(begin assert {{ [@expl:PyCSL re.Match.lastgroup on None] "
+                    f"{_lgh} <> 0 }}; (re_lastgroup_op {_lgh}) end)")
         # lvO (re.Match model): `m.re.groups` of a MATCH LOCAL is the group count of the
         # pattern of its binding ("cur", or the unrolled copy's tag), computed by CPython's own
         # `re.compile` -- an int literal, after the `m <> 0` VC (AttributeError on None).
