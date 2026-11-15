@@ -95,11 +95,16 @@ def _sexp_tokens(s: str) -> Iterator[str]:
     Quoted atoms (`"..."`) are returned with the quotes preserved so
     downstream parsing can distinguish them from bare identifiers.
     """
+    # (run #7 lvT) Verified in the self-annotation mirror as a generator-as-seq (a pure,
+    # terminating, exception-free generator is the list of its yields). Two
+    # behaviour-identical respellings serve that proof: `s[i].isspace()` for
+    # `c.isspace()` (`c` is `s[i]`) and `s[j] != "(" and s[j] != ")"` for the one-char
+    # `s[j] not in "()"`.
     i = 0
     n = len(s)
     while i < n:
         c = s[i]
-        if c.isspace():
+        if s[i].isspace():
             i += 1
             continue
         if c == "(":
@@ -121,7 +126,7 @@ def _sexp_tokens(s: str) -> Iterator[str]:
             i = j + 1
             continue
         j = i
-        while j < n and not s[j].isspace() and s[j] not in "()":
+        while j < n and not s[j].isspace() and s[j] != "(" and s[j] != ")":
             j += 1
         yield s[i:j]
         i = j

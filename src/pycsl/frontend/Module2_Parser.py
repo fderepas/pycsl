@@ -1196,18 +1196,23 @@ _OP_ALTERNATIVES = [
     "+", "-", "*", "/", "%", "^", ":", ",", ";",
     "(", ")", "[", "]", "=", ".", "<", ">", "|",
 ]
-_TOKEN_RE = _re.compile(_re.escape('|') and r"""(?xs)
+# (run #7 lvT) THE PATTERN IS WRITTEN AS ITS LITERAL: the `OP` alternation is exactly
+# `"|".join(re.escape(o) for o in _OP_ALTERNATIVES)` (longest-match-first order kept), so
+# the verified mirror's `_lex_contract` reads `_TOKEN_RE` as a module-constant regex
+# (`NAME = re.compile(<str literal>)`, the law-free re.Match model). Behaviour-identical:
+# the compiled pattern text is byte-equal to the former computed one.
+_TOKEN_RE = re.compile(r"""(?xs)
     (?P<WS>\s+)
   | (?P<DECIMAL>\d+\.\d+)
   | (?P<NUMBER>\d+)
   | (?P<STRING>"(?:[^"\\]|\\.)*")
   | (?P<BSNAME>\\[A-Za-z_][A-Za-z0-9_]*)
   | (?P<NAME>[A-Za-z_][A-Za-z0-9_]*)
-  | (?P<OP>""" + "|".join(_re.escape(o) for o in _OP_ALTERNATIVES) + r""")
+  | (?P<OP>==>|<==>|//|\.\.|\+=|\-=|\*=|\->|==|!=|>=|<=|\+|\-|\*|/|%|\^|:|,|;|\(|\)|\[|\]|=|\.|<|>|\|)
 """)
 
 
-def _lex_contract(source: str):
+def _lex_contract(source: str) -> Tuple[List[_Tok], str]:
     """Tokenize a contract string (no `#@` prefix) into a list of `_Tok`.
 
     Mirrors `pure_ast._lex` in shape (filter trivia, return token list) but is
@@ -1222,14 +1227,20 @@ def _lex_contract(source: str):
     n = len(source)
     while pos < n:
         m = _TOKEN_RE.match(source, pos)
-        if m is None:
+        if not m:
             raise _ContractSyntaxError(
                 f"unexpected character {source[pos]!r} at offset {pos}")
+        # The token pattern always consumes at least one char (every alternative is
+        # non-empty), so `m.end() > pos` holds and this guard never fires; it states
+        # the loop's progress. `_st` is `m.start()`: the match is anchored at `pos`.
+        if m.end() <= pos:
+            raise _ContractSyntaxError(f"empty token at offset {pos}")
+        _st = pos
         pos = m.end()
         kind = m.lastgroup
         if kind == "WS":
             continue
-        toks.append(_Tok(kind, m.group(), m.start()))
+        toks.append(_Tok(kind, m.group(0), _st))
     toks.append(_Tok("EOF", "", n))
     return toks, source
 

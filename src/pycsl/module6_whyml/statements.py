@@ -5440,6 +5440,33 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         and _t5_sl[_t5_hit[0]] == "seq " + _t5_svt[_t5_el[_t5_hit[0]]["name"]]):
                     return (indent + "(" + ", ".join(self._expr_to_whyml(_t5_e, local_refs)
                                                      for _t5_e in _t5_el) + ")")
+            # lvT (run #7, record-list tuple return): the TAIL return `return x, ..` of a
+            # `-> Tuple[..]` function whose declared native tuple type (Module5) has ONE
+            # `seq <R>` slot, R a record of this file, holding a seq-modelled local x: x IS
+            # the declared slot value, so it passes as-is (`!x`); `_handle_return_stmt`'s
+            # tuple-tail arm would bridge it with the int `materialize` (a Why3 type error).
+            # A wrong element type stays a Why3 type error (fail-closed); any other shape,
+            # an early / in-loop return, or a second seq slot keeps that arm.
+            _t6_recs = {str((_r or {}).get("whyml_name")) for _r in
+                        (getattr(self, "_record_types", {}) or {}).values()
+                        if isinstance(_r, dict)}
+            if (not in_loop and not self._has_early_ret and isinstance(_t5_vi, dict)
+                    and _t5_vi.get("type") == "Tuple" and isinstance(_t5_rt, str)
+                    and _t5_rt.startswith("(") and _t5_rt.endswith(")")
+                    and "(" not in _t5_rt[1:-1]):
+                _t6_sl = [_x.strip() for _x in _t5_rt[1:-1].split(",")]
+                _t6_el = _t5_vi.get("elts") or []
+                _t6_hit = [_k for _k in range(len(_t6_sl))
+                           if _t6_sl[_k].startswith("seq ")
+                           and _t6_sl[_k][len("seq "):] in _t6_recs]
+                if (len(_t6_el) == len(_t6_sl) and len(_t6_hit) == 1
+                        and isinstance(_t6_el[_t6_hit[0]], dict)
+                        and _t6_el[_t6_hit[0]].get("type") == "Var"
+                        and _t6_el[_t6_hit[0]].get("name") in _t5_sql
+                        and not any(_s.startswith("seq ") or _s.startswith("array ")
+                                    for _k, _s in enumerate(_t6_sl) if _k != _t6_hit[0])):
+                    return (indent + "(" + ", ".join(self._expr_to_whyml(_t6_e, local_refs)
+                                                     for _t6_e in _t6_el) + ")")
             # lvS (run #7, cv13 Optional-list arm typing): `return x` of a `seq string` list
             # local x from a function whose declared return is a synthesized
             # `Optional[List[str]]` variant with the `seq string` Some arm (Module5 tag

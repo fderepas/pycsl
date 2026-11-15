@@ -538,6 +538,34 @@ class FunctionEmissionMixin:
                 continue
             _rxm_bind_ids = {id(_d[0]) for _d in _rxm_defs}
             _rxm_ok = True
+            # lvT (run #7, re-lastgroup): `m.lastgroup` is also a read the law-free model
+            # lowers (`re_lastgroup_op h : string`, `_handle_attribute_expr`), but ONLY for a
+            # "lit" / "const" pattern EVERY top-level alternative of which is ONE named
+            # capturing group (CPython's own parser): a successful match then always closes
+            # the matched alternative's group LAST, so `lastgroup` is a `str`, never `None`.
+            # Any other pattern (or an unrolled "rx" source) leaves `m.lastgroup` an escaping
+            # occurrence, so `m` keeps the opaque lowering (fail-closed).
+            _rxm_lg_ok = False
+            _rxm_lgp = (_rxm_src0[1] if _rxm_src0[0] == "lit"
+                        else _rxm_consts.get(_rxm_src0[1]) if _rxm_src0[0] == "const"
+                        else None)
+            if isinstance(_rxm_lgp, str):
+                try:
+                    try:
+                        import re._parser as _rxm_lsp
+                    except ImportError:
+                        import sre_parse as _rxm_lsp
+                    _rxm_lgt = _rxm_lsp.parse(_rxm_lgp)
+                    _rxm_lgn = set(_rxm_lgt.state.groupdict.values())
+                    _rxm_lga = ([list(_a) for _a in _rxm_lgt[0][1][1]]
+                                if len(_rxm_lgt) == 1 and str(_rxm_lgt[0][0]) == "BRANCH"
+                                else [list(_rxm_lgt)])
+                    _rxm_lg_ok = bool(_rxm_lga) and all(
+                        len(_a) == 1 and str(_a[0][0]) == "SUBPATTERN"
+                        and _a[0][1][0] is not None and _a[0][1][0] in _rxm_lgn
+                        for _a in _rxm_lga)
+                except Exception:
+                    _rxm_lg_ok = False
             # parameters / declarations / `global` / `nonlocal` / `with` bindings
             _rxm_w2: List[Any] = [func.get(_rxm_pk) for _rxm_pk in (
                 "formal_params", "kwonly_params", "posonly_params", "kwarg_param",
@@ -573,6 +601,12 @@ class FunctionEmissionMixin:
                                  or (_rxm_x.get("func") == _rxm_m + ".end" and not _rxm_a))):
                         continue
                     _rxm_o = _rxm_x.get("object")
+                    if (_rxm_lg_ok and _rxm_x.get("type") == "Attribute"
+                            and _rxm_x.get("attr") == "lastgroup"
+                            and isinstance(_rxm_o, dict) and _rxm_o.get("type") == "Var"
+                            and _rxm_o.get("name") == _rxm_m
+                            and set(_rxm_o) == {"type", "name"}):
+                        continue
                     if (_rxm_x.get("type") == "Attribute" and _rxm_x.get("attr") == "groups"
                             and isinstance(_rxm_o, dict) and _rxm_o.get("type") == "Attribute"
                             and _rxm_o.get("attr") == "re"
