@@ -11934,6 +11934,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         " is not typed as a path / str here, so the call cannot be lowered to "
                         "the open-world path model. Annotate the receiver as `Path` (or bind "
                         "it from `<Path> / <str>`) and pass a `str`.")
+                # (run #7) ROUTE #599: `_is_string_expr` is true of a `str` as of a `Path`
+                # (the #31 model erases one to the other), and CPython raises AttributeError
+                # on `<str>.mkdir()` / `.write_text()` (rt58 c01 PROVED a handler's value it
+                # never modelled). The receiver must be a name the SOURCE shows is a
+                # `pathlib.Path` (`_run_pipeline`'s per-function table; absent: refused).
+                _x7pn = (getattr(self, "path_names_r599", None) or {}).get(
+                    getattr(self, "_current_sig_func_name", None))
+                if not (isinstance(_x7pn, set) and func_name.split(".")[0] in _x7pn):
+                    raise PyCSLIRError(
+                        f"PYCSL-R7Q-EXT-PATH-RECEIVER (route #599): the source does not show "
+                        f"that the receiver of `{func_name}(..)` is a `pathlib.Path`, and the "
+                        f"call is modelled as `pathlib.Path.{_x7k}` (the file imports `Path` "
+                        f"from `pathlib`): a "
+                        f"`str` receiver (the path model represents both as one string) makes "
+                        f"CPython raise AttributeError there, which the model does not raise "
+                        f"(measured: a `str` parameter's `.mkdir()` under an "
+                        f"`except AttributeError` handler proved the other path's value). "
+                        f"Annotate the receiver as `Path`, or bind it only from `Path(..)` / "
+                        f"`<Path> / <str>`.",
+                        stage="module6-call", code="PYCSL-R7Q-EXT-PATH-RECEIVER")
                 _x7p = self._expr_to_whyml(_x7rv, local_refs, invariant_ctx, subst)
                 if _x7k == "mkdir":
                     _x7b = lambda _n: ("true" if (_x7kw.get(_n) or {}).get("value") is True

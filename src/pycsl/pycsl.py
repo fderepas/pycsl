@@ -16964,6 +16964,156 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # merged the closure's): a class of the IR schema's name declared here is a user record,
     # not an IR node, for the emit_ir projector judge (`statements.py::_typed_local_vars`).
     transpiler.own_types_r567 = set(_r498_own[1]) - {None}
+    # (run #7) ROUTE #599 (lvQ PATH-RECEIVER sub-defect, rt58 c01) -- WHICH NAMES ARE
+    # PROVABLY A `pathlib.Path`. The #31 path model erases `Path` to `str` (one `string`
+    # in the value model), so lvQ's `PYCSL-R7Q-EXT-PATH-RECEIVER` check (`_is_string_expr`
+    # on the receiver) admitted a `str` receiver of `.mkdir()` / `.write_text()`, where
+    # CPython ALWAYS raises AttributeError (not in the ext row): under a handler covered by
+    # another operation the proof then never saw that path. The distinction exists only in
+    # the SOURCE, so it is computed here, per function (Module 5's name: `<class>__<m>` for
+    # a method of a top-level class, the bare name for a top-level def), and Module 6's ext
+    # lowering admits a receiver only from this table (fail-closed: absent -> refused).
+    # A name is a PATH when every binding of it in the function is a parameter annotated
+    # `Path` / `pathlib.Path` / `PosixPath` (not Optional), or a plain `n = <e>` /
+    # `n: T = <e>` / `n /= <e>` of a PATH EXPRESSION: `Path(..)`, `Path.cwd()`,
+    # `Path.home()`, a path name, `<p>.parent`, `<p>.resolve()` (and the other pathlib
+    # methods returning a path), or `a / b` where `b` is a path or `a` is a path or a
+    # str-valued operand (a `str` literal / f-string, a `str` / `Path` parameter, a call of
+    # a top-level function of this file annotated `-> str` / `-> Path`) -- CPython gives a
+    # Path there or raises TypeError before the call. Greatest fixpoint over the bindings.
+    _pn599: Dict[str, Set[str]] = {}
+    try:
+        import ast as _ast599
+        _t599: Any = _ast599.parse(source_code)
+    except Exception:
+        _t599 = None
+    if _t599 is not None:
+        _pt599 = {"Path", "PosixPath"}
+        _isp599 = (lambda _a: (isinstance(_a, _ast599.Name) and _a.id in _pt599)
+                   or (isinstance(_a, _ast599.Attribute) and _a.attr in _pt599
+                       and isinstance(_a.value, _ast599.Name) and _a.value.id == "pathlib")
+                   or (isinstance(_a, _ast599.Constant) and _a.value in _pt599))
+        _iss599 = (lambda _a: (isinstance(_a, _ast599.Name) and _a.id == "str")
+                   or (isinstance(_a, _ast599.Constant) and _a.value == "str"))
+        _sret599: Set[str] = {_d.name for _d in _t599.body
+                              if isinstance(_d, (_ast599.FunctionDef, _ast599.AsyncFunctionDef))
+                              and _d.returns is not None
+                              and (_isp599(_d.returns) or _iss599(_d.returns))}
+        _fns599: List[Tuple[str, Any]] = []
+        for _d in _t599.body:
+            if isinstance(_d, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                _fns599.append((_d.name, _d))
+            elif isinstance(_d, _ast599.ClassDef):
+                for _m in _d.body:
+                    if isinstance(_m, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                        _fns599.append((_d.name.lower() + "__" + _m.name, _m))
+        _seen599: Set[str] = set()
+        for _fq599, _fd599 in _fns599:
+            # every binding of every name in the function (nested scopes included: a
+            # same-spelled binding anywhere disqualifies, fail-closed)
+            _bd599: Dict[str, List[Any]] = {}
+            _al599 = (list(_fd599.args.posonlyargs) + list(_fd599.args.args)
+                      + list(_fd599.args.kwonlyargs)
+                      + [_x for _x in (_fd599.args.vararg, _fd599.args.kwarg) if _x is not None])
+            for _a599 in _al599:
+                _bd599.setdefault(_a599.arg, []).append(("param", _a599))
+            _dt599: Set[int] = set()
+            for _n599 in _ast599.walk(_fd599):
+                if isinstance(_n599, _ast599.Assign):
+                    _dt599.update(id(_tg) for _tg in _n599.targets if isinstance(_tg, _ast599.Name))
+                elif (isinstance(_n599, (_ast599.AnnAssign, _ast599.AugAssign))
+                      and isinstance(_n599.target, _ast599.Name)):
+                    _dt599.add(id(_n599.target))
+            for _n599 in _ast599.walk(_fd599):
+                if _n599 is _fd599:
+                    continue
+                if isinstance(_n599, _ast599.Assign):
+                    for _tg599 in _n599.targets:
+                        if isinstance(_tg599, _ast599.Name):
+                            _bd599.setdefault(_tg599.id, []).append(
+                                ("val", _n599.value) if len(_n599.targets) == 1 else ("other", None))
+                elif isinstance(_n599, _ast599.AnnAssign) and isinstance(_n599.target, _ast599.Name):
+                    _bd599.setdefault(_n599.target.id, []).append(
+                        ("val", _n599.value) if _n599.value is not None else ("other", None))
+                elif isinstance(_n599, _ast599.AugAssign) and isinstance(_n599.target, _ast599.Name):
+                    _bd599.setdefault(_n599.target.id, []).append(
+                        ("self_div", None) if isinstance(_n599.op, _ast599.Div) else ("other", None))
+                elif (isinstance(_n599, _ast599.Name)
+                      and isinstance(_n599.ctx, (_ast599.Store, _ast599.Del))
+                      and id(_n599) not in _dt599):
+                    # a store not covered above (for / with / walrus / comprehension /
+                    # tuple target / del): not a path binding
+                    _bd599.setdefault(_n599.id, []).append(("other", None))
+                elif isinstance(_n599, (_ast599.FunctionDef, _ast599.AsyncFunctionDef,
+                                        _ast599.ClassDef)):
+                    _bd599.setdefault(_n599.name, []).append(("other", None))
+                elif isinstance(_n599, (_ast599.Import, _ast599.ImportFrom)):
+                    for _al in _n599.names:
+                        _bd599.setdefault((_al.asname or _al.name).split(".")[0], []).append(("other", None))
+                elif isinstance(_n599, (_ast599.Global, _ast599.Nonlocal)):
+                    for _gn in _n599.names:
+                        _bd599.setdefault(_gn, []).append(("other", None))
+                elif isinstance(_n599, _ast599.ExceptHandler) and _n599.name:
+                    _bd599.setdefault(_n599.name, []).append(("other", None))
+                elif isinstance(_n599, (_ast599.MatchAs, _ast599.MatchStar)) and _n599.name:
+                    _bd599.setdefault(_n599.name, []).append(("other", None))
+                elif isinstance(_n599, _ast599.MatchMapping) and _n599.rest:
+                    _bd599.setdefault(_n599.rest, []).append(("other", None))
+            _A599: Set[str] = {_nm for _nm, _bs in _bd599.items() if _bs}
+            _sp599 = {_nm for _nm, _bs in _bd599.items()
+                      if _bs and all(_k == "param" and _b.annotation is not None
+                                     and (_iss599(_b.annotation) or _isp599(_b.annotation))
+                                     for _k, _b in _bs)}
+
+            _ch599 = True
+            while _ch599:
+                _ch599 = False
+                for _nm in sorted(_A599):
+                    for _k, _b in _bd599[_nm]:
+                        _ok599 = ((_k == "param" and _b.annotation is not None
+                                   and _isp599(_b.annotation)) or _k == "self_div")
+                        # a PATH EXPRESSION, by an explicit stack (each shape is one
+                        # disjunct: a path name, a path constructor, a path method / `.parent`
+                        # of a path expression, either operand of `/`, a str-valued left `/`)
+                        _st599: List[Any] = [_b] if _k == "val" else []
+                        while _st599 and not _ok599:
+                            _e = _st599.pop()
+                            if isinstance(_e, _ast599.Name):
+                                _ok599 = _e.id in _A599
+                            elif isinstance(_e, _ast599.Call):
+                                _f = _e.func
+                                if _isp599(_f) and not isinstance(_f, _ast599.Constant):
+                                    _ok599 = True
+                                elif (isinstance(_f, _ast599.Attribute) and _f.attr in ("cwd", "home")
+                                      and _isp599(_f.value) and not _e.args and not _e.keywords):
+                                    _ok599 = True
+                                elif (isinstance(_f, _ast599.Attribute)
+                                      and _f.attr in ("resolve", "absolute", "expanduser", "with_name",
+                                                      "with_suffix", "with_stem", "joinpath")):
+                                    _st599.append(_f.value)
+                            elif isinstance(_e, _ast599.Attribute) and _e.attr == "parent":
+                                _st599.append(_e.value)
+                            elif isinstance(_e, _ast599.BinOp) and isinstance(_e.op, _ast599.Div):
+                                _l = _e.left
+                                if ((isinstance(_l, _ast599.Constant) and isinstance(_l.value, str))
+                                        or isinstance(_l, _ast599.JoinedStr)
+                                        or (isinstance(_l, _ast599.Name) and _l.id in _sp599)
+                                        or (isinstance(_l, _ast599.Call)
+                                            and isinstance(_l.func, _ast599.Name)
+                                            and _l.func.id in _sret599 and _l.func.id not in _bd599)):
+                                    _ok599 = True
+                                else:
+                                    _st599.extend([_l, _e.right])
+                        if not _ok599:
+                            _A599.discard(_nm)
+                            _ch599 = True
+                            break
+            if _fq599 in _seen599:
+                _pn599[_fq599] = set()
+            else:
+                _pn599[_fq599] = _A599
+            _seen599.add(_fq599)
+    transpiler.path_names_r599 = _pn599
     # (run #6) ROUTE #579 -- IR-CLASS IDENTITY BY RESOLUTION, NEVER BY NAME. The emit_ir
     # isinstance recognizers (`isinstance(<emit_ir>, ast.Name)` -> `is_var`, `isinstance(
     # <emit_ir>, CSLFieldAccess)` -> `is_fieldget`) and route #567's narrowing judge read the
@@ -26500,6 +26650,160 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         f"path would be proved of the other one. Catch `{_s175}` "
                                         f"by its own name.",
                                         stage="whyml-emit", code="PYCSL-R175-USER-EXCEPTION-SUBCLASS")
+    # (run #7) ROUTES #601 / #602 -- A HANDLER CLASS THE FRONT END CANNOT NAME FAITHFULLY.
+    # #601: Module 5's `_py_stmt_try` keeps only the `ast.Name` elements of an `except
+    # (A, mod.B)` tuple, so `mod.B` is silently DROPPED from the arm and the model lets it
+    # escape where CPython catches it (rt58 d07: `except (ZeroDivisionError,
+    # builtins.ValueError)` lowered to `with ZeroDivisionError`, `\result == 2` PROVED,
+    # CPython 7). #602: a handler NAME is lowered to an exception of that spelling, so
+    # `Err = ValueError; except Err:` became a fresh `exception Err` and the raised
+    # ValueError escaped in the model (rt58 d08, `\result == 0` PROVED, CPython 1). RULE, in
+    # every function this file lowers (a `\trusted` / abstract one is not lowered; anything
+    # else, module level included, is judged): every element of a handler tuple must be a
+    # bare name, and a handler name must not be bound in the module or the enclosing
+    # function by anything but a `class` statement or an import of that same name (an
+    # assignment, an `as` rename, a loop / `with` / walrus / `global` target, ...).
+    # Refused rather than resolved: `_py_stmt_try`'s mirror twin is VERIFIED. Placed AFTER
+    # Module 6 and routes #590 / #597 (whose raise-name rules judge the same names first).
+    if _t599 is not None:
+        _tr601 = {str(_f601.get("name")) for _f601 in (ir_data.get("functions") or [])
+                  if isinstance(_f601, dict) and _f601.get("name") in _r498_own[0]
+                  and (_f601.get("trusted") or _f601.get("abstract"))}
+        # the judged units: each top-level def, each method of a top-level class (Module
+        # 5's name), and every other top-level / class-body statement (name "")
+        _units601: List[Tuple[str, Any]] = []
+        for _d in _t599.body:
+            if isinstance(_d, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                _units601.append((_d.name, _d))
+            elif isinstance(_d, _ast599.ClassDef):
+                for _m in _d.body:
+                    if isinstance(_m, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                        _units601.append((_d.name.lower() + "__" + _m.name, _m))
+                    else:
+                        _units601.append(("", _m))
+            else:
+                _units601.append(("", _d))
+        # the module-level classes of this file bound ONLY by their `class` statement (no
+        # store, parameter, `global`, `def` or import of the name anywhere in the file)
+        _cl601: Set[str] = {_d.name for _d in _t599.body if isinstance(_d, _ast599.ClassDef)}
+        for _n in _ast599.walk(_t599):
+            if isinstance(_n, _ast599.Name) and isinstance(_n.ctx, (_ast599.Store, _ast599.Del)):
+                _cl601.discard(_n.id)
+            elif isinstance(_n, _ast599.arg):
+                _cl601.discard(_n.arg)
+            elif isinstance(_n, (_ast599.Global, _ast599.Nonlocal)):
+                _cl601.difference_update(_n.names)
+            elif isinstance(_n, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                _cl601.discard(_n.name)
+            elif isinstance(_n, (_ast599.Import, _ast599.ImportFrom)):
+                _cl601.difference_update((_al.asname or _al.name).split(".")[0] for _al in _n.names)
+        _cl601 -= {_d.name for _d in _ast599.walk(_t599)
+                   if isinstance(_d, _ast599.ClassDef) and _d not in _t599.body}
+        # one binding census per scope root (the module, each function): name -> kinds
+        _bk601: Dict[int, Dict[str, Set[str]]] = {}
+        for _root601 in [_t599] + [_u for _q, _u in _units601
+                                   if isinstance(_u, (_ast599.FunctionDef, _ast599.AsyncFunctionDef))]:
+            _bk: Dict[str, Set[str]] = {}
+            _stk601: List[Any] = (list(_root601.body) if _root601 is _t599
+                                  else list(_root601.body) + [_root601.args])
+            while _stk601:
+                _n = _stk601.pop()
+                if _root601 is _t599 and isinstance(_n, (_ast599.FunctionDef,
+                                                        _ast599.AsyncFunctionDef, _ast599.Lambda)):
+                    # module scope: a def binds its name; its body is another scope
+                    if not isinstance(_n, _ast599.Lambda):
+                        _bk.setdefault(_n.name, set()).add("def")
+                    continue
+                if isinstance(_n, _ast599.ClassDef):
+                    _bk.setdefault(_n.name, set()).add("class")
+                    if _root601 is _t599:
+                        continue
+                elif isinstance(_n, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                    _bk.setdefault(_n.name, set()).add("def")
+                elif isinstance(_n, (_ast599.Import, _ast599.ImportFrom)):
+                    for _al in _n.names:
+                        _bn = (_al.asname or _al.name).split(".")[0]
+                        _bk.setdefault(_bn, set()).add(
+                            "import" if (_al.asname is None or _al.asname == _al.name) else "rename")
+                elif (_root601 is _t599 and isinstance(_n, _ast599.Assign) and len(_n.targets) == 1
+                      and isinstance(_n.targets[0], _ast599.Name) and isinstance(_n.value, _ast599.Name)
+                      and _n.value.id in _cl601):
+                    # `A = E` at module level, `E` a class of this file: route #175's (an alias
+                    # of a USER class), whose rules judge raising and catching through it
+                    _bk.setdefault(_n.targets[0].id, set()).add("classalias")
+                    continue
+                elif isinstance(_n, _ast599.Name) and isinstance(_n.ctx, (_ast599.Store, _ast599.Del)):
+                    _bk.setdefault(_n.id, set()).add("store")
+                elif isinstance(_n, _ast599.arg):
+                    _bk.setdefault(_n.arg, set()).add("store")
+                elif isinstance(_n, (_ast599.Global, _ast599.Nonlocal)):
+                    for _gn in _n.names:
+                        _bk.setdefault(_gn, set()).add("store")
+                elif isinstance(_n, _ast599.ExceptHandler) and _n.name:
+                    _bk.setdefault(_n.name, set()).add("store")
+                elif isinstance(_n, (_ast599.MatchAs, _ast599.MatchStar)) and _n.name:
+                    _bk.setdefault(_n.name, set()).add("store")
+                elif isinstance(_n, _ast599.MatchMapping) and _n.rest:
+                    _bk.setdefault(_n.rest, set()).add("store")
+                _stk601.extend(_ast599.iter_child_nodes(_n))
+            _bk601[id(_root601)] = _bk
+        # a module-level function may assign a global (`global Err; Err = ValueError`)
+        for _q, _u in _units601:
+            if isinstance(_u, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                for _n in _ast599.walk(_u):
+                    if isinstance(_n, _ast599.Global):
+                        for _gn in _n.names:
+                            _bk601[id(_t599)].setdefault(_gn, set()).add("store")
+        for _q601, _u601 in _units601:
+            if _q601 and _q601 in _tr601:
+                continue
+            _fb601 = (_bk601.get(id(_u601), {})
+                      if isinstance(_u601, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)) else {})
+            for _n601 in _ast599.walk(_u601):
+                if not (isinstance(_n601, _ast599.ExceptHandler) and _n601.type is not None):
+                    continue
+                _ty601 = _n601.type
+                _why601 = None
+                _code601 = ""
+                if isinstance(_ty601, _ast599.Tuple):
+                    for _el601 in _ty601.elts:
+                        if not isinstance(_el601, _ast599.Name):
+                            _why601 = ("the element `%s` of the handler tuple is not a bare name, "
+                                       "and the front end keeps only the bare names of the tuple: "
+                                       "`%s` is DROPPED from the handler, so in the model it "
+                                       "escapes where Python catches it (route #601; measured: "
+                                       "`except (ZeroDivisionError, builtins.ValueError)` proved "
+                                       "the value of the path the handler replaces)"
+                                       % (_ast599.unparse(_el601)[:60], _ast599.unparse(_el601)[:60]))
+                            _code601 = "PYCSL-R601-HANDLER-TUPLE-NON-NAME"
+                            break
+                if _why601 is None:
+                    for _el601 in (_ty601.elts if isinstance(_ty601, _ast599.Tuple) else [_ty601]):
+                        if not isinstance(_el601, _ast599.Name):
+                            continue
+                        _kd601 = (_fb601.get(_el601.id) or set()) | (
+                            _bk601[id(_t599)].get(_el601.id) or set())
+                        if _kd601 - {"class", "import", "classalias"}:
+                            _why601 = ("the handler name `%s` is bound in this module or function "
+                                       "by something other than a `class` statement or an import "
+                                       "of that name (%s), but the front end lowers a handler name "
+                                       "to an exception OF THAT SPELLING, so the class the name "
+                                       "holds at run time is not the one the model catches "
+                                       "(route #602; measured: `Err = ValueError` + `except Err:` "
+                                       "let the raised ValueError escape in the model and proved "
+                                       "the value of the path the handler replaces)"
+                                       % (_el601.id, ", ".join(sorted(_kd601 - {"class", "import", "classalias"}))))
+                            _code601 = "PYCSL-R602-HANDLER-NAME-REBOUND"
+                            break
+                if _why601 is not None:
+                    from errors import PyCSLSemanticError as _R601Err
+                    raise _R601Err(
+                        "%s: %s. Name the exception class itself in the handler: import it "
+                        "by name (`from mod import B`, then `except (A, B):`) or write the "
+                        "builtin class directly."
+                        % (_code601, _why601),
+                        filename=args.file, line=int(getattr(_n601, "lineno", 0) or 0),
+                        stage="ir-semantic", code=_code601)
     # (#49) ROUTE #179 — A CONSTRUCTOR THAT RAISES IS LOWERED AS A RECORD LITERAL, AND THE
     # RAISE IS GONE. `__init__` (and a dataclass `__post_init__`) is synthesised into a record
     # value; a `raise` in it never reaches the model. MEASURED (gen #29): `C(-1)` with
