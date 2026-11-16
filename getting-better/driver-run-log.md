@@ -1245,3 +1245,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-15T23:46Z | 971 | v60 (int63): D mirror 53/53, 0 diff lines vs the L11 emission (mirror-inert, no proof owed); E fidelity rc 0 x3. F --slow running (~3.5 h). |
 2026-11-16T00:30Z | 972 | STATUS (run hour 63.0; 32 h left). v60 F --slow: 62 ok. lvU working. Main \trusted 374, ledger 3. oom_kill 0. |
 2026-11-16T01:30Z | 973 | STATUS (run hour 64.0; 31 h left). v60 F --slow: 69 ok, 0 RED so far. lvU working. Main \trusted 374, ledger 3. oom_kill 0. |
+2026-11-16T02:30Z | 974 | STATUS (run hour 65.0; 30 h left). v60 F --slow: 77 ok, 0 RED. lvU leaf / mutation runs for _parse_mixin_sig; nudged to commit its gated conversions (nothing committed yet). Main \trusted 374, ledger 3. oom_kill 0. |
