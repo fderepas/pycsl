@@ -43,8 +43,6 @@ audit_proof.py	_index_proofs_dir	cost-scale:int-erasure-seam	THE INT-ERASURE SEA
 audit_proof.py	_audit_one_prover	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 audit_proof.py	_index_proofs_dir_by_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 audit_proof_reverify.py	ReverifyReport.summary	unclassified	-
-audit_proof_reverify.py	_sha256_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
-audit_proof_reverify.py	_cache_key	unclassified	-
 audit_proof_reverify.py	_cache_load	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof_reverify.py	_coqc_version	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof_reverify.py	_lean_version	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
@@ -278,7 +276,6 @@ module6_whyml/functions.py	FunctionEmissionMixin._emit_function	unclassified	-
 module6_whyml/functions.py	FunctionEmissionMixin._emit_subtyping_goals	unclassified	-
 module6_whyml/functions.py	FunctionEmissionMixin._render_refinement_goal	unclassified	-
 module6_whyml/functions.py	FunctionEmissionMixin._mixin_dep_pseudo_functions	unclassified	-
-module6_whyml/identifiers.py	stable_hash	cost-scale:faithful-string-hash	THE FAITHFUL STRING-HASH MODEL
 module6_whyml/preamble.py	PreambleEmissionMixin._scan_preamble_needs	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble_uses	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble_exceptions	unclassified	-

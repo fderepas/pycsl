@@ -1360,8 +1360,6 @@ class Module6_WhyMLTranspiler(
         # strings (`<p>.read_bytes`, `encode` / `<s>.encode`, `int`). ALL-OR-NOTHING over the
         # unit: one `hashlib.sha256` / inner-callee / `int` occurrence outside the modelled
         # shape keeps the old lowering for every occurrence (byte-identical elsewhere).
-        self._x7v_sha_ok = False
-        self._x7v_int16_ok = False
         _x7v_hl = (any(_i[0] == "hashlib" for _i in _x7_imps)
                    and all(_i[1] == "hashlib" and _i[2] == "hashlib" and _i[4]
                            for _i in _x7_imps if _i[0] == "hashlib"))
@@ -1496,7 +1494,6 @@ class Module6_WhyMLTranspiler(
                                 for _k in ("hashlib.sha256", "hexdigest"))
                     and all(all(_x7v_inner.get(_k) or [False]) and _k not in _x7_fnames
                             and not self._module_func_raises.get(_k) for _k in _x7v_ikind)):
-                self._x7v_sha_ok = True
                 needs["needs_array"] = True
                 for _k in sorted(_x7v_ikind):
                     _x7_inj[_k] = self._module_func_raises[_k] = [
@@ -1518,7 +1515,6 @@ class Module6_WhyMLTranspiler(
                             for _e in _x7v_all]
                 if (_x7v_int and all(_x7v_int) and "int" not in _x7_fnames
                         and not self._module_func_raises.get("int")):
-                    self._x7v_int16_ok = True
                     _x7_inj["int"] = self._module_func_raises["int"] = [
                         {"exc_type": "ValueError", "condition": None, "ext": "int16"}]
                     needs["user_exceptions"] = set(needs["user_exceptions"]) | {"ValueError"}

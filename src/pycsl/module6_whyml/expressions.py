@@ -5184,10 +5184,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # lvV (run #7): a modelled `hashlib.sha256(..).hexdigest()` is a `string`
         # (`ext_sha256_hexdigest_op`), as its lowering is.
         if (t == "Call" and ir.get("func") == "hexdigest" and not ir.get("args")
-                and getattr(self, "_x7v_sha_ok", False)
                 and isinstance(ir.get("receiver"), dict)
                 and ir["receiver"].get("type") == "Call"
-                and ir["receiver"].get("func") == "hashlib.sha256"):
+                and ir["receiver"].get("func") == "hashlib.sha256"
+                and len(ir["receiver"].get("args") or []) == 1
+                and isinstance(ir["receiver"]["args"][0], dict)
+                and isinstance(ir["receiver"]["args"][0].get("func"), str)
+                and ((((getattr(self, "_module_func_raises", {}) or {}).get(
+                    ir["receiver"]["args"][0]["func"]) or [{}])[0] or {}).get("ext")
+                     in ("read_bytes", "encode"))):
             return True
         # dict-value-model-r4: a PyVal read NARROWED by a dominating `isinstance(x, str)`
         # (`_emit_body_code`'s pre-pass) lowers to `hstr_of x`: a string.
@@ -11444,11 +11449,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `ext_path_read_bytes_op` (raises the OSError family, ValueError); `int(<digest
         # [slice]>, 16)` is the impure, law-free `ext_int_base_op` (raises ValueError). A
         # receiver the model cannot type is REFUSED, never lowered to the old opaque op.
-        if (isinstance(func_name, str) and not self._in_spec and not invariant_ctx
-                and getattr(self, "_x7v_sha_ok", False)):
+        # (The module-wide decision is read back from the registry rows `transpile` wrote:
+        # an `int16` row on `int`, a `read_bytes` / `encode` row on the inner callee.)
+        if (func_name in ("int", "hexdigest") and not self._in_spec and not invariant_ctx):
             from module6_whyml.identifiers import safe_exc_name as _sen7v
             _r7v = getattr(self, "_module_func_raises", {}) or {}
-            if (func_name == "int" and getattr(self, "_x7v_int16_ok", False)
+            if (func_name == "int"
+                    and ((_r7v.get("int") or [{}])[0] or {}).get("ext") == "int16"
                     and len(expr.get("args") or []) == 2):
                 _s7v = self._expr_to_whyml(expr["args"][0], local_refs, invariant_ctx, subst)
                 _x7vr = ", ".join(sorted({_sen7v(_e["exc_type"]) for _e in _r7v.get("int", [])}))
@@ -11457,7 +11464,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(ext_int_base_op {_s7v} 16)"
             if (func_name == "hexdigest" and isinstance(expr.get("receiver"), dict)
                     and expr["receiver"].get("type") == "Call"
-                    and expr["receiver"].get("func") == "hashlib.sha256"):
+                    and expr["receiver"].get("func") == "hashlib.sha256"
+                    and len(expr["receiver"].get("args") or []) == 1
+                    and isinstance(expr["receiver"]["args"][0], dict)
+                    and isinstance(expr["receiver"]["args"][0].get("func"), str)
+                    and ((_r7v.get(expr["receiver"]["args"][0]["func"]) or [{}])[0]
+                         or {}).get("ext") in ("read_bytes", "encode")):
                 _a7v = expr["receiver"]["args"][0]
                 _f7v = _a7v["func"]
                 _x7vr = ", ".join(sorted({_sen7v(_e["exc_type"]) for _e in _r7v.get(_f7v, [])}))
