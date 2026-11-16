@@ -14193,23 +14193,37 @@ class FunctionEmissionMixin:
         """Parse a declared method signature `(self, x: int, y: str) -> int` into
         (params, return_type) where params is an ordered list of (name, py_type)
         excluding `self` and return_type is a Python type name (default 'int')."""
-        params: List[tuple] = []
-        ret = "int"
-        s = (sig or "").strip()
+        params: List[Tuple[str, str]] = []
+        ret: str = "int"
+        _s0: str = sig
+        if not _s0:
+            _s0 = ""
+        s: str = _s0.strip()
+        lhs: str = s
         if "->" in s:
-            lhs, rhs = s.rsplit("->", 1)
-            ret = rhs.strip() or "int"
-        else:
-            lhs = s
-        lhs = lhs.strip()
-        if lhs.startswith("(") and lhs.endswith(")"):
-            lhs = lhs[1:-1]
-        for part in [p.strip() for p in lhs.split(",") if p.strip()]:
+            _k: int = len(s) - 2
+            # lvU (run #7): `s.rsplit("->", 1)` spelled as a backward scan for the LAST
+            # `->` (found: the `in` guard above), so the mirror proves it; identical result.
+            while _k >= 0 and s[_k:_k + 2] != "->":
+                _k -= 1
+            lhs = s[:_k]
+            rhs: str = s[_k + 2:]
+            ret = rhs.strip()
+            if not ret:
+                ret = "int"
+        _l1: str = lhs.strip()
+        _l2: str = _l1
+        if _l1.startswith("(") and _l1.endswith(")"):
+            _l2 = _l1[1:len(_l1) - 1]
+        for _p in _l2.split(","):
+            part: str = _p.strip()
+            if not part:
+                continue
             if part == "self":
                 continue
             if ":" in part:
-                nm, ty = part.split(":", 1)
-                params.append((nm.strip(), ty.strip()))
+                _c: int = part.find(":")
+                params.append((part[:_c].strip(), part[_c + 1:].strip()))
             else:
                 params.append((part, "int"))
         return params, ret

@@ -82,12 +82,13 @@ def _sexp_tokens(s: str) -> Iterator[str]:
 def _sexp_parse(tokens: List[str]) -> object:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def parse_sexp(s: str) -> object:
-    return None
+    """Parse a single top-level s-expression from `s`."""
+    tokens = list(_sexp_tokens(s))
+    return _sexp_parse(tokens)
 
 #@ requires True
 #@ ensures True

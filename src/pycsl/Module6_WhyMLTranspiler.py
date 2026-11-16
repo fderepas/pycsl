@@ -1138,13 +1138,20 @@ class Module6_WhyMLTranspiler(
             "add_argument": ("ArgumentError", "TypeError", "ValueError"),
             "add_argument_group": ("TypeError", "ValueError"),
             "parse_args": _x7_os + ("SystemExit", "UnicodeEncodeError"),
+            # (run #7) lvU, two law-free WORLD QUERIES: `os.access(<str>, <mode>)` raises
+            # ValueError on an embedded NUL and UnicodeEncodeError on an unencodable path
+            # (measured, CPython 3.14; every OS failure is the answer False, never a raise);
+            # `shutil.which(<str>)` reads PATH (or `os.confstr("CS_PATH")`, which raises the
+            # errno's OSError) and swallows every probe failure (`os.path.exists`).
+            "os.access": ("UnicodeEncodeError", "ValueError"),
+            "shutil.which": _x7_os,
         }
         _x7_imps = [_i for _i in (self.ir.get("imports") or [])
                     if isinstance(_i, (list, tuple)) and len(_i) >= 5]
         _x7_mod = {_m: (any(_i[0] == _m for _i in _x7_imps)
                         and all(_i[1] == _m and _i[2] == _m and _i[4]
                                 for _i in _x7_imps if _i[0] == _m))
-                   for _m in ("subprocess", "json", "argparse")}
+                   for _m in ("subprocess", "json", "argparse", "os", "shutil")}
         _x7_mod["Path"] = (any(_i[0] == "Path" for _i in _x7_imps)
                            and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[4]
                                    for _i in _x7_imps if _i[0] == "Path"))
@@ -1234,6 +1241,19 @@ class Module6_WhyMLTranspiler(
                                       and all(isinstance(_v, dict) and _v.get("type") == "Number"
                                               and type(_v.get("value")) is int
                                               for _v in _x7_k.values()))
+                        elif _x7_fn == "os.access" and _x7_mod["os"]:
+                            # a world query of a path and a mode: two positional arguments
+                            _x7_kind = "os.access"
+                            _x7_ok = _x7_ok and len(_x7_a) == 2 and not _x7_k
+                        elif (_x7_fn == "shutil.which" and _x7_mod["shutil"]
+                                and "shutil" not in _x7_tnames):
+                            # `shutil.which(<cmd>)`, the RETURNED value of an `-> Optional[str]`
+                            # function (the lowering types it as that function's union)
+                            _x7_kind = "shutil.which"
+                            _x7_ok = (_x7_ok and len(_x7_a) == 1 and not _x7_k
+                                      and isinstance(_x7_par, dict)
+                                      and _x7_par.get("stmt") == "Return"
+                                      and _x7_par.get("value") is _x7_n)
                         elif (_x7_fn == "argparse.ArgumentParser" and _x7_mod["argparse"]
                                 and not _x7_argerr):
                             _x7_kind = "argparse.ArgumentParser"
