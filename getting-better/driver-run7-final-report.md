@@ -16,12 +16,12 @@
 
 | | start | end |
 |---|---|---|
-| `\trusted` (canonical grep) | 389 | **374 after L12**; L13 (lvU) see §2 |
+| `\trusted` (canonical grep) | 389 | **367 after L13** (374 after L12) |
 | Proof-axiom ledger (Rocq / Lean, `proof_axiom_allowlist.py`) | 3 | 3 |
 | WhyML assumed-fact families | — | +1: CERTIFIED-DEFINITIONAL (see below) |
-| Landings | — | L9, L10, L11, L12 (+ L13 if gated) |
+| Landings | — | L9, L10, L11, L12, L13 |
 
-- **Goal and stretch.** The goal (< 389) is met. The stretch goal (≤ 375) is met: 374 at L11.
+- **Goal and stretch.** The goal (< 389) is met. The stretch goal (≤ 375) is met: 374 at L11, 367 at L13 (22 conversions).
 - **The one sanctioned assumption.** The new assumed-fact family holds the two route-(e2) `pairs_get` equations. They are realised by the Rocq and Lean lemmas `pairs_get_nil` / `pairs_get_cons`, and recorded in `bin/check-assumed-facts.py`. This is the single exception to "no new axioms", granted by user decision (d), log 848. It is not a proof-assistant axiom, so the ledger stays at 3.
 
 ## 2. Landings
@@ -32,9 +32,9 @@
 | L10 | 06fac6d26 | Dict value model r4 (lv4) + Rocq/Lean certificates (ce4); u43 emit_ir projector repair; lvR increment 2; lvS; u44 #599 #601 #602; u45 #603-#607 | step M: 23 mirror movers proved whole-file; M1 154 moved corpus files re-proved; v58 85/85 |
 | L11 | 010d7aced | lvT generator-as-seq + re lastgroup | Module2 + sertop proved; v59 85/85 |
 | L12 | c37d50422 | u46 #608 #609 | v60 85/85; mirror-inert |
-| L13 | pending | lvU (batch F) | — |
+| L13 | ad6323517 | lvU (batch F: 4 conversions) + lvV (batch G: sha-256 trio) + u47 #610 (the rt61 repair) | 6 mirror movers proved whole-file at an emission byte-identical to the tip; v62 85/85; full corpus 0/0/0 vs L12 |
 
-## 3. Conversions (15 landed through L12)
+## 3. Conversions (22 landed through L13)
 
 - **L9:**
   - `_cache_root`, `_cache_store`, `_parse_args` (lvQ, external model);
@@ -44,6 +44,9 @@
   - `_record_key` (lv4, dict model);
   - `_function_body_eqs`, `_residual_selectors_from_records`, `_json_goal_records` (lvS).
 - **L11:** `_sexp_tokens`, `_lex_contract` (lvT).
+- **L13:**
+  - `_build_witness_str`, `parse_sexp`, `_find_coqc`, `_parse_mixin_sig` (lvU: `x or {}` on an `Optional[Dict] = None` parameter, `list(<generator-as-seq>)`, law-free `os.access` / `shutil.which` world queries, behaviour-identical respellings fuzzed on 200,010 inputs);
+  - `_sha256_file`, `_cache_key`, `stable_hash` (lvV: law-free SHA-256 digest model; deterministic in the bytes, no injectivity, no length law).
 
 Every conversion has:
 - a verbatim live body, or a documented behaviour-identical live respelling (fuzzed where the body was rewritten);
@@ -93,8 +96,59 @@ Every conversion has:
 | rt58 | L9 | 8 false proofs in 3 families: #599 (introduced by lvQ: handler covered by one op, reached by another); #601 and #602 (pre-existing) | Repaired by u44 (L10; #599 was required to land with int61) |
 | rt59 | int61 | 33 false proofs in families #603-#607 | Repaired by u45 (L10) |
 | rt60 | lvT + u45 / u44 residuals | 7 pre-existing: #608 #609 | Repaired by u46 (L12). Nothing found in lvT |
+| rt61 | lvU + lvV (report-only wrap-up round) | 7 false proofs, one family #610 (module-name shadowing): 6 INTRODUCED by lvU / lvV, 1 from lvQ's L9 model | Under plan line 92 (an introduced breach must be repaired before the batch is done): repaired by u47 (refusal-only) and landed together with lvU / lvV in L13 |
 
-- **Routes repaired this run:** #586, #587, #588, #594, #596 (u43); #599, #601, #602 (u44); #603-#607 (u45); #608, #609 (u46).
+- **Routes repaired this run:** #586, #587, #588, #594, #596 (u43); #599, #601, #602 (u44); #603-#607 (u45); #608, #609 (u46); #610 (u47).
 - **Routes still open:** the residuals of #597 (raises in dependency modules) and #598 (kwargs via `super().__init__`); route #583's F3; the documented residuals of #599, #603, #608.
+- **Backlog notes from L13 (pre-existing, not introduced):**
+  - a `str` subscript carries no IndexError / in-bounds VC outside `no_exception` (the obvious mutants of `_parse_mixin_sig` and `_find_coqc` prove; other mutants were used);
+  - `audit_proof` imports `_sha256_file` / `_cache_key` as `val`s without `raises`, as at base (fixing it moves a non-home mirror file);
+  - in a file that uses both sha shapes, the outer calls carry no `ext` rows, so handler-dependent claims around them are refused (fail-closed).
 
-(Sections 6-10, covering decisions, proof hours, incidents and lessons, and the end state, are completed at the end of the run.)
+## 6. Decisions
+
+**User decisions (relayed by the supervisor):**
+- log 838: the dict-model boundary is reopened as the main track;
+- log 841: dict-plan-review F1-F11 are reserved for Gate P (never shown to rp4 or the Gate R reviewer);
+- log 848: decisions (a)-(e);
+- log 907: #599 lands with or before int61;
+- 05:11Z on the 16th: a WIP checkpoint from lvU, the second slot for the sha-256 trio, the last landing's proofs closed by 03:00Z;
+- 09:15Z on the 16th: plan line 92 stands in wrap-up; an INTRODUCED red-team finding is repaired or the capability is withheld.
+
+**Driver decisions:**
+- log 936: #606 is a declared assumption (FLOAT-FINITE) with a strict-mode refusal;
+- log 968: 3600 is a declared over-refusal;
+- log 993: lvU and lvV land only together with the #610 repair (L13 as one battery; int64 alone was never landed);
+- log 1002: u47's over-refusal check is targeted to the reachable files, with the full sweep done in v62 (0/0/0).
+
+**Standing decisions respected:** the 31 external-world stubs were not reclassified; the #566/#567 mirror exemption was not used; nothing blocked on #497, the PyCSLError `line >= 0` precondition, `#@ \diverges`, #429, #414 or #461/#488 was converted.
+
+## 7. Proof budget
+
+- heavy.sh stayed at 2 proof slots throughout (v3slot never installed); every proof went through it; the guard hook was never bypassed.
+- **oom_kill: 0 for the whole run** (pycsl-heavy.slice `memory.events`).
+- The expressions.py and statements.py whole-file proofs never ran at the same time.
+- The longest single proofs were the whole-file `functions.py` (1364 goals, ~68 min) and `pycsl.py` (812 goals, ~45 min). The longest gate is the --slow planes step of a battery (~4 h).
+- Queue starvation was the main cost. It was handled with one-off PRIO grants for driver jobs, a one-slot rule for repair executors, and pausing secondary streams. The proof map let whole-file proofs start early on a snapshot and carry over to the final tip when the mirror emission was byte-identical (L10 step M; L13).
+
+## 8. Incidents and lessons
+
+- **Unquoted heredocs** ran backticks and damaged a brief and log 850. Lesson: quoted heredocs only (log.sh).
+- **A worktree was removed while it still held an executor's uncommitted files** (pycsl-rp4; sp4 regenerated them). Lesson: check `git status` and archive untracked evidence before removing a worktree.
+- **A brief was never written** because a `cherry-pick -q` failure broke an `&&` chain (u46). Lesson: verify the brief file exists before launching.
+- **The driver killed its own shell** with `pgrep -f` (log 911), and **an executor killed another's planes** (log 860). Lesson: rule 25, kill only PIDs whose parent chain was verified.
+- **full.sh ignored `# pycsl-flags:`**, which produced false "unexpected" verdicts. Fixed; the files were re-run with their flags.
+- **An executor committed `progress.txt`**, which blocked the merge into the main tree (the user's untracked file). It was untracked in the integration branch before landing.
+- **lvU went silent for ~8.5 h.** The driver salvaged its tree as WIP commits and gated it independently. Lesson: require a WIP checkpoint every 2 h (added to every later brief).
+- **The cwd changes import resolution in sweeps** (a `json/` directory at the repo root). Lesson: sweeps that are compared must use the same cwd; the canonical one is the repo root.
+- **The red team found that new external-effect models trusted the callee string** "<mod>.<f>" without checking that `<mod>` is the import, in the function scope (#610). Lesson: a new world model is not done until a red-team round targeting it has returned; schedule that round before the batch, not after.
+
+## 9. End state
+
+END_STATE
+
+## 10. Carried forward
+
+- The backlog notes of §5 and the open routes.
+- cv14 §3: `_why3_typecheck` (a typed tuple-return exception in the verified return handlers: statements / stmt_control_flow re-proofs plus a corpus-wide emission change), and the two precision gaps: a negative literal slice bound (`str_sub_op` with a negative length) and the receiver-dropping `str.rfind`. Both should be modelled or refused. They were not started after L13 because their re-proofs could not close by the 03:00Z cut-off (log 1018).
+- The dict model r4: further yield needs the reopening-test rows (only 398 closes today).
