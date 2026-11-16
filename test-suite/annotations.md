@@ -6646,6 +6646,34 @@ route #174's handler-reachability rule, and a same-file callee doing the read by
 `with suppress(IndexError)` by route #257; u46 probes q07 / q04 / q08 -- the first now reports R609.)
 Measurements: `getting-better/open-routes/route609-pyval-index-handler-dead-via-171.md`.
 
+### 7.610 A modelled module call whose head name is shadowed is refused (route #610, run #7)
+
+lvQ / lvU / lvV model `<mod>.<f>(..)` by its CALLEE STRING, which Module 5 builds from the spelling, so a parameter /
+local named like the module gives the same string: `def same(hashlib: K, s): return hashlib.sha256(..).hexdigest() ==
+hashlib.sha256(..).hexdigest()` with a counter-based user `K.sha256` PROVED `\result == True` (lvV's deterministic
+digest), CPython False; `def where(shutil: W, cmd): return shutil.which(cmd)` dropped `W.which`'s effect (lvU);
+`os.access` / `json.dumps` on an `os` / `json` parameter or local likewise (red team rt61 M1; the `os` / `json` shapes
+PRE-EXISTING at L12). RULE (`PYCSL-R610-EXT-MODULE-NAME-SHADOWED`, every non-`\trusted` function): a modelled family
+call -- `subprocess.run`, `Path.cwd`, `json.dumps` (also the import-path rewritten `dumps`), `argparse.ArgumentParser`,
+`os.access`, `shutil.which`, `hashlib.sha256(..)` of the digest model and `int(.., 16)` of the digest model --
+takes the model ONLY when its head name resolves to the module import (`import <mod>`, `from pathlib import
+Path`; the builtin for `int`) and is bound NOWHERE in the
+enclosing function (parameter, assignment / annotated / augmented target, for / with / except / walrus /
+comprehension / match target, `del`, `global` / `nonlocal`, nested def / class / lambda parameter, function-local
+import) and not rebound at module level (any other binding, a `global <name>` in any function, a star import); a
+function the source table does not name is shadowed (fail-closed). Otherwise the file is REFUSED, never lowered to
+the old opaque op. The table is computed from the source in `pycsl.py::_run_pipeline`; the guards sit at lvQ / lvU's
+callee-registry walk and lvV's digest walk in `Module6_WhyMLTranspiler.transpile` (twin `\trusted`). A
+shadowed BUILTIN (`sorted` of lvV's `"<sep>".join(sorted(xs))`, `int`) is already refused before Module 6 by the
+rebound-name rule ("a name's runtime value is not the one the model reads", route #386): measured for a `sorted`
+parameter, walrus / for target, local import, module-level assignment, nested-class method and `if`-nested def
+(u47 probes s1-s9; s7 `global sorted` by the global-store rule), so no Module 6 guard is added there. Advice: rename the binding (`os_obj`) so that the
+module name names only the module (advice file `a610_rename_binding`). Witnesses `10100`-`10113` (expected FAIL,
+refused in the default / typed / store models); controls `10115`-`10118` (a genuine module call keeps its model; a
+parameter named `os` used as a plain object next to a genuine `os.access` in another function is fine; a genuine
+`sorted` in the join model keeps its model).
+Measurements: `getting-better/open-routes/route610-ext-module-name-shadowing.md`.
+
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
 A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /

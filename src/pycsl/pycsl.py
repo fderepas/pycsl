@@ -18457,6 +18457,111 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _pn599[_fq599] = _A599
             _seen599.add(_fq599)
     transpiler.path_names_r599 = _pn599
+    # (run #7) ROUTE #610 -- MODULE-NAME SHADOWING OF THE EXTERNAL-EFFECT MODELS (rt61 M1).
+    # lvQ / lvU / lvV model `<mod>.<f>(..)` (subprocess.run, Path.cwd, json.dumps,
+    # argparse.ArgumentParser, os.access, shutil.which, hashlib.sha256) and the builtin
+    # `int(.., 16)` of the digest model by their CALLEE STRING, which Module 5 builds from the
+    # spelling: a parameter / local / any binding NAMED like the module gives the same string
+    # (`same(hashlib: K, s)` -> "hashlib.sha256", receiver None), so the user object's method,
+    # its effects and its non-determinism were dropped (v07 / v13 / v15 / v27 / a15 / a04 /
+    # a12 / a13 / a14 PROVED a false claim). Which name is the MODULE exists only in the
+    # SOURCE, so it is computed here: per function (Module 5's name, as route #599's table),
+    # every watched name bound ANYWHERE in it (parameter, assignment / annotated / augmented
+    # target, for / with / except / walrus / comprehension / match target, `del`, global /
+    # nonlocal, nested def / class / lambda parameter, function-local import), and the
+    # watched names REBOUND at module level (any binding other than the plain module import
+    # `import <mod>` / `from pathlib import Path` -- for the builtins, any binding at all --,
+    # a `global <name>` in any function, a star import). Module 6 applies a model only when
+    # the head is in NEITHER set (fail-closed: a function absent from the table, or no
+    # table, is shadowed), and otherwise REFUSES (PYCSL-R610-EXT-MODULE-NAME-SHADOWED).
+    _W610 = {"subprocess", "json", "argparse", "os", "shutil", "hashlib", "Path", "int"}
+    _sh610: Optional[Dict[str, Set[str]]] = None
+    _shm610: Set[str] = set(_W610)
+    if _t599 is not None:
+        _sh610 = {}
+        _shm610 = set()
+        _fns610: List[Tuple[str, Any]] = []
+        _st610: List[Any] = list(_t599.body)
+        while _st610:
+            _n610 = _st610.pop()
+            if isinstance(_n610, (_ast599.FunctionDef, _ast599.AsyncFunctionDef,
+                                  _ast599.ClassDef)):
+                _shm610.add(_n610.name)
+                # evaluated in the module scope: decorators, defaults, annotations, bases
+                _st610.extend(_n610.decorator_list)
+                if isinstance(_n610, _ast599.ClassDef):
+                    _st610.extend(_n610.bases)
+                    _st610.extend(_k.value for _k in _n610.keywords)
+                    for _m610 in _n610.body:
+                        if isinstance(_m610, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                            _fns610.append((_n610.name.lower() + "__" + _m610.name, _m610))
+                else:
+                    _st610.extend(_x for _x in (list(_n610.args.defaults)
+                                                + list(_n610.args.kw_defaults))
+                                  if _x is not None)
+                    if _n610 in _t599.body:
+                        _fns610.append((_n610.name, _n610))
+                continue
+            if isinstance(_n610, _ast599.Lambda):
+                continue
+            if isinstance(_n610, _ast599.Name) and isinstance(_n610.ctx, (_ast599.Store,
+                                                                          _ast599.Del)):
+                _shm610.add(_n610.id)
+            elif isinstance(_n610, (_ast599.Import, _ast599.ImportFrom)):
+                for _al610 in _n610.names:
+                    if _al610.name == "*":
+                        _shm610 |= _W610
+                        continue
+                    _lc610 = (_al610.asname or _al610.name).split(".")[0]
+                    if isinstance(_n610, _ast599.Import) and _al610.asname is None and "." in _al610.name:
+                        continue  # `import os.path` binds `os` to the package itself
+                    _okimp610 = ((isinstance(_n610, _ast599.Import) and _lc610 == _al610.name
+                                  and _lc610 != "int")
+                                 or (isinstance(_n610, _ast599.ImportFrom)
+                                     and _n610.module == "pathlib" and not _n610.level
+                                     and _al610.name == "Path" and _lc610 == "Path"))
+                    if not _okimp610:
+                        _shm610.add(_lc610)
+            elif isinstance(_n610, (_ast599.MatchAs, _ast599.MatchStar)) and _n610.name:
+                _shm610.add(_n610.name)
+            elif isinstance(_n610, _ast599.MatchMapping) and _n610.rest:
+                _shm610.add(_n610.rest)
+            elif isinstance(_n610, _ast599.ExceptHandler) and _n610.name:
+                _shm610.add(_n610.name)
+            _st610.extend(_ast599.iter_child_nodes(_n610))
+        for _fq610, _fd610 in _fns610:
+            _bd610: Set[str] = set()
+            for _n610 in _ast599.walk(_fd610):
+                if isinstance(_n610, _ast599.arg):
+                    _bd610.add(_n610.arg)
+                elif (isinstance(_n610, _ast599.Name)
+                      and isinstance(_n610.ctx, (_ast599.Store, _ast599.Del))):
+                    _bd610.add(_n610.id)
+                elif (isinstance(_n610, (_ast599.FunctionDef, _ast599.AsyncFunctionDef,
+                                         _ast599.ClassDef)) and _n610 is not _fd610):
+                    _bd610.add(_n610.name)
+                elif isinstance(_n610, (_ast599.Import, _ast599.ImportFrom)):
+                    for _al610 in _n610.names:
+                        _bd610 |= (_W610 if _al610.name == "*"
+                                   else {(_al610.asname or _al610.name).split(".")[0]})
+                elif isinstance(_n610, (_ast599.Global, _ast599.Nonlocal)):
+                    _bd610.update(_n610.names)
+                    if isinstance(_n610, _ast599.Global):
+                        _shm610.update(_n610.names)
+                elif isinstance(_n610, _ast599.ExceptHandler) and _n610.name:
+                    _bd610.add(_n610.name)
+                elif isinstance(_n610, (_ast599.MatchAs, _ast599.MatchStar)) and _n610.name:
+                    _bd610.add(_n610.name)
+                elif isinstance(_n610, _ast599.MatchMapping) and _n610.rest:
+                    _bd610.add(_n610.rest)
+            _sh610[_fq610] = (_sh610.get(_fq610) or set()) | (_bd610 & _W610)
+        # a `global <name>` ANYWHERE (also in a def the table does not name) rebinds it
+        for _n610 in _ast599.walk(_t599):
+            if isinstance(_n610, _ast599.Global):
+                _shm610.update(_n610.names)
+        _shm610 &= _W610
+    transpiler.shadow_r610 = _sh610
+    transpiler.shadow_mod_r610 = _shm610
     # (run #6) ROUTE #579 -- IR-CLASS IDENTITY BY RESOLUTION, NEVER BY NAME. The emit_ir
     # isinstance recognizers (`isinstance(<emit_ir>, ast.Name)` -> `is_var`, `isinstance(
     # <emit_ir>, CSLFieldAccess)` -> `is_fieldget`) and route #567's narrowing judge read the

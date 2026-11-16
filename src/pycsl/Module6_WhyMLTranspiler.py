@@ -1208,6 +1208,38 @@ class Module6_WhyMLTranspiler(
                         _x7_ok = len(_x7_k) == len(_x7_kw) and _x7_n.get("receiver") is None
                         _x7_bool = all(isinstance(_v, dict) and _v.get("type") == "Bool"
                                        and set(_v) == {"type", "value"} for _v in _x7_k.values())
+                        # ROUTE #610 (run #7, rt61 M1): a modelled MODULE call is the module's
+                        # function only when its head names the module import: not bound
+                        # anywhere in this function, not rebound at module level (pycsl.py's
+                        # source table; absent -> shadowed, fail-closed). Otherwise the call
+                        # may be a USER OBJECT's method (`def f(os: C): os.access(..)`), whose
+                        # effects the law-free model drops: REFUSED, never the old lowering.
+                        _x7s_h = ("json" if (_x7_fn == "dumps" and _x7_jstub)
+                                  else _x7_fn.split(".")[0])
+                        _x7s_tab = getattr(self, "shadow_r610", None)
+                        if ((_x7_fn in ("subprocess.run", "Path.cwd", "json.dumps", "os.access",
+                                        "shutil.which", "argparse.ArgumentParser")
+                             or (_x7_fn == "dumps" and _x7_jstub))
+                                and _x7_mod[_x7s_h]
+                                and (not isinstance(_x7s_tab, dict)
+                                     or _x7_f.get("name") not in _x7s_tab
+                                     or _x7s_h in _x7s_tab[_x7_f.get("name")]
+                                     or _x7s_h in (getattr(self, "shadow_mod_r610", None)
+                                                   or set()))):
+                            from errors import PyCSLIRError as _E610
+                            raise _E610(
+                                f"PYCSL-R610-EXT-MODULE-NAME-SHADOWED: in function "
+                                f"'{_x7_f.get('name')}', `{_x7_fn}(..)` is modelled as the "
+                                f"function of the imported module `{_x7s_h}`, but the name "
+                                f"`{_x7s_h}` is also bound in this function (a parameter, a "
+                                f"local, a for / with / except / walrus / comprehension target, "
+                                f"`global` / `nonlocal`, a nested def / class, an import inside "
+                                f"the function) or rebound at module level after the import, so "
+                                f"in Python the call may be a method of another object, whose "
+                                f"effects and results the module model would drop (route #610). "
+                                f"Rename that binding (e.g. `{_x7s_h}_obj`) so that `{_x7s_h}` "
+                                f"names only the module.",
+                                stage="module6-call", code="PYCSL-R610-EXT-MODULE-NAME-SHADOWED")
                         if _x7_fn == "subprocess.run" and _x7_mod["subprocess"]:
                             _x7_kind = "subprocess.run"
                             _x7_ok = (_x7_ok and len(_x7_a) == 1 and isinstance(_x7_a[0], dict)
@@ -1355,6 +1387,42 @@ class Module6_WhyMLTranspiler(
                     if isinstance(_x7v_n, dict):
                         _x7v_fn = _x7v_n.get("func")
                         if _x7v_n.get("type") == "Call" and isinstance(_x7v_fn, str):
+                            # ROUTE #610: `hashlib.sha256` names the MODULE only when `hashlib`
+                            # is bound nowhere in this function and not rebound at module
+                            # level; `int(.., 16)` is the BUILTIN only when `int` is bound
+                            # nowhere (pycsl.py's source table; absent -> shadowed). Else
+                            # REFUSED: a user `sha256` / `int` would be lowered deterministic.
+                            _x7s_h = ("hashlib" if _x7v_fn == "hashlib.sha256" else
+                                      "int" if (_x7v_fn == "int"
+                                                and len(_x7v_n.get("args") or []) == 2
+                                                and (_x7v_n.get("args") or [])[1]
+                                                == {"type": "Number", "value": 16})
+                                      else None)
+                            _x7s_tab = getattr(self, "shadow_r610", None)
+                            if _x7s_h is not None and (
+                                    not isinstance(_x7s_tab, dict)
+                                    or _x7_f.get("name") not in _x7s_tab
+                                    or _x7s_h in _x7s_tab[_x7_f.get("name")]
+                                    or _x7s_h in (getattr(self, "shadow_mod_r610", None)
+                                                  or set())):
+                                from errors import PyCSLIRError as _E610
+                                raise _E610(
+                                    f"PYCSL-R610-EXT-MODULE-NAME-SHADOWED: in function "
+                                    f"'{_x7_f.get('name')}', `{_x7v_fn}(..)` is modelled as "
+                                    + ("the function of the imported module `hashlib`"
+                                       if _x7s_h == "hashlib" else "the builtin `int`")
+                                    + f" (the law-free sha-256 digest model), but the name "
+                                    f"`{_x7s_h}` is also bound in this function (a parameter, "
+                                    f"a local, a for / with / except / walrus / comprehension "
+                                    f"target, `global` / `nonlocal`, a nested def / class, an "
+                                    f"import inside the function) or rebound at module level, "
+                                    f"so in Python the call may be another object's method, "
+                                    f"whose effects and non-determinism the model would drop "
+                                    f"(route #610). Rename that binding (e.g. "
+                                    f"`{_x7s_h}_obj`) so that `{_x7s_h}` names only the "
+                                    + ("module." if _x7s_h == "hashlib" else "builtin."),
+                                    stage="module6-call",
+                                    code="PYCSL-R610-EXT-MODULE-NAME-SHADOWED")
                             if _x7v_fn == "hashlib.sha256":
                                 _a = _x7v_n.get("args") or []
                                 _ok = (_x7v_shape(_x7v_par) and _x7v_par["receiver"] is _x7v_n
