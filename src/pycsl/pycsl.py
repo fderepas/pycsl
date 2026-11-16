@@ -6,6 +6,7 @@ from frontend import pure_ast as _ast  # dependency import-discovery parses via 
 import hashlib
 import json as _json
 import os
+import shutil
 import sys
 import subprocess
 import tempfile
@@ -113,8 +114,7 @@ def _find_coqc() -> Optional[str]:
     opam_coqc = os.path.expanduser("~/.opam/default/bin/coqc")
     if os.path.isfile(opam_coqc) and os.access(opam_coqc, os.X_OK):
         return opam_coqc
-    import shutil as _sh
-    return _sh.which("coqc")
+    return shutil.which("coqc")
 
 
 def _find_why3_coq_lib() -> Optional[str]:
@@ -17881,6 +17881,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # merged the closure's): a class of the IR schema's name declared here is a user record,
     # not an IR node, for the emit_ir projector judge (`statements.py::_typed_local_vars`).
     transpiler.own_types_r567 = set(_r498_own[1]) - {None}
+    # (run #7) lvU -- THE GENERATOR-AS-SEQ FUNCTIONS of this file (lvT's pre-pass above set
+    # `pycsl_generator_as_seq` on each module-level def it rewrote to the list of its yields).
+    # Module 6 lowers `list(<call of one of them>)` to a fresh copy of that list
+    # (`_call_named_builtins`). Empty for every file without such a generator.
+    transpiler.gen_as_seq_lvU = {
+        _d.name for _d in (getattr(unified_ast, "body", None) or [])
+        if getattr(_d, "pycsl_generator_as_seq", False) and isinstance(
+            getattr(_d, "name", None), str)}
     # (run #7) ROUTE #599 (lvQ PATH-RECEIVER sub-defect, rt58 c01) -- WHICH NAMES ARE
     # PROVABLY A `pathlib.Path`. The #31 path model erases `Path` to `str` (one `string`
     # in the value model), so lvQ's `PYCSL-R7Q-EXT-PATH-RECEIVER` check (`_is_string_expr`

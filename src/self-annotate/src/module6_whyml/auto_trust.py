@@ -4,13 +4,53 @@ from module6_whyml.ir_scanner import IRScanner
 ""  # pycsl
 class AutoTrustMixin:
     'Auto-trust decisions and linear-VC classification.\n\n    Auto-trust converts a function from `let` (full body emitted) to `val`\n    (contract-only) when the body cannot be cleanly typed in WhyML — typically\n    because map-typed values would need to flow through int-typed slots, or\n    because array/tuple returns hit early-return restrictions.\n\n    Linear-VC classification flags ensures/requires clauses that contain only\n    linear arithmetic so the runner can route them to omega proofs in Lean 4\n    instead of Why3/Alt-Ergo. See `docs/self-annotate-layer2-queue.md` for the\n    auto-trust class taxonomy.\n    '
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _build_witness_str(field_names: List[str], vals: int, field_types: int=None, array_lengths: int=None, array_elem_witnesses: int=None) -> str:
-        return ""
+    def _build_witness_str(field_names: List[str], vals: Dict[str, PyVal], field_types: Optional[Dict[str, str]] = None, array_lengths: Optional[Dict[str, int]] = None, array_elem_witnesses: Optional[Dict[str, str]] = None) -> str:
+        """Build a WhyML record literal witness string.
+
+        Array-typed fields (`array int`) cannot take an int witness; they
+        get `Array.make N 0`, where N is the length pinned by a class
+        invariant `\\length(self.f) == N` (defaulting to 0 — an empty
+        array — when no length invariant constrains the field). A
+        `List[<record>]` field (`array <record>`, parser-primitives-wall-impl-2.md
+        Gate S) instead gets `Array.make N <record-literal>` from
+        `array_elem_witnesses` — the int `0` element would mistype against the
+        record element."""
+        field_types = field_types or {}
+        array_lengths = array_lengths or {}
+        array_elem_witnesses = array_elem_witnesses or {}
+        parts: List[str] = []
+        for fn in field_names:
+            ft = field_types.get(fn, "int")
+            if ft in ("list", "tuple", "bytes", "bytearray") or ft.startswith("array "):
+                n = array_lengths.get(fn, 0)
+                elem = array_elem_witnesses.get(fn, "0")
+                parts.append(f"{fn} = (Array.make {n} {elem})")
+            elif ft in ("dict", "set", "frozenset") or ft.startswith("map "):
+                # Empty map witness (all keys → None); `const` is from
+                # map.Const, matching the empty-dict idiom in expressions.py.
+                parts.append(f"{fn} = (const (None: option int))")
+            elif ft in ("real", "float"):
+                # wrong-lowering-to-fix.md §WL-03b: a `real`-typed field (a faithful
+                # `float` slot) needs a real witness literal — `0` is int-typed and
+                # would mistype the record `by` clause. Additive: no pre-existing
+                # corpus record has a real field, so this branch is only reached by a
+                # float-field record that ALSO carries a class invariant.
+                parts.append(f"{fn} = 0.0")
+            elif ft in ("str", "string") or ft == "string":
+                # b14 B1 prerequisite: a `str`-annotated field is Why3 `string`
+                # (preamble.py `str`→`string`), so its witness must be the empty
+                # string literal, not the int `0`. Purely additive — no
+                # pre-existing corpus record reaches this branch (plain
+                # `self.x = x` Assigns collapse to int; only an annotated
+                # `self.x: str = x` AnnAssign yields a `string` field).
+                parts.append(f'{fn} = ""')
+            else:
+                parts.append(f"{fn} = {vals.get(fn, 0)}")
+        return "; ".join(parts)
 
     #@ requires True
     #@ ensures True

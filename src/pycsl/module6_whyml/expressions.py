@@ -8204,6 +8204,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      or (_r_ir.get("type") == "Call"
                          and _r_ir.get("func") in ("set", "frozenset", "dict")
                          and not _r_ir.get("args"))))
+            # lvU (run #7) THE NONE-DEFAULT MAP PARAMETER `x or {}` ARM. `x` is a parameter of
+            # the function being emitted, declared `Optional[Dict[..]] = None` and lowered as a
+            # bare `map κ (option ν)` (run #6 cap-none-default-map-param). Under that model the
+            # parameter's value is always a MAP: an omitted argument fills `pycsl_none_map`,
+            # which route #592 refuses at the call site of every VERIFIED callee, and an
+            # explicit `None` argument is the int `0`, ill-typed against the map (L3-tc, fail
+            # closed). For a dict `x`, CPython's `x or {}` is `x` when `x` is non-empty and a
+            # FRESH empty dict when `x` is empty: in both cases a dict EQUAL to `x`, so the map
+            # itself is the faithful value. The two differ only in IDENTITY when `x` is empty,
+            # observable only through a later caller-visible mutation, so the arm is closed
+            # when `x` is a caller-visible mutated collection parameter (`writes {x}`). Exact
+            # IR shape only: `Var x` on the left, an empty `DictLit` / `dict()` on the right,
+            # body context, and the int-coerced arms the `or {}` fallback below matches; any
+            # other shape keeps today's lowering (which fails L3-tc on a map `x`).
+            _l_ir490 = expr.get("left")
+            _fn490 = getattr(self, "_current_sig_func_name", None)
+            if (op == "||" and _l_val == _lraw487 and _r_val == _rraw487
+                    and right == "(const (None: option int))" and isinstance(_fn490, str)
+                    and isinstance(_l_ir490, dict) and _l_ir490.get("type") == "Var"
+                    and set(_l_ir490) == {"type", "name"}
+                    and isinstance(_r_ir, dict)
+                    and ((_r_ir.get("type") == "DictLit" and not _r_ir.get("keys")
+                          and not _r_ir.get("values"))
+                         or (_r_ir.get("type") == "Call" and _r_ir.get("func") == "dict"
+                             and not _r_ir.get("args") and not _r_ir.get("keywords")))):
+                _x490 = _l_ir490.get("name")
+                _d490 = (getattr(self, "_module_method_param_defaults", {}) or {}).get(
+                    _fn490, {}).get(_x490)
+                if (_x490 in ((getattr(self, "_module_method_formal_params", {}) or {}).get(
+                            _fn490) or [])
+                        and _d490 == {"type": "None"}
+                        and (getattr(self, "_current_symbol_table", None) or {}).get(_x490) == "dict"
+                        and _x490 in (getattr(self, "_dict_key_types", None) or {})
+                        and _x490 not in ((getattr(self, "_func_mutated_collection_params",
+                                                   {}) or {}).get(_fn490) or set())
+                        and left in (_x490, f"!{_x490}")):
+                    return left
             if (op == "||" and _l_val == _lraw487 and _r_val == _rraw487
                     and right == "(const (None: option int))" and _r_empty_map):
                 _r_val = "0"
@@ -11910,6 +11947,44 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     f"val ext_json_dumps_op (obj: 'a) (indent: int) : string "
                     f"raises {{ {_x7r} }}")
                 return f"(ext_json_dumps_op {args[0]} ({_x7i}))"
+            if _x7k == "os.access":
+                # (run #7) lvU: `os.access(<path>, <mode>)` -- an impure law-free query (a fresh
+                # int per call; only its truthiness is ever observed by the bool test), the
+                # path a `str` (the #31 model), the mode any int expression.
+                if not (len(args) == 2 and self._is_string_expr((expr.get("args") or [None])[0])):
+                    raise PyCSLIRError(
+                        "PYCSL-R7U-EXT-ACCESS-PATH: `os.access(..)` is modelled as a law-free "
+                        "world query of a `str` path and a mode, but its first argument is not "
+                        "typed as a `str` here. Pass a `str` path (`os.fspath(p)` for a Path).")
+                self._add_abstract_op(
+                    f"val ext_os_access_op (path: string) (mode: int) : int raises {{ {_x7r} }}")
+                return f"(ext_os_access_op {args[0]} {args[1]})"
+            if _x7k == "shutil.which":
+                # (run #7) lvU: `return shutil.which(<cmd>)` in an `-> Optional[str]` function --
+                # an impure law-free query whose value is ANY element of that function's
+                # `str | None` union (fresh per call): exactly the codomain of `shutil.which`.
+                _x7ut = getattr(self, "_func_return_type", None)
+                _x7td = next((_t for _t in (self.ir.get("type_decls") or [])
+                              if isinstance(_t, dict) and _t.get("name") == _x7ut
+                              and _t.get("kind") == "variant"), None) if isinstance(
+                                  _x7ut, str) else None
+                _x7cs = (_x7td or {}).get("constructors") or []
+                if not (len(args) == 1
+                        and self._is_string_expr((expr.get("args") or [None])[0])
+                        and isinstance(_x7ut, str) and _x7ut.startswith("_union_")
+                        and len(_x7cs) == 2
+                        and sorted((_c.get("arity"), tuple(_c.get("payload") or ()))
+                                   for _c in _x7cs) in ([(0, ()), (1, ("str",))],
+                                                        [(0, ()), (1, ("string",))])):
+                    raise PyCSLIRError(
+                        "PYCSL-R7U-EXT-WHICH-SHAPE: `shutil.which(..)` is modelled only as the "
+                        "RETURNED value of a function declared `-> Optional[str]` (its value is "
+                        "then any `str` or None), with a `str` command. Return it directly "
+                        "from such a function.")
+                _x7wn = whyml_ident(f"ext_shutil_which_op_{_x7ut}")
+                self._add_abstract_op(
+                    f"val {_x7wn} (cmd: string) : {_x7ut} raises {{ {_x7r} }}")
+                return f"({_x7wn} {args[0]})"
             if _x7k == "argparse.ArgumentParser":
                 self._add_abstract_op(
                     f"val ext_argparse_parser_op () : int raises {{ {_x7r} }}")
@@ -13957,6 +14032,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if args and args[0].lstrip("(").startswith(
                     ("array_rev ", "Array.", "array_slice ", "array_copy ")):
                 return args[0]
+            # lvU (run #7): `list(g(..))` of a GENERATOR-AS-SEQ function `g` (lvT, §7.323 (1):
+            # `g` is lowered as the list of its yields, `-> List[T]`, every reference to it a
+            # call consumed at once) is a FRESH list holding exactly those yields: in CPython
+            # `list()` drains the generator into a new list. That is `Array.copy` of the
+            # array the call returns (length- and element-preserving, a new array). Exact
+            # shape only: one positional argument, a plain call of a name in the pipeline's
+            # generator-as-seq set (`pycsl.py::_run_pipeline`), no keywords, body context.
+            _a490 = (expr.get("args") or [None])[0] if len(args) == 1 else None
+            if (len(args) == 1 and not self._in_spec and not invariant_ctx
+                    and not expr.get("keywords")
+                    and isinstance(_a490, dict) and _a490.get("type") == "Call"
+                    and isinstance(_a490.get("func"), str)
+                    and _a490.get("func") in (getattr(self, "gen_as_seq_lvU", None) or set())
+                    and not _a490.get("keywords") and _a490.get("receiver") is None
+                    and args[0].startswith(f"({whyml_ident(_a490['func'])} ")):
+                return f"(Array.copy {args[0]})"
             # (#49) gen #36: `list(<o>.<f>)` of a STRING-ELEMENT list record field (the
             # `array string` fields `_emit_type_decls` records in `_str_array_record_fields`)
             # is a FRESH array with the same contents -- `Array.copy`, the stdlib's own
