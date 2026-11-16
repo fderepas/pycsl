@@ -99,17 +99,34 @@ def _cache_root(project_root: Path) -> Path:
     root = project_root / ".audit-cache"
     root.mkdir(parents=True, exist_ok=True)
     return root
-#@ \trusted reviewer: pycsl-self-annotate
+# lvV (run #7): VERIFIED on the law-free sha-256 model. `path.read_bytes()` is an open-world
+# read (the OSError family, ValueError on an embedded NUL), declared here so `_cache_key` (its
+# caller) owes them too; the live body is the one-shot `hashlib.sha256(<bytes>).hexdigest()`.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
+#@ raises BlockingIOError when True
+#@ raises BrokenPipeError when True
+#@ raises ChildProcessError when True
+#@ raises ConnectionAbortedError when True
+#@ raises ConnectionError when True
+#@ raises ConnectionRefusedError when True
+#@ raises ConnectionResetError when True
+#@ raises FileExistsError when True
+#@ raises FileNotFoundError when True
+#@ raises InterruptedError when True
+#@ raises IsADirectoryError when True
+#@ raises NotADirectoryError when True
+#@ raises OSError when True
+#@ raises PermissionError when True
+#@ raises ProcessLookupError when True
+#@ raises TimeoutError when True
+#@ raises ValueError when True
 
 
 def _sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    h.update(path.read_bytes())
-    return h.hexdigest()
-#@ \trusted reviewer: pycsl-self-annotate
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+# lvV (run #7): VERIFIED; `sorted` of the `List[str]` parameter is a law-free `array string`.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

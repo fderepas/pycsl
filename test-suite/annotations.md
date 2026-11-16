@@ -7266,6 +7266,31 @@ accumulator builds (Module 5's declared native tuple type), and the tail return 
 that seq local as-is (Module 6 `_stmts_to_whyml`); a value of another element type there is a Why3
 type error. Witnesses (must FAIL) `10021`, `10022`; control (PASS) `10020`.
 
+### 7.324 A SHA-256 hex digest is a law-free function of its bytes; `int(<digest>, 16)` and `sorted(List[str])` are law-free (lvV, run #7)
+
+On lvQ's open-world external-effect frame (its `ext` callee-registry rows), `hashlib.sha256(<A>).hexdigest()` (module `import hashlib`,
+not rebound) with `<A>` one of `<str>.encode()` / `<str>.encode("utf-8")` / `<path>.read_bytes()` lowers to
+`ext_sha256_hexdigest_op <bytes>`, a `val function` of the bytes (`array int`): DETERMINISTIC (equal bytes
+give equal digests) and LAW-FREE (distinct inputs are NOT claimed to give distinct digests; neither the
+length nor the alphabet of the digest is claimed). `<str>.encode(..)` is the deterministic `val function
+ext_str_enc_bytes s` after the impure, law-free check `ext_str_encode_check_op s`, which RAISES
+UnicodeEncodeError (a lone surrogate); the receiver must POSITIVELY be a `str` (a `str`-annotated parameter
+never rebound and not a path name, or `<str literal>.join(..)`), else `PYCSL-R7V-SHA-RECEIVER` (a `Path`
+receiver raises AttributeError). `<path>.read_bytes()` is an impure world read `ext_path_read_bytes_op p`
+(fresh per call) raising the OSError family and ValueError; its receiver must be a path name by route
+#599's table, else `PYCSL-R7V-SHA-RECEIVER`. `int(<digest or a [lo:hi] literal slice of one>, 16)` is the
+impure, law-free `ext_int_base_op s 16`, raising ValueError (the model does not know the text is hex), so
+`no_exception \all` over it is refused or fails. The decision is module-wide and all-or-nothing per callee
+string (`hashlib.sha256`, `hexdigest`, the inner `encode` / `<p>.read_bytes`, `int`): one occurrence outside
+the shape keeps the old lowering everywhere. A verified caller owes its callee's raises only through the
+callee's declared `#@ raises E when True` rows (the escaping summary does not cross user functions).
+`<str literal>.join(xs)` over a never-rebound `List[str]` parameter `xs`, over `sorted(xs)` (the law-free
+`ext_sorted_str_op : array string`, nothing claimed) or over a local bound once by a list literal of
+strings is `str_join_arr`. Witnesses (must FAIL) `10081` (fold injectivity; CPython collides "k6404" /
+"k44509"), `10082` (UnicodeEncodeError handler), `10083` (FileNotFoundError handler), `10084` (two reads),
+`10085` (`no_exception \all`), `10088` (sorted is law-free), `10089` / `10090` (`PYCSL-R7V-SHA-RECEIVER`);
+controls (PASS) `10080` (determinism), `10086` (fold range), `10087` (input-reading).
+
 ---
 
 ## 10. Concurrent Model Annotations
