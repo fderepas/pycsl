@@ -2,7 +2,10 @@ from __future__ import annotations
 import hashlib
 import unicodedata
 from typing import Dict, Set
-#@ \trusted reviewer: pycsl-self-annotate
+# lvV (run #7): VERIFIED on the law-free sha-256 model -- the body now READS `s`
+# (`ext_sha256_hexdigest_op (ext_str_encode_utf8_op s)`, `int(<str>, 16)` as
+# `ext_int_base_op`, which may raise ValueError, and `.encode` UnicodeEncodeError), so the
+# input-blind facade recorded below is gone. History:
 # (#49) gen #31 — RE-TRUSTED. `bin/check-emitted-vacuity.py`:
 #     stable_hash  erased=['s'] of ['s']   -- INPUT-BLIND
 # and it is the ORIGINAL member of the erasure family that plane was written for: a

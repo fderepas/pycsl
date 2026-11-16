@@ -92,9 +92,7 @@ def _cache_root(project_root: Path) -> Path:
 
 
 def _sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    h.update(path.read_bytes())
-    return h.hexdigest()
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _cache_key(proof_file: Path, qualnames: List[str],

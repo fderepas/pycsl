@@ -1311,6 +1311,149 @@ class Module6_WhyMLTranspiler(
                 {"exc_type": _e, "condition": None, "ext": _x7_kind}
                 for _e in _x7_raises[_x7_kind]]
             needs["user_exceptions"] = set(needs["user_exceptions"]) | set(_x7_raises[_x7_kind])
+        # lvV (run #7) LAW-FREE SHA-256 DIGEST MODEL, on the lvQ open-world frame above.
+        # `hashlib.sha256(<A>).hexdigest()` with `<A>` = `<str>.encode()` /
+        # `<str>.encode("utf-8")` or `<path>.read_bytes()` is lowered (`_handle_call_expr`)
+        # to `ext_sha256_hexdigest_op <bytes>`, a `val function` of the bytes (`array int`,
+        # the byte-buffer model): DETERMINISTIC (equal bytes, equal digests) and LAW-FREE
+        # (nothing else: distinct inputs are NOT claimed to give distinct digests, nor is
+        # the digest's length or alphabet claimed). `<str>.encode(..)` is
+        # `ext_str_enc_bytes s`, a deterministic, uninterpreted `val function` encoding,
+        # after the impure check `ext_str_encode_check_op s` that RAISES UnicodeEncodeError
+        # (a lone surrogate); `<path>.read_bytes()` is an impure world read
+        # (fresh per call) raising the OSError family and ValueError (an embedded NUL).
+        # `int(<digest or a slice of one>, 16)` is `ext_int_base_op s 16`, impure and
+        # law-free, raising ValueError (the model does not know the text is hex). The raises
+        # ride on the callee registry exactly as lvQ's rows do, keyed by the inner callee
+        # strings (`<p>.read_bytes`, `encode` / `<s>.encode`, `int`). ALL-OR-NOTHING over the
+        # unit: one `hashlib.sha256` / inner-callee / `int` occurrence outside the modelled
+        # shape keeps the old lowering for every occurrence (byte-identical elsewhere).
+        self._x7v_sha_ok = False
+        self._x7v_int16_ok = False
+        _x7v_hl = (any(_i[0] == "hashlib" for _i in _x7_imps)
+                   and all(_i[1] == "hashlib" and _i[2] == "hashlib" and _i[4]
+                           for _i in _x7_imps if _i[0] == "hashlib"))
+        if _x7v_hl and "hashlib" not in _x7_tnames:
+            _x7v_shape = lambda _n: (isinstance(_n, dict) and _n.get("type") == "Call"
+                                     and _n.get("func") == "hexdigest"
+                                     and not _n.get("args") and not _n.get("keywords")
+                                     and isinstance(_n.get("receiver"), dict)
+                                     and _n["receiver"].get("type") == "Call"
+                                     and _n["receiver"].get("func") == "hashlib.sha256")
+            _x7v_inner: Dict[str, List[bool]] = {}
+            _x7v_ikind: Dict[str, str] = {}
+            _x7v_sha: List[bool] = []
+            _x7v_int: List[bool] = []
+            _x7v_hex: List[bool] = []
+            for _x7_f in functions:
+                if _x7_f.get("trusted") or _x7_f.get("abstract"):
+                    continue
+                _x7v_w: List[Any] = [(_x7_f.get("body") or [], None)]
+                _x7v_args: Set[int] = set()
+                while _x7v_w:
+                    _x7v_n, _x7v_par = _x7v_w.pop()
+                    if isinstance(_x7v_n, dict):
+                        _x7v_fn = _x7v_n.get("func")
+                        if _x7v_n.get("type") == "Call" and isinstance(_x7v_fn, str):
+                            if _x7v_fn == "hashlib.sha256":
+                                _a = _x7v_n.get("args") or []
+                                _ok = (_x7v_shape(_x7v_par) and _x7v_par["receiver"] is _x7v_n
+                                       and _x7v_n.get("receiver") is None
+                                       and not _x7v_n.get("keywords") and len(_a) == 1
+                                       and isinstance(_a[0], dict) and _a[0].get("type") == "Call"
+                                       and not _a[0].get("keywords"))
+                                if _ok:
+                                    _af = _a[0].get("func")
+                                    _aa = _a[0].get("args") or []
+                                    _ar = _a[0].get("receiver")
+                                    _hd = (_af.split(".")[0] if isinstance(_af, str)
+                                           and _af.count(".") == 1 else "")
+                                    if (_hd.isidentifier() and _hd not in ("self", "cls")
+                                            and _af.endswith(".read_bytes") and _ar is None
+                                            and not _aa):
+                                        _x7v_ikind[_af] = "read_bytes"
+                                        _x7v_args.add(id(_a[0]))
+                                    elif ((_af == "encode" and _ar is not None)
+                                          or (_af.endswith(".encode") and _ar is None
+                                              and _hd.isidentifier()
+                                              and _hd not in ("self", "cls"))) and (
+                                            not _aa or (len(_aa) == 1
+                                                        and _aa[0] == {"type": "String",
+                                                                       "value": "utf-8"})):
+                                        _x7v_ikind[_af] = "encode"
+                                        _x7v_args.add(id(_a[0]))
+                                    else:
+                                        _ok = False
+                                _x7v_sha.append(bool(_ok))
+                            elif _x7v_fn == "hexdigest":
+                                _x7v_hex.append(bool(_x7v_shape(_x7v_n)))
+                            elif _x7v_fn == "int":
+                                _a = _x7v_n.get("args") or []
+                                _s0 = _a[0] if _a else None
+                                if (isinstance(_s0, dict) and _s0.get("type") == "SliceAccess"
+                                        and isinstance(_s0.get("slice"), dict)
+                                        and _s0["slice"].get("type") == "Slice"
+                                        and _s0["slice"].get("step") is None
+                                        and all(_b is None or (isinstance(_b, dict)
+                                                               and _b.get("type") == "Number"
+                                                               and type(_b.get("value")) is int
+                                                               and _b.get("value") >= 0)
+                                                for _b in (_s0["slice"].get("lower"),
+                                                           _s0["slice"].get("upper")))):
+                                    _s0 = _s0.get("value")
+                                _x7v_int.append(bool(
+                                    len(_a) == 2 and not _x7v_n.get("keywords")
+                                    and _x7v_n.get("receiver") is None and _x7v_shape(_s0)
+                                    and _a[1] == {"type": "Number", "value": 16}))
+                        _x7v_w.extend((_v, _x7v_n) for _v in _x7v_n.values())
+                    elif isinstance(_x7v_n, (list, tuple)):
+                        _x7v_w.extend((_v, _x7v_par) for _v in _x7v_n)
+                # every occurrence of an inner callee string in this body must be a modelled arg
+                _x7v_w = [_x7_f.get("body") or []]
+                while _x7v_w:
+                    _x7v_n = _x7v_w.pop()
+                    if isinstance(_x7v_n, dict):
+                        _x7v_fn = _x7v_n.get("func")
+                        if (_x7v_n.get("type") == "Call" and isinstance(_x7v_fn, str)
+                                and (_x7v_fn in ("encode",) or _x7v_fn.endswith(".encode")
+                                     or _x7v_fn.endswith(".read_bytes"))):
+                            _x7v_inner.setdefault(_x7v_fn, []).append(id(_x7v_n) in _x7v_args)
+                        _x7v_w.extend(_x7v_n.values())
+                    elif isinstance(_x7v_n, (list, tuple)):
+                        _x7v_w.extend(_x7v_n)
+            _x7v_rows = {"read_bytes": _x7_os + ("ValueError",),
+                         "encode": ("UnicodeEncodeError",)}
+            if (_x7v_sha and all(_x7v_sha) and all(_x7v_hex)
+                    and not any(_k in _x7_fnames or self._module_func_raises.get(_k)
+                                for _k in ("hashlib.sha256", "hexdigest"))
+                    and all(all(_x7v_inner.get(_k) or [False]) and _k not in _x7_fnames
+                            and not self._module_func_raises.get(_k) for _k in _x7v_ikind)):
+                self._x7v_sha_ok = True
+                needs["needs_array"] = True
+                for _k in sorted(_x7v_ikind):
+                    _x7_inj[_k] = self._module_func_raises[_k] = [
+                        {"exc_type": _e, "condition": None, "ext": _x7v_ikind[_k]}
+                        for _e in _x7v_rows[_x7v_ikind[_k]]]
+                    needs["user_exceptions"] = (set(needs["user_exceptions"])
+                                                | set(_x7v_rows[_x7v_ikind[_k]]))
+                # the two OUTER calls are `ext` calls too (route #599's per-operation handler
+                # census admits only `ext` calls in a covered `try` body): evaluating them
+                # evaluates their argument, so each carries the inner row -- only when the
+                # unit uses ONE inner kind, so the row is exact (Why3 rejects a `raises`
+                # class a body cannot raise); with both kinds the outer calls stay row-less
+                # and the census REFUSES a handler-dependent claim around them (fail-closed)
+                if len(set(_x7v_ikind.values())) == 1:
+                    _x7v_all = sorted(_x7v_rows[next(iter(_x7v_ikind.values()))])
+                    for _k in ("hashlib.sha256", "hexdigest"):
+                        _x7_inj[_k] = self._module_func_raises[_k] = [
+                            {"exc_type": _e, "condition": None, "ext": "sha256"}
+                            for _e in _x7v_all]
+                if (_x7v_int and all(_x7v_int) and "int" not in _x7_fnames
+                        and not self._module_func_raises.get("int")):
+                    self._x7v_int16_ok = True
+                    _x7_inj["int"] = self._module_func_raises["int"] = [
+                        {"exc_type": "ValueError", "condition": None, "ext": "int16"}]
+                    needs["user_exceptions"] = set(needs["user_exceptions"]) | {"ValueError"}
         # cap-trusted-val-unit-return (run #5, lvF): a `\trusted` `pass`-body stub declared
         # `-> List[..]` / bytes now announces `array ..` (see the CALL-SITE half below), so
         # the array theory must be in scope even when no body uses an array. Set/dict

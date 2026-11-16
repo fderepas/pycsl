@@ -5181,6 +5181,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and (((getattr(self, "_module_func_raises", {}) or {}).get(ir.get("func"))
                       or [{}])[0].get("ext") in ("Path.cwd", "json.dumps"))):
             return True
+        # lvV (run #7): a modelled `hashlib.sha256(..).hexdigest()` is a `string`
+        # (`ext_sha256_hexdigest_op`), as its lowering is.
+        if (t == "Call" and ir.get("func") == "hexdigest" and not ir.get("args")
+                and getattr(self, "_x7v_sha_ok", False)
+                and isinstance(ir.get("receiver"), dict)
+                and ir["receiver"].get("type") == "Call"
+                and ir["receiver"].get("func") == "hashlib.sha256"):
+            return True
         # dict-value-model-r4: a PyVal read NARROWED by a dominating `isinstance(x, str)`
         # (`_emit_body_code`'s pre-pass) lowers to `hstr_of x`: a string.
         if ir.get("_r4_narrow") == "str":
@@ -8775,6 +8783,92 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (its faithful `string` model needs a `seq string` element model — deferred).
         _recv = expr.get("receiver")
         _at = arg_ir.get("type", "")
+        # lvV (run #7): `<str literal>.join(xs)` over a STRING array the source shows is one:
+        #   - `sorted(<p>)`, `p` a `List[str]` parameter (`array string`) never rebound in the
+        #     function: `str_join_arr sep (ext_sorted_str_op p)`, where `ext_sorted_str_op`
+        #     is LAW-FREE (a fresh `array string`, nothing claimed: not the length, not the
+        #     order, not the permutation; `sorted` of a `str` list raises nothing);
+        #   - `<p>` itself, the same never-rebound `List[str]` parameter: `str_join_arr sep p`;
+        #   - a local bound ONCE, by `<n> = [<str>, ..]` (every element `_is_string_expr`),
+        #     and spelled by no other statement: `str_join_arr sep n`.
+        # The join is the existing `str_join_arr` (`String.length result >= 0` only).
+        if (isinstance(_recv, dict) and _recv.get("type") == "String"
+                and not expr.get("keywords") and len(expr.get("args") or []) == 1
+                and isinstance(arg_ir, dict) and not self._in_spec):
+            _fqj7v = getattr(self, "_current_sig_func_name", None)
+            _cfsj7v = [_f for _f in ((getattr(self, "ir", None) or {}).get("functions") or [])
+                       if isinstance(_f, dict) and _f.get("name") == _fqj7v]
+            _cfj7v = _cfsj7v[0] if len(_cfsj7v) == 1 else {}
+            _nj7v = None
+            if (arg_ir.get("type") == "Call" and arg_ir.get("func") == "sorted"
+                    and arg_ir.get("receiver") is None and not arg_ir.get("keywords")
+                    and len(arg_ir.get("args") or []) == 1
+                    and isinstance(arg_ir["args"][0], dict)
+                    and arg_ir["args"][0].get("type") == "Var"):
+                _nj7v = arg_ir["args"][0].get("name")
+                _kj7v = "sorted"
+            elif arg_ir.get("type") == "Var":
+                _nj7v = arg_ir.get("name")
+                _kj7v = "local"
+            if (_cfj7v and isinstance(_nj7v, str)
+                    and _nj7v not in getattr(self, "_seq_locals", set())):
+                _bj7v: List[Any] = []
+                _wj7v: List[Any] = [_cfj7v.get("body") or []]
+                while _wj7v:
+                    _ndj7v = _wj7v.pop()
+                    if isinstance(_ndj7v, dict):
+                        if "stmt" in _ndj7v and any(
+                                _k != "stmt" and (_v == _nj7v or (
+                                    isinstance(_v, list) and _nj7v in _v))
+                                for _k, _v in _ndj7v.items()):
+                            _bj7v.append(_ndj7v)
+                        # a method call ON the name (`xs.append(..)`, `xs.sort()`) may
+                        # mutate it (and promotes a local to a `seq`): not admitted
+                        if (_ndj7v.get("type") == "Call"
+                                and isinstance(_ndj7v.get("func"), str)
+                                and _ndj7v["func"].startswith(_nj7v + ".")):
+                            _bj7v.extend([_ndj7v, _ndj7v])
+                        _wj7v.extend(_ndj7v.values())
+                    elif isinstance(_ndj7v, (list, tuple)):
+                        _wj7v.extend(_ndj7v)
+                _sepj7v = self._expr_to_whyml(_recv, local_refs or set(), invariant_ctx, subst)
+                if (_kj7v == "sorted" and not _bj7v
+                        and _nj7v in (_cfj7v.get("formal_params") or [])
+                        and (_cfj7v.get("param_annotations") or {}).get(_nj7v) == "list"
+                        and (_cfj7v.get("param_list_elem_types") or {}).get(_nj7v) == "string"):
+                    self._add_abstract_op(
+                        "val ext_sorted_str_op (a: array string) : array string")
+                    self._add_abstract_op(
+                        "val str_join_arr (sep: string) (xs: array string) : string\n"
+                        "    ensures { String.length result >= 0 }")
+                    _pj7v = self._expr_to_whyml(arg_ir["args"][0], local_refs or set(),
+                                                invariant_ctx, subst)
+                    return f"(str_join_arr {_sepj7v} (ext_sorted_str_op {_pj7v}))"
+                if (_kj7v == "local" and not _bj7v
+                        and _nj7v in (_cfj7v.get("formal_params") or [])
+                        and (_cfj7v.get("param_annotations") or {}).get(_nj7v) == "list"
+                        and (_cfj7v.get("param_list_elem_types") or {}).get(_nj7v) == "string"):
+                    self._add_abstract_op(
+                        "val str_join_arr (sep: string) (xs: array string) : string\n"
+                        "    ensures { String.length result >= 0 }")
+                    return f"(str_join_arr {_sepj7v} {args[0]})"
+                if (_kj7v == "local" and len(_bj7v) == 1
+                        and _nj7v not in (_cfj7v.get("formal_params") or [])
+                        and _bj7v[0].get("stmt") == "Assign"
+                        and _bj7v[0].get("target") == _nj7v
+                        and isinstance(_bj7v[0].get("value"), dict)
+                        and _bj7v[0]["value"].get("type") == "ArrayLit"
+                        and _bj7v[0]["value"].get("elts")
+                        and all(isinstance(_e, dict) and (
+                                    self._is_string_expr(_e)
+                                    or (_e.get("type") == "Call" and _e.get("func") == "join"
+                                        and isinstance(_e.get("receiver"), dict)
+                                        and _e["receiver"].get("type") == "String"))
+                                for _e in _bj7v[0]["value"]["elts"])):
+                    self._add_abstract_op(
+                        "val str_join_arr (sep: string) (xs: array string) : string\n"
+                        "    ensures { String.length result >= 0 }")
+                    return f"(str_join_arr {_sepj7v} {args[0]})"
         if _recv is not None and _at in ("ArrayLit", "ListLit", "Tuple"):
             _elts = arg_ir.get("elts", [])
             if _elts and all(self._is_string_expr(e) for e in _elts):
@@ -11342,6 +11436,106 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         func_name = expr["func"]
+        # lvV (run #7) LAW-FREE SHA-256 DIGEST MODEL (`transpile` decides it module-wide and
+        # registers the raises): `hashlib.sha256(<bytes>).hexdigest()` is the deterministic,
+        # law-free `val function ext_sha256_hexdigest_op` of the bytes (`array int`);
+        # `<str>.encode([ "utf-8" ])` is the deterministic `val function ext_str_enc_bytes`,
+        # after the impure check `ext_str_encode_check_op` (raises UnicodeEncodeError); `<path>.read_bytes()` is the impure world read
+        # `ext_path_read_bytes_op` (raises the OSError family, ValueError); `int(<digest
+        # [slice]>, 16)` is the impure, law-free `ext_int_base_op` (raises ValueError). A
+        # receiver the model cannot type is REFUSED, never lowered to the old opaque op.
+        if (isinstance(func_name, str) and not self._in_spec and not invariant_ctx
+                and getattr(self, "_x7v_sha_ok", False)):
+            from module6_whyml.identifiers import safe_exc_name as _sen7v
+            _r7v = getattr(self, "_module_func_raises", {}) or {}
+            if (func_name == "int" and getattr(self, "_x7v_int16_ok", False)
+                    and len(expr.get("args") or []) == 2):
+                _s7v = self._expr_to_whyml(expr["args"][0], local_refs, invariant_ctx, subst)
+                _x7vr = ", ".join(sorted({_sen7v(_e["exc_type"]) for _e in _r7v.get("int", [])}))
+                self._add_abstract_op(
+                    f"val ext_int_base_op (s: string) (base: int) : int raises {{ {_x7vr} }}")
+                return f"(ext_int_base_op {_s7v} 16)"
+            if (func_name == "hexdigest" and isinstance(expr.get("receiver"), dict)
+                    and expr["receiver"].get("type") == "Call"
+                    and expr["receiver"].get("func") == "hashlib.sha256"):
+                _a7v = expr["receiver"]["args"][0]
+                _f7v = _a7v["func"]
+                _x7vr = ", ".join(sorted({_sen7v(_e["exc_type"]) for _e in _r7v.get(_f7v, [])}))
+                _fq7v = getattr(self, "_current_sig_func_name", None)
+                _pn7v = (getattr(self, "path_names_r599", None) or {}).get(_fq7v)
+                self._add_abstract_op(
+                    "val function ext_sha256_hexdigest_op (b: array int) : string")
+                if _f7v.endswith(".read_bytes"):
+                    _p7v = _f7v.split(".")[0]
+                    if not (isinstance(_pn7v, set) and _p7v in _pn7v):
+                        raise PyCSLIRError(
+                            f"PYCSL-R7V-SHA-RECEIVER: `{_f7v}()` is modelled as "
+                            f"`pathlib.Path.read_bytes` (inside `hashlib.sha256(..).hexdigest()`), "
+                            f"but the source does not show that `{_p7v}` is a `pathlib.Path` "
+                            f"(a `str` receiver raises AttributeError in CPython, which the "
+                            f"model does not raise). Annotate it as `Path`, or bind it only "
+                            f"from `Path(..)` / `<Path> / <str>`.",
+                            stage="module6-call", code="PYCSL-R7V-SHA-RECEIVER")
+                    _pw7v = self._expr_to_whyml({"type": "Var", "name": _p7v},
+                                                local_refs, invariant_ctx, subst)
+                    self._add_abstract_op(
+                        f"val ext_path_read_bytes_op (p: string) : array int "
+                        f"raises {{ {_x7vr} }}")
+                    return f"(ext_sha256_hexdigest_op (ext_path_read_bytes_op {_pw7v}))"
+                # `<str>.encode(..)`: the receiver must be POSITIVELY a `str` (a `Path` /
+                # bytes receiver raises AttributeError in CPython): a `str`-annotated
+                # parameter that is never rebound and is not a path name, or a
+                # `<str literal>.join(..)` call (CPython returns a `str` or raises inside).
+                _rv7v = (_a7v.get("receiver") if _f7v == "encode"
+                         else {"type": "Var", "name": _f7v.split(".")[0]})
+                _ok7v = False
+                if isinstance(_rv7v, dict) and _rv7v.get("type") == "Var":
+                    _n7v = _rv7v.get("name")
+                    # the function being emitted, by its IR name (fail-closed: none or several
+                    # -> refused); a REBINDING is any statement field spelling the name
+                    _cfs7v = [_f for _f in ((getattr(self, "ir", None) or {}).get("functions")
+                                            or []) if isinstance(_f, dict)
+                              and _f.get("name") == _fq7v]
+                    _cf7v = _cfs7v[0] if len(_cfs7v) == 1 else {}
+                    _rb7v = not _cf7v
+                    _wl7v: List[Any] = [_cf7v.get("body") or []]
+                    while _wl7v and not _rb7v:
+                        _nd7v = _wl7v.pop()
+                        if isinstance(_nd7v, dict):
+                            if "stmt" in _nd7v:
+                                _rb7v = any(_k != "stmt" and (_v == _n7v or (
+                                    isinstance(_v, list) and _n7v in _v))
+                                    for _k, _v in _nd7v.items())
+                            _wl7v.extend(_nd7v.values())
+                        elif isinstance(_nd7v, (list, tuple)):
+                            _wl7v.extend(_nd7v)
+                    _ok7v = (_n7v in (_cf7v.get("formal_params") or [])
+                             and (_cf7v.get("param_annotations") or {}).get(_n7v) == "str"
+                             and not (isinstance(_pn7v, set) and _n7v in _pn7v)
+                             and not _rb7v)
+                elif (isinstance(_rv7v, dict) and _rv7v.get("type") == "Call"
+                      and _rv7v.get("func") == "join"
+                      and isinstance(_rv7v.get("receiver"), dict)
+                      and _rv7v["receiver"].get("type") == "String"):
+                    _ok7v = True
+                if not _ok7v:
+                    raise PyCSLIRError(
+                        "PYCSL-R7V-SHA-RECEIVER: the receiver of `.encode(..)` inside "
+                        "`hashlib.sha256(..).hexdigest()` is not positively a `str` here (a "
+                        "`Path` / `bytes` receiver raises AttributeError in CPython, which "
+                        "the model does not raise). Admitted: a `str`-annotated parameter "
+                        "that is never rebound, or `<str literal>.join(..)`.",
+                        stage="module6-call", code="PYCSL-R7V-SHA-RECEIVER")
+                _sw7v = self._expr_to_whyml(_rv7v, local_refs, invariant_ctx, subst)
+                # the encoding is a deterministic `val function` of the string; whether
+                # it RAISES is a separate impure, law-free check (a pinned raising `val`
+                # would make the caller a `let function`, which cannot raise)
+                self._add_abstract_op(
+                    "val function ext_str_enc_bytes (s: string) : array int")
+                self._add_abstract_op(
+                    f"val ext_str_encode_check_op (s: string) : unit raises {{ {_x7vr} }}")
+                return (f"(let _x7v_e = {_sw7v} in ext_str_encode_check_op _x7v_e; "
+                        f"ext_sha256_hexdigest_op (ext_str_enc_bytes _x7v_e))")
         # (#49) ROUTES #435 / #436 -- two call sites whose CPython TypeError / OverflowError had
         # no obligation, under `\all` only (TypeError and OverflowError are not Phase 1;
         # route #332's rule, as #417 / #426). MEASURED PROVED at 78b519f63 (red team 34):
