@@ -6646,6 +6646,34 @@ route #174's handler-reachability rule, and a same-file callee doing the read by
 `with suppress(IndexError)` by route #257; u46 probes q07 / q04 / q08 -- the first now reports R609.)
 Measurements: `getting-better/open-routes/route609-pyval-index-handler-dead-via-171.md`.
 
+### 7.610 A modelled module call whose head name is shadowed is refused (route #610, run #7)
+
+lvQ / lvU / lvV model `<mod>.<f>(..)` by its CALLEE STRING, which Module 5 builds from the spelling, so a parameter /
+local named like the module gives the same string: `def same(hashlib: K, s): return hashlib.sha256(..).hexdigest() ==
+hashlib.sha256(..).hexdigest()` with a counter-based user `K.sha256` PROVED `\result == True` (lvV's deterministic
+digest), CPython False; `def where(shutil: W, cmd): return shutil.which(cmd)` dropped `W.which`'s effect (lvU);
+`os.access` / `json.dumps` on an `os` / `json` parameter or local likewise (red team rt61 M1; the `os` / `json` shapes
+PRE-EXISTING at L12). RULE (`PYCSL-R610-EXT-MODULE-NAME-SHADOWED`, every non-`\trusted` function): a modelled family
+call -- `subprocess.run`, `Path.cwd`, `json.dumps` (also the import-path rewritten `dumps`), `argparse.ArgumentParser`,
+`os.access`, `shutil.which`, `hashlib.sha256(..)` of the digest model and `int(.., 16)` of the digest model --
+takes the model ONLY when its head name resolves to the module import (`import <mod>`, `from pathlib import
+Path`; the builtin for `int`) and is bound NOWHERE in the
+enclosing function (parameter, assignment / annotated / augmented target, for / with / except / walrus /
+comprehension / match target, `del`, `global` / `nonlocal`, nested def / class / lambda parameter, function-local
+import) and not rebound at module level (any other binding, a `global <name>` in any function, a star import); a
+function the source table does not name is shadowed (fail-closed). Otherwise the file is REFUSED, never lowered to
+the old opaque op. The table is computed from the source in `pycsl.py::_run_pipeline`; the guards sit at lvQ / lvU's
+callee-registry walk and lvV's digest walk in `Module6_WhyMLTranspiler.transpile` (twin `\trusted`). A
+shadowed BUILTIN (`sorted` of lvV's `"<sep>".join(sorted(xs))`, `int`) is already refused before Module 6 by the
+rebound-name rule ("a name's runtime value is not the one the model reads", route #386): measured for a `sorted`
+parameter, walrus / for target, local import, module-level assignment, nested-class method and `if`-nested def
+(u47 probes s1-s9; s7 `global sorted` by the global-store rule), so no Module 6 guard is added there. Advice: rename the binding (`os_obj`) so that the
+module name names only the module (advice file `a610_rename_binding`). Witnesses `10100`-`10113` (expected FAIL,
+refused in the default / typed / store models); controls `10115`-`10118` (a genuine module call keeps its model; a
+parameter named `os` used as a plain object next to a genuine `os.access` in another function is fine; a genuine
+`sorted` in the join model keeps its model).
+Measurements: `getting-better/open-routes/route610-ext-module-name-shadowing.md`.
+
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
 A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /
@@ -7265,6 +7293,81 @@ claim on the value); control (PASS) `10010`.
 accumulator builds (Module 5's declared native tuple type), and the tail return `return x, ..` passes
 that seq local as-is (Module 6 `_stmts_to_whyml`); a value of another element type there is a Why3
 type error. Witnesses (must FAIL) `10021`, `10022`; control (PASS) `10020`.
+
+### 7.324 A None-default dict parameter's `x or {}` is the map; `list(<generator-as-seq call>)` is a fresh copy; `os.access` / `shutil.which` are law-free world queries (lvU, run #7)
+
+(1) NONE-DEFAULT MAP `or {}`. In a function body, `x or {}` (also `x or dict()`) where `x` is a
+parameter of the function declared `Optional[Dict[K, V]] = None` and lowered as a bare `map K (option
+V)` (run #6 cap-none-default-map-param) is the map `x` itself (Module 6 `_handle_binop`). Under that
+model the parameter is always a map: an OMITTED argument fills `pycsl_none_map`, which route #592
+refuses at the call site of every verified callee (§7.592), and an explicit `None` argument is the
+opaque int `pycsl_none`, a Why3 type error against the map (fail-closed). For a dict `x`, CPython's
+`x or {}` is `x` when `x` is non-empty and a fresh `{}` when it is empty: in both cases a dict EQUAL to
+`x`. The two differ only in identity when `x` is empty, observable only through a caller-visible
+mutation, so the arm is closed for a parameter in the function's caller-visible mutated-collection
+set (`writes {x}`), and a method's in-place write to a dict parameter is refused as before
+(PYCSL-WHYML-PARAM-COLLECTION-MUT). Any other shape keeps the old lowering (an int `or` over the map,
+an L3-tc failure). Witnesses (must FAIL) `10051` (a value claim), `10052` (a membership claim),
+`10053` (omitted argument: an int fill, L3-tc; a `pycsl_none_map` fill is route #592's), `10054`
+(explicit `None`, L3-tc), `10055` / `10056` (a standalone / method mutation after the rebinding:
+PYCSL-WHYML-PARAM-COLLECTION-MUT); control (PASS) `10050`.
+
+(2) `list(<generator-as-seq call>)`. `list(g(..))`, where `g` is a module-level generator the
+generator-as-seq pre-pass (§7.323 (1)) lowered to the list of its yields, is `Array.copy` of the array
+the call returns: CPython drains the generator into a NEW list holding exactly those yields
+(`_call_named_builtins`; the set of rewritten names is handed from `_run_pipeline` to Module 6). One
+positional argument, a plain call, no keywords, body context only. Witnesses (must FAIL) `10061`
+(false length), `10062` (two copies are distinct lists; refused today: `.append` on the copy is
+outside the fragment), `10063` (IndexError past the yields);
+control (PASS) `10060`.
+
+(3) `os.access` / `shutil.which` (lvQ open-world model, §5 of
+`getting-better/run7-lvQ-external-model.md`, extended). With `import os` / `import shutil` (plain
+module imports, all occurrences of the callee in the module of the modelled shape, the decision
+module-wide as for lvQ's callees):
+- `os.access(<str path>, <mode>)` is `val ext_os_access_op (path: string) (mode: int) : int raises {
+  UnicodeEncodeError, ValueError }`: impure, law-free (a fresh answer per call, only its truthiness is
+  observed by a test), raising what CPython 3.14 raises for a `str` path (ValueError on an embedded
+  NUL, UnicodeEncodeError on an unencodable one; every OS failure is the answer False). A path not
+  typed `str` is refused (`PYCSL-R7U-EXT-ACCESS-PATH`).
+- `return shutil.which(<str>)` in a function declared `-> Optional[str]` is a law-free `val` whose
+  value is ANY element of that function's `str | None` union, raising the OSError family
+  (`os.confstr("CS_PATH")` when PATH is unset; every probe failure is swallowed by
+  `os.path.exists`). Elsewhere (not the returned value) the old lowering stays; a returning function
+  of another type is refused (`PYCSL-R7U-EXT-WHICH-SHAPE`).
+Under a `no_exception` claim, and in a `try` body with an `except ValueError` arm, the route #161
+callee census still refuses both queries (as it refuses lvQ's callees), so a raise of the model is
+never discharged by assumption. Witnesses (must FAIL) `10071` (a world fact), `10072` (two calls
+agree), `10073` (`no_exception \all` vs ValueError: refused), `10074` (the ValueError handler:
+refused), `10075` (`no_exception \all` vs OSError: refused), `10076` (an `-> Optional[int]`
+returner), `10077` (an int path); control (PASS) `10070`.
+
+### 7.324 A SHA-256 hex digest is a law-free function of its bytes; `int(<digest>, 16)` and `sorted(List[str])` are law-free (lvV, run #7)
+
+On lvQ's open-world external-effect frame (its `ext` callee-registry rows), `hashlib.sha256(<A>).hexdigest()` (module `import hashlib`,
+not rebound) with `<A>` one of `<str>.encode()` / `<str>.encode("utf-8")` / `<path>.read_bytes()` lowers to
+`ext_sha256_hexdigest_op <bytes>`, a `val function` of the bytes (`array int`): DETERMINISTIC (equal bytes
+give equal digests) and LAW-FREE (distinct inputs are NOT claimed to give distinct digests; neither the
+length nor the alphabet of the digest is claimed). `<str>.encode(..)` is the deterministic `val function
+ext_str_enc_bytes s` after the impure, law-free check `ext_str_encode_check_op s`, which RAISES
+UnicodeEncodeError (a lone surrogate); the receiver must POSITIVELY be a `str` (a `str`-annotated parameter
+never rebound and not a path name, or `<str literal>.join(..)`), else `PYCSL-R7V-SHA-RECEIVER` (a `Path`
+receiver raises AttributeError). `<path>.read_bytes()` is an impure world read `ext_path_read_bytes_op p`
+(fresh per call) raising the OSError family and ValueError; its receiver must be a path name by route
+#599's table, else `PYCSL-R7V-SHA-RECEIVER`. `int(<digest or a [lo:hi] literal slice of one>, 16)` is the
+impure, law-free `ext_int_base_op s 16`, raising ValueError (the model does not know the text is hex), so
+`no_exception \all` over it is refused or fails. The decision is module-wide and all-or-nothing per callee
+string (`hashlib.sha256`, `hexdigest`, the inner `encode` / `<p>.read_bytes`, `int`): one occurrence outside
+the shape keeps the old lowering everywhere. The escaping summary does not cross user functions, so a
+VERIFIED top-level function of the unit (no declared `raises`) through which one of these classes escapes is
+registered with plain (non-`ext`) rows of those classes, to a fixpoint, and its same-file callers owe them
+(`_cache_key` -> `_sha256_file`); an importer reads the callee's `val` from its contract, unchanged.
+`<str literal>.join(xs)` over a never-rebound `List[str]` parameter `xs`, over `sorted(xs)` (the law-free
+`ext_sorted_str_op : array string`, nothing claimed) or over a local bound once by a list literal of
+strings is `str_join_arr`. Witnesses (must FAIL) `10081` (fold injectivity; CPython collides "k6404" /
+"k44509"), `10082` (UnicodeEncodeError handler), `10083` (FileNotFoundError handler), `10084` (two reads),
+`10085` (`no_exception \all`), `10088` (sorted is law-free), `10089` / `10090` (`PYCSL-R7V-SHA-RECEIVER`);
+controls (PASS) `10080` (determinism), `10086` (fold range), `10087` (input-reading).
 
 ---
 

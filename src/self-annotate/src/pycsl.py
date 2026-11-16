@@ -6,6 +6,7 @@ from frontend import pure_ast as _ast  # dependency import-discovery parses via 
 import hashlib
 import json as _json
 import os
+import shutil
 import sys
 import subprocess
 import tempfile
@@ -122,7 +123,6 @@ def _sha256_file(path: str) -> str:
     return h.hexdigest()
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -131,8 +131,7 @@ def _find_coqc() -> Optional[str]:
     opam_coqc = os.path.expanduser("~/.opam/default/bin/coqc")
     if os.path.isfile(opam_coqc) and os.access(opam_coqc, os.X_OK):
         return opam_coqc
-    import shutil as _sh
-    return _sh.which("coqc")
+    return shutil.which("coqc")
 
 
 #@ requires True

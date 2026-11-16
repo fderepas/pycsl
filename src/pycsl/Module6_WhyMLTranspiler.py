@@ -1138,13 +1138,20 @@ class Module6_WhyMLTranspiler(
             "add_argument": ("ArgumentError", "TypeError", "ValueError"),
             "add_argument_group": ("TypeError", "ValueError"),
             "parse_args": _x7_os + ("SystemExit", "UnicodeEncodeError"),
+            # (run #7) lvU, two law-free WORLD QUERIES: `os.access(<str>, <mode>)` raises
+            # ValueError on an embedded NUL and UnicodeEncodeError on an unencodable path
+            # (measured, CPython 3.14; every OS failure is the answer False, never a raise);
+            # `shutil.which(<str>)` reads PATH (or `os.confstr("CS_PATH")`, which raises the
+            # errno's OSError) and swallows every probe failure (`os.path.exists`).
+            "os.access": ("UnicodeEncodeError", "ValueError"),
+            "shutil.which": _x7_os,
         }
         _x7_imps = [_i for _i in (self.ir.get("imports") or [])
                     if isinstance(_i, (list, tuple)) and len(_i) >= 5]
         _x7_mod = {_m: (any(_i[0] == _m for _i in _x7_imps)
                         and all(_i[1] == _m and _i[2] == _m and _i[4]
                                 for _i in _x7_imps if _i[0] == _m))
-                   for _m in ("subprocess", "json", "argparse")}
+                   for _m in ("subprocess", "json", "argparse", "os", "shutil")}
         _x7_mod["Path"] = (any(_i[0] == "Path" for _i in _x7_imps)
                            and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[4]
                                    for _i in _x7_imps if _i[0] == "Path"))
@@ -1201,6 +1208,38 @@ class Module6_WhyMLTranspiler(
                         _x7_ok = len(_x7_k) == len(_x7_kw) and _x7_n.get("receiver") is None
                         _x7_bool = all(isinstance(_v, dict) and _v.get("type") == "Bool"
                                        and set(_v) == {"type", "value"} for _v in _x7_k.values())
+                        # ROUTE #610 (run #7, rt61 M1): a modelled MODULE call is the module's
+                        # function only when its head names the module import: not bound
+                        # anywhere in this function, not rebound at module level (pycsl.py's
+                        # source table; absent -> shadowed, fail-closed). Otherwise the call
+                        # may be a USER OBJECT's method (`def f(os: C): os.access(..)`), whose
+                        # effects the law-free model drops: REFUSED, never the old lowering.
+                        _x7s_h = ("json" if (_x7_fn == "dumps" and _x7_jstub)
+                                  else _x7_fn.split(".")[0])
+                        _x7s_tab = getattr(self, "shadow_r610", None)
+                        if ((_x7_fn in ("subprocess.run", "Path.cwd", "json.dumps", "os.access",
+                                        "shutil.which", "argparse.ArgumentParser")
+                             or (_x7_fn == "dumps" and _x7_jstub))
+                                and _x7_mod[_x7s_h]
+                                and (not isinstance(_x7s_tab, dict)
+                                     or _x7_f.get("name") not in _x7s_tab
+                                     or _x7s_h in _x7s_tab[_x7_f.get("name")]
+                                     or _x7s_h in (getattr(self, "shadow_mod_r610", None)
+                                                   or set()))):
+                            from errors import PyCSLIRError as _E610
+                            raise _E610(
+                                f"PYCSL-R610-EXT-MODULE-NAME-SHADOWED: in function "
+                                f"'{_x7_f.get('name')}', `{_x7_fn}(..)` is modelled as the "
+                                f"function of the imported module `{_x7s_h}`, but the name "
+                                f"`{_x7s_h}` is also bound in this function (a parameter, a "
+                                f"local, a for / with / except / walrus / comprehension target, "
+                                f"`global` / `nonlocal`, a nested def / class, an import inside "
+                                f"the function) or rebound at module level after the import, so "
+                                f"in Python the call may be a method of another object, whose "
+                                f"effects and results the module model would drop (route #610). "
+                                f"Rename that binding (e.g. `{_x7s_h}_obj`) so that `{_x7s_h}` "
+                                f"names only the module.",
+                                stage="module6-call", code="PYCSL-R610-EXT-MODULE-NAME-SHADOWED")
                         if _x7_fn == "subprocess.run" and _x7_mod["subprocess"]:
                             _x7_kind = "subprocess.run"
                             _x7_ok = (_x7_ok and len(_x7_a) == 1 and isinstance(_x7_a[0], dict)
@@ -1234,6 +1273,19 @@ class Module6_WhyMLTranspiler(
                                       and all(isinstance(_v, dict) and _v.get("type") == "Number"
                                               and type(_v.get("value")) is int
                                               for _v in _x7_k.values()))
+                        elif _x7_fn == "os.access" and _x7_mod["os"]:
+                            # a world query of a path and a mode: two positional arguments
+                            _x7_kind = "os.access"
+                            _x7_ok = _x7_ok and len(_x7_a) == 2 and not _x7_k
+                        elif (_x7_fn == "shutil.which" and _x7_mod["shutil"]
+                                and "shutil" not in _x7_tnames):
+                            # `shutil.which(<cmd>)`, the RETURNED value of an `-> Optional[str]`
+                            # function (the lowering types it as that function's union)
+                            _x7_kind = "shutil.which"
+                            _x7_ok = (_x7_ok and len(_x7_a) == 1 and not _x7_k
+                                      and isinstance(_x7_par, dict)
+                                      and _x7_par.get("stmt") == "Return"
+                                      and _x7_par.get("value") is _x7_n)
                         elif (_x7_fn == "argparse.ArgumentParser" and _x7_mod["argparse"]
                                 and not _x7_argerr):
                             _x7_kind = "argparse.ArgumentParser"
@@ -1291,6 +1343,214 @@ class Module6_WhyMLTranspiler(
                 {"exc_type": _e, "condition": None, "ext": _x7_kind}
                 for _e in _x7_raises[_x7_kind]]
             needs["user_exceptions"] = set(needs["user_exceptions"]) | set(_x7_raises[_x7_kind])
+        # lvV (run #7) LAW-FREE SHA-256 DIGEST MODEL, on the lvQ open-world frame above.
+        # `hashlib.sha256(<A>).hexdigest()` with `<A>` = `<str>.encode()` /
+        # `<str>.encode("utf-8")` or `<path>.read_bytes()` is lowered (`_handle_call_expr`)
+        # to `ext_sha256_hexdigest_op <bytes>`, a `val function` of the bytes (`array int`,
+        # the byte-buffer model): DETERMINISTIC (equal bytes, equal digests) and LAW-FREE
+        # (nothing else: distinct inputs are NOT claimed to give distinct digests, nor is
+        # the digest's length or alphabet claimed). `<str>.encode(..)` is
+        # `ext_str_enc_bytes s`, a deterministic, uninterpreted `val function` encoding,
+        # after the impure check `ext_str_encode_check_op s` that RAISES UnicodeEncodeError
+        # (a lone surrogate); `<path>.read_bytes()` is an impure world read
+        # (fresh per call) raising the OSError family and ValueError (an embedded NUL).
+        # `int(<digest or a slice of one>, 16)` is `ext_int_base_op s 16`, impure and
+        # law-free, raising ValueError (the model does not know the text is hex). The raises
+        # ride on the callee registry exactly as lvQ's rows do, keyed by the inner callee
+        # strings (`<p>.read_bytes`, `encode` / `<s>.encode`, `int`). ALL-OR-NOTHING over the
+        # unit: one `hashlib.sha256` / inner-callee / `int` occurrence outside the modelled
+        # shape keeps the old lowering for every occurrence (byte-identical elsewhere).
+        _x7v_hl = (any(_i[0] == "hashlib" for _i in _x7_imps)
+                   and all(_i[1] == "hashlib" and _i[2] == "hashlib" and _i[4]
+                           for _i in _x7_imps if _i[0] == "hashlib"))
+        if _x7v_hl and "hashlib" not in _x7_tnames:
+            _x7v_shape = lambda _n: (isinstance(_n, dict) and _n.get("type") == "Call"
+                                     and _n.get("func") == "hexdigest"
+                                     and not _n.get("args") and not _n.get("keywords")
+                                     and isinstance(_n.get("receiver"), dict)
+                                     and _n["receiver"].get("type") == "Call"
+                                     and _n["receiver"].get("func") == "hashlib.sha256")
+            _x7v_inner: Dict[str, List[bool]] = {}
+            _x7v_ikind: Dict[str, str] = {}
+            _x7v_sha: List[bool] = []
+            _x7v_int: List[bool] = []
+            _x7v_hex: List[bool] = []
+            for _x7_f in functions:
+                if _x7_f.get("trusted") or _x7_f.get("abstract"):
+                    continue
+                _x7v_w: List[Any] = [(_x7_f.get("body") or [], None)]
+                _x7v_args: Set[int] = set()
+                while _x7v_w:
+                    _x7v_n, _x7v_par = _x7v_w.pop()
+                    if isinstance(_x7v_n, dict):
+                        _x7v_fn = _x7v_n.get("func")
+                        if _x7v_n.get("type") == "Call" and isinstance(_x7v_fn, str):
+                            # ROUTE #610: `hashlib.sha256` names the MODULE only when `hashlib`
+                            # is bound nowhere in this function and not rebound at module
+                            # level; `int(.., 16)` is the BUILTIN only when `int` is bound
+                            # nowhere (pycsl.py's source table; absent -> shadowed). Else
+                            # REFUSED: a user `sha256` / `int` would be lowered deterministic.
+                            _x7s_h = ("hashlib" if _x7v_fn == "hashlib.sha256" else
+                                      "int" if (_x7v_fn == "int"
+                                                and len(_x7v_n.get("args") or []) == 2
+                                                and (_x7v_n.get("args") or [])[1]
+                                                == {"type": "Number", "value": 16})
+                                      else None)
+                            _x7s_tab = getattr(self, "shadow_r610", None)
+                            if _x7s_h is not None and (
+                                    not isinstance(_x7s_tab, dict)
+                                    or _x7_f.get("name") not in _x7s_tab
+                                    or _x7s_h in _x7s_tab[_x7_f.get("name")]
+                                    or _x7s_h in (getattr(self, "shadow_mod_r610", None)
+                                                  or set())):
+                                from errors import PyCSLIRError as _E610
+                                raise _E610(
+                                    f"PYCSL-R610-EXT-MODULE-NAME-SHADOWED: in function "
+                                    f"'{_x7_f.get('name')}', `{_x7v_fn}(..)` is modelled as "
+                                    + ("the function of the imported module `hashlib`"
+                                       if _x7s_h == "hashlib" else "the builtin `int`")
+                                    + f" (the law-free sha-256 digest model), but the name "
+                                    f"`{_x7s_h}` is also bound in this function (a parameter, "
+                                    f"a local, a for / with / except / walrus / comprehension "
+                                    f"target, `global` / `nonlocal`, a nested def / class, an "
+                                    f"import inside the function) or rebound at module level, "
+                                    f"so in Python the call may be another object's method, "
+                                    f"whose effects and non-determinism the model would drop "
+                                    f"(route #610). Rename that binding (e.g. "
+                                    f"`{_x7s_h}_obj`) so that `{_x7s_h}` names only the "
+                                    + ("module." if _x7s_h == "hashlib" else "builtin."),
+                                    stage="module6-call",
+                                    code="PYCSL-R610-EXT-MODULE-NAME-SHADOWED")
+                            if _x7v_fn == "hashlib.sha256":
+                                _a = _x7v_n.get("args") or []
+                                _ok = (_x7v_shape(_x7v_par) and _x7v_par["receiver"] is _x7v_n
+                                       and _x7v_n.get("receiver") is None
+                                       and not _x7v_n.get("keywords") and len(_a) == 1
+                                       and isinstance(_a[0], dict) and _a[0].get("type") == "Call"
+                                       and not _a[0].get("keywords"))
+                                if _ok:
+                                    _af = _a[0].get("func")
+                                    _aa = _a[0].get("args") or []
+                                    _ar = _a[0].get("receiver")
+                                    _hd = (_af.split(".")[0] if isinstance(_af, str)
+                                           and _af.count(".") == 1 else "")
+                                    if (_hd.isidentifier() and _hd not in ("self", "cls")
+                                            and _af.endswith(".read_bytes") and _ar is None
+                                            and not _aa):
+                                        _x7v_ikind[_af] = "read_bytes"
+                                        _x7v_args.add(id(_a[0]))
+                                    elif ((_af == "encode" and _ar is not None)
+                                          or (_af.endswith(".encode") and _ar is None
+                                              and _hd.isidentifier()
+                                              and _hd not in ("self", "cls"))) and (
+                                            not _aa or (len(_aa) == 1
+                                                        and _aa[0] == {"type": "String",
+                                                                       "value": "utf-8"})):
+                                        _x7v_ikind[_af] = "encode"
+                                        _x7v_args.add(id(_a[0]))
+                                    else:
+                                        _ok = False
+                                _x7v_sha.append(bool(_ok))
+                            elif _x7v_fn == "hexdigest":
+                                _x7v_hex.append(bool(_x7v_shape(_x7v_n)))
+                            elif _x7v_fn == "int":
+                                _a = _x7v_n.get("args") or []
+                                _s0 = _a[0] if _a else None
+                                if (isinstance(_s0, dict) and _s0.get("type") == "SliceAccess"
+                                        and isinstance(_s0.get("slice"), dict)
+                                        and _s0["slice"].get("type") == "Slice"
+                                        and _s0["slice"].get("step") is None
+                                        and all(_b is None or (isinstance(_b, dict)
+                                                               and _b.get("type") == "Number"
+                                                               and type(_b.get("value")) is int
+                                                               and _b.get("value") >= 0)
+                                                for _b in (_s0["slice"].get("lower"),
+                                                           _s0["slice"].get("upper")))):
+                                    _s0 = _s0.get("value")
+                                _x7v_int.append(bool(
+                                    len(_a) == 2 and not _x7v_n.get("keywords")
+                                    and _x7v_n.get("receiver") is None and _x7v_shape(_s0)
+                                    and _a[1] == {"type": "Number", "value": 16}))
+                        _x7v_w.extend((_v, _x7v_n) for _v in _x7v_n.values())
+                    elif isinstance(_x7v_n, (list, tuple)):
+                        _x7v_w.extend((_v, _x7v_par) for _v in _x7v_n)
+                # every occurrence of an inner callee string in this body must be a modelled arg
+                _x7v_w = [_x7_f.get("body") or []]
+                while _x7v_w:
+                    _x7v_n = _x7v_w.pop()
+                    if isinstance(_x7v_n, dict):
+                        _x7v_fn = _x7v_n.get("func")
+                        if (_x7v_n.get("type") == "Call" and isinstance(_x7v_fn, str)
+                                and (_x7v_fn in ("encode",) or _x7v_fn.endswith(".encode")
+                                     or _x7v_fn.endswith(".read_bytes"))):
+                            _x7v_inner.setdefault(_x7v_fn, []).append(id(_x7v_n) in _x7v_args)
+                        _x7v_w.extend(_x7v_n.values())
+                    elif isinstance(_x7v_n, (list, tuple)):
+                        _x7v_w.extend(_x7v_n)
+            _x7v_rows = {"read_bytes": _x7_os + ("ValueError",),
+                         "encode": ("UnicodeEncodeError",)}
+            if (_x7v_sha and all(_x7v_sha) and all(_x7v_hex)
+                    and not any(_k in _x7_fnames or self._module_func_raises.get(_k)
+                                for _k in ("hashlib.sha256", "hexdigest"))
+                    and all(all(_x7v_inner.get(_k) or [False]) and _k not in _x7_fnames
+                            and not self._module_func_raises.get(_k) for _k in _x7v_ikind)):
+                needs["needs_array"] = True
+                for _k in sorted(_x7v_ikind):
+                    _x7_inj[_k] = self._module_func_raises[_k] = [
+                        {"exc_type": _e, "condition": None, "ext": _x7v_ikind[_k]}
+                        for _e in _x7v_rows[_x7v_ikind[_k]]]
+                    needs["user_exceptions"] = (set(needs["user_exceptions"])
+                                                | set(_x7v_rows[_x7v_ikind[_k]]))
+                # the two OUTER calls are `ext` calls too (route #599's per-operation handler
+                # census admits only `ext` calls in a covered `try` body): evaluating them
+                # evaluates their argument, so each carries the inner row -- only when the
+                # unit uses ONE inner kind, so the row is exact (Why3 rejects a `raises`
+                # class a body cannot raise); with both kinds the outer calls stay row-less
+                # and the census REFUSES a handler-dependent claim around them (fail-closed)
+                if len(set(_x7v_ikind.values())) == 1:
+                    _x7v_all = sorted(_x7v_rows[next(iter(_x7v_ikind.values()))])
+                    for _k in ("hashlib.sha256", "hexdigest"):
+                        _x7_inj[_k] = self._module_func_raises[_k] = [
+                            {"exc_type": _e, "condition": None, "ext": "sha256"}
+                            for _e in _x7v_all]
+                if (_x7v_int and all(_x7v_int) and "int" not in _x7_fnames
+                        and not self._module_func_raises.get("int")):
+                    _x7_inj["int"] = self._module_func_raises["int"] = [
+                        {"exc_type": "ValueError", "condition": None, "ext": "int16"}]
+                    needs["user_exceptions"] = set(needs["user_exceptions"]) | {"ValueError"}
+                # A VERIFIED top-level function of this unit whose body lets one of these
+                # rows' classes ESCAPE (`_callee_raised_in`: handlers subtracted) raises it
+                # at its call sites too: the escaping summary does not cross user functions,
+                # so the caller (`_cache_key` -> `_sha256_file`) would otherwise owe an
+                # unlisted exception. Registered as plain rows (no `ext` marker: route #599's
+                # census keeps treating the call as unmodelled), only the model's classes,
+                # only for a function with no declared `raises` and no row; to a fixpoint
+                # over call chains. Importers read the callee's `val` from its contract,
+                # not from this registry, so their emission is untouched.
+                _x7v_cls = {_r["exc_type"] for _k in list(_x7v_ikind) + ["int"]
+                            for _r in (self._module_func_raises.get(_k) or [])
+                            if isinstance(_r, dict) and _r.get("ext")}
+                _x7v_fx: Dict[str, List[Dict[str, Any]]] = {}
+                _x7v_ch = True
+                while _x7v_ch:
+                    _x7v_ch = False
+                    for _x7_f in functions:
+                        _x7v_nm = _x7_f.get("name")
+                        if (_x7_f.get("trusted") or _x7_f.get("abstract")
+                                or not isinstance(_x7v_nm, str) or "." in _x7v_nm
+                                or _x7_f.get("self_type")
+                                or ((_x7_f.get("contracts") or {}).get("raises"))
+                                or (self._module_func_raises.get(_x7v_nm)
+                                    and _x7v_nm not in _x7v_fx)):
+                            continue
+                        _x7v_es = sorted(set(self._callee_raised_in(_x7_f.get("body") or []))
+                                         & _x7v_cls)
+                        if _x7v_es and [_r["exc_type"] for _r in
+                                        _x7v_fx.get(_x7v_nm, [])] != _x7v_es:
+                            _x7v_fx[_x7v_nm] = self._module_func_raises[_x7v_nm] = [
+                                {"exc_type": _e, "condition": None} for _e in _x7v_es]
+                            _x7v_ch = True
+                _x7_inj.update(_x7v_fx)
         # cap-trusted-val-unit-return (run #5, lvF): a `\trusted` `pass`-body stub declared
         # `-> List[..]` / bytes now announces `array ..` (see the CALL-SITE half below), so
         # the array theory must be in scope even when no body uses an array. Set/dict

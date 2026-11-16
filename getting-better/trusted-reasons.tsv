@@ -43,8 +43,6 @@ audit_proof.py	_index_proofs_dir	cost-scale:int-erasure-seam	THE INT-ERASURE SEA
 audit_proof.py	_audit_one_prover	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 audit_proof.py	_index_proofs_dir_by_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 audit_proof_reverify.py	ReverifyReport.summary	unclassified	-
-audit_proof_reverify.py	_sha256_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
-audit_proof_reverify.py	_cache_key	unclassified	-
 audit_proof_reverify.py	_cache_load	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof_reverify.py	_coqc_version	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof_reverify.py	_lean_version	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
@@ -232,7 +230,6 @@ ir_schema.py	validate_ir	unclassified	-
 module6_whyml/abstract_ops.py	AbstractOpsMixin._add_abstract_op	unclassified	-
 module6_whyml/abstract_ops.py	AbstractOpsMixin._advance_past_referenced_axiom_decls	unclassified	-
 module6_whyml/abstract_ops.py	AbstractOpsMixin._insert_abstract_val_block	unclassified	-
-module6_whyml/auto_trust.py	AutoTrustMixin._build_witness_str	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 module6_whyml/auto_trust.py	AutoTrustMixin._check_witness_vals	unclassified	-
 module6_whyml/auto_trust.py	AutoTrustMixin._should_auto_trust_tuple_return	unclassified	-
 module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._handle_proj_expr	unclassified	-
@@ -278,9 +275,7 @@ module6_whyml/functions.py	FunctionEmissionMixin._emit_union_arm_vc	unclassified
 module6_whyml/functions.py	FunctionEmissionMixin._emit_function	unclassified	-
 module6_whyml/functions.py	FunctionEmissionMixin._emit_subtyping_goals	unclassified	-
 module6_whyml/functions.py	FunctionEmissionMixin._render_refinement_goal	unclassified	-
-module6_whyml/functions.py	FunctionEmissionMixin._parse_mixin_sig	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 module6_whyml/functions.py	FunctionEmissionMixin._mixin_dep_pseudo_functions	unclassified	-
-module6_whyml/identifiers.py	stable_hash	cost-scale:faithful-string-hash	THE FAITHFUL STRING-HASH MODEL
 module6_whyml/preamble.py	PreambleEmissionMixin._scan_preamble_needs	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble_uses	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble_exceptions	unclassified	-
@@ -344,13 +339,11 @@ proof2why3/parser.py	normalize_surface	cost-scale:int-erasure-seam	THE INT-ERASU
 proof2why3/parser.py	parse_type_expr	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/sertop.py	sertop_version	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/sertop.py	_sexp_parse	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
-proof2why3/sertop.py	parse_sexp	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/sertop.py	run_sertop_batch	unclassified	-
 proof2why3/sertop.py	SertopSession.type_of_batch	unclassified	-
 proof2why3/sertop.py	extract_via_sertop	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_generate_rocq_obligations	unclassified	-
 pycsl.py	_sha256_file	cost-scale:context-manager-model	A `with ... as` BINDING
-pycsl.py	_find_coqc	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_check_rocq_proofs	cost-scale:heterogeneous-list-model	A HETEROGENEOUS LIST LITERAL
 pycsl.py	_build_soundness_report	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_print_soundness_report	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL

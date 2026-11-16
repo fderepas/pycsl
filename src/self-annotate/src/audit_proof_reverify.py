@@ -99,17 +99,18 @@ def _cache_root(project_root: Path) -> Path:
     root = project_root / ".audit-cache"
     root.mkdir(parents=True, exist_ok=True)
     return root
-#@ \trusted reviewer: pycsl-self-annotate
+# lvV (run #7): VERIFIED on the law-free sha-256 model. `path.read_bytes()` is an open-world
+# read (the OSError family, ValueError on an embedded NUL): the emitted `raises` lists them, and
+# `_cache_key` (its caller) owes them through the transpiler's escaping-row registration; the
+# live body is the one-shot `hashlib.sha256(<bytes>).hexdigest()`.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 
 
 def _sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    h.update(path.read_bytes())
-    return h.hexdigest()
-#@ \trusted reviewer: pycsl-self-annotate
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+# lvV (run #7): VERIFIED; `sorted` of the `List[str]` parameter is a law-free `array string`.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

@@ -6,6 +6,7 @@ from frontend import pure_ast as _ast  # dependency import-discovery parses via 
 import hashlib
 import json as _json
 import os
+import shutil
 import sys
 import subprocess
 import tempfile
@@ -113,8 +114,7 @@ def _find_coqc() -> Optional[str]:
     opam_coqc = os.path.expanduser("~/.opam/default/bin/coqc")
     if os.path.isfile(opam_coqc) and os.access(opam_coqc, os.X_OK):
         return opam_coqc
-    import shutil as _sh
-    return _sh.which("coqc")
+    return shutil.which("coqc")
 
 
 def _find_why3_coq_lib() -> Optional[str]:
@@ -18299,6 +18299,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # merged the closure's): a class of the IR schema's name declared here is a user record,
     # not an IR node, for the emit_ir projector judge (`statements.py::_typed_local_vars`).
     transpiler.own_types_r567 = set(_r498_own[1]) - {None}
+    # (run #7) lvU -- THE GENERATOR-AS-SEQ FUNCTIONS of this file (lvT's pre-pass above set
+    # `pycsl_generator_as_seq` on each module-level def it rewrote to the list of its yields).
+    # Module 6 lowers `list(<call of one of them>)` to a fresh copy of that list
+    # (`_call_named_builtins`). Empty for every file without such a generator.
+    transpiler.gen_as_seq_lvU = {
+        _d.name for _d in (getattr(unified_ast, "body", None) or [])
+        if getattr(_d, "pycsl_generator_as_seq", False) and isinstance(
+            getattr(_d, "name", None), str)}
     # (run #7) ROUTE #599 (lvQ PATH-RECEIVER sub-defect, rt58 c01) -- WHICH NAMES ARE
     # PROVABLY A `pathlib.Path`. The #31 path model erases `Path` to `str` (one `string`
     # in the value model), so lvQ's `PYCSL-R7Q-EXT-PATH-RECEIVER` check (`_is_string_expr`
@@ -18449,6 +18457,111 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _pn599[_fq599] = _A599
             _seen599.add(_fq599)
     transpiler.path_names_r599 = _pn599
+    # (run #7) ROUTE #610 -- MODULE-NAME SHADOWING OF THE EXTERNAL-EFFECT MODELS (rt61 M1).
+    # lvQ / lvU / lvV model `<mod>.<f>(..)` (subprocess.run, Path.cwd, json.dumps,
+    # argparse.ArgumentParser, os.access, shutil.which, hashlib.sha256) and the builtin
+    # `int(.., 16)` of the digest model by their CALLEE STRING, which Module 5 builds from the
+    # spelling: a parameter / local / any binding NAMED like the module gives the same string
+    # (`same(hashlib: K, s)` -> "hashlib.sha256", receiver None), so the user object's method,
+    # its effects and its non-determinism were dropped (v07 / v13 / v15 / v27 / a15 / a04 /
+    # a12 / a13 / a14 PROVED a false claim). Which name is the MODULE exists only in the
+    # SOURCE, so it is computed here: per function (Module 5's name, as route #599's table),
+    # every watched name bound ANYWHERE in it (parameter, assignment / annotated / augmented
+    # target, for / with / except / walrus / comprehension / match target, `del`, global /
+    # nonlocal, nested def / class / lambda parameter, function-local import), and the
+    # watched names REBOUND at module level (any binding other than the plain module import
+    # `import <mod>` / `from pathlib import Path` -- for the builtins, any binding at all --,
+    # a `global <name>` in any function, a star import). Module 6 applies a model only when
+    # the head is in NEITHER set (fail-closed: a function absent from the table, or no
+    # table, is shadowed), and otherwise REFUSES (PYCSL-R610-EXT-MODULE-NAME-SHADOWED).
+    _W610 = {"subprocess", "json", "argparse", "os", "shutil", "hashlib", "Path", "int"}
+    _sh610: Optional[Dict[str, Set[str]]] = None
+    _shm610: Set[str] = set(_W610)
+    if _t599 is not None:
+        _sh610 = {}
+        _shm610 = set()
+        _fns610: List[Tuple[str, Any]] = []
+        _st610: List[Any] = list(_t599.body)
+        while _st610:
+            _n610 = _st610.pop()
+            if isinstance(_n610, (_ast599.FunctionDef, _ast599.AsyncFunctionDef,
+                                  _ast599.ClassDef)):
+                _shm610.add(_n610.name)
+                # evaluated in the module scope: decorators, defaults, annotations, bases
+                _st610.extend(_n610.decorator_list)
+                if isinstance(_n610, _ast599.ClassDef):
+                    _st610.extend(_n610.bases)
+                    _st610.extend(_k.value for _k in _n610.keywords)
+                    for _m610 in _n610.body:
+                        if isinstance(_m610, (_ast599.FunctionDef, _ast599.AsyncFunctionDef)):
+                            _fns610.append((_n610.name.lower() + "__" + _m610.name, _m610))
+                else:
+                    _st610.extend(_x for _x in (list(_n610.args.defaults)
+                                                + list(_n610.args.kw_defaults))
+                                  if _x is not None)
+                    if _n610 in _t599.body:
+                        _fns610.append((_n610.name, _n610))
+                continue
+            if isinstance(_n610, _ast599.Lambda):
+                continue
+            if isinstance(_n610, _ast599.Name) and isinstance(_n610.ctx, (_ast599.Store,
+                                                                          _ast599.Del)):
+                _shm610.add(_n610.id)
+            elif isinstance(_n610, (_ast599.Import, _ast599.ImportFrom)):
+                for _al610 in _n610.names:
+                    if _al610.name == "*":
+                        _shm610 |= _W610
+                        continue
+                    _lc610 = (_al610.asname or _al610.name).split(".")[0]
+                    if isinstance(_n610, _ast599.Import) and _al610.asname is None and "." in _al610.name:
+                        continue  # `import os.path` binds `os` to the package itself
+                    _okimp610 = ((isinstance(_n610, _ast599.Import) and _lc610 == _al610.name
+                                  and _lc610 != "int")
+                                 or (isinstance(_n610, _ast599.ImportFrom)
+                                     and _n610.module == "pathlib" and not _n610.level
+                                     and _al610.name == "Path" and _lc610 == "Path"))
+                    if not _okimp610:
+                        _shm610.add(_lc610)
+            elif isinstance(_n610, (_ast599.MatchAs, _ast599.MatchStar)) and _n610.name:
+                _shm610.add(_n610.name)
+            elif isinstance(_n610, _ast599.MatchMapping) and _n610.rest:
+                _shm610.add(_n610.rest)
+            elif isinstance(_n610, _ast599.ExceptHandler) and _n610.name:
+                _shm610.add(_n610.name)
+            _st610.extend(_ast599.iter_child_nodes(_n610))
+        for _fq610, _fd610 in _fns610:
+            _bd610: Set[str] = set()
+            for _n610 in _ast599.walk(_fd610):
+                if isinstance(_n610, _ast599.arg):
+                    _bd610.add(_n610.arg)
+                elif (isinstance(_n610, _ast599.Name)
+                      and isinstance(_n610.ctx, (_ast599.Store, _ast599.Del))):
+                    _bd610.add(_n610.id)
+                elif (isinstance(_n610, (_ast599.FunctionDef, _ast599.AsyncFunctionDef,
+                                         _ast599.ClassDef)) and _n610 is not _fd610):
+                    _bd610.add(_n610.name)
+                elif isinstance(_n610, (_ast599.Import, _ast599.ImportFrom)):
+                    for _al610 in _n610.names:
+                        _bd610 |= (_W610 if _al610.name == "*"
+                                   else {(_al610.asname or _al610.name).split(".")[0]})
+                elif isinstance(_n610, (_ast599.Global, _ast599.Nonlocal)):
+                    _bd610.update(_n610.names)
+                    if isinstance(_n610, _ast599.Global):
+                        _shm610.update(_n610.names)
+                elif isinstance(_n610, _ast599.ExceptHandler) and _n610.name:
+                    _bd610.add(_n610.name)
+                elif isinstance(_n610, (_ast599.MatchAs, _ast599.MatchStar)) and _n610.name:
+                    _bd610.add(_n610.name)
+                elif isinstance(_n610, _ast599.MatchMapping) and _n610.rest:
+                    _bd610.add(_n610.rest)
+            _sh610[_fq610] = (_sh610.get(_fq610) or set()) | (_bd610 & _W610)
+        # a `global <name>` ANYWHERE (also in a def the table does not name) rebinds it
+        for _n610 in _ast599.walk(_t599):
+            if isinstance(_n610, _ast599.Global):
+                _shm610.update(_n610.names)
+        _shm610 &= _W610
+    transpiler.shadow_r610 = _sh610
+    transpiler.shadow_mod_r610 = _shm610
     # (run #6) ROUTE #579 -- IR-CLASS IDENTITY BY RESOLUTION, NEVER BY NAME. The emit_ir
     # isinstance recognizers (`isinstance(<emit_ir>, ast.Name)` -> `is_var`, `isinstance(
     # <emit_ir>, CSLFieldAccess)` -> `is_fieldget`) and route #567's narrowing judge read the

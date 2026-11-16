@@ -1712,13 +1712,48 @@ class FunctionEmissionMixin:
             return "emit_ir"
         return "int"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _parse_mixin_sig(sig: str):
-        pass
+    def _parse_mixin_sig(sig: str) -> Tuple[List[Tuple[str, str]], str]:
+        """Parse a declared method signature `(self, x: int, y: str) -> int` into
+        (params, return_type) where params is an ordered list of (name, py_type)
+        excluding `self` and return_type is a Python type name (default 'int')."""
+        params: List[Tuple[str, str]] = []
+        ret: str = "int"
+        _s0: str = sig
+        if not _s0:
+            _s0 = ""
+        s: str = _s0.strip()
+        lhs: str = s
+        if "->" in s:
+            _k: int = len(s) - 2
+            #@ loop invariant -1 <= _k
+            #@ loop variant _k + 1
+            while _k >= 0 and s[_k:_k + 2] != "->":
+                _k -= 1
+            lhs = s[:_k]
+            rhs: str = s[_k + 2:]
+            ret = rhs.strip()
+            if not ret:
+                ret = "int"
+        _l1: str = lhs.strip()
+        _l2: str = _l1
+        if _l1.startswith("(") and _l1.endswith(")"):
+            _l2 = _l1[1:len(_l1) - 1]
+        for _p in _l2.split(","):
+            part: str = _p.strip()
+            if not part:
+                continue
+            if part == "self":
+                continue
+            if ":" in part:
+                _c: int = part.find(":")
+                params.append((part[:_c].strip(), part[_c + 1:].strip()))
+            else:
+                params.append((part, "int"))
+        return params, ret
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
