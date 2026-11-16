@@ -44,3 +44,17 @@ the module call. The guards checked only the import list (`_x7_mod`, `_x7v_hl`) 
   (`global sorted` from another function) by the list-append / global-store rules. A Module 6 guard on lvV's `sorted`
   arm was written and REMOVED: it is unreachable from source, so it could only be an unwitnessed raise site. The
   `int(.., 16)` check shares lvV's digest-walk raise (reached by 10100-10102).
+
+## Measurements (u47)
+
+- Base for every comparison: 07f001675 = d740630ef (int65) merged with run7-lvV 26173c368, no R610 change
+  (`/home/fabrice/git/pycsl-u47base`); HEAD e6391efdd = 8522a9cb5 (merge of 26173c368) + the R610 commits.
+- Mirror: `bin/mirror-emit-sweep.sh` base vs HEAD, 53 / 53 byte-identical (0 MOVED / 0 GONE / 0 APPEARED); no mirror
+  file newly refused.
+- Corpus (driver decision: targeted, the full HEAD sweep is the L13 battery's): every root / pyref file that spells a
+  modelled-family call, imports a watched module (`os json subprocess shutil argparse hashlib pathlib pkl`) or carries
+  an `--import-path` / `--deep` flag, and their importers -- 178 root + 156 pyref at base. Root 67 / 71 emitted
+  (the 4 new controls added), 0 MOVED / 0 GONE / 0 APPEARED; pyref 156 / 156, 0 / 0 / 0. lvQ 9700-9713 and lvV
+  10080-10099 are all in that population; the lvU rows outside it (`x or {}` map) spell none of the guarded calls.
+- Controls 10115-10118 and the advice files PROVED in the default model; typed / store fail L3-tc on 10117 / 10118
+  / the advice files with byte-identical emission at base (a pre-existing record-in-pure-context / array-typing limit).
