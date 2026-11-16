@@ -7210,6 +7210,54 @@ accumulator builds (Module 5's declared native tuple type), and the tail return 
 that seq local as-is (Module 6 `_stmts_to_whyml`); a value of another element type there is a Why3
 type error. Witnesses (must FAIL) `10021`, `10022`; control (PASS) `10020`.
 
+### 7.324 A None-default dict parameter's `x or {}` is the map; `list(<generator-as-seq call>)` is a fresh copy; `os.access` / `shutil.which` are law-free world queries (lvU, run #7)
+
+(1) NONE-DEFAULT MAP `or {}`. In a function body, `x or {}` (also `x or dict()`) where `x` is a
+parameter of the function declared `Optional[Dict[K, V]] = None` and lowered as a bare `map K (option
+V)` (run #6 cap-none-default-map-param) is the map `x` itself (Module 6 `_handle_binop`). Under that
+model the parameter is always a map: an OMITTED argument fills `pycsl_none_map`, which route #592
+refuses at the call site of every verified callee (§7.592), and an explicit `None` argument is the
+opaque int `pycsl_none`, a Why3 type error against the map (fail-closed). For a dict `x`, CPython's
+`x or {}` is `x` when `x` is non-empty and a fresh `{}` when it is empty: in both cases a dict EQUAL to
+`x`. The two differ only in identity when `x` is empty, observable only through a caller-visible
+mutation, so the arm is closed for a parameter in the function's caller-visible mutated-collection
+set (`writes {x}`), and a method's in-place write to a dict parameter is refused as before
+(PYCSL-WHYML-PARAM-COLLECTION-MUT). Any other shape keeps the old lowering (an int `or` over the map,
+an L3-tc failure). Witnesses (must FAIL) `10051` (a value claim), `10052` (a membership claim),
+`10053` (omitted argument: an int fill, L3-tc; a `pycsl_none_map` fill is route #592's), `10054`
+(explicit `None`, L3-tc), `10055` / `10056` (a standalone / method mutation after the rebinding:
+PYCSL-WHYML-PARAM-COLLECTION-MUT); control (PASS) `10050`.
+
+(2) `list(<generator-as-seq call>)`. `list(g(..))`, where `g` is a module-level generator the
+generator-as-seq pre-pass (§7.323 (1)) lowered to the list of its yields, is `Array.copy` of the array
+the call returns: CPython drains the generator into a NEW list holding exactly those yields
+(`_call_named_builtins`; the set of rewritten names is handed from `_run_pipeline` to Module 6). One
+positional argument, a plain call, no keywords, body context only. Witnesses (must FAIL) `10061`
+(false length), `10062` (two copies are distinct lists; refused today: `.append` on the copy is
+outside the fragment), `10063` (IndexError past the yields);
+control (PASS) `10060`.
+
+(3) `os.access` / `shutil.which` (lvQ open-world model, §5 of
+`getting-better/run7-lvQ-external-model.md`, extended). With `import os` / `import shutil` (plain
+module imports, all occurrences of the callee in the module of the modelled shape, the decision
+module-wide as for lvQ's callees):
+- `os.access(<str path>, <mode>)` is `val ext_os_access_op (path: string) (mode: int) : int raises {
+  UnicodeEncodeError, ValueError }`: impure, law-free (a fresh answer per call, only its truthiness is
+  observed by a test), raising what CPython 3.14 raises for a `str` path (ValueError on an embedded
+  NUL, UnicodeEncodeError on an unencodable one; every OS failure is the answer False). A path not
+  typed `str` is refused (`PYCSL-R7U-EXT-ACCESS-PATH`).
+- `return shutil.which(<str>)` in a function declared `-> Optional[str]` is a law-free `val` whose
+  value is ANY element of that function's `str | None` union, raising the OSError family
+  (`os.confstr("CS_PATH")` when PATH is unset; every probe failure is swallowed by
+  `os.path.exists`). Elsewhere (not the returned value) the old lowering stays; a returning function
+  of another type is refused (`PYCSL-R7U-EXT-WHICH-SHAPE`).
+Under a `no_exception` claim, and in a `try` body with an `except ValueError` arm, the route #161
+callee census still refuses both queries (as it refuses lvQ's callees), so a raise of the model is
+never discharged by assumption. Witnesses (must FAIL) `10071` (a world fact), `10072` (two calls
+agree), `10073` (`no_exception \all` vs ValueError: refused), `10074` (the ValueError handler:
+refused), `10075` (`no_exception \all` vs OSError: refused), `10076` (an `-> Optional[int]`
+returner), `10077` (an int path); control (PASS) `10070`.
+
 ---
 
 ## 10. Concurrent Model Annotations
