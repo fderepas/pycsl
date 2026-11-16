@@ -7282,8 +7282,10 @@ receiver raises AttributeError). `<path>.read_bytes()` is an impure world read `
 impure, law-free `ext_int_base_op s 16`, raising ValueError (the model does not know the text is hex), so
 `no_exception \all` over it is refused or fails. The decision is module-wide and all-or-nothing per callee
 string (`hashlib.sha256`, `hexdigest`, the inner `encode` / `<p>.read_bytes`, `int`): one occurrence outside
-the shape keeps the old lowering everywhere. A verified caller owes its callee's raises only through the
-callee's declared `#@ raises E when True` rows (the escaping summary does not cross user functions).
+the shape keeps the old lowering everywhere. The escaping summary does not cross user functions, so a
+VERIFIED top-level function of the unit (no declared `raises`) through which one of these classes escapes is
+registered with plain (non-`ext`) rows of those classes, to a fixpoint, and its same-file callers owe them
+(`_cache_key` -> `_sha256_file`); an importer reads the callee's `val` from its contract, unchanged.
 `<str literal>.join(xs)` over a never-rebound `List[str]` parameter `xs`, over `sorted(xs)` (the law-free
 `ext_sorted_str_op : array string`, nothing claimed) or over a local bound once by a list literal of
 strings is `str_join_arr`. Witnesses (must FAIL) `10081` (fold injectivity; CPython collides "k6404" /
