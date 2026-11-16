@@ -1104,6 +1104,11 @@ AUDITED = {
         'Route #608. \'Narrow the PyVal value itself first (`v = d.get("a")`, then use `v` under `isinstance(v, str)`)\': witnesses-r608/advice/a608_narrow_value (control 10046: the PyVal value narrowed by `isinstance(v, str)`, then `len(v)`) VERIFIES `\\result == 2` (CPython 2) at HEAD (u46) in the default model (typed / store: emitted and type-checked); the witness(es) 10039 are refused.'),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + "`%s` reads a PyVal value / sequence inside a `try` body (or `with suppress(..)`) th'): (FOLLOWABLE,
         "Route #609. 'Test the condition before the read instead (`if len(v) > 0: y = v[0]`), outside the `try`': witnesses-r609/advice/a609_test_before_read (control 10048: `if len(v) == 0: return 0` then `y = v[0]`, no `try`) VERIFIES `\\result == 1` (CPython 1) at HEAD (u46) in the default model (typed / store: emitted and type-checked); the witness 10036 is refused."),
+    # driver run #7 -- route #610 (u47).
+    ('src/pycsl/Module6_WhyMLTranspiler.py', '_E610(f"PYCSL-R610-EXT-MODULE-NAME-SHADOWED: in function \'{_x7_f.get(\'name\')}\', `{_x7_fn}(..)` is modelled as the function of the imported m'): (FOLLOWABLE,
+        "Route #610. 'Rename that binding (e.g. `os_obj`) so that `os` names only the module': witnesses-r610/advice/a610_rename_binding (10104's `os: C` parameter renamed `os_obj`; `os_obj.access(..)` is the user method) VERIFIES `\\result == 1` (CPython 1) at HEAD (u47) in the default model (typed / store: L3-tc fails identically at base d740630ef, a pre-existing record-in-pure-context limit, emission byte-identical); the witnesses 10103-10113 are refused."),
+    ('src/pycsl/Module6_WhyMLTranspiler.py', '_E610(f"PYCSL-R610-EXT-MODULE-NAME-SHADOWED: in function \'{_x7_f.get(\'name\')}\', `{_x7v_fn}(..)` is modelled as " + (\'the function of the imp'): (FOLLOWABLE,
+        "Route #610. 'Rename that binding (e.g. `hashlib_obj`) so that `hashlib` names only the module': witnesses-r610/advice/a610_rename_hashlib (10102's `hashlib: K` parameter renamed `hashlib_obj`; `hashlib_obj.sha256(..)` is the user method) VERIFIES `hashlib_obj.c == \\old(hashlib_obj.c) + 1` (CPython 1) at HEAD (u47) in the default model (typed / store: L3-tc fails identically at base d740630ef, emission byte-identical); the witnesses 10100-10102 are refused."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1536,6 +1541,9 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + \'`%s` decides a STR-ONLY fact of `%s`, a PyVal-derived value the model lowers as a `'): '132d0aa552c5',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_li608 + 1}: " + \'`%s` names `%s`, a PyVal-derived value the model lowers as a `string` (`<PyVal> or '): 'e0b2c6645d1f',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f603.name}\' line {_ln603(_n)}: " + "`%s` reads a PyVal value / sequence inside a `try` body (or `with suppress(..)`) th'): '59d30f721b27',
+    # driver run #7 -- route #610 (u47).
+    ('src/pycsl/Module6_WhyMLTranspiler.py', '_E610(f"PYCSL-R610-EXT-MODULE-NAME-SHADOWED: in function \'{_x7_f.get(\'name\')}\', `{_x7_fn}(..)` is modelled as the function of the imported m'): '6fdf239a8014',
+    ('src/pycsl/Module6_WhyMLTranspiler.py', '_E610(f"PYCSL-R610-EXT-MODULE-NAME-SHADOWED: in function \'{_x7_f.get(\'name\')}\', `{_x7v_fn}(..)` is modelled as " + (\'the function of the imp'): 'af5c532e53f6',
 }
 
 
