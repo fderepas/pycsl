@@ -1294,3 +1294,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-16T16:31Z | 1020 | STATUS (run hour 79.1; 17 h left). L13 candidate (int65 @ 06cb88013, \trusted 367): A-E green, v62 F --slow running (~20:00Z). sp5 (typed tuple-return spike) and u48 (refusal residuals) started, non-landing. Run #8 plan draft written (getting-better/driver-run8-plan-draft.md, uncommitted until §6 numbers). Main \trusted 374, ledger 3. oom_kill 0. |
 2026-11-16T17:31Z | 1021 | STATUS (run hour 80.1; 16 h left). v62 F --slow running. sp5 / u48 working (u48 WIP be897b8a5). Main \trusted 374, ledger 3. oom_kill 0. |
 2026-11-16T18:31Z | 1022 | STATUS (run hour 81.1; 15 h left). v62 F --slow running. sp5 (WIP 86edad63e) / u48 (WIP be897b8a5) working. Main \trusted 374, ledger 3. oom_kill 0. |
+2026-11-16T19:31Z | 1023 | STATUS (run hour 82.1; 14 h left). v62 F --slow running. sp5 / u48 (WIP b3b4ae742) working. Main \trusted 374, ledger 3. oom_kill 0. |
