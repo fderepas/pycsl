@@ -1244,3 +1244,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-15T23:29Z | 970 | STATUS (run hour 62.0; 33 h left). L12 gating: v60 A 15 new 0 unexpected; C root 0 MOVED, 1 GONE = 3600 (declared, log 968), pyref 0; D next. lvU working. Main \trusted 374, ledger 3. oom_kill 0. |
 2026-11-15T23:46Z | 971 | v60 (int63): D mirror 53/53, 0 diff lines vs the L11 emission (mirror-inert, no proof owed); E fidelity rc 0 x3. F --slow running (~3.5 h). |
 2026-11-16T00:30Z | 972 | STATUS (run hour 63.0; 32 h left). v60 F --slow: 62 ok. lvU working. Main \trusted 374, ledger 3. oom_kill 0. |
+2026-11-16T01:30Z | 973 | STATUS (run hour 64.0; 31 h left). v60 F --slow: 69 ok, 0 RED so far. lvU working. Main \trusted 374, ledger 3. oom_kill 0. |
