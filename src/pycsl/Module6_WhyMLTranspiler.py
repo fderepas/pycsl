@@ -1522,6 +1522,39 @@ class Module6_WhyMLTranspiler(
                     _x7_inj["int"] = self._module_func_raises["int"] = [
                         {"exc_type": "ValueError", "condition": None, "ext": "int16"}]
                     needs["user_exceptions"] = set(needs["user_exceptions"]) | {"ValueError"}
+                # A VERIFIED top-level function of this unit whose body lets one of these
+                # rows' classes ESCAPE (`_callee_raised_in`: handlers subtracted) raises it
+                # at its call sites too: the escaping summary does not cross user functions,
+                # so the caller (`_cache_key` -> `_sha256_file`) would otherwise owe an
+                # unlisted exception. Registered as plain rows (no `ext` marker: route #599's
+                # census keeps treating the call as unmodelled), only the model's classes,
+                # only for a function with no declared `raises` and no row; to a fixpoint
+                # over call chains. Importers read the callee's `val` from its contract,
+                # not from this registry, so their emission is untouched.
+                _x7v_cls = {_r["exc_type"] for _k in list(_x7v_ikind) + ["int"]
+                            for _r in (self._module_func_raises.get(_k) or [])
+                            if isinstance(_r, dict) and _r.get("ext")}
+                _x7v_fx: Dict[str, List[Dict[str, Any]]] = {}
+                _x7v_ch = True
+                while _x7v_ch:
+                    _x7v_ch = False
+                    for _x7_f in functions:
+                        _x7v_nm = _x7_f.get("name")
+                        if (_x7_f.get("trusted") or _x7_f.get("abstract")
+                                or not isinstance(_x7v_nm, str) or "." in _x7v_nm
+                                or _x7_f.get("self_type")
+                                or ((_x7_f.get("contracts") or {}).get("raises"))
+                                or (self._module_func_raises.get(_x7v_nm)
+                                    and _x7v_nm not in _x7v_fx)):
+                            continue
+                        _x7v_es = sorted(set(self._callee_raised_in(_x7_f.get("body") or []))
+                                         & _x7v_cls)
+                        if _x7v_es and [_r["exc_type"] for _r in
+                                        _x7v_fx.get(_x7v_nm, [])] != _x7v_es:
+                            _x7v_fx[_x7v_nm] = self._module_func_raises[_x7v_nm] = [
+                                {"exc_type": _e, "condition": None} for _e in _x7v_es]
+                            _x7v_ch = True
+                _x7_inj.update(_x7v_fx)
         # cap-trusted-val-unit-return (run #5, lvF): a `\trusted` `pass`-body stub declared
         # `-> List[..]` / bytes now announces `array ..` (see the CALL-SITE half below), so
         # the array theory must be in scope even when no body uses an array. Set/dict
