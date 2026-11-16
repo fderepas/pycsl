@@ -30,7 +30,7 @@
 |---|---|---|---|
 | L9 | 1e2d69f05 | lvQ open-world external-effect model; lvR increment 1; wh4 W-hash | v57 85/85; 5 mirror movers proved |
 | L10 | 06fac6d26 | Dict value model r4 (lv4) + Rocq/Lean certificates (ce4); u43 emit_ir projector repair; lvR increment 2; lvS; u44 #599 #601 #602; u45 #603-#607 | step M: 23 mirror movers proved whole-file; M1 154 moved corpus files re-proved; v58 85/85 |
-| L11 | (log 966) | lvT generator-as-seq + re lastgroup | Module2 + sertop proved; v59 85/85 |
+| L11 | 010d7aced | lvT generator-as-seq + re lastgroup | Module2 + sertop proved; v59 85/85 |
 | L12 | c37d50422 | u46 #608 #609 | v60 85/85; mirror-inert |
 | L13 | pending | lvU (batch F) | — |
 
