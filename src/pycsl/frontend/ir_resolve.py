@@ -113,6 +113,45 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
             candidate = os.path.join(base, *parts) + ".py"
             hit = pkg_init if os.path.isfile(pkg_init) else (
                 candidate if os.path.isfile(candidate) else None)
+            # (#49) run #7 ROUTE #611 (red team rt62 r10; MEASURED PROVED on the L13 tip: a
+            # SOURCELESS `hashlib.pyc` compiled from a counter-based module, next to the program,
+            # made `ensures \result == True` over two digests PROVE; CPython False). CPython's
+            # FileFinder imports more than `.py` / `X/__init__.py` from a path entry: an
+            # EXTENSION module (`X.so`, `X.abi3.so`, `X.cpython-*.so`, `X.pyd`) is tried
+            # BEFORE `X.py`, and a sourceless `X.pyc` after it. pycsl looked only for source,
+            # found none, and took the standard-library model for a module CPython does not
+            # run. RULE (fail-closed, every root, every module name): an importable non-source
+            # artifact for the module's top level (or, for a dotted name, the last component)
+            # in a resolution root REFUSES the import -- pycsl cannot read what CPython will
+            # load. (`__pycache__/X.*.pyc` is only loaded for an existing `X.py`, so it is
+            # not an artifact of its own.)
+            import importlib.machinery as _im611
+            _art611 = []
+            for _k611 in sorted({1, len(parts)}):
+                _art611_stem = os.path.join(base, *parts[:_k611])
+                _art611_dir = os.path.dirname(_art611_stem)
+                _art611 += [_art611_stem + _sfx611 for _sfx611 in (
+                    ".pyc", ".pyd", ".so", ".abi3.so", *_im611.EXTENSION_SUFFIXES)
+                    if os.path.isfile(_art611_stem + _sfx611)]
+                _art611 += [os.path.join(_art611_dir, _fn611)
+                            for _fn611 in (sorted(os.listdir(_art611_dir))
+                                           if os.path.isdir(_art611_dir) else [])
+                            if _fn611.startswith(parts[_k611 - 1] + ".cpython-")
+                            and _fn611.endswith((".so", ".pyd"))
+                            and os.path.isfile(os.path.join(_art611_dir, _fn611))]
+            if _art611:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"`import {module_dotted}`: the import root {base} holds an importable "
+                    f"module artifact that is not Python source ({sorted(set(_art611))[0]}). "
+                    f"CPython's FileFinder loads an extension module before `{parts[-1]}.py` "
+                    f"and a sourceless `{parts[-1]}.pyc` when no source exists, so the module "
+                    f"the program runs is not one pycsl can read, and neither the local source "
+                    f"nor a standard-library model may be believed for it (route #611: a "
+                    f"sourceless `hashlib.pyc` made a two-digest equality PROVE; CPython "
+                    f"False). FIX: remove the artifact (or rename the module) so that the "
+                    f"module CPython imports is the one pycsl verifies.",
+                    filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-NONSOURCE-ARTIFACT")
             if hit is None:
                 continue
             # (#49) ROUTE #326 — A LOCAL FILE NAMED LIKE A STANDARD-LIBRARY MODULE IS NOT THE
