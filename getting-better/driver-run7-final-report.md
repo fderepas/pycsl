@@ -163,9 +163,11 @@ Every conversion has:
   - `getting-better/driver-run8-plan-draft.md` on the main branch: the draft run #8 plan with these numbers.
 - **Kept branches** (commit-only, never rewritten; 28): run7-ce4, run7-cv12 … run7-cv15, run7-int60 … run7-int65, run7-lv4, run7-lvQ … run7-lvV, run7-rp4, run7-sp4, run7-sp5, run7-u43 … run7-u48, run7-wh4.
 - **L14 post-landing --slow confirmation (85 planes, snapshot at 6cc2e774d): PARTIAL, did not finish before the deadline.**
-  - **76 planes ok** when it was stopped at ~09:00Z. The remaining planes were never run.
-  - **1 flagged:** `check-emitted-vacuity` returned rc=2. This was an instrument refusal, not a verdict: 39 of the ≥40 beside-source emissions landed in that run. The same plane was ok on the same commit in the fast run an hour earlier. The driver re-ran it alone on a separate tree at the same commit: rc=0, no new erasure (log 1049).
-  - **No RED verdict**, so L14 was not reverted. The fast planes (62/62) and battery v65 ACDE gated the landing.
+  - The primary run was battery v65's own step F. The driver's battery script had no `STEPS` guard on F, so `STEPS=ACDE` ran it anyway. It reached **77 planes ok, 0 RED** (`scratchpad/run7/v65/F-planes.log`) and was stopped at ~09:15Z.
+  - A second --slow chain was started by mistake in the SAME tree (the driver's own chain after the fast planes). It ran concurrently and was stopped at 76 ok. It flagged `check-emitted-vacuity` with rc=2, an instrument refusal: "39 of ≥40 beside-source emissions". This is consistent with the two runs racing on the `.mlw` files that this plane writes beside the sources.
+  - The driver re-ran that plane alone, on a separate tree at the same commit: rc=0, no new erasure (log 1049).
+  - **No RED verdict, so L14 was not reverted.** The landing was gated by the fast planes (62/62) and by battery v65 A, C, D and E.
+  - **Lesson:** `battery.sh` must honour `STEPS` for F, and never two plane runs in one tree.
 - **End-of-run cleanup (logged in RUN #7 END):**
   - only the main worktree is left;
   - the run's scratch directories are removed by literal path;
