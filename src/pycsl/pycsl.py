@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 from frontend import pure_ast as _ast  # dependency import-discovery parses via the pure-Python front-end
 import hashlib
+from pathlib import Path
 import json as _json
 import os
 import shutil
@@ -102,11 +103,8 @@ def _generate_rocq_obligations(mlw_path: str, output_dir: str, unproven_count: i
 
 def _sha256_file(path: str) -> str:
     """Compute SHA-256 hex digest of a file."""
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    _p = Path(path)
+    return hashlib.sha256(_p.read_bytes()).hexdigest()
 
 
 def _find_coqc() -> Optional[str]:

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 from frontend import pure_ast as _ast  # dependency import-discovery parses via the pure-Python front-end
 import hashlib
+from pathlib import Path
 import json as _json
 import os
 import shutil
@@ -110,17 +111,18 @@ def _generate_rocq_obligations(mlw_path: str, output_dir: str, unproven_count: i
         print(f"    The WhyML source is saved at: {mlw_dest}")
 
 
-#@ \trusted reviewer: pycsl-self-annotate
+# lvX (run #8): VERIFIED on lvQ's path model + lvV's law-free sha-256 model. The live
+# body is the documented behaviour-identical respelling of the chunked `h.update` loop
+# (one-shot `Path(path).read_bytes()`: same digest, same OSError family); `Path(<str>)` is
+# the law-free `val function ext_path_of_str_op`, `read_bytes` raises the OSError family and
+# ValueError (embedded NUL), which the emitted `raises` lists.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _sha256_file(path: str) -> str:
     """Compute SHA-256 hex digest of a file."""
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    _p = Path(path)
+    return hashlib.sha256(_p.read_bytes()).hexdigest()
 
 
 #@ requires True
