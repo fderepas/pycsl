@@ -152,6 +152,18 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                     _dns611[:] = sorted(_d for _d in _dns611 if _d != "__pycache__")
                     _art611 += [os.path.join(_dp611, _fn611) for _fn611 in sorted(_fns611)
                                 if _fn611.endswith(_sfxs611)]
+            # rt62 r19: a SYMLINKED program. CPython sets sys.path[0] to the directory of the
+            # script's REALPATH, pycsl's first root is the link's directory. When they differ,
+            # ANY importable entry for the module in the real directory (source, package or
+            # artifact) is something CPython may load and pycsl never reads -> an artifact.
+            _real611 = os.path.dirname(os.path.realpath(main_file))
+            if (base == os.path.dirname(os.path.abspath(main_file))
+                    and os.path.realpath(base) != _real611):
+                _rs611 = os.path.join(_real611, parts[0])
+                if os.path.exists(_rs611) or any(
+                        _fn611.split(".", 1)[0] == parts[0]
+                        for _fn611 in sorted(os.listdir(_real611))):
+                    _art611.append(_rs611)
             if _art611:
                 from errors import PyCSLSemanticError
                 raise PyCSLSemanticError(

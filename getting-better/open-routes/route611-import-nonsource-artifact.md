@@ -27,6 +27,8 @@ Two rules were added:
 
 Witness `10123` covers r16 (`--import-path …/r611art/pkg`). `witnesses-r611/r16`, `r17` and `j04` hold rt62's probes. All are refused, and the controls `w4` and `10116` still take the model.
 
+**Second extension (rt62 r19: a SYMLINKED program).** For `link/prog.py -> ../real/prog.py`, CPython's `sys.path[0]` is the realpath directory, `real/`, while pycsl's first root is `link/`. Rule: when the two differ, ANY importable entry for the module in the real directory counts as an artifact, whether source, package or artifact. It is refused at the same raise site. The witness is `witnesses-r611/r19`.
+
 **Witnesses:**
 - `10120` (a sourceless `hashlib.pyc` root) and `10122` (an extension-module root), via `--import-path test-suite/corpus/pycsl-reference/multi_file_lib/r611art[/ext]`. Both are REFUSED in hoare / typed / store, and census rows were made by `_census_row`.
 - `witnesses-r611/w1` to `w4` hold the rt62 shapes plus a json one. `w4` is the control: a plain `import hashlib` still takes the model.
