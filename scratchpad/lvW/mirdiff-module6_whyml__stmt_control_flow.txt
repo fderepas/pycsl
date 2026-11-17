@@ -1,0 +1,157 @@
+1639a1640
+>     let _tc_sfx = ref "" in
+1739,1741c1740,1742
+<             arity := self._current_tuple_arity;
+<             if (!arity > 0) then begin
+<               raise (Return_str (str_concat_op (str_concat_op (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_") (int_to_string !arity)) " ") !py_val) ")"))
+---
+>             _tc_sfx := (str_replace_op (str_replace_op (str_replace_op (str_replace_op !func_ret "(" "") ")" "") " " "") "," "_");
+>             if ((let __and_l = (let __and_l = (let __and_l = (let __and_l = (str_startswith_op !func_ret "(") in if __and_l <> 0 then (if (str_contains_op !func_ret ",") then 1 else 0) else __and_l) in if __and_l <> 0 then (if (not (str_contains_op (str_sub_op !func_ret 1 (((str_length_op !func_ret)) - (1))) "(")) then 1 else 0) else __and_l) in if __and_l <> 0 then (if (str_eq_op (str_replace_op (str_replace_op (str_replace_op (str_replace_op (str_replace_op !_tc_sfx "string" "") "bool" "") "real" "") "int" "") "_" "") "") then 1 else 0) else __and_l) in if __and_l <> 0 then (if (not (str_eq_op (str_replace_op (str_replace_op !_tc_sfx "int" "") "_" "") "")) then 1 else 0) else __and_l) <> 0) then begin
+>               raise (Return_str (str_concat_op (str_concat_op (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_tup_") !_tc_sfx) " ") !py_val) ")"))
+1743,1754c1744,1746
+<               if (str_eq_op !func_ret "array int") then begin
+<                 let _ = (controlflowstmtmixin___materialize_bridge self) in ();
+<                 if false then begin
+<                   seq_val := "Seq.empty"
+<                 end else begin
+<                   if ((if (str_eq_op (kind_of !val_ir) "Var") && (match Map.get (self._seq_locals) ((iratts_name_of !val_ir)) with | Some _ -> true | None -> false end) then 1 else 0) <> 0) then begin
+<                     seq_val := (str_concat_op "!" (whyml_ident (iratts_name_of !val_ir)))
+<                   end else begin
+<                     seq_val := (self__seq_init_expr_2 self !val_ir local_refs)
+<                   end
+<                 end;
+<                 raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_seq ") !seq_val) ")"))
+---
+>               arity := self._current_tuple_arity;
+>               if (!arity > 0) then begin
+>                 raise (Return_str (str_concat_op (str_concat_op (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_") (int_to_string !arity)) " ") !py_val) ")"))
+1756,1757c1748,1749
+<                 if (str_eq_op !func_ret "array string") then begin
+<                   let _ = (controlflowstmtmixin___materialize_str_bridge self) in ();
+---
+>                 if (str_eq_op !func_ret "array int") then begin
+>                   let _ = (controlflowstmtmixin___materialize_bridge self) in ();
+1764,1768c1756
+<                       seq_val := (self__seq_init_expr_2 self !val_ir local_refs);
+<                       if ((let __and_l = (if (str_eq_op (kind_of !val_ir) "ListComp") && (not (pycsl_none <> 0)) then 1 else 0) in if __and_l <> 0 then (str_startswith_op !seq_val "(snapshot (str_split_op ") else __and_l) <> 0) then begin
+<                         let _ = (self__add_abstract_op_1 self (pystr_cat "val snapshot_str (a: array string) : seq string" (pystr_cat (pystr_chr 10) (pystr_cat "    ensures { Seq.length result = Array.length a }" (pystr_cat (pystr_chr 10) "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }"))))) in ();
+<                         seq_val := (str_concat_op "(snapshot_str " (str_sub_op !seq_val 10 (((str_length_op !seq_val)) - (10))))
+<                       end
+---
+>                       seq_val := (self__seq_init_expr_2 self !val_ir local_refs)
+1771c1759
+<                   raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_seq_str ") !seq_val) ")"))
+---
+>                   raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_seq ") !seq_val) ")"))
+1773c1761,1762
+<                   if (str_eq_op !func_ret "array emit_ir") then begin
+---
+>                   if (str_eq_op !func_ret "array string") then begin
+>                     let _ = (controlflowstmtmixin___materialize_str_bridge self) in ();
+1780,1783c1769,1772
+<                         if ((if ((if true && ((str_eq_op (kind_of !val_ir) "ArrayLit") || (str_eq_op (kind_of !val_ir) "ListLit")) then 1 else 0) <> 0) && (not (Array.length (args_of !val_ir) <> 0)) then 1 else 0) <> 0) then begin
+<                           seq_val := "Seq.empty"
+<                         end else begin
+<                           seq_val := (self__seq_init_expr_2 self !val_ir local_refs)
+---
+>                         seq_val := (self__seq_init_expr_2 self !val_ir local_refs);
+>                         if ((let __and_l = (if (str_eq_op (kind_of !val_ir) "ListComp") && (not (pycsl_none <> 0)) then 1 else 0) in if __and_l <> 0 then (str_startswith_op !seq_val "(snapshot (str_split_op ") else __and_l) <> 0) then begin
+>                           let _ = (self__add_abstract_op_1 self (pystr_cat "val snapshot_str (a: array string) : seq string" (pystr_cat (pystr_chr 10) (pystr_cat "    ensures { Seq.length result = Array.length a }" (pystr_cat (pystr_chr 10) "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }"))))) in ();
+>                           seq_val := (str_concat_op "(snapshot_str " (str_sub_op !seq_val 10 (((str_length_op !seq_val)) - (10))))
+1787c1776
+<                     raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_seq_ir ") !seq_val) ")"))
+---
+>                     raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_seq_str ") !seq_val) ")"))
+1789,1791c1778,1780
+<                     if (str_eq_op !func_ret "string") then begin
+<                       if ((if false || ((if true && (str_eq_op (kind_of !val_ir) "None") then 1 else 0) <> 0) then 1 else 0) <> 0) then begin
+<                         raise (Return_str (str_concat_op indent (pystr_cat "raise (Return_str " (pystr_cat (pystr_chr 34) (pystr_cat (pystr_chr 34) ")")))))
+---
+>                     if (str_eq_op !func_ret "array emit_ir") then begin
+>                       if false then begin
+>                         seq_val := "Seq.empty"
+1793,1794c1782,1792
+<                         raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_str ") !py_val) ")"))
+<                       end
+---
+>                         if ((if (str_eq_op (kind_of !val_ir) "Var") && (match Map.get (self._seq_locals) ((iratts_name_of !val_ir)) with | Some _ -> true | None -> false end) then 1 else 0) <> 0) then begin
+>                           seq_val := (str_concat_op "!" (whyml_ident (iratts_name_of !val_ir)))
+>                         end else begin
+>                           if ((if ((if true && ((str_eq_op (kind_of !val_ir) "ArrayLit") || (str_eq_op (kind_of !val_ir) "ListLit")) then 1 else 0) <> 0) && (not (Array.length (args_of !val_ir) <> 0)) then 1 else 0) <> 0) then begin
+>                             seq_val := "Seq.empty"
+>                           end else begin
+>                             seq_val := (self__seq_init_expr_2 self !val_ir local_refs)
+>                           end
+>                         end
+>                       end;
+>                       raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_seq_ir ") !seq_val) ")"))
+1796,1797c1794,1799
+<                       if (str_eq_op !func_ret "emit_ir") then begin
+<                         raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_emit_ir ") !py_val) ")"))
+---
+>                       if (str_eq_op !func_ret "string") then begin
+>                         if ((if false || ((if true && (str_eq_op (kind_of !val_ir) "None") then 1 else 0) <> 0) then 1 else 0) <> 0) then begin
+>                           raise (Return_str (str_concat_op indent (pystr_cat "raise (Return_str " (pystr_cat (pystr_chr 34) (pystr_cat (pystr_chr 34) ")")))))
+>                         end else begin
+>                           raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_str ") !py_val) ")"))
+>                         end
+1799,1800c1801,1802
+<                         if (str_eq_op !func_ret "term") then begin
+<                           raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_term ") !py_val) ")"))
+---
+>                         if (str_eq_op !func_ret "emit_ir") then begin
+>                           raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_emit_ir ") !py_val) ")"))
+1802,1803c1804,1805
+<                           if ((str_startswith_op !func_ret "_union_") <> 0) then begin
+<                             raise (Return_str (str_concat_op (str_concat_op (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_") !func_ret) " ") !py_val) ")"))
+---
+>                           if (str_eq_op !func_ret "term") then begin
+>                             raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_term ") !py_val) ")"))
+1805,1807c1807,1808
+<                             if ((let __and_l = (let __and_l = (if (ir_truthy_v !val_ir) then 1 else 0) in if __and_l <> 0 then (if (str_eq_op (kind_of !val_ir) "Var") then 1 else 0) else __and_l) in if __and_l <> 0 then (if (match Map.get (self._array_locals) ((iratts_name_of !val_ir)) with | Some _ -> true | None -> false end) then 1 else 0) else __and_l) <> 0) then begin
+<                               let py_val = ref "(any int)" in
+<                               ()
+---
+>                             if ((str_startswith_op !func_ret "_union_") <> 0) then begin
+>                               raise (Return_str (str_concat_op (str_concat_op (str_concat_op (str_concat_op (str_concat_op indent "raise (Return_") !func_ret) " ") !py_val) ")"))
+1809,1811c1810,1811
+<                               if (str_eq_op !py_val "()") then begin
+<                                 let _ = (self__add_abstract_op_1 self "val function pycsl_none : int") in ();
+<                                 let py_val = ref "pycsl_none" in
+---
+>                               if ((let __and_l = (let __and_l = (if (ir_truthy_v !val_ir) then 1 else 0) in if __and_l <> 0 then (if (str_eq_op (kind_of !val_ir) "Var") then 1 else 0) else __and_l) in if __and_l <> 0 then (if (match Map.get (self._array_locals) ((iratts_name_of !val_ir)) with | Some _ -> true | None -> false end) then 1 else 0) else __and_l) <> 0) then begin
+>                                 let py_val = ref "(any int)" in
+1814,1815c1814,1816
+<                                 if (str_eq_op !py_val "true") then begin
+<                                   let py_val = ref "1" in
+---
+>                                 if (str_eq_op !py_val "()") then begin
+>                                   let _ = (self__add_abstract_op_1 self "val function pycsl_none : int") in ();
+>                                   let py_val = ref "pycsl_none" in
+1818,1819c1819,1820
+<                                   if (str_eq_op !py_val "false") then begin
+<                                     let py_val = ref "0" in
+---
+>                                   if (str_eq_op !py_val "true") then begin
+>                                     let py_val = ref "1" in
+1822,1823c1823,1829
+<                                     let py_val = ref (self__bool_ir_to_int_wrap_2 !py_val !val_ir) in
+<                                     ()
+---
+>                                     if (str_eq_op !py_val "false") then begin
+>                                       let py_val = ref "0" in
+>                                       ()
+>                                     end else begin
+>                                       let py_val = ref (self__bool_ir_to_int_wrap_2 !py_val !val_ir) in
+>                                       ()
+>                                     end
+1826,1829c1832,1835
+<                               end
+<                             end;
+<                             let py_val = ref (self__coerce_to_int_1 !py_val) in
+<                             raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return ") !py_val) ")"))
+---
+>                               end;
+>                               let py_val = ref (self__coerce_to_int_1 !py_val) in
+>                               raise (Return_str (str_concat_op (str_concat_op (str_concat_op indent "raise (Return ") !py_val) ")"))
+>                             end

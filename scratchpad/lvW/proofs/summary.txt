@@ -1,0 +1,9 @@
+2026-11-17T12:29:10Z START tc_statements module6_whyml/statements.py --no-proof --keep-mlw PCC=4
+2026-11-17T12:29:10Z START tc_pycsl pycsl.py --no-proof --keep-mlw PCC=4
+2026-11-17T12:32:21Z END tc_pycsl rc=0 wall=191s valid=0 total=0 nonvalid=0 Verification SUCCESS oom_kill=0->0
+2026-11-17T12:33:23Z END tc_statements rc=0 wall=253s valid=0 total=0 nonvalid=0 Verification SUCCESS oom_kill=0->0
+2026-11-17T12:34:01Z START tc_scf module6_whyml/stmt_control_flow.py --no-proof --keep-mlw PCC=4
+2026-11-17T12:34:11Z END tc_scf rc=0 wall=10s valid=0 total=0 nonvalid=0 Verification SUCCESS oom_kill=0->0
+2026-11-17T13:21:37Z START fun_why3tc_leafassert /home/fabrice/git/pycsl-lvW-mut pycsl.py --fun _why3_typecheck PCC=4
+2026-11-17T15:26:22Z END fun_why3tc_leafassert rc=1 wall=7485s valid=761 total=767 nonvalid=6 Verification FAILED oom_kill=0->0
+2026-11-17T15:26:50Z START fun_why3tc_leafmut /home/fabrice/git/pycsl-lvW-mut pycsl.py --fun _why3_typecheck PCC=4

@@ -1,0 +1,48 @@
+46a47,48
+>   exception Return_tup_int_string (int, string)
+> 
+1277a1280,1281
+>   type pytuple_int_str = { mutable pytuple_int_str_field0: int; mutable pytuple_int_str_field1: string }
+> 
+1340a1345,1347
+>   val function ext_cp_returncode_op (h: int) : int
+>   val function ext_cp_stderr_op (h: int) : string
+>   val function ext_cp_stdout_op (h: int) : string
+1342a1350
+>   val ext_subprocess_run_op (args: array string) : int raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, UnicodeDecodeError, ValueError }
+1382a1391,1392
+>   val str_length_op (s: string) : int
+>     ensures { result = (String.length s) }
+1389a1400,1401
+>   val str_strip_op (s: string) : string
+>     ensures { String.length result <= String.length s }
+1539a1552
+>     raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, UnicodeDecodeError, ValueError }
+1664a1678
+>     raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, UnicodeDecodeError, ValueError }
+1731a1746
+>     raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, UnicodeDecodeError, ValueError }
+1922c1937
+<   val _why3_typecheck (mlw_filename: string) : (int, string)
+---
+>   let _why3_typecheck (mlw_filename: string) : (int, string)
+1924a1940,1958
+>     raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, UnicodeDecodeError, ValueError }
+>   =
+>     try
+>     let r = ref 0 in
+>     try
+>       r := (ext_subprocess_run_op (let _alit = Array.make 4 ("why3") in _alit[1] <- "prove"; _alit[2] <- "--type-only"; _alit[3] <- mlw_filename; _alit))
+>     with FileNotFoundError -> 
+>       raise (Return_tup_int_string (0, (pystr_cat "why3 not found on PATH " (pystr_cat (pystr_chr 226) (pystr_cat (pystr_chr 128) (pystr_cat (pystr_chr 148) " the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only run."))))))
+>     end;
+>     if ((ext_cp_returncode_op !r) = 0) then begin
+>       raise (Return_tup_int_string (1, ""))
+>     end else begin
+>       let _diag = ref (str_strip_op (ext_cp_stderr_op !r)) in
+>       if (not (str_length_op !_diag <> 0)) then begin
+>         _diag := (str_strip_op (ext_cp_stdout_op !r))
+>       end;
+>       raise (Return_tup_int_string (0, !_diag))
+>     end
+>     with Return_tup_int_string r -> r end
