@@ -100,6 +100,12 @@ All three post-L13 measurement branches returned. Nothing on them is landed. The
 
 None of the four is a live false proof today. **Proposed:** land R1 / R2 / R4 early in run #8 as one batch B. Their corpus and mirror diff is already 0 / 0 / 0, so they need only witnesses, planes and a battery.
 
+The driver ran the fast planes on run7-u48 e4e1bea94 (all four rules): **59 / 62 green, 3 RED**. All three reds are expected and say what batch B must do:
+- `check-untrusted-emitted` and `check-shadowed-selfcalls` are red because R3 refuses 3 mirror files, so those files are not emitted. So R3 must be split out of batch B (model the bound instead).
+- `check-refusal-witness-coverage` is red because 9 raise sites are not demonstrated: the new codes have no census rows yet. Batch B needs corpus witnesses plus `_census_row` rows for each new code.
+
+The log is in `scratchpad/run7/evidence/u48/fast-planes-driver.log`.
+
 **cv15 — census seed (branch `run7-cv15` 3f00cac03, `getting-better/run8-census-seed.md`).**
 - **One chain moved at L13.** pycsl.py's `_sha256_file` is now ONE link away: `Path(<str>)` falls to the generic `path_1`. It ranks first.
 - **`type_of_batch`** closes TC-OK with its 2 measured links.
