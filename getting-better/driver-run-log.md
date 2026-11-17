@@ -1304,3 +1304,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-16T22:31Z | 1030 | STATUS (run hour 85.1; 11 h left). Main \trusted 367, ledger 3. u48, cv15 done (run #8 inputs). sp5 working. oom_kill 0. |
 2026-11-16T23:31Z | 1031 | STATUS (run hour 86.2; 10 h left). Main \trusted 367, ledger 3. sp5 proving (stmt_control_flow whole-file, measurement). oom_kill 0. |
 2026-11-17T00:32Z | 1032 | STATUS (run hour 87.2; 9 h left). Main \trusted 367, ledger 3. sp5 measuring (typed tuple-return spike). oom_kill 0. |
+2026-11-17T01:32Z | 1033 | STATUS (run hour 88.2; 8 h left). Main \trusted 367, ledger 3. sp5 measuring (WIP c3b77dfd0). oom_kill 0. |
