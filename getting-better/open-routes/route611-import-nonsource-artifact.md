@@ -38,3 +38,49 @@ Witness `10123` covers r16 (`--import-path …/r611art/pkg`). `witnesses-r611/r1
 - For an admitted identical package such as the repo-root `json/`, it is open.
 
 This is route #326's admission rule, so it predates run #7. Run #8 should refuse any `__pycache__` entry beside an admitted stdlib copy, or validate the entry.
+
+## r12 REPAIRED (run #8, executor u50, branch run8-u50)
+
+**Rule** (`_resolve_module_path`, mirror twin `\trusted`; refusal-only, fail-closed; code
+`PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`). For every module the resolver returns -- the hit itself,
+each parent package `__init__.py` on its dotted path, and EVERY `.py` of an admitted
+stdlib-named local package copy (route #326 / #611) -- every bytecode cache that CPython's
+source loader could take instead of the source must be provably the compilation of that source:
+
+- the candidates are every `__pycache__/<m>.<cache_tag>.pyc` and `<m>.<cache_tag>.opt-<N>.pyc`
+  for ANY level N >= 1 (`python -OOO` loads `.opt-3`, PYTHONOPTIMIZE=7 loads `.opt-7`; the
+  loader compiles at level 2 for every N >= 2), plus pycsl's own `sys.pycache_prefix` location;
+- a candidate CPython itself rejects is ignored: shorter than 16 bytes, wrong magic, unknown
+  flag bits, or a TIMESTAMP pyc whose header mtime / size do not match the source's stat (CPython
+  recompiles from source then);
+- every other candidate -- an unchecked hash-based pyc (PEP 552), a checked one (loaded
+  unconditionally under `--check-hash-based-pycs never`), a timestamp pyc whose header matches --
+  is unmarshalled and compared with `compile(source, path, "exec", dont_inherit=True,
+  optimize=min(N, 2))`: every `co_*` attribute, recursively through `co_consts` (exact constant
+  types, float / complex bits, frozenset / slice constants), with `co_filename` rewritten exactly
+  as `_imp._fix_co_filename` does. Equal: accepted. Anything else (or an unreadable cache): REFUSED.
+
+A genuine CPython-written cache validates, so verdicts do not depend on whether CPython once ran
+in a directory: the `__pycache__` caches of all 241 main-tree source modules that have one
+(test-suite, json/, src/), plus the repo-root `json/` package walked as an admitted stdlib copy,
+are ACCEPTED by the exact rule code (`witnesses-r611r12/blk.py`, `maintree-scan.txt`, measured
+2026-11-17 on the main tree's live caches).
+
+**Measured (real CPython 3.14.4 vs pycsl, `witnesses-r611r12/`):** 22 probes, each run under
+CPython default / -O / -OO / -OOO / `--check-hash-based-pycs never|always`. The set pycsl refuses
+is EXACTLY the set where some CPython configuration runs the forged bytecode (A1 A2 A3 A6 A7 A9
+J1 N1 T1); every genuine / stale / other-version cache is accepted (A4 A5 A5o A5r A5u A8 J2 N2 T2).
+
+**Not only held by accident:** at base 0057c8b94, N1 (a plain local dependency with a forged
+unchecked pyc) and T1 (a stdlib-identical `tomllib/` copy with a forged submodule cache) PROVE
+while CPython violates the contract -- live pre-existing false proofs (the hashlib and json shapes
+were held by the rebound-name rule and route #305). Corpus witnesses 10124-10127 (FAIL, refused
+x3 models), controls 10128 (dependency + genuine `.pyc` / `.opt-1.pyc`) and 10129 (tomllib copy +
+genuine caches), which prove in hoare exactly as at base.
+
+**Residuals (not closable in pycsl):** the program's runtime environment is not visible to
+pycsl: `PYTHONPYCACHEPREFIX` / `-X pycache_prefix` of the user's interpreter (only pycsl's own
+prefix is checked), another interpreter version with another cache tag (`cpython-313`), and a
+program run as `python -m prog` (its own cache is then used; only imported modules are checked).
+A future CPython patch release that compiles the same source differently under the same magic
+number would make a genuine cache refuse (fail-closed, environment-dependent over-refusal).

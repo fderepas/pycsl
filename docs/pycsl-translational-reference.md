@@ -6155,7 +6155,10 @@ $\textit{top}(m) \in \texttt{stdlib\_module\_names} \cup
 \texttt{builtin\_module\_names}$, a hit is admitted only when it is byte-identical to the
 interpreter's own `stdlib/` source (recursively for a package), and otherwise the program has
 no image (`PYCSL-SEM-IMPORT-SHADOWS-STDLIB`): CPython's built-in/frozen finders and the
-startup-populated `sys.modules` precede every path entry. $\rho$ is a function of the
+startup-populated `sys.modules` precede every path entry. A hit also has no image when a
+bytecode cache the source loader may take in its place (`__pycache__/<m>.<tag>[.opt-N].pyc`,
+hash-based, or timestamp-matching) is not the compilation of the hit's source, compared as
+code objects (`PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route #611 r12). $\rho$ is a function of the
 source tree only, so a program that can change CPython's binding has no image
 (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
 path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a
