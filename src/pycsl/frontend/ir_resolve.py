@@ -126,28 +126,31 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
             # load. (`__pycache__/X.*.pyc` is only loaded for an existing `X.py`, so it is
             # not an artifact of its own.)
             import importlib.machinery as _im611
+            _sfxs611 = (".pyc", ".pyd", ".so", ".abi3.so", *_im611.EXTENSION_SUFFIXES)
             _art611 = []
-            for _k611 in sorted({1, len(parts)}):
-                _art611_stem = os.path.join(base, *parts[:_k611])
-                _art611_dir = os.path.dirname(_art611_stem)
-                _art611 += [_art611_stem + _sfx611 for _sfx611 in (
-                    ".pyc", ".pyd", ".so", ".abi3.so", *_im611.EXTENSION_SUFFIXES)
-                    if os.path.isfile(_art611_stem + _sfx611)]
-                _art611 += [os.path.join(_art611_dir, _fn611)
-                            for _fn611 in (sorted(os.listdir(_art611_dir))
-                                           if os.path.isdir(_art611_dir) else [])
-                            if _fn611.startswith(parts[_k611 - 1] + ".cpython-")
-                            and _fn611.endswith((".so", ".pyd"))
-                            and os.path.isfile(os.path.join(_art611_dir, _fn611))]
-            # A package directory is an import target for CPython when it holds `__init__` with
-            # ANY loader suffix (rt62 r16 / r17: `hashlib/__init__.pyc` or an `__init__` extension
-            # module and no `__init__.py`), and a submodule of a package may itself be an artifact
-            # (rt62 j04: `json/encoder.py` replaced by `json/encoder.pyc`). So for the top-level
-            # directory in this root, EVERY non-source loader file below it (outside
-            # `__pycache__`) is an artifact too.
+            # Along the dotted path exactly as CPython's FileFinder walks it: at each level
+            # `a`, `a/b`, ... the module artifact (`a.pyc`, `a.cpython-*.so`, ...) and the
+            # package-init artifact (`a/__init__.pyc`, `a/__init__.<ext>`; rt62 r16 / r17).
+            for _k611 in range(1, len(parts) + 1):
+                _st611 = os.path.join(base, *parts[:_k611])
+                for _cand611 in (_st611, os.path.join(_st611, "__init__")):
+                    _d611 = os.path.dirname(_cand611)
+                    _n611 = os.path.basename(_cand611)
+                    if not os.path.isdir(_d611):
+                        continue
+                    _art611 += [os.path.join(_d611, _fn611) for _fn611 in sorted(os.listdir(_d611))
+                                if _fn611.startswith(_n611 + ".") and _fn611 != _n611 + ".py"
+                                and (_fn611.endswith(_sfxs611)
+                                     or (_fn611.startswith(_n611 + ".cpython-")
+                                         and _fn611.endswith((".so", ".pyd"))))
+                                and os.path.isfile(os.path.join(_d611, _fn611))]
+            # A local package NAMED LIKE A STANDARD-LIBRARY MODULE is admitted below only as
+            # a byte-identical copy of the interpreter's own package; any non-source loader
+            # file anywhere inside it (outside `__pycache__`) can replace one of its
+            # submodules (rt62 j04: `json/encoder.py` swapped for `json/encoder.pyc`).
             _pkgdir611 = os.path.join(base, parts[0])
-            if os.path.isdir(_pkgdir611):
-                _sfxs611 = (".pyc", ".pyd", ".so", *_im611.EXTENSION_SUFFIXES)
+            if ((parts[0] in sys.stdlib_module_names or parts[0] in sys.builtin_module_names)
+                    and os.path.isdir(_pkgdir611)):
                 for _dp611, _dns611, _fns611 in os.walk(_pkgdir611):
                     _dns611[:] = sorted(_d for _d in _dns611 if _d != "__pycache__")
                     _art611 += [os.path.join(_dp611, _fn611) for _fn611 in sorted(_fns611)
