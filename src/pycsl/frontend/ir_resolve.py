@@ -259,7 +259,12 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
     # unknown flags, < 16 bytes, a timestamp header that does not match) is not loadable and is
     # ignored. Anything else REFUSES the import. A genuine CPython-written cache (the repo-root
     # `json/__pycache__`) validates, so the verdict does not depend on whether CPython once ran
-    # in that directory. Inline; the mirror twin is `\trusted`.
+    # in that directory. NOT compared (review cr63, documented residuals): `localspluskinds`
+    # (no `co_*` view; a forged CO_FAST_HIDDEN bit changes only `locals()`), constant identity /
+    # sharing (`f() is g()` over two equal constant tuples). Out of reach: a cache created after
+    # verification (time-of-check vs time-of-use), the program's runtime PYTHONPYCACHEPREFIX,
+    # another interpreter's cache tag, and under `python -m pkg.prog` the program's own cache
+    # AND its package `__init__` chain. Inline; the mirror twin is `\trusted`.
     if hit is not None and sys.implementation.cache_tag:
         import importlib.util as _iu612
         import marshal as _ma612
@@ -295,20 +300,28 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
             for _cd612 in _dirs612:
                 if not os.path.isdir(_cd612):
                     continue
-                for _cn612 in sorted(os.listdir(_cd612)):
+                try:
+                    _ls612 = sorted(os.listdir(_cd612))
+                except OSError:
+                    # an unlistable `__pycache__` (mode `-wx`): CPython can still open a pyc
+                    # in it by name, pycsl cannot see which -> refuse (review cr63 Q3)
+                    _bad612 = _cd612
+                    _ls612 = []
+                for _cn612 in _ls612:
                     _cm612 = _rx612.fullmatch(_cn612)
                     if _cm612 is not None:
                         _cands612.append((min(int(_cm612.group(1) or 0), 2),
                                           os.path.join(_cd612, _cn612)))
             for _lv612, _cf612 in _cands612:
+                if _bad612 is not None:
+                    break
                 if not os.path.isfile(_cf612):
                     continue
                 try:
-                    with open(_cf612, "rb") as _fh612:
-                        _db612 = _fh612.read()
+                    # (no `with ... as`: check-dropped-mutation's CTXBIND ratchet)
+                    _db612 = __import__("pathlib").Path(_cf612).read_bytes()
                     _st612 = os.stat(_sf612)
-                    with open(_sf612, "rb") as _fh612:
-                        _sb612 = _fh612.read()
+                    _sb612 = __import__("pathlib").Path(_sf612).read_bytes()
                 except OSError:
                     _bad612 = _cf612
                     break
@@ -317,10 +330,11 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                 _fl612 = int.from_bytes(_db612[4:8], "little")
                 if _fl612 & ~0b11:
                     continue
-                if not (_fl612 & 0b1) and (
-                        int.from_bytes(_db612[8:12], "little") != (int(_st612.st_mtime) & 0xFFFFFFFF)
-                        or int.from_bytes(_db612[12:16], "little") != (_st612.st_size & 0xFFFFFFFF)):
-                    continue
+                # A TIMESTAMP pyc whose header does not match the source's CURRENT stat is
+                # ignored by CPython today, but it goes live on a later `touch -d` / `cp -p` /
+                # `rsync -t` / mtime-restoring extraction while the source bytes never change
+                # (review cr63 residual 3): it is validated like every other candidate, at the
+                # cost of refusing an honestly STALE cache (FIX: delete the `__pycache__`).
                 _eq612 = False
                 try:
                     _ca612 = _ma612.loads(_db612[16:])
@@ -350,6 +364,13 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                                     _vx612 = _sf612
                                 if type(_vx612) is not type(_vy612) or _vx612 != _vy612:
                                     _eq612 = False
+                            # `co_code` is the DEOPTIMISED view (specialised opcodes mapped
+                            # back, inline caches zeroed); the bytes CPython runs are
+                            # `_co_code_adaptive` -- both sides are fresh, never-executed
+                            # objects, so a genuine cache still matches (review cr63 R1)
+                            if (getattr(_x612, "_co_code_adaptive", None)
+                                    != getattr(_y612, "_co_code_adaptive", None)):
+                                _eq612 = False
                             if len(_x612.co_consts) != len(_y612.co_consts):
                                 _eq612 = False
                             _wl612 += [(_a, _b, _up612)
@@ -403,7 +424,8 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                 f"`import {'.' * level}{module_dotted}`: the bytecode cache {_bad612} is one "
                 f"CPython's source loader may run INSTEAD of the source pycsl reads (an "
                 f"unchecked / hash-based pyc, or a timestamp pyc whose header matches the "
-                f"source), and it is not provably the compilation of that source, so the module "
+                f"source, or one that goes live on a later mtime change), and it is not provably the "
+                f"compilation of that source (a forged cache, or an honestly STALE one), so the module "
                 f"the program runs is not the module verified here (route #611 r12: a forged "
                 f"unchecked `__pycache__/hashlib.cpython-314.pyc` beside a stdlib-identical "
                 f"`hashlib.py` makes CPython's two digests differ). FIX: delete the "

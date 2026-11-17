@@ -84,3 +84,38 @@ prefix is checked), another interpreter version with another cache tag (`cpython
 program run as `python -m prog` (its own cache is then used; only imported modules are checked).
 A future CPython patch release that compiles the same source differently under the same magic
 number would make a genuine cache refuse (fail-closed, environment-dependent over-refusal).
+
+### r12 follow-up (driver review cr63, `scratchpad/run8/evidence/u50/cr63-review.md`)
+
+- **R1 fixed:** `co_code` is CPython's DEOPTIMISED view (specialised opcodes mapped back, inline
+  caches zeroed); every code-object pair must now also have equal `_co_code_adaptive` (the bytes
+  the interpreter runs). Both sides are fresh, never-executed objects: on the main tree this
+  costs no genuine cache (`maintree-scan.txt`: every refusal there is a stale header, below).
+- **Q3 fixed:** an unlistable `__pycache__` (`os.listdir` OSError, mode `-wx`) refuses with the
+  same code instead of crashing the resolver (CPython can still open a pyc in it by name).
+- **Residual 3 closed (stale / latent timestamp pyc):** a timestamp pyc whose header does NOT
+  match the source's current stat is no longer ignored: it goes live on a later `touch -d`,
+  `cp -p`, `rsync -t` or mtime-restoring extraction while the source bytes never change, so it is
+  validated like every other candidate. COST (measured on the main tree's live caches,
+  2026-11-17 15:05Z): 25 of the 242 caches (241 source modules + the repo-root `json/` walk) are
+  honestly STALE (header != stat, code != the current source's compilation: CPython would just
+  recompile them) and are now REFUSED -- 13 under `src/pycsl/` (pycsl.py, Module6_WhyMLTranspiler,
+  module6_whyml/{expressions, functions, statements, stmt_control_flow, preamble, struct_format,
+  abstract_ops}, frontend/ir_resolve, ...), 2 under `src/pycsl_lib/`, 5 mirror sources under
+  `src/self-annotate/src/`, 5 corpus programs; all 25 are stale headers, none is an
+  `_co_code_adaptive` mismatch. A fresh worktree has no such caches; CPython refreshes a stale
+  cache whenever it imports the module from a writable directory. This is an
+  environment-dependent OVER-REFUSAL by design (fail-closed); the message says so (FIX: delete the
+  `__pycache__` entry).
+- **Documented residuals (not compared / out of reach):** R2 `localspluskinds` (no `co_*` view;
+  a forged CO_FAST_HIDDEN / argument-kind bit changes only `locals()` / frame introspection);
+  R3 constant identity / sharing (`f() is g()` over equal constant tuples, de-shared via marshal
+  back-references); time-of-check vs time-of-use (a cache created or modified after verification,
+  honestly by CPython or by an attacker); the program's runtime PYTHONPYCACHEPREFIX; another
+  interpreter's cache tag; under `python -m pkg.prog` the program's own cache AND the package
+  `__init__` chain above the main file (the parent loop starts below the import's base).
+- **Over-refusals (fail-closed, documented):** a stale CHECKED-hash pyc (CPython's default mode
+  rejects and rewrites it; refused because `--check-hash-based-pycs never` would run it; common
+  when `SOURCE_DATE_EPOCH` is set); caches written with `-X no_debug_ranges` /
+  PYTHONNODEBUGRANGES, or pycsl run that way (different `co_linetable`); an unreadable cache file
+  (EACCES; CPython ignores it); a patch release that compiles differently under the same magic.
