@@ -19,7 +19,7 @@
 | `\trusted` (canonical grep) | 389 | **367 after L13** (374 after L12) |
 | Proof-axiom ledger (Rocq / Lean, `proof_axiom_allowlist.py`) | 3 | 3 |
 | WhyML assumed-fact families | — | +1: CERTIFIED-DEFINITIONAL (see below) |
-| Landings | — | L9, L10, L11, L12, L13 |
+| Landings | — | L9, L10, L11, L12, L13, L14 (soundness repair) |
 
 - **Goal and stretch.** The goal (< 389) is met. The stretch goal (≤ 375) is met: 374 at L11, 367 at L13 (22 conversions).
 - **The one sanctioned assumption.** The new assumed-fact family holds the two route-(e2) `pairs_get` equations. They are realised by the Rocq and Lean lemmas `pairs_get_nil` / `pairs_get_cons`, and recorded in `bin/check-assumed-facts.py`. This is the single exception to "no new axioms", granted by user decision (d), log 848. It is not a proof-assistant axiom, so the ledger stays at 3.
@@ -33,6 +33,7 @@
 | L11 | 010d7aced | lvT generator-as-seq + re lastgroup | Module2 + sertop proved; v59 85/85 |
 | L12 | c37d50422 | u46 #608 #609 | v60 85/85; mirror-inert |
 | L13 | ad6323517 | lvU (batch F: 4 conversions) + lvV (batch G: sha-256 trio) + u47 #610 (the rt61 repair) | 6 mirror movers proved whole-file at an emission byte-identical to the tip; v62 85/85; full corpus 0/0/0 vs L12 |
+| L14 | 7febb056f | route #611 repair (refusal-only; the rt62 red-team findings against the landed L13), driver-written | v65 ACDE: corpus root + pyref 0/0/0, mirror byte-identical (no re-proof owed), fidelity rc 0; fast planes 62/62; rt62 found no bypass of the final rule; --slow: see §9 |
 
 ## 3. Conversions (22 landed through L13)
 
@@ -97,12 +98,14 @@ Every conversion has:
 | rt59 | int61 | 33 false proofs in families #603-#607 | Repaired by u45 (L10) |
 | rt60 | lvT + u45 / u44 residuals | 7 pre-existing: #608 #609 | Repaired by u46 (L12). Nothing found in lvT |
 | rt61 | lvU + lvV (report-only wrap-up round) | 7 false proofs, one family #610 (module-name shadowing): 6 INTRODUCED by lvU / lvV, 1 from lvQ's L9 model | Under plan line 92 (an introduced breach must be repaired before the batch is done): repaired by u47 (refusal-only) and landed together with lvU / lvV in L13 |
+| rt62 | the landed L13 tip (report-only, last hours) | 8 false proofs, one family #611: a non-source module artifact beside the program (sourceless `.pyc`, extension module, `__init__` artifact package, stdlib-identical package with a submodule swapped for bytecode, symlinked program). 5 INTRODUCED by run #7's models (L12 refused them: r10 r13 r16 r17 r19); 3 PRE-EXISTING (j02 j03 j04, back to before lvQ). No bypass of R610 | Plan line 92: the driver repaired it refusal-only (route #611, branch run7-u49, three bypass rounds closed with rt62) and landed it as L14. r12 stays OPEN |
 
-- **Routes repaired this run:** #586, #587, #588, #594, #596 (u43); #599, #601, #602 (u44); #603-#607 (u45); #608, #609 (u46); #610 (u47).
+- **Routes repaired this run:** #586, #587, #588, #594, #596 (u43); #599, #601, #602 (u44); #603-#607 (u45); #608, #609 (u46); #610 (u47); #611 (driver, L14).
 - **Routes still open:** the residuals of #597 (raises in dependency modules) and #598 (kwargs via `super().__init__`); route #583's F3; the documented residuals of #599, #603, #608.
 - **Backlog notes from L13 (pre-existing, not introduced):**
   - a `str` subscript carries no IndexError / in-bounds VC outside `no_exception` (the obvious mutants of `_parse_mixin_sig` and `_find_coqc` prove; other mutants were used);
   - `audit_proof` imports `_sha256_file` / `_cache_key` as `val`s without `raises`, as at base (fixing it moves a non-home mirror file);
+  - **route #611 r12 (OPEN):** a forged `__pycache__/X.cpython-314.pyc` (unchecked-hash, PEP 552) beside a local copy that is byte-identical to the stdlib source. CPython runs the forged bytecode. It is held today only by accident: for hashlib the rebound-name rule, for json route #305 at encoder.py:268. If either refusal is relaxed, it becomes a live false proof. Run #8 should refuse any `__pycache__` entry beside an admitted stdlib copy;
   - in a file that uses both sha shapes, the outer calls carry no `ext` rows, so handler-dependent claims around them are refused (fail-closed).
 
 ## 6. Decisions
@@ -141,6 +144,7 @@ Every conversion has:
 - **An executor committed `progress.txt`**, which blocked the merge into the main tree (the user's untracked file). It was untracked in the integration branch before landing.
 - **lvU went silent for ~8.5 h.** The driver salvaged its tree as WIP commits and gated it independently. Lesson: require a WIP checkpoint every 2 h (added to every later brief).
 - **The cwd changes import resolution in sweeps** (a `json/` directory at the repo root). Lesson: sweeps that are compared must use the same cwd; the canonical one is the repo root.
+- **A red-team round against the LANDED tip found introduced holes the batch rounds missed** (rt62 → #611): the models were sound in the language, but the import resolver disagreed with CPython about WHICH module runs. The driver wrote the repair under time pressure, and rt62 bypassed it three times before it held. The driver's own fast planes also caught a regression in the second version: the witness artifacts under `multi_file_lib/` made every `import multi_file_lib.X` refuse. Lessons: (1) every world model needs a resolver-level red-team axis (what file does CPython load?), not only an expression-level one; (2) a repair written by the driver needs an independent attacker, and keeping rt62 on it was what made it hold; (3) never edit a tree while a sweep or plane run reads it. Snapshot first. Two batteries were invalidated this way and re-run.
 - **The red team found that new external-effect models trusted the callee string** "<mod>.<f>" without checking that `<mod>` is the import, in the function scope (#610). Lesson: a new world model is not done until a red-team round targeting it has returned; schedule that round before the batch, not after.
 
 ## 9. End state
@@ -149,7 +153,7 @@ Every conversion has:
   - `\trusted` **367** (389 at the start);
   - proof-axiom ledger **3**;
   - one CERTIFIED-DEFINITIONAL WhyML family;
-  - last landing L13 (`ad6323517`);
+  - last conversion landing L13 (`ad6323517`); last landing L14 (`7febb056f`, the #611 soundness repair);
   - nothing pushed.
 - **oom_kill:** 0 for the whole run.
 - **Post-L13 non-landing work** (supervisor 16:20Z on the 16th). It is committed on run7-* branches only, each ending in a written result for run #8:
