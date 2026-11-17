@@ -16,7 +16,7 @@
 
 | | start | end |
 |---|---|---|
-| `\trusted` (canonical grep) | 389 | **367 after L13** (374 after L12) |
+| `\trusted` (canonical grep) | 389 | **367** (after L13; L14 is a soundness repair; 374 after L12) |
 | Proof-axiom ledger (Rocq / Lean, `proof_axiom_allowlist.py`) | 3 | 3 |
 | WhyML assumed-fact families | — | +1: CERTIFIED-DEFINITIONAL (see below) |
 | Landings | — | L9, L10, L11, L12, L13, L14 (soundness repair) |
@@ -162,7 +162,16 @@ Every conversion has:
   - `run7-cv15` (3f00cac03), `getting-better/run8-census-seed.md`. The census seed at 367: `_sha256_file` in pycsl.py is one link away; ~212 receiver-dropping fallback sites.
   - `getting-better/driver-run8-plan-draft.md` on the main branch: the draft run #8 plan with these numbers.
 - **Kept branches** (commit-only, never rewritten; 28): run7-ce4, run7-cv12 … run7-cv15, run7-int60 … run7-int65, run7-lv4, run7-lvQ … run7-lvV, run7-rp4, run7-sp4, run7-sp5, run7-u43 … run7-u48, run7-wh4.
-- **END_CLEANUP**
+- **L14 post-landing --slow confirmation (85 planes, snapshot at 6cc2e774d): PARTIAL, did not finish before the deadline.**
+  - **76 planes ok** when it was stopped at ~09:00Z. The remaining planes were never run.
+  - **1 flagged:** `check-emitted-vacuity` returned rc=2. This was an instrument refusal, not a verdict: 39 of the ≥40 beside-source emissions landed in that run. The same plane was ok on the same commit in the fast run an hour earlier. The driver re-ran it alone on a separate tree at the same commit: rc=0, no new erasure (log 1049).
+  - **No RED verdict**, so L14 was not reverted. The fast planes (62/62) and battery v65 ACDE gated the landing.
+- **End-of-run cleanup (logged in RUN #7 END):**
+  - only the main worktree is left;
+  - the run's scratch directories are removed by literal path;
+  - pollers and the --slow job are stopped;
+  - `.driver-deadline` / `.driver-started` are removed, and the `.prev` copies kept.
+  - Evidence is archived under `scratchpad/run7/evidence/`.
 
 ## 10. Carried forward
 
