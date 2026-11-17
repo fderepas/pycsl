@@ -16,6 +16,17 @@ pycsl found no local source, treated the name as the stdlib module, and its exte
 
 `__pycache__/X.*.pyc` is not an artifact on its own, since CPython uses it only for an existing `X.py`.
 
+**Extension (rt62 bypasses of the first version).** The first version (5dbaf401d) was bypassed three ways:
+- r16: a package `hashlib/` whose only init is `__init__.pyc`;
+- r17: a package `hashlib/` whose only init is an `__init__` extension module;
+- j04: a stdlib-identical `json/` with `encoder.py` replaced by `encoder.pyc`. Route #326's walk compared only the `.py` files present.
+
+Two rules were added:
+- (i) Every non-source loader file anywhere under the top-level directory `X/` in a root (outside `__pycache__`) is an artifact.
+- (ii) A local copy is admitted as the stdlib module only if its `.py` set EQUALS the stdlib's `.py` set. A missing file now counts against it, not only an extra or differing one. The repo-root `json/` has the same set, checked.
+
+Witness `10123` covers r16 (`--import-path …/r611art/pkg`). `witnesses-r611/r16`, `r17` and `j04` hold rt62's probes. All are refused, and the controls `w4` and `10116` still take the model.
+
 **Witnesses:**
 - `10120` (a sourceless `hashlib.pyc` root) and `10122` (an extension-module root), via `--import-path test-suite/corpus/pycsl-reference/multi_file_lib/r611art[/ext]`. Both are REFUSED in hoare / typed / store, and census rows were made by `_census_row`.
 - `witnesses-r611/w1` to `w4` hold the rt62 shapes plus a json one. `w4` is the control: a plain `import hashlib` still takes the model.

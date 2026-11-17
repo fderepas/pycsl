@@ -139,6 +139,19 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                             if _fn611.startswith(parts[_k611 - 1] + ".cpython-")
                             and _fn611.endswith((".so", ".pyd"))
                             and os.path.isfile(os.path.join(_art611_dir, _fn611))]
+            # A package directory is an import target for CPython when it holds `__init__` with
+            # ANY loader suffix (rt62 r16 / r17: `hashlib/__init__.pyc` or an `__init__` extension
+            # module and no `__init__.py`), and a submodule of a package may itself be an artifact
+            # (rt62 j04: `json/encoder.py` replaced by `json/encoder.pyc`). So for the top-level
+            # directory in this root, EVERY non-source loader file below it (outside
+            # `__pycache__`) is an artifact too.
+            _pkgdir611 = os.path.join(base, parts[0])
+            if os.path.isdir(_pkgdir611):
+                _sfxs611 = (".pyc", ".pyd", ".so", *_im611.EXTENSION_SUFFIXES)
+                for _dp611, _dns611, _fns611 in os.walk(_pkgdir611):
+                    _dns611[:] = sorted(_d for _d in _dns611 if _d != "__pycache__")
+                    _art611 += [os.path.join(_dp611, _fn611) for _fn611 in sorted(_fns611)
+                                if _fn611.endswith(_sfxs611)]
             if _art611:
                 from errors import PyCSLSemanticError
                 raise PyCSLSemanticError(
@@ -173,6 +186,19 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                             and filecmp.cmp(candidate, std_root + ".py", shallow=False))
                 elif os.path.isdir(std_root):
                     same = True
+                    # (#49) run #7 route #611 (rt62 j04): the local copy must hold EXACTLY the
+                    # standard library's `.py` set -- a MISSING module (replaced by an artifact or
+                    # simply absent, so CPython falls through to something else) is not "the same".
+                    _sets611 = []
+                    for _r611 in (loc_root, std_root):
+                        _o611 = set()
+                        for _a611, _b611, _c611 in os.walk(_r611):
+                            _b611[:] = sorted(_d for _d in _b611 if _d != "__pycache__")
+                            _o611 |= {os.path.relpath(os.path.join(_a611, _f), _r611)
+                                      for _f in _c611 if _f.endswith(".py")}
+                        _sets611.append(_o611)
+                    if _sets611[0] != _sets611[1]:
+                        same = False
                     for dp, dns, fns in os.walk(loc_root):
                         dns[:] = sorted(d for d in dns if d != "__pycache__")
                         for fn in sorted(fns):
