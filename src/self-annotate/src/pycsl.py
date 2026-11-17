@@ -669,11 +669,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     return transpiler.transpile()
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _why3_typecheck(mlw_filename: str):
+def _why3_typecheck(mlw_filename: str) -> Tuple[bool, str]:
     """Phase D honest gate: parse + typecheck the emitted WhyML with why3 (no proof).
     Returns ``(ok: bool, diagnostic: str)``. A run is only honestly SUCCESS if this
     passes — emitting text that does not even type-check is the silent success the spec
@@ -692,7 +691,10 @@ def _why3_typecheck(mlw_filename: str):
                        "for an explicitly emit-only run.")
     if r.returncode == 0:
         return True, ""
-    return False, (r.stderr.strip() or r.stdout.strip())
+    _diag: str = r.stderr.strip()
+    if not _diag:
+        _diag = r.stdout.strip()
+    return False, _diag
 
 
 # ----------------------------------------------------------------------------
