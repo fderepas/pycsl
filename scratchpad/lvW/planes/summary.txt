@@ -1,0 +1,9 @@
+2026-11-17T21:15:09Z emit start oom=oom_kill 0
+2026-11-17T21:25:26Z emitted 53
+2026-11-17T21:25:26Z check-assigns-writes-survival.py rc=0 wall=0s oom=oom_kill 0
+2026-11-17T21:26:04Z check-trusted-frame-honesty.py rc=0 wall=38s oom=oom_kill 0
+2026-11-17T21:39:07Z check-getattr-erasure.py rc=0 wall=783s oom=oom_kill 0
+2026-11-17T21:39:11Z check-mirror-coverage.py rc=0 wall=4s oom=oom_kill 0
+2026-11-17T21:39:11Z check-vacuous-drivers.py rc=0 wall=0s oom=oom_kill 0
+2026-11-17T21:39:12Z check-claim-vacuity.py rc=0 wall=1s oom=oom_kill 0
+NOTE: rc column in planes/summary.txt of the 21:15Z run is the rc of date (bug fixed after); verdicts read from each log's [+]/[!] line

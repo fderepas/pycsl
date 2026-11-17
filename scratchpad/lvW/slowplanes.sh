@@ -15,5 +15,5 @@ for p in check-assigns-writes-survival.py check-trusted-frame-honesty.py check-g
   s=$(date +%s)
   case $p in check-assigns-writes-survival.py|check-trusted-frame-honesty.py) python3 bin/$p --emit-dir $E > $O/${p%.py}.log 2>&1 ;;
              *) python3 bin/$p > $O/${p%.py}.log 2>&1 ;; esac
-  echo "$(date -u +%FT%TZ) $p rc=$? wall=$(( $(date +%s)-s ))s oom=$(grep oom_kill $OOM)" >> $O/summary.txt
+  rc=$?; echo "$(date -u +%FT%TZ) $p rc=$rc wall=$(( $(date +%s)-s ))s oom=$(grep oom_kill $OOM)" >> $O/summary.txt
 done

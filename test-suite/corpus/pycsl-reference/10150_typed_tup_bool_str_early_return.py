@@ -3,21 +3,18 @@ r"""Test 10150 -- run #8 lvW typed tuple-return exception (expected PASS): a `Tu
 # pycsl-expected: PASS
 from typing import Tuple
 
-#@ requires True
-#@ ensures True
+#@ ensures \result[0] == True ==> x > 0
 def f(x: int) -> Tuple[bool, str]:
     if x > 0:
         return True, ""
     return False, "neg"
 
-#@ requires True
-#@ ensures True
+#@ ensures x > 0 ==> \result[0] + \result[1] == 3
 def g(x: int) -> Tuple[int, int]:
     if x > 0:
         return 1, 2
     return 3, 4
 
-#@ requires True
 #@ ensures \result[0] == x
 def h(x: int) -> Tuple[int, str]:
     i = 0

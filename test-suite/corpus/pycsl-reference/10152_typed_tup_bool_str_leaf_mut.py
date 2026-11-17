@@ -3,7 +3,6 @@ r"""Test 10152 -- run #8 lvW typed tuple-return exception MUTANT (expected FAIL)
 # pycsl-expected: FAIL
 from typing import Tuple
 
-#@ requires True
 #@ ensures \result[0] == True ==> \result[1] == ""
 def f(x: int) -> Tuple[bool, str]:
     if x > 0:

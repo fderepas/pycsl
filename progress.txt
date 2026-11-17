@@ -31,3 +31,49 @@ Tue Nov 17 16:11:34 UTC 2026 lvW: corpus sweep running
 Tue Nov 17 16:19:54 UTC 2026 lvW: pyref sweep running
 Tue Nov 17 16:26:52 UTC 2026 lvW: corpus 0/0/0 (+10 new), pyref 0/0/0; slow planes next
 Tue Nov 17 16:27:14 UTC 2026 lvW: slow planes (individual) queued; leafmut --fun queued
+Tue Nov 17 16:32:54 UTC 2026 lvW: queued (leafmut --fun, slow planes)
+Tue Nov 17 16:36:55 UTC 2026 lvW: leaf ensures Valid 4/4 paths, mutant refused on 3 False paths (762/768 FAILED); starting --fun gates
+Tue Nov 17 16:42:26 UTC 2026 lvW: queued (wrap --fun, slow planes)
+Tue Nov 17 16:50:35 UTC 2026 lvW: queued
+Tue Nov 17 16:58:55 UTC 2026 lvW: queued
+Tue Nov 17 17:04:33 UTC 2026 lvW: queued
+Tue Nov 17 17:13:00 UTC 2026 lvW: queued
+Tue Nov 17 17:21:26 UTC 2026 lvW: queued
+Tue Nov 17 17:29:51 UTC 2026 lvW: queued
+Tue Nov 17 17:38:14 UTC 2026 lvW: queued
+Tue Nov 17 17:46:35 UTC 2026 lvW: queued
+Tue Nov 17 17:54:59 UTC 2026 lvW: queued
+Tue Nov 17 18:03:22 UTC 2026 lvW: queued
+Tue Nov 17 18:11:51 UTC 2026 lvW: queued
+Tue Nov 17 18:20:18 UTC 2026 lvW: queued
+Tue Nov 17 18:28:31 UTC 2026 lvW: queued
+Tue Nov 17 18:36:43 UTC 2026 lvW: queued
+Tue Nov 17 18:44:55 UTC 2026 lvW: queued
+Tue Nov 17 18:53:08 UTC 2026 lvW: queued
+Tue Nov 17 19:01:22 UTC 2026 lvW: queued
+Tue Nov 17 19:09:36 UTC 2026 lvW: queued
+Tue Nov 17 19:17:54 UTC 2026 lvW: queued
+Tue Nov 17 19:26:15 UTC 2026 lvW: queued
+Tue Nov 17 19:31:43 UTC 2026 lvW: queued
+Tue Nov 17 19:40:11 UTC 2026 lvW: queued
+Tue Nov 17 19:48:37 UTC 2026 lvW: queued
+Tue Nov 17 19:57:02 UTC 2026 lvW: queued
+Tue Nov 17 20:05:25 UTC 2026 lvW: queued
+Tue Nov 17 20:13:48 UTC 2026 lvW: queued
+Tue Nov 17 20:22:03 UTC 2026 lvW: queued
+Tue Nov 17 20:27:35 UTC 2026 lvW: queued (slowplanes next in line)
+Tue Nov 17 20:36:05 UTC 2026 lvW: queued
+Tue Nov 17 20:44:36 UTC 2026 lvW: queued
+Tue Nov 17 20:53:05 UTC 2026 lvW: queued
+Tue Nov 17 21:01:27 UTC 2026 lvW: queued
+Tue Nov 17 21:09:47 UTC 2026 lvW: queued
+Tue Nov 17 21:18:06 UTC 2026 lvW: slow planes running (emission phase)
+Tue Nov 17 21:29:02 UTC 2026 lvW: slow planes: assigns-survival OK, frame-honesty OK; getattr-erasure running
+Tue Nov 17 21:37:27 UTC 2026 lvW: getattr-erasure running
+Tue Nov 17 21:39:59 UTC 2026 lvW: claim-vacuity RED (my witnesses: 1 ensures True file, 7 requires True files) -> witnesses fixed, re-proving
+Tue Nov 17 21:46:08 UTC 2026 lvW: wrap --fun / witness re-proof queued
+Tue Nov 17 21:51:28 UTC 2026 lvW: wrap --fun 1088/1088 Valid; handle_return --fun + witness re-proof queued
+Tue Nov 17 22:02:30 UTC 2026 lvW: queued
+Tue Nov 17 22:10:53 UTC 2026 lvW: queued
+Tue Nov 17 22:19:05 UTC 2026 lvW: queued
+Tue Nov 17 22:27:16 UTC 2026 lvW: queued

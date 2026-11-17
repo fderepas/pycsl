@@ -3,7 +3,6 @@ r"""Test 10153 -- run #8 lvW typed tuple-return exception (expected PASS): `(str
 # pycsl-expected: PASS
 from typing import List, Tuple
 
-#@ requires True
 #@ ensures \result[1] == len(s)
 def a_str_int(s: str) -> Tuple[str, int]:
     if len(s) == 0:
@@ -22,14 +21,12 @@ def b_loop_bool_int(n: int) -> Tuple[bool, int]:
         i += 1
     return False, n
 
-#@ requires True
 #@ ensures \result[2] == x
 def c_three(x: int) -> Tuple[int, str, int]:
     if x > 0:
         return 1, "pos", x
     return 0, "nonpos", x
 
-#@ requires True
 #@ ensures \result[0] + \result[1] == 3
 def d_all_int(x: int) -> Tuple[int, int]:
     if x > 0:
