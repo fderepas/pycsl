@@ -90,28 +90,25 @@ number would make a genuine cache refuse (fail-closed, environment-dependent ove
 - **R1 fixed:** `co_code` is CPython's DEOPTIMISED view (specialised opcodes mapped back, inline
   caches zeroed); every code-object pair must now also have equal `_co_code_adaptive` (the bytes
   the interpreter runs). Both sides are fresh, never-executed objects: on the main tree this
-  costs no genuine cache (`maintree-scan.txt`: every refusal there is a stale header, below).
+  costs no genuine cache (`maintree-scan.txt`: 0 of 242 main-tree caches refused).
 - **Q3 fixed:** an unlistable `__pycache__` (`os.listdir` OSError, mode `-wx`) refuses with the
   same code instead of crashing the resolver (CPython can still open a pyc in it by name).
-- **Residual 3 closed (stale / latent timestamp pyc):** a timestamp pyc whose header does NOT
-  match the source's current stat is no longer ignored: it goes live on a later `touch -d`,
-  `cp -p`, `rsync -t` or mtime-restoring extraction while the source bytes never change, so it is
-  validated like every other candidate. COST (measured on the main tree's live caches,
-  2026-11-17 15:05Z): 25 of the 242 caches (241 source modules + the repo-root `json/` walk) are
-  honestly STALE (header != stat, code != the current source's compilation: CPython would just
-  recompile them) and are now REFUSED -- 13 under `src/pycsl/` (pycsl.py, Module6_WhyMLTranspiler,
-  module6_whyml/{expressions, functions, statements, stmt_control_flow, preamble, struct_format,
-  abstract_ops}, frontend/ir_resolve, ...), 2 under `src/pycsl_lib/`, 5 mirror sources under
-  `src/self-annotate/src/`, 5 corpus programs; all 25 are stale headers, none is an
-  `_co_code_adaptive` mismatch. A fresh worktree has no such caches; CPython refreshes a stale
-  cache whenever it imports the module from a writable directory. This is an
-  environment-dependent OVER-REFUSAL by design (fail-closed); the message says so (FIX: delete the
-  `__pycache__` entry).
+- **Residual 3 (stale / latent timestamp pyc): DRIVER DECISION, kept as a TOCTOU residual.** A first
+  version (69529e2de) validated a timestamp pyc even when its header does not match the source's
+  current stat. Measured cost: 25 of the 242 main-tree caches (all honestly stale) refused, and with
+  those caches present 3 of 53 mirror files (`Module6_WhyMLTranspiler`, `proof2why3__crosscheck_ir`,
+  `pycsl`) unemittable -- verdicts depending on cache state the other way round. CPython does not
+  load such a pyc at that moment (it recompiles from source); it only goes live after a later
+  metadata change (`touch -d`, `cp -p`, `rsync -t`, an mtime-restoring extraction), and a new pycsl
+  run then sees a header-matching cache and validates it. So non-matching timestamp headers are
+  ignored again, exactly as CPython ignores them, and the metadata-later case is documented with
+  time-of-check vs time-of-use. Main-tree scan after the revert: 0 of 242 refused.
 - **Documented residuals (not compared / out of reach):** R2 `localspluskinds` (no `co_*` view;
   a forged CO_FAST_HIDDEN / argument-kind bit changes only `locals()` / frame introspection);
   R3 constant identity / sharing (`f() is g()` over equal constant tuples, de-shared via marshal
   back-references); time-of-check vs time-of-use (a cache created or modified after verification,
-  honestly by CPython or by an attacker); the program's runtime PYTHONPYCACHEPREFIX; another
+  honestly by CPython or by an attacker, or a stale timestamp pyc made header-matching by a later
+  metadata change); the program's runtime PYTHONPYCACHEPREFIX; another
   interpreter's cache tag; under `python -m pkg.prog` the program's own cache AND the package
   `__init__` chain above the main file (the parent loop starts below the import's base).
 - **Over-refusals (fail-closed, documented):** a stale CHECKED-hash pyc (CPython's default mode

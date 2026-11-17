@@ -3,7 +3,7 @@ ACCEPT json/decoder.py
 ACCEPT json/encoder.py
 ACCEPT json/scanner.py
 ACCEPT json/tool.py
-REFUSE src/pycsl/__pycache__/Module6_WhyMLTranspiler.cpython-314.pyc src/pycsl/Module6_WhyMLTranspiler.py
+ACCEPT src/pycsl/Module6_WhyMLTranspiler.py
 ACCEPT src/pycsl/__init__.py
 ACCEPT src/pycsl/agents/common.py
 ACCEPT src/pycsl/agents/feature_supervisor/__init__.py
@@ -17,7 +17,7 @@ ACCEPT src/pycsl/agents/feature_supervisor/plan.py
 ACCEPT src/pycsl/agents/feature_supervisor/report.py
 ACCEPT src/pycsl/agents/llm_client.py
 ACCEPT src/pycsl/audit_proof.py
-REFUSE src/pycsl/__pycache__/audit_proof_reverify.cpython-314.pyc src/pycsl/audit_proof_reverify.py
+ACCEPT src/pycsl/audit_proof_reverify.py
 ACCEPT src/pycsl/core_ir_semantic.py
 ACCEPT src/pycsl/errors.py
 ACCEPT src/pycsl/exception_model.py
@@ -31,7 +31,7 @@ ACCEPT src/pycsl/frontend/desugar.py
 ACCEPT src/pycsl/frontend/exec_splice.py
 ACCEPT src/pycsl/frontend/import_classifier.py
 ACCEPT src/pycsl/frontend/ir_inline.py
-REFUSE src/pycsl/frontend/__pycache__/ir_resolve.cpython-314.pyc src/pycsl/frontend/ir_resolve.py
+ACCEPT src/pycsl/frontend/ir_resolve.py
 ACCEPT src/pycsl/frontend/module5/__init__.py
 ACCEPT src/pycsl/frontend/module5/construction_synth.py
 ACCEPT src/pycsl/frontend/module5/memoization_rt.py
@@ -40,20 +40,20 @@ ACCEPT src/pycsl/frontend/monomorphize.py
 ACCEPT src/pycsl/frontend/pure_ast.py
 ACCEPT src/pycsl/ir_schema.py
 ACCEPT src/pycsl/module6_whyml/__init__.py
-REFUSE src/pycsl/module6_whyml/__pycache__/abstract_ops.cpython-314.pyc src/pycsl/module6_whyml/abstract_ops.py
+ACCEPT src/pycsl/module6_whyml/abstract_ops.py
 ACCEPT src/pycsl/module6_whyml/auto_trust.py
 ACCEPT src/pycsl/module6_whyml/expr_ghost_collections.py
 ACCEPT src/pycsl/module6_whyml/expr_ghost_spec_ops.py
-REFUSE src/pycsl/module6_whyml/__pycache__/expressions.cpython-314.pyc src/pycsl/module6_whyml/expressions.py
-REFUSE src/pycsl/module6_whyml/__pycache__/functions.cpython-314.pyc src/pycsl/module6_whyml/functions.py
+ACCEPT src/pycsl/module6_whyml/expressions.py
+ACCEPT src/pycsl/module6_whyml/functions.py
 ACCEPT src/pycsl/module6_whyml/generic_fold.py
 ACCEPT src/pycsl/module6_whyml/identifiers.py
 ACCEPT src/pycsl/module6_whyml/ir_scanner.py
-REFUSE src/pycsl/module6_whyml/__pycache__/preamble.cpython-314.pyc src/pycsl/module6_whyml/preamble.py
+ACCEPT src/pycsl/module6_whyml/preamble.py
 ACCEPT src/pycsl/module6_whyml/scc.py
-REFUSE src/pycsl/module6_whyml/__pycache__/statements.cpython-314.pyc src/pycsl/module6_whyml/statements.py
-REFUSE src/pycsl/module6_whyml/__pycache__/stmt_control_flow.cpython-314.pyc src/pycsl/module6_whyml/stmt_control_flow.py
-REFUSE src/pycsl/module6_whyml/__pycache__/struct_format.cpython-314.pyc src/pycsl/module6_whyml/struct_format.py
+ACCEPT src/pycsl/module6_whyml/statements.py
+ACCEPT src/pycsl/module6_whyml/stmt_control_flow.py
+ACCEPT src/pycsl/module6_whyml/struct_format.py
 ACCEPT src/pycsl/module6_whyml/types.py
 ACCEPT src/pycsl/proof2why3/__init__.py
 ACCEPT src/pycsl/proof2why3/canonical.py
@@ -65,9 +65,9 @@ ACCEPT src/pycsl/proof2why3/from_lean_json.py
 ACCEPT src/pycsl/proof2why3/from_sexp.py
 ACCEPT src/pycsl/proof2why3/ir.py
 ACCEPT src/pycsl/proof2why3/parser.py
-REFUSE src/pycsl/proof2why3/__pycache__/sertop.cpython-314.pyc src/pycsl/proof2why3/sertop.py
-REFUSE src/pycsl/__pycache__/proof_axiom_allowlist.cpython-314.pyc src/pycsl/proof_axiom_allowlist.py
-REFUSE src/pycsl/__pycache__/pycsl.cpython-314.pyc src/pycsl/pycsl.py
+ACCEPT src/pycsl/proof2why3/sertop.py
+ACCEPT src/pycsl/proof_axiom_allowlist.py
+ACCEPT src/pycsl/pycsl.py
 ACCEPT src/pycsl_lib/__init__.py
 ACCEPT src/pycsl_lib/abcmod/__init__.py
 ACCEPT src/pycsl_lib/b64/__init__.py
@@ -75,7 +75,7 @@ ACCEPT src/pycsl_lib/bsect/__init__.py
 ACCEPT src/pycsl_lib/coll/__init__.py
 ACCEPT src/pycsl_lib/copyreg/__init__.py
 ACCEPT src/pycsl_lib/cpmod/__init__.py
-REFUSE src/pycsl_lib/csvmod/__pycache__/__init__.cpython-314.pyc src/pycsl_lib/csvmod/__init__.py
+ACCEPT src/pycsl_lib/csvmod/__init__.py
 ACCEPT src/pycsl_lib/csys/__init__.py
 ACCEPT src/pycsl_lib/ctxlib/__init__.py
 ACCEPT src/pycsl_lib/dc/__init__.py
@@ -86,7 +86,7 @@ ACCEPT src/pycsl_lib/frac/__init__.py
 ACCEPT src/pycsl_lib/ftools/__init__.py
 ACCEPT src/pycsl_lib/fut/__init__.py
 ACCEPT src/pycsl_lib/glb/__init__.py
-REFUSE src/pycsl_lib/hlib/__pycache__/__init__.cpython-314.pyc src/pycsl_lib/hlib/__init__.py
+ACCEPT src/pycsl_lib/hlib/__init__.py
 ACCEPT src/pycsl_lib/hq/__init__.py
 ACCEPT src/pycsl_lib/htmlm/__init__.py
 ACCEPT src/pycsl_lib/itools/__init__.py
@@ -111,19 +111,19 @@ ACCEPT src/pycsl_lib/unt/__init__.py
 ACCEPT src/pycsl_lib/url/__init__.py
 ACCEPT src/pycsl_lib/uu/__init__.py
 ACCEPT src/pycsl_lib/wref/__init__.py
-REFUSE src/self-annotate/src/frontend/__pycache__/Module1_Ingestor.cpython-314.pyc src/self-annotate/src/frontend/Module1_Ingestor.py
-REFUSE src/self-annotate/src/frontend/__pycache__/Module2_Parser.cpython-314.pyc src/self-annotate/src/frontend/Module2_Parser.py
+ACCEPT src/self-annotate/src/frontend/Module1_Ingestor.py
+ACCEPT src/self-annotate/src/frontend/Module2_Parser.py
 ACCEPT src/self-annotate/src/frontend/__init__.py
-REFUSE src/self-annotate/src/frontend/__pycache__/monomorphize.cpython-314.pyc src/self-annotate/src/frontend/monomorphize.py
-REFUSE src/self-annotate/src/frontend/__pycache__/pure_ast.cpython-314.pyc src/self-annotate/src/frontend/pure_ast.py
-REFUSE src/self-annotate/src/module6_whyml/__pycache__/types.cpython-314.pyc src/self-annotate/src/module6_whyml/types.py
+ACCEPT src/self-annotate/src/frontend/monomorphize.py
+ACCEPT src/self-annotate/src/frontend/pure_ast.py
+ACCEPT src/self-annotate/src/module6_whyml/types.py
 ACCEPT test-suite/corpus/pycsl-reference/0061.py
 ACCEPT test-suite/corpus/pycsl-reference/0065.py
 ACCEPT test-suite/corpus/pycsl-reference/0178.py
 ACCEPT test-suite/corpus/pycsl-reference/0179.py
 ACCEPT test-suite/corpus/pycsl-reference/0186.py
 ACCEPT test-suite/corpus/pycsl-reference/0187.py
-REFUSE test-suite/corpus/pycsl-reference/__pycache__/1190_route76_accessor_positive_control.cpython-314.pyc test-suite/corpus/pycsl-reference/1190_route76_accessor_positive_control.py
+ACCEPT test-suite/corpus/pycsl-reference/1190_route76_accessor_positive_control.py
 ACCEPT test-suite/corpus/pycsl-reference/1240_route90_bool_annot_param_is_true.py
 ACCEPT test-suite/corpus/pycsl-reference/1241_route90_bool_annot_param_is_not_true.py
 ACCEPT test-suite/corpus/pycsl-reference/1242_route90_bool_annot_param_is_false.py
@@ -140,10 +140,10 @@ ACCEPT test-suite/corpus/pycsl-reference/1344_route123_class_body_override_of_an
 ACCEPT test-suite/corpus/pycsl-reference/1345_route124_star_import_after_a_def_rebinds_it.py
 ACCEPT test-suite/corpus/pycsl-reference/1346_route124_second_star_import_wins_at_runtime.py
 ACCEPT test-suite/corpus/pycsl-reference/1347_route125_diamond_method_was_resolved_depth_first.py
-REFUSE test-suite/corpus/pycsl-reference/__pycache__/1348_route125_diamond_method_follows_c3.cpython-314.pyc test-suite/corpus/pycsl-reference/1348_route125_diamond_method_follows_c3.py
-REFUSE test-suite/corpus/pycsl-reference/__pycache__/1349_route127_dunder_builtins_patch_rebinding_len.cpython-314.pyc test-suite/corpus/pycsl-reference/1349_route127_dunder_builtins_patch_rebinding_len.py
+ACCEPT test-suite/corpus/pycsl-reference/1348_route125_diamond_method_follows_c3.py
+ACCEPT test-suite/corpus/pycsl-reference/1349_route127_dunder_builtins_patch_rebinding_len.py
 ACCEPT test-suite/corpus/pycsl-reference/1350_route127_alias_of_an_imported_module_then_patch.py
-REFUSE test-suite/corpus/pycsl-reference/__pycache__/1351_route127_computed_dict_subscript_store_on_builtins.cpython-314.pyc test-suite/corpus/pycsl-reference/1351_route127_computed_dict_subscript_store_on_builtins.py
+ACCEPT test-suite/corpus/pycsl-reference/1351_route127_computed_dict_subscript_store_on_builtins.py
 ACCEPT test-suite/corpus/pycsl-reference/1352_route127_init_subclass_non_literal_setattr_on_cls.py
 ACCEPT test-suite/corpus/pycsl-reference/1353_route128_data_descriptor_get_was_ignored.py
 ACCEPT test-suite/corpus/pycsl-reference/1362_route130_second_from_import_of_the_same_name.py
@@ -179,7 +179,7 @@ ACCEPT test-suite/corpus/pycsl-reference/1400_route136_namespace_dict_passed_int
 ACCEPT test-suite/corpus/pycsl-reference/1401_route136_namespace_dict_updated_through_dict_update.py
 ACCEPT test-suite/corpus/pycsl-reference/1402_route137_item_store_through_a_functions_dunder_globals.py
 ACCEPT test-suite/corpus/pycsl-reference/1403_route137_item_store_through_a_frames_f_globals.py
-REFUSE test-suite/corpus/pycsl-reference/__pycache__/1724_gen30_bytearray_int_count_is_zero_filled.cpython-314.pyc test-suite/corpus/pycsl-reference/1724_gen30_bytearray_int_count_is_zero_filled.py
+ACCEPT test-suite/corpus/pycsl-reference/1724_gen30_bytearray_int_count_is_zero_filled.py
 ACCEPT test-suite/corpus/pycsl-reference/multi_file_lib/arith.py
 ACCEPT test-suite/corpus/pycsl-reference/multi_file_lib/base_counter.py
 ACCEPT test-suite/corpus/pycsl-reference/multi_file_lib/base_store.py
@@ -240,4 +240,4 @@ ACCEPT test-suite/corpus/pycsl-reference/multi_file_lib/s1_via_b.py
 ACCEPT test-suite/corpus/pycsl-reference/multi_file_lib/strmod_stub.py
 ACCEPT test-suite/corpus/pycsl-reference/multi_file_lib/visitor_base.py
 ACCEPT json/__init__.py
-refused 25 of 242
+refused 0 of 242

@@ -262,7 +262,9 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
     # in that directory. NOT compared (review cr63, documented residuals): `localspluskinds`
     # (no `co_*` view; a forged CO_FAST_HIDDEN bit changes only `locals()`), constant identity /
     # sharing (`f() is g()` over two equal constant tuples). Out of reach: a cache created after
-    # verification (time-of-check vs time-of-use), the program's runtime PYTHONPYCACHEPREFIX,
+    # verification (time-of-check vs time-of-use; including a stale timestamp pyc that a later
+    # metadata change -- `touch -d`, `cp -p`, `rsync -t` -- makes header-matching), the
+    # program's runtime PYTHONPYCACHEPREFIX,
     # another interpreter's cache tag, and under `python -m pkg.prog` the program's own cache
     # AND its package `__init__` chain. Inline; the mirror twin is `\trusted`.
     if hit is not None and sys.implementation.cache_tag:
@@ -330,11 +332,16 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                 _fl612 = int.from_bytes(_db612[4:8], "little")
                 if _fl612 & ~0b11:
                     continue
-                # A TIMESTAMP pyc whose header does not match the source's CURRENT stat is
-                # ignored by CPython today, but it goes live on a later `touch -d` / `cp -p` /
-                # `rsync -t` / mtime-restoring extraction while the source bytes never change
-                # (review cr63 residual 3): it is validated like every other candidate, at the
-                # cost of refusing an honestly STALE cache (FIX: delete the `__pycache__`).
+                # A TIMESTAMP pyc whose header does not match the source's CURRENT stat is not
+                # loaded by CPython now (it recompiles from source), so it is ignored exactly as
+                # CPython ignores it. If a later metadata change (`touch -d`, `cp -p`, `rsync -t`)
+                # makes the header match, a new pycsl run validates it; between the two is the
+                # time-of-check / time-of-use residual (driver decision on review cr63
+                # residual 3: validating stale headers refused 25 / 242 honest main-tree caches).
+                if not (_fl612 & 0b1) and (
+                        int.from_bytes(_db612[8:12], "little") != (int(_st612.st_mtime) & 0xFFFFFFFF)
+                        or int.from_bytes(_db612[12:16], "little") != (_st612.st_size & 0xFFFFFFFF)):
+                    continue
                 _eq612 = False
                 try:
                     _ca612 = _ma612.loads(_db612[16:])
@@ -424,8 +431,7 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                 f"`import {'.' * level}{module_dotted}`: the bytecode cache {_bad612} is one "
                 f"CPython's source loader may run INSTEAD of the source pycsl reads (an "
                 f"unchecked / hash-based pyc, or a timestamp pyc whose header matches the "
-                f"source, or one that goes live on a later mtime change), and it is not provably the "
-                f"compilation of that source (a forged cache, or an honestly STALE one), so the module "
+                f"source), and it is not provably the compilation of that source, so the module "
                 f"the program runs is not the module verified here (route #611 r12: a forged "
                 f"unchecked `__pycache__/hashlib.cpython-314.pyc` beside a stdlib-identical "
                 f"`hashlib.py` makes CPython's two digests differ). FIX: delete the "
