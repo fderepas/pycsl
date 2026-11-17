@@ -68,6 +68,11 @@ A realistic run #8 target: 367 → ~360. The stretch target depends on whether b
    - `#@ \diverges`.
 4. Whether the pre-existing gap "a `str` subscript has no IndexError VC outside `no_exception`" should become an obligation. This would make the obvious subscript mutants fail. It is a corpus-wide emission change.
 
+## 5b. First item for run #8 (added after L14)
+
+- **Route #611 r12 is OPEN.** The case: a forged `__pycache__` pyc beside a stdlib-identical local copy. Refuse it, or validate the pyc against the source, before any new world model lands.
+- **Add a resolver red-team axis** to every world-model batch. The question it asks: which file does CPython actually load?
+
 ## 6. Measurements from the post-L13 branches
 
 All three post-L13 measurement branches returned. Nothing on them is landed. Their reports live on the branches.
