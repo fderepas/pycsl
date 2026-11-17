@@ -9161,6 +9161,104 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 "`isinstance(v, str)`)"
                                 % (_lt608[:60], _hit608)) + ".",
                                 stage="ir-semantic", code="PYCSL-R608-PYVAL-STR-LOWERED-STR-FACT")
+                # (run #7, u48; run-#8 candidate, route #608 residual q05) a SLICE `v[a:b]` of
+                # a PyVal VALUE / SEQUENCE (raw, or narrowed by `isinstance(v, list)`): the
+                # value model has no slice of an `hval` (Module 6 lowers it through the
+                # `array int` / `int` slice paths, an L3-tc failure today -- held only by
+                # accident), and a typed lowering would decide a list slice by the str / array
+                # law. In every function (a claim or not). Fail-closed.
+                for _n in _ast341.walk(_f603):
+                    if (isinstance(_n, _ast341.Subscript) and isinstance(_n.slice, _ast341.Slice)
+                            and (_isv603(_n.value) or _isq603(_n.value))):
+                        raise _PyCSLSemErr341(
+                            f"PYCSL-R608-PYVAL-SLICE: '{_f603.name}' line {_ln603(_n)}: " + (
+                            "`%s` slices a PyVal value (read off a `Dict[str, PyVal]` / "
+                            "`PyVal` binding, narrowed or not, or `tuple(..)` / `list(..)` / "
+                            "`sorted(..)` of one): the dict value model has no slice of an "
+                            "`hval`, so the result is decided by no faithful law (route #608 "
+                            "residual; CPython: `[1][1:3]` is `[]`, `\"ab\"[0:1]` is `\"a\"`, "
+                            "an int raises TypeError). Copy the narrowed elements into a typed "
+                            "local first (`out: List[int] = []`, then `for e in v: ...`) or "
+                            "index it element-wise"
+                            % _ast341.unparse(_n)[:60]) + ".",
+                            stage="ir-semantic", code="PYCSL-R608-PYVAL-SLICE")
+                # (run #7, u48; run-#8 candidate, route #608 residual q06) a LAUNDERING
+                # function (it returns a string-lowered PyVal value under a non-PyVal return
+                # annotation) whose OWN contract names `\result`: the clause is decided by the
+                # `string` type of the lowered value (`\result * 0 == ""`, `len(\result[0]) ==
+                # 1`), while CPython returns the PyVal itself (a list, an int ...). Held only by
+                # L3-tc failures today. A clause line above the def naming `\result` is REFUSED
+                # unless every `\result` in it is in a position R608 F1 admits for a plain read
+                # (opaque for a non-str value): an operand of a comparison whose operators are
+                # all `==` / `!=`, `\result in` / `not in` a display of literals, or `len(\result)`
+                # (measured, sweep #1 of u48: refusing EVERY such clause refused 8 expected-PASS
+                # corpus controls `\result == "x"` of the K7 `pairs_get` / R2a model). A clause
+                # the check cannot parse is refused (fail-closed).
+                if _irn603 in _lau603:
+                    import re as _re648
+                    _li648 = min([_d.lineno for _d in _f603.decorator_list]
+                                 + [_f603.lineno]) - 2
+                    while 0 <= _li648 < len(_sl430) and _sl430[_li648].lstrip().startswith("#@"):
+                        _lt648 = _sl430[_li648].strip()
+                        _bd648r = False
+                        if _re648.search(r"\\result(?!\w)", _lt648):
+                            _cx648 = _lt648[2:].strip()
+                            _cx648 = _cx648.split(None, 1)[1] if len(_cx648.split(None, 1)) == 2 else ""
+                            _cx648 = _re648.sub(r"\\result(?!\w)", "_R648_", _cx648)
+                            _cx648 = _re648.sub(r"\\(\w+)", r"_B648_\1", _cx648)
+                            _cx648 = _cx648.replace("<==>", " == ").replace("==>", " or ")
+                            try:
+                                _ce648 = _ast341.parse(_cx648, mode="eval")
+                            except SyntaxError:
+                                _ce648 = None
+                            if _ce648 is None:
+                                _bd648r = True
+                            else:
+                                _cp648: Dict[int, Any] = {}
+                                for _z in _ast341.walk(_ce648):
+                                    for _x in _ast341.iter_child_nodes(_z):
+                                        _cp648[id(_x)] = _z
+                                for _z in _ast341.walk(_ce648):
+                                    if not (isinstance(_z, _ast341.Name) and _z.id == "_R648_"):
+                                        continue
+                                    _q = _cp648.get(id(_z))
+                                    if not (
+                                            (isinstance(_q, _ast341.Compare) and all(
+                                                isinstance(_o, (_ast341.Eq, _ast341.NotEq))
+                                                for _o in _q.ops))
+                                            or (isinstance(_q, _ast341.Compare) and _q.left is _z
+                                                and len(_q.ops) == 1
+                                                and isinstance(_q.ops[0], (_ast341.In,
+                                                                           _ast341.NotIn))
+                                                and isinstance(_q.comparators[0], (
+                                                    _ast341.Tuple, _ast341.List, _ast341.Set))
+                                                and all(isinstance(_o, _ast341.Constant)
+                                                        for _o in _q.comparators[0].elts))
+                                            or (isinstance(_q, _ast341.Call)
+                                                and isinstance(_q.func, _ast341.Name)
+                                                and _q.func.id == "len" and _q.args == [_z]
+                                                and not _q.keywords)):
+                                        _bd648r = True
+                        if _bd648r:
+                            raise _PyCSLSemErr341(
+                                f"PYCSL-R608-LAUNDER-OWN-RESULT-CLAUSE: '{_f603.name}' line "
+                                f"{_li648 + 1}: " + (
+                                "`%s` decides a str-only fact of `\\result` (a position other "
+                                "than `==` / `!=`, `in` a literal display, `len(..)`) of a "
+                                "function that returns a "
+                                "PyVal-derived value the model lowers as a `string` (`<PyVal> "
+                                "or \"<str>\"`, an element of a PyVal sequence, a laundering "
+                                "call) under the non-PyVal return annotation `%s`: the clause "
+                                "is decided by the str type, while in CPython the result is the "
+                                "PyVal itself (a list, an int ...) (route #608 residual; "
+                                "CPython: `d.get(\"a\") or \"z\"` is `[1]` for {\"a\": [1]}, and "
+                                "`[1] * 0 == \"\"` is False). Narrow the PyVal value before "
+                                "returning it (`v = d.get(\"a\")`, then return `v` only under "
+                                "`isinstance(v, str)`), or annotate the return `PyVal`"
+                                % (_lt648[:60], _ast341.unparse(_f603.returns)[:30]
+                                   if _f603.returns is not None else "")) + ".",
+                                stage="ir-semantic", code="PYCSL-R608-LAUNDER-OWN-RESULT-CLAUSE")
+                        _li648 -= 1
                 # (u46) route #609: the exception classes caught around a node -- the handlers
                 # of every enclosing `try` whose BODY holds it (a bare / non-name handler type:
                 # BaseException, fail-closed) and the arguments of an enclosing
@@ -40194,6 +40292,83 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"assigns` naming what the dunder writes (`#@ assigns {_rf489[1]}.<field>`), or "
             f"declare the dunder `#@ assigns \\nothing` if it writes nothing.",
             stage="ir-semantic", code="PYCSL-R489-IMPLICIT-DUNDER")
+    # (run #7, u48; ported in run #8 by u50 as batch B, cv14 precision gap b; the u48 rule
+    # R3 `PYCSL-CV14-STR-SLICE-NEGATIVE-BOUND` (gap a) is NOT ported: it refused corpus 0885 /
+    # 0887 and 3 verified mirror files, and is to be MODELLED instead) FAIL-CLOSED on the
+    # EMITTED program text (judged here, after every rewrite; inline: `_run_pipeline`'s mirror
+    # twin is `\trusted`, and Module 6's lowerings stay byte-identical).
+    #  (cv14-b) the generic `<recv>_rfind_<n>` fallback: `str.rfind` has no model, and the
+    #    fallback DROPS the receiver (`x.rfind("a")` is `x_rfind_1 <hash of "a">`), so the
+    #    result is input-blind: REFUSED unless every `.rfind(..)` call of the source is on a
+    #    syntactically bytes receiver (a bytes literal, or a name every binding / annotation
+    #    of which in its function is a bytes literal / `bytes(..)` / `bytearray(..)` /
+    #    `bytes` / `bytearray`; route #452's literal-argument controls).
+    import re as _re648
+    _rf648 = _re648.search(r"\bval\s+(?:function\s+)?(?:[A-Za-z0-9_']*_)?rfind_[0-9]+\b", _mlw)
+    if _rf648 is not None:
+        import ast as _a648
+        try:
+            _t648 = _a648.parse(source_code)
+        except SyntaxError:
+            _t648 = None
+        _bx648 = lambda _e: (isinstance(_e, _a648.Constant) and isinstance(_e.value, bytes)) or (
+            isinstance(_e, _a648.Call) and isinstance(_e.func, _a648.Name)
+            and _e.func.id in ("bytes", "bytearray"))
+        _ok648 = _t648 is not None
+        _bad648 = None
+        _pr648: Dict[int, Any] = {}
+        for _z in ([] if _t648 is None else _a648.walk(_t648)):
+            for _x in _a648.iter_child_nodes(_z):
+                _pr648[id(_x)] = _z
+        _cs648 = [] if _t648 is None else [_c for _c in _a648.walk(_t648) if isinstance(
+            _c, _a648.Call) and isinstance(_c.func, _a648.Attribute) and _c.func.attr == "rfind"]
+        if not _cs648:
+            _ok648 = False
+        for _c648 in _cs648:
+            _r648 = _c648.func.value
+            if _bx648(_r648):
+                continue
+            _sc648 = _pr648.get(id(_c648))
+            while _sc648 is not None and not isinstance(_sc648, (_a648.FunctionDef,
+                                                                 _a648.AsyncFunctionDef)):
+                _sc648 = _pr648.get(id(_sc648))
+            _sc648 = _t648 if _sc648 is None else _sc648
+            _bs648: List[bool] = []
+            if isinstance(_r648, _a648.Name):
+                for _z in _a648.walk(_sc648):
+                    if isinstance(_z, _a648.arg) and _z.arg == _r648.id:
+                        _bs648.append(_z.annotation is not None and _a648.unparse(
+                            _z.annotation).strip("'\" ") in ("bytes", "bytearray"))
+                    elif (isinstance(_z, _a648.AnnAssign) and isinstance(_z.target, _a648.Name)
+                          and _z.target.id == _r648.id):
+                        _bs648.append(_a648.unparse(_z.annotation).strip("'\" ") in (
+                            "bytes", "bytearray") and (_z.value is None or _bx648(_z.value)))
+                    elif isinstance(_z, (_a648.Global, _a648.Nonlocal)) and _r648.id in _z.names:
+                        _bs648.append(False)
+                    elif (isinstance(_z, _a648.Name) and _z.id == _r648.id
+                          and not isinstance(_z.ctx, _a648.Load)
+                          and not isinstance(_pr648.get(id(_z)), _a648.AnnAssign)):
+                        _pz = _pr648.get(id(_z))
+                        _bs648.append(isinstance(_pz, _a648.Assign) and _z in _pz.targets
+                                      and _bx648(_pz.value))
+            if _bs648 and all(_bs648):
+                continue
+            _ok648 = False
+            _bad648 = _bad648 or _c648
+        if not _ok648:
+            from errors import PyCSLSemanticError as _PyCSLSemErr648
+            raise _PyCSLSemErr648(
+                f"PYCSL-CV14-STR-RFIND-RECEIVER-DROPPED: "
+                + (f"line {_bad648.lineno}: `{_a648.unparse(_bad648)[:60]}`"
+                   if _bad648 is not None else f"`{_rf648.group(0)}` (a contract use)")
+                + " calls `rfind`, which has no model: the emitter's generic fallback "
+                f"(`{_rf648.group(0)}`) DROPS the receiver (`x.rfind(\"a\")` is `x_rfind_1 "
+                f"<hash of \"a\">`, a fresh unconstrained int per call), so the result is "
+                f"input-blind -- nothing about `x` decides it (CPython: 1 for `\"ba\"`, -1 for "
+                f"`\"b\"`) (cv14). Compute it from a modelled "
+                f"read instead (a reverse loop over `range(len(x) - len(sub), -1, -1)` "
+                f"comparing `x[i:i + len(sub)] == sub`), or keep it out of the verified body.",
+                stage="ir-semantic", code="PYCSL-CV14-STR-RFIND-RECEIVER-DROPPED")
     return _mlw
 
 
