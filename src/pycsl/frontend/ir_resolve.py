@@ -113,6 +113,73 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
             candidate = os.path.join(base, *parts) + ".py"
             hit = pkg_init if os.path.isfile(pkg_init) else (
                 candidate if os.path.isfile(candidate) else None)
+            # (#49) run #7 ROUTE #611 (red team rt62 r10; MEASURED PROVED on the L13 tip: a
+            # SOURCELESS `hashlib.pyc` compiled from a counter-based module, next to the program,
+            # made `ensures \result == True` over two digests PROVE; CPython False). CPython's
+            # FileFinder imports more than `.py` / `X/__init__.py` from a path entry: an
+            # EXTENSION module (`X.so`, `X.abi3.so`, `X.cpython-*.so`, `X.pyd`) is tried
+            # BEFORE `X.py`, and a sourceless `X.pyc` after it. pycsl looked only for source,
+            # found none, and took the standard-library model for a module CPython does not
+            # run. RULE (fail-closed, every root, every module name): an importable non-source
+            # artifact for the module's top level (or, for a dotted name, the last component)
+            # in a resolution root REFUSES the import -- pycsl cannot read what CPython will
+            # load. (`__pycache__/X.*.pyc` is only loaded for an existing `X.py`, so it is
+            # not an artifact of its own.)
+            import importlib.machinery as _im611
+            _sfxs611 = (".pyc", ".pyd", ".so", ".abi3.so", *_im611.EXTENSION_SUFFIXES)
+            _art611 = []
+            # Along the dotted path exactly as CPython's FileFinder walks it: at each level
+            # `a`, `a/b`, ... the module artifact (`a.pyc`, `a.cpython-*.so`, ...) and the
+            # package-init artifact (`a/__init__.pyc`, `a/__init__.<ext>`; rt62 r16 / r17).
+            for _k611 in range(1, len(parts) + 1):
+                _st611 = os.path.join(base, *parts[:_k611])
+                for _cand611 in (_st611, os.path.join(_st611, "__init__")):
+                    _d611 = os.path.dirname(_cand611)
+                    _n611 = os.path.basename(_cand611)
+                    if not os.path.isdir(_d611):
+                        continue
+                    _art611 += [os.path.join(_d611, _fn611) for _fn611 in sorted(os.listdir(_d611))
+                                if _fn611.startswith(_n611 + ".") and _fn611 != _n611 + ".py"
+                                and (_fn611.endswith(_sfxs611)
+                                     or (_fn611.startswith(_n611 + ".cpython-")
+                                         and _fn611.endswith((".so", ".pyd"))))
+                                and os.path.isfile(os.path.join(_d611, _fn611))]
+            # A local package NAMED LIKE A STANDARD-LIBRARY MODULE is admitted below only as
+            # a byte-identical copy of the interpreter's own package; any non-source loader
+            # file anywhere inside it (outside `__pycache__`) can replace one of its
+            # submodules (rt62 j04: `json/encoder.py` swapped for `json/encoder.pyc`).
+            _pkgdir611 = os.path.join(base, parts[0])
+            if ((parts[0] in sys.stdlib_module_names or parts[0] in sys.builtin_module_names)
+                    and os.path.isdir(_pkgdir611)):
+                for _dp611, _dns611, _fns611 in os.walk(_pkgdir611):
+                    _dns611[:] = sorted(_d for _d in _dns611 if _d != "__pycache__")
+                    _art611 += [os.path.join(_dp611, _fn611) for _fn611 in sorted(_fns611)
+                                if _fn611.endswith(_sfxs611)]
+            # rt62 r19: a SYMLINKED program. CPython sets sys.path[0] to the directory of the
+            # script's REALPATH, pycsl's first root is the link's directory. When they differ,
+            # ANY importable entry for the module in the real directory (source, package or
+            # artifact) is something CPython may load and pycsl never reads -> an artifact.
+            _real611 = os.path.dirname(os.path.realpath(main_file))
+            if (base == os.path.dirname(os.path.abspath(main_file))
+                    and os.path.realpath(base) != _real611):
+                _rs611 = os.path.join(_real611, parts[0])
+                if os.path.exists(_rs611) or any(
+                        _fn611.split(".", 1)[0] == parts[0]
+                        for _fn611 in sorted(os.listdir(_real611))):
+                    _art611.append(_rs611)
+            if _art611:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"`import {module_dotted}`: the import root {base} holds an importable "
+                    f"module artifact that is not Python source ({sorted(set(_art611))[0]}). "
+                    f"CPython's FileFinder loads an extension module before `{parts[-1]}.py` "
+                    f"and a sourceless `{parts[-1]}.pyc` when no source exists, so the module "
+                    f"the program runs is not one pycsl can read, and neither the local source "
+                    f"nor a standard-library model may be believed for it (route #611: a "
+                    f"sourceless `hashlib.pyc` made a two-digest equality PROVE; CPython "
+                    f"False). FIX: remove the artifact (or rename the module) so that the "
+                    f"module CPython imports is the one pycsl verifies.",
+                    filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-NONSOURCE-ARTIFACT")
             if hit is None:
                 continue
             # (#49) ROUTE #326 — A LOCAL FILE NAMED LIKE A STANDARD-LIBRARY MODULE IS NOT THE
@@ -134,6 +201,19 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                             and filecmp.cmp(candidate, std_root + ".py", shallow=False))
                 elif os.path.isdir(std_root):
                     same = True
+                    # (#49) run #7 route #611 (rt62 j04): the local copy must hold EXACTLY the
+                    # standard library's `.py` set -- a MISSING module (replaced by an artifact or
+                    # simply absent, so CPython falls through to something else) is not "the same".
+                    _sets611 = []
+                    for _r611 in (loc_root, std_root):
+                        _o611 = set()
+                        for _a611, _b611, _c611 in os.walk(_r611):
+                            _b611[:] = sorted(_d for _d in _b611 if _d != "__pycache__")
+                            _o611 |= {os.path.relpath(os.path.join(_a611, _f), _r611)
+                                      for _f in _c611 if _f.endswith(".py")}
+                        _sets611.append(_o611)
+                    if _sets611[0] != _sets611[1]:
+                        same = False
                     for dp, dns, fns in os.walk(loc_root):
                         dns[:] = sorted(d for d in dns if d != "__pycache__")
                         for fn in sorted(fns):
