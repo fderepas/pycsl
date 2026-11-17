@@ -145,7 +145,20 @@ Every conversion has:
 
 ## 9. End state
 
-END_STATE
+- **Branch `ghost-assign-bc6`:**
+  - `\trusted` **367** (389 at the start);
+  - proof-axiom ledger **3**;
+  - one CERTIFIED-DEFINITIONAL WhyML family;
+  - last landing L13 (`ad6323517`);
+  - nothing pushed.
+- **oom_kill:** 0 for the whole run.
+- **Post-L13 non-landing work** (supervisor 16:20Z on the 16th). It is committed on run7-* branches only, each ending in a written result for run #8:
+  - `run7-sp5` (6b0d5ecae), `getting-better/run8-spike-typed-tuple-return.md`. The typed tuple-return spike is a GO: corpus 0 / 0 / 0, 3 mirror movers, and `_why3_typecheck` proves.
+  - `run7-u48` (e4e1bea94), `getting-better/run8-refusal-residuals.md`. Four refusal rules: R1 / R2 / R4 have 0 / 0 / 0 diff; R3 refuses 2 corpus and 3 mirror files (model it instead).
+  - `run7-cv15` (3f00cac03), `getting-better/run8-census-seed.md`. The census seed at 367: `_sha256_file` in pycsl.py is one link away; ~212 receiver-dropping fallback sites.
+  - `getting-better/driver-run8-plan-draft.md` on the main branch: the draft run #8 plan with these numbers.
+- **Kept branches** (commit-only, never rewritten; 28): run7-ce4, run7-cv12 … run7-cv15, run7-int60 … run7-int65, run7-lv4, run7-lvQ … run7-lvV, run7-rp4, run7-sp4, run7-sp5, run7-u43 … run7-u48, run7-wh4.
+- **END_CLEANUP**
 
 ## 10. Carried forward
 
