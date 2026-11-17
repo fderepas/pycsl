@@ -12,3 +12,9 @@ Evidence: `scratchpad/lvX/` in the tree (`L/` gate logs, `p/` probes, `w1/` witn
   (`""`: FileNotFoundError vs IsADirectoryError, both OSError) (`scratchpad/lvX/fuzz_sha.py`).
 - fidelity x3 rc 0 (`L/E.txt`).
 - witnesses 10140-10145: hoare as expected; typed/store 10140 FAILED (under investigation).
+- witness full proofs (`scratchpad/lvX/L/witfull.tsv`, oom 0->0): hoare all as expected;
+  10140 (PASS expected) FAILED in typed and store (both emit `let function same` with the
+  frame `ensures { !int_mem = old !int_mem }`); control probe queued (`scratchpad/lvX/ty.sh`).
+- census rows of the FAIL witnesses produced via `_census_row` (`L/census-rows.tsv`), not yet
+  appended.
+- heavy queue: each job waited 1-4 h behind statements.py / u50 / lvW jobs (2 proof slots).
