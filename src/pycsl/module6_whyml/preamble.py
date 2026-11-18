@@ -1884,6 +1884,9 @@ class PreambleEmissionMixin:
         needs_return_str = False
         needs_return_emit_ir = False
         tuple_return_arities: Set[int] = set()
+        # TYPED TUPLE CODOMAIN (sp5 spike): refined scalar non-all-int tuple return types,
+        # each declared `exception Return_tup_<slots> (<slots>)` (see `_handle_return_stmt`).
+        scalar_tuple_return_types: Set[str] = set()
         # Optional-tuple return: the refined `(τ...)` tuple types of `Optional[Tuple]`
         # readers, each emitted as an `exception Return_opttuple_<arity> (option (τ...))`.
         opt_tuple_return_types: Set[str] = set()
@@ -1940,6 +1943,13 @@ class PreambleEmissionMixin:
                         # so the value carries through; the plain `exception Return int`
                         # would force `_coerce_to_int` to hash the whole tuple.
                         tuple_return_arities.add(ret_type.count(",") + 1)
+                        _tc_sfx = (_refined_tup.replace("(", "").replace(")", "")
+                                   .replace(" ", "").replace(",", "_"))
+                        if (_refined_tup.startswith("(") and "(" not in _refined_tup[1:]
+                                and _tc_sfx.replace("string", "").replace("bool", "")
+                                .replace("real", "").replace("int", "").replace("_", "") == ""
+                                and _tc_sfx.replace("int", "").replace("_", "") != ""):
+                            scalar_tuple_return_types.add(_refined_tup)
                 elif ret_type == "array int" or ann in ("list", "bytes", "bytearray"):
                     # return-arr.md: an array-returning function with early/in-loop returns.
                     # Why3 forbids a mutable `array int` exception payload, so carry the value
@@ -3192,6 +3202,7 @@ class PreambleEmissionMixin:
             "needs_return_void": needs_return_void,
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,
+            "scalar_tuple_return_types": scalar_tuple_return_types,
             "opt_tuple_return_types": opt_tuple_return_types,
             "pyconst_val_tuple_return_types": pyconst_val_tuple_return_types,
             "union_return_types": union_return_types,
@@ -3435,6 +3446,12 @@ class PreambleEmissionMixin:
             parts = ", ".join(["int"] * arity)
             out.append("")
             out.append(f"  exception Return_{arity} ({parts})")
+        for _tt in sorted(needs.get("scalar_tuple_return_types", set())):
+            # TYPED TUPLE CODOMAIN (sp5 spike): one payload-typed exception per scalar
+            # non-all-int tuple codomain (all slot types are in scope here).
+            _tsfx = _tt.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+            out.append("")
+            out.append(f"  exception Return_tup_{_tsfx} {_tt}")
         for ot in sorted(needs.get("opt_tuple_return_types", set())):
             # Optional-tuple return: carry `Some (τ...)` / `None` through a dedicated
             # exception whose payload is the built-in `option (τ...)`. `ot` is the

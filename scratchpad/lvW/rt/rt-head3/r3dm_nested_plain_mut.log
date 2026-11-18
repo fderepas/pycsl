@@ -1,0 +1,29 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-head3/r3dm_nested_plain_mut.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-head3/r3dm_nested_plain_mut.mlw", line 17, characters 27-65:
+Sub-goal postcondition of goal inner'vc.
+Prover result is: Timeout (30.00s, 36064399 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-head3/r3dm_nested_plain_mut.mlw", line 17, characters 27-65:
+Sub-goal postcondition of goal inner'vc.
+Prover result is: Valid (0.00s, 301 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-head3/r3dm_nested_plain_mut.mlw", line 32, characters 16-25:
+Sub-goal precondition of goal outer'vc.
+Prover result is: Valid (0.00s, 275 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-head3/r3dm_nested_plain_mut.mlw", line 29, characters 27-39:
+Sub-goal postcondition of goal outer'vc.
+Prover result is: Valid (0.00s, 310 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-head3/r3dm_nested_plain_mut.mlw", line 29, characters 27-39:
+Sub-goal postcondition of goal outer'vc.
+Prover result is: Valid (0.00s, 446 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 36064399 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

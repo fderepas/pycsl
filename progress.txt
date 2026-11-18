@@ -1,0 +1,134 @@
+Tue Nov 17 12:28:25 UTC 2026 lvW: worktree created
+Tue Nov 17 12:29:05 UTC 2026 lvW: spike src applied; type-checking mirrors (QUICK)
+Tue Nov 17 12:34:00 UTC 2026 lvW: tc pycsl/statements OK; tc stmt_control_flow running
+Tue Nov 17 12:34:24 UTC 2026 lvW: all 3 mirrors L3-tc OK; running fast planes pre-SRC-FINAL
+Tue Nov 17 12:49:48 UTC 2026 lvW: fast planes running (pre-SRC-FINAL); base worktree pycsl-lvW-base created for base emissions
+Tue Nov 17 13:01:09 UTC 2026 lvW: fast planes still running (1 RED so far: trusted-reasons row sync owed)
+SRC-FINAL b65e75bfc
+Tue Nov 17 13:09:52 UTC 2026 lvW: SRC-FINAL committed b65e75bfc
+Tue Nov 17 13:14:49 UTC 2026 lvW: red-team probes head/base
+Tue Nov 17 13:18:41 UTC 2026 lvW: witnesses 10150-10159 written; proving at head+base
+Tue Nov 17 13:20:34 UTC 2026 lvW: witnesses committed f1406a4c3; mirror sweep running
+Tue Nov 17 13:26:59 UTC 2026 lvW: mirror sweep queued/running; leafassert --fun queued
+Tue Nov 17 13:40:47 UTC 2026 lvW: waiting in heavy queue (mirror sweep NORMAL, leafassert --fun NORMAL)
+Tue Nov 17 13:54:43 UTC 2026 lvW: still queued (slots held by lvX --fun and u50 sweeps)
+Tue Nov 17 14:08:42 UTC 2026 lvW: queued (mirror sweep, leafassert --fun)
+Tue Nov 17 14:19:55 UTC 2026 lvW: queued; slot1=driver statements whole-file (snapA), slot2=u50 gate
+Tue Nov 17 14:31:05 UTC 2026 lvW: queued
+Tue Nov 17 14:42:01 UTC 2026 lvW: queued
+Tue Nov 17 14:53:04 UTC 2026 lvW: queued
+Tue Nov 17 15:04:10 UTC 2026 lvW: queued
+Tue Nov 17 15:16:20 UTC 2026 lvW: mirror sweep done: 3 movers exactly (statements, stmt_control_flow, pycsl); starting corpus sweep
+Tue Nov 17 15:16:40 UTC 2026 lvW: corpus sweep queued; leafassert --fun queued
+Tue Nov 17 15:25:07 UTC 2026 lvW: leafassert --fun running (slot2); corpus sweep queued
+Tue Nov 17 15:26:43 UTC 2026 lvW: leafassert 3/3 leaves NOT proved; running leaf-ensures+mutant --fun
+Tue Nov 17 15:32:27 UTC 2026 lvW: queued (leafmut --fun, corpus sweep)
+Tue Nov 17 15:40:47 UTC 2026 lvW: queued
+Tue Nov 17 15:49:12 UTC 2026 lvW: queued
+Tue Nov 17 15:54:50 UTC 2026 lvW: corpus sweep running
+Tue Nov 17 16:03:11 UTC 2026 lvW: corpus sweep running
+Tue Nov 17 16:11:34 UTC 2026 lvW: corpus sweep running
+Tue Nov 17 16:19:54 UTC 2026 lvW: pyref sweep running
+Tue Nov 17 16:26:52 UTC 2026 lvW: corpus 0/0/0 (+10 new), pyref 0/0/0; slow planes next
+Tue Nov 17 16:27:14 UTC 2026 lvW: slow planes (individual) queued; leafmut --fun queued
+Tue Nov 17 16:32:54 UTC 2026 lvW: queued (leafmut --fun, slow planes)
+Tue Nov 17 16:36:55 UTC 2026 lvW: leaf ensures Valid 4/4 paths, mutant refused on 3 False paths (762/768 FAILED); starting --fun gates
+Tue Nov 17 16:42:26 UTC 2026 lvW: queued (wrap --fun, slow planes)
+Tue Nov 17 16:50:35 UTC 2026 lvW: queued
+Tue Nov 17 16:58:55 UTC 2026 lvW: queued
+Tue Nov 17 17:04:33 UTC 2026 lvW: queued
+Tue Nov 17 17:13:00 UTC 2026 lvW: queued
+Tue Nov 17 17:21:26 UTC 2026 lvW: queued
+Tue Nov 17 17:29:51 UTC 2026 lvW: queued
+Tue Nov 17 17:38:14 UTC 2026 lvW: queued
+Tue Nov 17 17:46:35 UTC 2026 lvW: queued
+Tue Nov 17 17:54:59 UTC 2026 lvW: queued
+Tue Nov 17 18:03:22 UTC 2026 lvW: queued
+Tue Nov 17 18:11:51 UTC 2026 lvW: queued
+Tue Nov 17 18:20:18 UTC 2026 lvW: queued
+Tue Nov 17 18:28:31 UTC 2026 lvW: queued
+Tue Nov 17 18:36:43 UTC 2026 lvW: queued
+Tue Nov 17 18:44:55 UTC 2026 lvW: queued
+Tue Nov 17 18:53:08 UTC 2026 lvW: queued
+Tue Nov 17 19:01:22 UTC 2026 lvW: queued
+Tue Nov 17 19:09:36 UTC 2026 lvW: queued
+Tue Nov 17 19:17:54 UTC 2026 lvW: queued
+Tue Nov 17 19:26:15 UTC 2026 lvW: queued
+Tue Nov 17 19:31:43 UTC 2026 lvW: queued
+Tue Nov 17 19:40:11 UTC 2026 lvW: queued
+Tue Nov 17 19:48:37 UTC 2026 lvW: queued
+Tue Nov 17 19:57:02 UTC 2026 lvW: queued
+Tue Nov 17 20:05:25 UTC 2026 lvW: queued
+Tue Nov 17 20:13:48 UTC 2026 lvW: queued
+Tue Nov 17 20:22:03 UTC 2026 lvW: queued
+Tue Nov 17 20:27:35 UTC 2026 lvW: queued (slowplanes next in line)
+Tue Nov 17 20:36:05 UTC 2026 lvW: queued
+Tue Nov 17 20:44:36 UTC 2026 lvW: queued
+Tue Nov 17 20:53:05 UTC 2026 lvW: queued
+Tue Nov 17 21:01:27 UTC 2026 lvW: queued
+Tue Nov 17 21:09:47 UTC 2026 lvW: queued
+Tue Nov 17 21:18:06 UTC 2026 lvW: slow planes running (emission phase)
+Tue Nov 17 21:29:02 UTC 2026 lvW: slow planes: assigns-survival OK, frame-honesty OK; getattr-erasure running
+Tue Nov 17 21:37:27 UTC 2026 lvW: getattr-erasure running
+Tue Nov 17 21:39:59 UTC 2026 lvW: claim-vacuity RED (my witnesses: 1 ensures True file, 7 requires True files) -> witnesses fixed, re-proving
+Tue Nov 17 21:46:08 UTC 2026 lvW: wrap --fun / witness re-proof queued
+Tue Nov 17 21:51:28 UTC 2026 lvW: wrap --fun 1088/1088 Valid; handle_return --fun + witness re-proof queued
+Tue Nov 17 22:02:30 UTC 2026 lvW: queued
+Tue Nov 17 22:10:53 UTC 2026 lvW: queued
+Tue Nov 17 22:19:05 UTC 2026 lvW: queued
+Tue Nov 17 22:27:16 UTC 2026 lvW: queued
+Tue Nov 17 22:37:01 UTC 2026 lvW: witnesses fixed + committed; fast planes rerun queued; handle_return --fun queued
+Tue Nov 17 22:42:27 UTC 2026 lvW: queued/running handle_return --fun, fast planes
+Tue Nov 17 22:50:55 UTC 2026 lvW: handle_return --fun running
+Tue Nov 17 22:59:24 UTC 2026 lvW: handle_return --fun running
+Tue Nov 17 23:07:56 UTC 2026 lvW: handle_return --fun running
+Tue Nov 17 23:16:24 UTC 2026 lvW: handle_return --fun running
+Tue Nov 17 23:24:52 UTC 2026 lvW: handle_return --fun running
+Tue Nov 17 23:27:02 UTC 2026 lvW: handle_return --fun 3534/3534; why3_typecheck --fun queued
+Tue Nov 17 23:32:21 UTC 2026 lvW: queued (why3_typecheck --fun, fast planes)
+Tue Nov 17 23:38:05 UTC 2026 lvW: queued
+Tue Nov 17 23:46:34 UTC 2026 lvW: queued
+Tue Nov 17 23:55:05 UTC 2026 lvW: queued
+Wed Nov 18 00:03:43 UTC 2026 lvW: queued
+Wed Nov 18 00:12:07 UTC 2026 lvW: queued
+Wed Nov 18 00:20:36 UTC 2026 lvW: queued
+Wed Nov 18 00:29:04 UTC 2026 lvW: queued
+Wed Nov 18 00:37:29 UTC 2026 lvW: queued
+Wed Nov 18 00:45:40 UTC 2026 lvW: queued
+Wed Nov 18 00:54:00 UTC 2026 lvW: queued
+Wed Nov 18 01:02:24 UTC 2026 lvW: queued
+Wed Nov 18 01:13:51 UTC 2026 lvW: queued
+Wed Nov 18 01:19:36 UTC 2026 lvW: queued
+Wed Nov 18 01:28:08 UTC 2026 lvW: queued
+Wed Nov 18 01:36:35 UTC 2026 lvW: queued
+Wed Nov 18 01:45:03 UTC 2026 lvW: queued
+Wed Nov 18 01:53:44 UTC 2026 lvW: queued
+Wed Nov 18 01:59:30 UTC 2026 lvW: queued (driver v66 sweep on slot2)
+Wed Nov 18 02:07:58 UTC 2026 lvW: queued
+Wed Nov 18 02:16:32 UTC 2026 lvW: queued
+Wed Nov 18 02:25:03 UTC 2026 lvW: queued
+Wed Nov 18 02:33:29 UTC 2026 lvW: queued
+Wed Nov 18 02:39:10 UTC 2026 lvW: fast planes rerun running
+Wed Nov 18 02:47:42 UTC 2026 lvW: fast planes running
+Wed Nov 18 02:56:16 UTC 2026 lvW: fast planes running
+Wed Nov 18 03:04:53 UTC 2026 lvW: fast planes running
+Wed Nov 18 03:08:50 UTC 2026 lvW: fast planes 62/62 green; fidelity scripts next
+Wed Nov 18 03:14:28 UTC 2026 lvW: queued (why3_typecheck --fun, fidelity)
+Wed Nov 18 03:23:02 UTC 2026 lvW: why3_typecheck --fun running
+Wed Nov 18 03:31:20 UTC 2026 lvW: why3_typecheck --fun running
+Wed Nov 18 03:39:32 UTC 2026 lvW: why3_typecheck --fun running
+Wed Nov 18 03:47:43 UTC 2026 lvW: why3_typecheck --fun running
+Wed Nov 18 03:55:06 UTC 2026 lvW: why3_typecheck --fun 761/761; pycsl whole-file (LOW, PCC=6) queued
+Wed Nov 18 03:56:20 UTC 2026 lvW: report drafted; whole-file pycsl + fidelity queued
+Wed Nov 18 04:02:06 UTC 2026 lvW: queued (whole pycsl LOW, fidelity)
+Wed Nov 18 04:10:28 UTC 2026 lvW: queued
+Wed Nov 18 04:18:42 UTC 2026 lvW: queued
+Wed Nov 18 04:26:54 UTC 2026 lvW: queued
+Wed Nov 18 04:35:12 UTC 2026 lvW: queued
+Wed Nov 18 04:43:27 UTC 2026 lvW: queued
+Wed Nov 18 04:51:51 UTC 2026 lvW: queued
+Wed Nov 18 05:00:03 UTC 2026 lvW: queued
+Wed Nov 18 05:08:16 UTC 2026 lvW: queued
+Wed Nov 18 05:14:01 UTC 2026 lvW: doc-coherency rc 0; whole pycsl still queued behind driver --slow planes
+Wed Nov 18 05:22:16 UTC 2026 lvW: queued
+Wed Nov 18 05:30:59 UTC 2026 lvW: time box: killed my 2 queued (unstarted) jobs: whole-file pycsl.py proof, fidelity.sh; finalizing report
