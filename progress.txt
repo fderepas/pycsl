@@ -234,3 +234,32 @@ Wed Nov 18 16:14:22 UTC 2026 u53: post p1: 2 mirror cmp rc=0 [*] byte-diff-compa
 Wed Nov 18 16:22:26 UTC 2026 u53: jobB emit1
 Wed Nov 18 16:26:52 UTC 2026 u53: post p1: 3 single-underscore emission 53 mlw
 Wed Nov 18 16:26:52 UTC 2026 u53: post p1: end oom oom_kill 5
+Wed Nov 18 16:27:10 UTC 2026 u53: queued PRIO sweep s2 + fast planes f1 at f354523ef
+Wed Nov 18 16:32:57 UTC 2026 u53: PRIO job queued
+Wed Nov 18 16:39:03 UTC 2026 u53: PRIO job queued
+Wed Nov 18 16:40:22 UTC 2026 u53: sweep s2: start oom oom_kill 5 HEAD f354523ef
+Wed Nov 18 16:46:01 UTC 2026 u53: sweep s2 running
+Wed Nov 18 16:54:31 UTC 2026 u53: sweep s2 running
+Wed Nov 18 17:03:01 UTC 2026 u53: sweep s2 running
+Wed Nov 18 17:11:32 UTC 2026 u53: sweep s2 running
+Wed Nov 18 17:20:00 UTC 2026 u53: sweep s2 running (pyref)
+Wed Nov 18 17:24:37 UTC 2026 u53: sweep s2: sweep rc=0 emitted 3296 of 6259 source file(s) into /home/fabrice/git/pycsl-u53/scratchpad/u53/L/s2.bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u53/scratchpad/u53/L/s2.bd/pyref (6 jobs) 
+Wed Nov 18 17:24:43 UTC 2026 u53: sweep s2: cmp root rc=1 [!]   GONE 2162_gen36_ch13_path_resolve_not_injective_false_claim.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 2162_gen36_ch13_path_resolve_not_injective_false_claim. [!] byte-diff-compare: NOT BYTE-INERT. [*] byte-diff-compare: 3296 baseline / 3295 candidate .mlw; 0 MOVED (0 unexpected), 3 GONE (3 unexpected), 0 APPEARED, 2 new source file(s) ig
+Wed Nov 18 17:24:44 UTC 2026 u53: sweep s2: cmp pyref rc=0 [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+Wed Nov 18 17:25:09 UTC 2026 u53: sweep s2: moved root 0 pyref 0 gone root 3 pyref 0; files root 3295 base 3296 pyref 2185 base 2185
+Wed Nov 18 17:25:09 UTC 2026 u53: sweep s2: end oom oom_kill 5
+Wed Nov 18 17:28:35 UTC 2026 u53: fast planes f1 running
+Wed Nov 18 17:37:15 UTC 2026 u53: fast planes f1 running
+Wed Nov 18 17:46:02 UTC 2026 u53: fast planes f1 running
+Wed Nov 18 17:54:49 UTC 2026 u53: fast planes f1 running
+Wed Nov 18 17:58:48 UTC 2026 u53: planes f1 rc=0
+Wed Nov 18 17:59:22 UTC 2026 u53: queued NORMAL q1 (individual planes + conformance)
+Wed Nov 18 18:05:08 UTC 2026 u53: q1 queued
+Wed Nov 18 18:13:56 UTC 2026 u53: q1 queued
+Wed Nov 18 18:22:48 UTC 2026 u53: q1 queued
+Wed Nov 18 18:28:43 UTC 2026 u53: q1 queued
+Wed Nov 18 18:37:29 UTC 2026 u53: q1 queued
+Wed Nov 18 18:41:11 UTC 2026 u53: report drafted; q1 queued
+Wed Nov 18 18:49:41 UTC 2026 u53: q1 queued
+Wed Nov 18 18:58:16 UTC 2026 u53: q1 queued
+Wed Nov 18 19:07:03 UTC 2026 u53: q1 queued
