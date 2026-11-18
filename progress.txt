@@ -132,3 +132,46 @@ Wed Nov 18 05:08:16 UTC 2026 lvW: queued
 Wed Nov 18 05:14:01 UTC 2026 lvW: doc-coherency rc 0; whole pycsl still queued behind driver --slow planes
 Wed Nov 18 05:22:16 UTC 2026 lvW: queued
 Wed Nov 18 05:30:59 UTC 2026 lvW: time box: killed my 2 queued (unstarted) jobs: whole-file pycsl.py proof, fidelity.sh; finalizing report
+Wed Nov 18 10:42:48 UTC 2026 u53 start: worktree created, reading
+Wed Nov 18 10:50:57 UTC 2026 u53: designing R614 AST/IR pass in pycsl.py _run_pipeline (mirror twin trusted)
+Wed Nov 18 10:58:33 UTC 2026 u53: R614 pass drafted; rt65 core probes refused, iterating on mirror pycsl.py over-refusal
+Wed Nov 18 11:08:32 UTC 2026 u53: R614 adversarial probes x01-x32 all refused/allowed as designed; next mirror check + corpus sweep
+Wed Nov 18 11:20:38 UTC 2026 u53: waiting heavy queue for PRIO corpus sweep s1
+Wed Nov 18 11:22:43 UTC 2026 u53: queued PRIO corpus sweep s1 at beab7ee49 (pid 3011522)
+Wed Nov 18 11:24:32 UTC 2026 u53: requeued PRIO corpus sweep s1 at 7fb23afb1
+Wed Nov 18 11:29:51 UTC 2026 u53: waiting heavy queue (PRIO sweep s1)
+Wed Nov 18 11:38:07 UTC 2026 u53: waiting heavy queue (PRIO sweep s1)
+Wed Nov 18 11:46:30 UTC 2026 u53: waiting heavy queue (PRIO sweep s1)
+Wed Nov 18 11:54:55 UTC 2026 u53: waiting heavy queue (PRIO sweep s1)
+Wed Nov 18 12:03:20 UTC 2026 u53: waiting heavy queue (PRIO sweep s1)
+Wed Nov 18 12:11:45 UTC 2026 u53: waiting heavy queue (PRIO sweep s1)
+Wed Nov 18 12:20:07 UTC 2026 u53: waiting heavy queue (PRIO sweep s1)
+Wed Nov 18 12:25:50 UTC 2026 u53: waiting heavy queue (PRIO sweep s1; slots held by u51 phase1 + snapD expressions LOW)
+Wed Nov 18 12:34:13 UTC 2026 u53: waiting heavy queue (PRIO sweep s1)
+Wed Nov 18 12:34:58 UTC 2026 u53: sweep s1: start oom oom_kill 0 HEAD 7fb23afb1
+Wed Nov 18 12:40:57 UTC 2026 u53: sweep s1 running
+Wed Nov 18 12:46:41 UTC 2026 u53: sweep s1 running
+Wed Nov 18 12:55:07 UTC 2026 u53: sweep s1 running
+Wed Nov 18 13:03:34 UTC 2026 u53: sweep s1 running
+Wed Nov 18 13:12:05 UTC 2026 u53: sweep s1 running (pyref)
+Wed Nov 18 13:12:21 UTC 2026 u53: sweep s1: sweep rc=0 emitted 3296 of 6259 source file(s) into /home/fabrice/git/pycsl-u53/scratchpad/u53/L/s1.bd (6 jobs) emitted 2173 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u53/scratchpad/u53/L/s1.bd/pyref (6 jobs) 
+Wed Nov 18 13:12:28 UTC 2026 u53: sweep s1: cmp root rc=1 [!]   GONE 2162_gen36_ch13_path_resolve_not_injective_false_claim.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 2162_gen36_ch13_path_resolve_not_injective_false_claim. [!] byte-diff-compare: NOT BYTE-INERT. [*] byte-diff-compare: 3296 baseline / 3295 candidate .mlw; 0 MOVED (0 unexpected), 3 GONE (3 unexpected), 0 APPEARED, 2 new source file(s) ig
+Wed Nov 18 13:12:28 UTC 2026 u53: sweep s1: cmp pyref rc=1 [!]   GONE pyref__stdlib_pathlib_WindowsPath_call_proves.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_pathlib_WindowsPath_call_proves. [!] byte-diff-compare: NOT BYTE-INERT. [*] byte-diff-compare: 2185 baseline / 2173 candidate .mlw; 0 MOVED (0 unexpected), 12 GONE (12 unexpected), 0 APPEARED. 
+Wed Nov 18 13:12:54 UTC 2026 u53: sweep s1: moved root 0 pyref 0 gone root 3 pyref 12; files root 3295 base 3296 pyref 2173 base 2185
+Wed Nov 18 13:12:54 UTC 2026 u53: sweep s1: end oom oom_kill 0
+Wed Nov 18 13:14:46 UTC 2026 u53: queued NORMAL jobB (proof batch + census + mirror sweep) at 044216152
+Wed Nov 18 13:20:20 UTC 2026 u53: jobB queued/running
+Wed Nov 18 13:25:50 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 13:34:05 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 13:42:28 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 13:50:57 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 13:59:27 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 14:07:57 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 14:16:23 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 14:24:52 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 14:33:22 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 14:41:53 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 14:50:36 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 14:59:23 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 15:08:16 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 15:17:06 UTC 2026 u53: jobB waiting in NORMAL queue
