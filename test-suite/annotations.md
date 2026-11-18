@@ -8526,6 +8526,19 @@ naming nothing the user wrote. Now refused with the same `PYCSL-TY3-CALLABLE-SCO
 there) plus TypeVars (`typevar_registry` and PEP 695 `type_params`), because
 `Callable[[T], int]` over a TypeVar verifies and a narrower set would have forbidden it.
 
+**Application refused (route #612, run #8)**: the arrow parameter is a PURE
+WhyML function, so an application `f(a)` was decided equal to every other
+application to the same arguments, to the same application in a contract, and
+was assumed effect-free, exception-free and terminating; a Python callable is
+none of those (`itertools.count`: `f(s) == f(s)` is False in CPython and PROVED
+True at 0057c8b94). A `Callable`-typed name (a parameter or an annotated local)
+may therefore only be DECLARED: any application (`f(..)`, `f.__call__(..)`) or
+other reference (passed on, stored, aliased, compared, returned), in the body or
+in any contract, assertion or invariant, is refused with
+`PYCSL-R612-CALLABLE-ASSUMED-PURE` (witnesses `10170`-`10176`, controls `10177`
+declared-only and `10178` a verified function called by name). Write the
+callable as a verified function of the program and call it by name.
+
 **Runtime plane** (Shimmed): `Callable[[...], R]` constructs an introspectable
 alias object (R1); `callable(x)` / `isinstance(x, Callable)` is a PRESENCE
 check (R2), signature-agnostic; NO signature enforcement at runtime (R3 — S3's
