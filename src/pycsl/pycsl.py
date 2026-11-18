@@ -22317,9 +22317,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             elif (isinstance(_n, _ast614.AnnAssign)
                     and _pa614.search(_ast614.unparse(_n.annotation))):
                 if isinstance(_n.target, _ast614.Name):
-                    _nm614.add((_sc614[id(_n)], _n.target.id))
                     if isinstance(_par614.get(id(_n)), _ast614.ClassDef):
-                        _fl614.add(_n.target.id)
+                        _fl614.add(_n.target.id)  # a class field, not a name of the scope
+                    else:
+                        _nm614.add((_sc614[id(_n)], _n.target.id))
                 elif isinstance(_n.target, _ast614.Attribute):
                     _fl614.add(_n.target.attr)
         _rv614 = list(reversed(_nodes614))  # every node after all of its descendants
@@ -22404,7 +22405,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     while _wk:
                         _t = _wk.pop()
                         if isinstance(_t, _ast614.Name):
-                            if (_s, _t.id) not in _nm614:
+                            if isinstance(_par614.get(id(_n)), _ast614.ClassDef):
+                                if _t.id not in _fl614:  # a class attribute
+                                    _fl614.add(_t.id)
+                                    _ch614 = True
+                            elif (_s, _t.id) not in _nm614:
                                 _nm614.add((_s, _t.id))
                                 _ch614 = True
                         elif isinstance(_t, _ast614.Attribute):
@@ -22615,9 +22620,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if not (isinstance(_f614, dict) and not _f614.get("trusted")
                     and not _f614.get("abstract")):
                 continue
-            _bn = str(_f614.get("name", "")).rsplit("__", 1)[-1]
-            if _bn == "" or _bn not in _ast_by614:
-                _bn = str(_f614.get("name", "")).split("__", 1)[-1]
+            _nn614 = str(_f614.get("name", ""))
+            _bn = next((_c for _c in (_nn614, _nn614.rsplit("__", 1)[-1],
+                                      _nn614.split("__", 1)[-1]) if _c in _ast_by614), _nn614)
             _fds = _ast_by614.get(_bn, [])
             _scs = {0} | {_sc614[id(_x)] for _x in _fds}
             _rp = any(_x.returns is not None and _pa614.search(_ast614.unparse(_x.returns))
