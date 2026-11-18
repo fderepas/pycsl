@@ -1,0 +1,19 @@
+14:17Z start tree f050b4ebb oom_kill 5
+14:17Z scan rc=0
+14:56Z sweep rc=0: emitted 3285 of 6244 source file(s) into /home/fabrice/git/pycsl-u52/scratchpad/u52/B/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u52/scratchpad/u52/B/bd/pyref (6 jobs) 
+14:56Z C root rc=0: [*] byte-diff-compare: 3281 baseline / 3284 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 3 new source file(s) ignored. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+14:56Z C pyref rc=0: [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+15:01Z mirror sweep rc=0:     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u52/scratchpad/u52/B/mir --min-files 45
+15:01Z D mirror: 53 emitted, diff lines 0
+15:01Z D compare rc=0: [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+15:01Z E fidelity: sync rc=0 mirror-check rc=0 doc rc=0
+15:34Z F fast planes rc=0:     NOT CHECKED: 23 prover/emission plane(s) — among them     check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival     and check-stdlib-modules-verify. Re-run with --slow before a GATE. 
+15:34Z refusal-witness-coverage rc=0: [*]   plus 10 refusal(s) UNMATCHABLE by this instrument: their message has no string literal of 25+ characters, so no witness can ever mark them demonstrated. Closing them is a compiler/census change, not a corpus one. [+] refusal-witness-coverage: O
+15:34Z assigns-writes-survival rc=0: [*] assigns-writes-survival: 669 emitted function(s) with a `writes` clause; 2899 dropped `#@ assigns` field occurrence(s) — TRAP 1398 (`@mutable_state` classes) + TRAP-NMS 1501 (other classes; both absent from the class record, so unmentionable and 
+15:45Z trusted-frame-honesty rc=0: [+] param-frame-honesty: not-lowered 78 < ratchet 86 — lower the constant. [+] frame-honesty: OK — measured trusted 0 model-visible / 1 total, converted 0 model-visible / 63 total (ratchets 0/1 and 0/63). 
+16:01Z getattr-erasure rc=0: [*] getattr-erasure: 102 fall-through site(s) over 187 file(s) — DECLARED 0 · ABSENT 27 · UNKNOWN 75 [+] getattr-erasure: OK — DECLARED 0 (pinned); 43 file(s) with sites, every one at or below its row; totals ABSENT 27, UNKNOWN 75 (reported, not gate
+16:01Z frontend-only rc=0: determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
+16:01Z core-only rc=0: [+] core-only conformance: 38 OK / 0 MISMATCH (38 goldens) — front-end NOT imported
+16:01Z count-trusted rc=0: [*] trusted-directives: declared_in 25 · attached 25 · unattached 0  (a DISTINCT class, NOT in `markers`: cross-mixin declarations certified by bin/check-declaration-conformance.py; same `val` emissio
+16:01Z ledger:  (empty = untouched)
+16:01Z JOBB-DONE oom_kill 5
