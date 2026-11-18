@@ -11,7 +11,7 @@ Executor u53, driver run #8. Tree `/home/fabrice/git/pycsl-u53`, branch `run8-u5
 - 044216152 return rule admits a scalar non-str return annotation (recovers 12 pyref fixtures)
 - 4a0533fac progress log (WIP)
 - f354523ef census rows via `_census_row` (10200-10206, and 2161/2162 now refused)
-- (this report)
+- (final) report commit
 
 Gates below were measured at f354523ef (src identical to 044216152).
 
@@ -177,14 +177,24 @@ Mirror sweep vs `scratchpad/run8/int68/mir`: 53 emitted, 0 diff lines, comparato
 
 - Fast planes (`bin/run-soundness-planes.sh`, teed, PRIO): rc 0, 62 ok, 23 slow planes not run (`--slow`
   not run, as the brief says). Log: `scratchpad/u53/L/f1.planes.log`, `f1.status`; oom 5->5.
-@@PLANES@@
+- Individual planes (NORMAL job q1 at 1f0aaad46, src identical to f354523ef; oom 15->15, the rise from 5
+  to 15 came from other executors' jobs between my runs): all rc 0 (`scratchpad/u53/L/q1.status`,
+  `q1.<plane>.log`):
+  - check-refusal-witness-coverage rc 0 (OK);
+  - check-getattr-erasure rc 0 (DECLARED 0, ABSENT 27, UNKNOWN 75);
+  - check-claim-vacuity rc 0 (1791 at the ceiling 1791);
+  - check-mirror-coverage rc 0 (549 / 41, at the ratchets);
+  - check-assigns-writes-survival rc 0 and check-trusted-frame-honesty rc 0, both on the
+    single-underscore emit dir `scratchpad/u53/L/p1_emit1`;
+  - count-trusted-directives rc 0.
+- frontend-only conformance rc 0 (10/10 determinism); core-only conformance rc 0 (38 OK / 0 MISMATCH).
 - Fidelity: covered by the fast planes run. The mirror-sync check is unaffected because `_run_pipeline`'s
   twin is `\trusted`.
 
 ## Counts
 
 - Proof-axiom ledger: 3, unchanged. `src/pycsl/proof_axiom_allowlist.py` has no diff vs 4d753c2f1.
-- `\trusted`: @@TRUSTED@@ (no `#@ \trusted` added; no mirror file touched).
+- `\trusted`: 365 (grep-substring), markers 337, unchanged (`scratchpad/u53/L/q1.count-trusted-bare.log`) (no `#@ \trusted` added; no mirror file touched).
 
 ## Residuals
 

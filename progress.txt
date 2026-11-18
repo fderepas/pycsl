@@ -263,3 +263,33 @@ Wed Nov 18 18:41:11 UTC 2026 u53: report drafted; q1 queued
 Wed Nov 18 18:49:41 UTC 2026 u53: q1 queued
 Wed Nov 18 18:58:16 UTC 2026 u53: q1 queued
 Wed Nov 18 19:07:03 UTC 2026 u53: q1 queued
+Wed Nov 18 19:18:53 UTC 2026 u53: q1 queued
+Wed Nov 18 19:27:41 UTC 2026 u53: q1 queued
+Wed Nov 18 19:33:31 UTC 2026 u53: q1 queued
+Wed Nov 18 19:42:24 UTC 2026 u53: q1 queued
+Wed Nov 18 19:48:11 UTC 2026 u53: q1 queued
+Wed Nov 18 19:57:08 UTC 2026 u53: q1 queued
+Wed Nov 18 20:02:56 UTC 2026 u53: q1 queued
+Wed Nov 18 20:11:28 UTC 2026 u53: q1 queued
+Wed Nov 18 20:20:05 UTC 2026 u53: q1 queued
+Wed Nov 18 20:29:07 UTC 2026 u53: q1 queued
+Wed Nov 18 20:37:58 UTC 2026 u53: q1 queued
+Wed Nov 18 20:46:30 UTC 2026 u53: q1 queued
+Wed Nov 18 20:52:10 UTC 2026 u53: q1 queued
+Wed Nov 18 21:00:47 UTC 2026 u53: q1 queued
+Wed Nov 18 21:09:17 UTC 2026 u53: q1 queued
+Wed Nov 18 21:12:06 UTC 2026 u53: post q1: start oom oom_kill 15 HEAD 1f0aaad46
+Wed Nov 18 21:12:12 UTC 2026 u53: post q1: 5 check-refusal-witness-coverage rc=0 [*]   plus 10 refusal(s) UNMATCHABLE by this instrument: their message has no string literal of 25+ characters, so no witness can ever mark them demonstrated. Closing them is a compiler/census change, not a corpus one. [+] refusal-witness-coverage: O
+Wed Nov 18 21:17:53 UTC 2026 u53: q1 individual planes running
+Wed Nov 18 21:26:34 UTC 2026 u53: q1 individual planes running
+Wed Nov 18 21:28:09 UTC 2026 u53: post q1: 5 check-getattr-erasure rc=0 [*] getattr-erasure: 102 fall-through site(s) over 187 file(s) — DECLARED 0 · ABSENT 27 · UNKNOWN 75 [+] getattr-erasure: OK — DECLARED 0 (pinned); 43 file(s) with sites, every one at or below its row; totals ABSENT 27, UNKNOWN 75 (reported, not gate
+Wed Nov 18 21:28:10 UTC 2026 u53: post q1: 5 check-claim-vacuity rc=0 [*] claim-vacuity: top name families — proves: 840, fails: 839, twin: 20, projection: 8 [+] claim-vacuity: OK — 1791/8638 claim-vacuous file(s) at the ceiling (1791); the two families whose names assert opposite outcomes (`*_call_proves.py`, `*_call_
+Wed Nov 18 21:28:14 UTC 2026 u53: post q1: 5 check-mirror-coverage rc=0 [*] mirror-coverage: 1824 live def(s) across the 53 MIRRORED file(s); 549 have NO mirror counterpart (30.1%). 41 live file(s) have no mirror at all. [+] mirror-coverage: OK — measured 549 unmirrored def(s) / 41 unmirrored file(s) (ratchets 549 / 41).
+Wed Nov 18 21:28:15 UTC 2026 u53: post q1: 5 check-assigns-writes-survival rc=0 [*] assigns-writes-survival: 669 emitted function(s) with a `writes` clause; 2899 dropped `#@ assigns` field occurrence(s) — TRAP 1398 (`@mutable_state` classes) + TRAP-NMS 1501 (other classes; both absent from the class record, so unmentionable and 
+Wed Nov 18 21:28:53 UTC 2026 u53: post q1: 5 check-trusted-frame-honesty rc=0 [*] param-frame-honesty: 86 (method, parameter) frame(s) name a written parameter that the emitted `writes` does NOT carry (object handle / by-value set or dict: source-honest, model-inert; trusted 70, converted 16). [+] frame-honesty: OK — measured 
+Wed Nov 18 21:28:54 UTC 2026 u53: post q1: 5 count-trusted-directives rc=0     stale (trusted or declared_in, but emitted as a definition): 0 (over 53 matched emission(s)) [+] trusted-directives: OK 
+Wed Nov 18 21:28:55 UTC 2026 u53: post q1: 5 count-trusted bare rc=0 [*] trusted-directives: declared_in 25 · attached 25 · unattached 0  (a DISTINCT class, NOT in `markers`: cross-mixin declarations certified by bin/check-declaration-conformance.py; same `val` emission) [+] trusted-directives: OK 
+Wed Nov 18 21:28:59 UTC 2026 u53: post q1: 6 frontend-only rc=0 determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
+Wed Nov 18 21:28:59 UTC 2026 u53: post q1: 6 core-only rc=0 [+] core-only conformance: 38 OK / 0 MISMATCH (38 goldens) — front-end NOT imported
+Wed Nov 18 21:28:59 UTC 2026 u53: post q1: end oom oom_kill 15
+Wed Nov 18 21:29:46 UTC 2026 u53: all gates done; final report commit
