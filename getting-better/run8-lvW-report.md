@@ -15,7 +15,7 @@ Spec: the run7-sp5 spike `getting-better/run8-spike-typed-tuple-return.md` (VERD
 | `f1406a4c3` | corpus witnesses 10150-10159 |
 | `badcb9b5a` | WIP: evidence (sweeps, compares, leaf-reachability) |
 | `50b977429` | witnesses rewritten without trivially-true clauses (for claim-vacuity); wrap `--fun`; slow planes |
-| (this commit) | report + remaining evidence |
+| (final commit) | report + remaining evidence |
 
 Notes on SRC-FINAL:
 - The port is `git diff 06cb88013 run7-sp5 -- src/`, applied with `git apply`. There were no conflicts: since
@@ -85,7 +85,16 @@ file counts were asserted:
 
 ### Whole-file `pycsl.py` mirror proof (HEAVY_LOW=1, PYTHON_CPU_COUNT=6)
 
-__WHOLE__
+**NOT RUN (time box).** I queued it at 03:55Z with `HEAVY_LOW=1 PYTHON_CPU_COUNT=6 scratchpad/lvW/prove.sh whole_pycsl pycsl.py`.
+- It never got a slot. Slot 1 held the driver's statements whole-file proof all night, and slot 2 held the driver's
+  `run-soundness-planes.sh --slow` from about 03:50Z.
+- At 05:31Z there was not enough time left for its ~45 min proof to finish by 06:00Z, so I killed it before it
+  started. I verified it was mine by walking the parent chain to my own shell. The kill is logged in
+  `proofs/summary.txt`.
+- The driver owes this proof (sp5: whole file 745 goals / 1797 s at int60).
+- Partial evidence: the `--fun _why3_typecheck` above checks the new function's own goals plus the imported and
+  nested helper VCs (761). Of the pycsl.mlw emission diff, only `_why3_typecheck`'s body and 3 callers' `raises`
+  clauses moved.
 
 ### Mutation test + leaf-reachability on `_why3_typecheck`
 
@@ -156,7 +165,11 @@ These are sp5's t1-t5 ported, plus 5 red-team witnesses. Logs: `scratchpad/lvW/w
 | check-claim-vacuity | first run **NOT OK**, caused by my witnesses: claim-vacuous files 1792 > 1791 (10150's two `ensures True`) and `requires True` files 1138 > 1131. **Fixed in the witnesses**, not in the gate (commit 50b977429): the `requires True` lines are dropped and 10150's claims are now real. Green in the fast rerun |
 
 **Fidelity** (`scratchpad/lvW/fidelity.log`): check-self-annotate-sync.sh, self-annotate-mirror-check.sh and
-doc-coherency --check. __FID__
+doc-coherency --check. - `check-self-annotate-sync.sh` is a wrapper around `check-self-annotate-mirror-sync.py`, which is `ok` in the
+  62/62 fast run, as is `self-annotate-mirror-check.sh`.
+- `doc-coherency.py --check` returns **rc 0** (`scratchpad/lvW/doc-coherency.log`). It ran directly: it imports
+  neither pycsl nor the corpus.
+- The separate heavy `fidelity.sh` re-run was still queued at the time box and was killed unstarted.
 
 ### Ledger and `\trusted`
 

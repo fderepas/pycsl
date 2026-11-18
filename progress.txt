@@ -120,3 +120,15 @@ Wed Nov 18 03:39:32 UTC 2026 lvW: why3_typecheck --fun running
 Wed Nov 18 03:47:43 UTC 2026 lvW: why3_typecheck --fun running
 Wed Nov 18 03:55:06 UTC 2026 lvW: why3_typecheck --fun 761/761; pycsl whole-file (LOW, PCC=6) queued
 Wed Nov 18 03:56:20 UTC 2026 lvW: report drafted; whole-file pycsl + fidelity queued
+Wed Nov 18 04:02:06 UTC 2026 lvW: queued (whole pycsl LOW, fidelity)
+Wed Nov 18 04:10:28 UTC 2026 lvW: queued
+Wed Nov 18 04:18:42 UTC 2026 lvW: queued
+Wed Nov 18 04:26:54 UTC 2026 lvW: queued
+Wed Nov 18 04:35:12 UTC 2026 lvW: queued
+Wed Nov 18 04:43:27 UTC 2026 lvW: queued
+Wed Nov 18 04:51:51 UTC 2026 lvW: queued
+Wed Nov 18 05:00:03 UTC 2026 lvW: queued
+Wed Nov 18 05:08:16 UTC 2026 lvW: queued
+Wed Nov 18 05:14:01 UTC 2026 lvW: doc-coherency rc 0; whole pycsl still queued behind driver --slow planes
+Wed Nov 18 05:22:16 UTC 2026 lvW: queued
+Wed Nov 18 05:30:59 UTC 2026 lvW: time box: killed my 2 queued (unstarted) jobs: whole-file pycsl.py proof, fidelity.sh; finalizing report

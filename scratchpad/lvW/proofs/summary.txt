@@ -15,3 +15,4 @@
 2026-11-17T23:27:02Z START fun_why3_typecheck /home/fabrice/git/pycsl-lvW pycsl.py --fun _why3_typecheck PCC=4
 2026-11-18T03:54:52Z END fun_why3_typecheck rc=0 wall=16070s valid=761 total=761 nonvalid=0 Verification SUCCESS oom_kill=0->0
 2026-11-18T03:55:06Z START whole_pycsl /home/fabrice/git/pycsl-lvW pycsl.py  PCC=6
+2026-11-18T05:30:59Z KILLED (queued, never started) whole_pycsl + fidelity.sh at time box
