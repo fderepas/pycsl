@@ -1438,7 +1438,12 @@ taken before a same-named MODULE (`X.py`), as CPython's `FileFinder` does. A loc
 top-level name is a standard-library or built-in module (`sys.stdlib_module_names`,
 `sys.builtin_module_names`) is REFUSED (`PYCSL-SEM-IMPORT-SHADOWS-STDLIB`) unless it is
 byte-identical to the running interpreter's own source of that module (file for file for a
-package — the repo-root `json/` copy of CPython's `Lib/json` is the one such case): CPython
+package — the repo-root `json/` copy of CPython's `Lib/json` is the one such case; a
+bytecode cache CPython could load INSTEAD of a resolved module's source — an unchecked or
+checked hash-based `__pycache__` pyc, or a timestamp pyc whose header matches, at any
+`.opt-N` level — must be provably the compilation of that source, its code object equal to
+`compile(source)`, or the import is REFUSED, `PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route
+#611 r12): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or
 startup-loaded module, and for the rest which one runs depends on `sys.path` and startup.
 A program that edits the import system — any reference to `sys.path`, `sys.modules`,
