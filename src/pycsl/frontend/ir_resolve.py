@@ -83,6 +83,7 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
     Searches: main file's directory, CWD, repo `src/`, `Lib/`, then any
     `--import-path` roots (`_EXTRA_IMPORT_PATHS`)."""
     parts = module_dotted.split(".")
+    _std612 = None  # route #611 r12: the root of an ADMITTED stdlib-named local package copy
 
     if level > 0:
         # Relative import: resolve from main file's directory
@@ -237,7 +238,205 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                         f"FIX: rename the local module so it does not shadow the standard "
                         f"library.",
                         filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-SHADOWS-STDLIB")
+                if os.path.isdir(loc_root) and os.path.commonpath([hit, loc_root]) == loc_root:
+                    _std612 = loc_root
             break
+    # (#49) run #8 ROUTE #611 r12 (open since rt62; held only by accident: for hashlib the
+    # rebound-name rule, for json route #305). CPython's SourceFileLoader does not run a source
+    # module's `.py` when a cache file for it is acceptable: `__pycache__/<m>.<cache_tag>.pyc`
+    # (`.opt-<N>` under -O / -OO / any level N), taken WITHOUT looking at the source when it is an
+    # UNCHECKED hash-based pyc (PEP 552; also a checked one under `--check-hash-based-pycs
+    # never`), or when its header mtime / size match the source's stat. A forged cache beside a
+    # module pycsl reads (a dependency, a parent package's `__init__`, or a stdlib-named copy
+    # route #326 admits as the interpreter's own source) makes CPython run other bytecode while
+    # pycsl reasons about the source (measured: a stdlib-identical `hashlib.py` + a forged
+    # unchecked pyc, two digests differ under CPython). RULE (refusal-only, fail-closed): every
+    # cache file the running interpreter's loader could accept for such a module must be
+    # PROVABLY the compilation of the adjacent source -- its code object, unmarshalled, equals
+    # `compile(source, path, 'exec', dont_inherit=True, optimize=<its level>)` attribute by
+    # attribute (recursively through co_consts, exact constant types / float bits, and
+    # co_filename as `_imp._fix_co_filename` rewrites it); a cache CPython rejects (bad magic,
+    # unknown flags, < 16 bytes, a timestamp header that does not match) is not loadable and is
+    # ignored. Anything else REFUSES the import. A genuine CPython-written cache (the repo-root
+    # `json/__pycache__`) validates, so the verdict does not depend on whether CPython once ran
+    # in that directory. NOT compared (review cr63, documented residuals): `localspluskinds`
+    # (no `co_*` view; a forged CO_FAST_HIDDEN bit changes only `locals()`), constant identity /
+    # sharing (`f() is g()` over two equal constant tuples). Out of reach: a cache created after
+    # verification (time-of-check vs time-of-use; including a stale timestamp pyc that a later
+    # metadata change -- `touch -d`, `cp -p`, `rsync -t` -- makes header-matching), the
+    # program's runtime PYTHONPYCACHEPREFIX,
+    # another interpreter's cache tag, and under `python -m pkg.prog` the program's own cache
+    # AND its package `__init__` chain. Inline; the mirror twin is `\trusted`.
+    if hit is not None and sys.implementation.cache_tag:
+        import importlib.util as _iu612
+        import marshal as _ma612
+        import re as _re612
+        import struct as _sp612
+        import types as _ty612
+        import warnings as _wa612
+        _src612 = {hit}
+        for _k612 in range(1, len(parts)):
+            _pi612 = os.path.join(base, *parts[:_k612], "__init__.py")
+            if os.path.isfile(_pi612):
+                _src612.add(_pi612)
+        if _std612 is not None:
+            for _dp612, _dn612, _fn612 in os.walk(_std612):
+                _dn612[:] = sorted(_d for _d in _dn612 if _d != "__pycache__")
+                _src612 |= {os.path.join(_dp612, _f) for _f in _fn612 if _f.endswith(".py")}
+        _bad612 = None
+        for _sf612 in sorted(_src612):
+            if _bad612 is not None:
+                break
+            # Every cache name the loader can derive: `<m>.<tag>.pyc`, and `<m>.<tag>.opt-<N>.pyc`
+            # for ANY interpreter level N >= 1 (`-OOO` / PYTHONOPTIMIZE=7 load `.opt-3` /
+            # `.opt-7`; the loader compiles at level 2 for every N >= 2).
+            _dirs612 = [os.path.join(os.path.dirname(_sf612), "__pycache__")]
+            if sys.pycache_prefix:
+                # pycsl's own prefix only: the program's runtime PYTHONPYCACHEPREFIX is not
+                # visible here (a documented residual).
+                _dirs612.append(os.path.dirname(_iu612.cache_from_source(_sf612)))
+            _rx612 = _re612.compile(
+                _re612.escape(os.path.basename(_sf612)[:-3] + "." + sys.implementation.cache_tag)
+                + r"(?:\.opt-([1-9][0-9]*))?\.pyc")
+            _cands612 = []
+            for _cd612 in _dirs612:
+                if not os.path.isdir(_cd612):
+                    continue
+                try:
+                    _ls612 = sorted(os.listdir(_cd612))
+                except OSError:
+                    # an unlistable `__pycache__` (mode `-wx`): CPython can still open a pyc
+                    # in it by name, pycsl cannot see which -> refuse (review cr63 Q3)
+                    _bad612 = _cd612
+                    _ls612 = []
+                for _cn612 in _ls612:
+                    _cm612 = _rx612.fullmatch(_cn612)
+                    if _cm612 is not None:
+                        _cands612.append((min(int(_cm612.group(1) or 0), 2),
+                                          os.path.join(_cd612, _cn612)))
+            for _lv612, _cf612 in _cands612:
+                if _bad612 is not None:
+                    break
+                if not os.path.isfile(_cf612):
+                    continue
+                try:
+                    # (no `with ... as`: check-dropped-mutation's CTXBIND ratchet)
+                    _db612 = __import__("pathlib").Path(_cf612).read_bytes()
+                    _st612 = os.stat(_sf612)
+                    _sb612 = __import__("pathlib").Path(_sf612).read_bytes()
+                except OSError:
+                    _bad612 = _cf612
+                    break
+                if len(_db612) < 16 or _db612[:4] != _iu612.MAGIC_NUMBER:
+                    continue
+                _fl612 = int.from_bytes(_db612[4:8], "little")
+                if _fl612 & ~0b11:
+                    continue
+                # A TIMESTAMP pyc whose header does not match the source's CURRENT stat is not
+                # loaded by CPython now (it recompiles from source), so it is ignored exactly as
+                # CPython ignores it. If a later metadata change (`touch -d`, `cp -p`, `rsync -t`)
+                # makes the header match, a new pycsl run validates it; between the two is the
+                # time-of-check / time-of-use residual (driver decision on review cr63
+                # residual 3: validating stale headers refused 25 / 242 honest main-tree caches).
+                if not (_fl612 & 0b1) and (
+                        int.from_bytes(_db612[8:12], "little") != (int(_st612.st_mtime) & 0xFFFFFFFF)
+                        or int.from_bytes(_db612[12:16], "little") != (_st612.st_size & 0xFFFFFFFF)):
+                    continue
+                _eq612 = False
+                try:
+                    _ca612 = _ma612.loads(_db612[16:])
+                    with _wa612.catch_warnings():
+                        _wa612.simplefilter("ignore")
+                        _cb612 = compile(_sb612, _sf612, "exec", dont_inherit=True,
+                                         optimize=_lv612)
+                    _eq612 = isinstance(_ca612, _ty612.CodeType)
+                    _old612 = _ca612.co_filename if _eq612 else None
+                    # (pyc node, compiled node, its parent's co_filename was rewritten)
+                    _wl612 = [(_ca612, _cb612, _eq612 and _old612 != _sf612)]
+                    while _eq612 and _wl612:
+                        _x612, _y612, _fx612 = _wl612.pop()
+                        if type(_x612) is not type(_y612):
+                            _eq612 = False
+                        elif isinstance(_x612, _ty612.CodeType):
+                            _up612 = _fx612 and _x612.co_filename == _old612
+                            for _at612 in sorted(dir(_x612)):
+                                if (not _at612.startswith("co_")
+                                        or _at612 in ("co_lnotab", "co_consts")):
+                                    continue
+                                _vx612 = getattr(_x612, _at612)
+                                _vy612 = getattr(_y612, _at612)
+                                if callable(_vx612):
+                                    continue
+                                if _at612 == "co_filename" and _up612:
+                                    _vx612 = _sf612
+                                if type(_vx612) is not type(_vy612) or _vx612 != _vy612:
+                                    _eq612 = False
+                            # `co_code` is the DEOPTIMISED view (specialised opcodes mapped
+                            # back, inline caches zeroed); the bytes CPython runs are
+                            # `_co_code_adaptive` -- both sides are fresh, never-executed
+                            # objects, so a genuine cache still matches (review cr63 R1)
+                            if (getattr(_x612, "_co_code_adaptive", None)
+                                    != getattr(_y612, "_co_code_adaptive", None)):
+                                _eq612 = False
+                            if len(_x612.co_consts) != len(_y612.co_consts):
+                                _eq612 = False
+                            _wl612 += [(_a, _b, _up612)
+                                       for _a, _b in zip(_x612.co_consts, _y612.co_consts)]
+                        elif isinstance(_x612, tuple):
+                            if len(_x612) != len(_y612):
+                                _eq612 = False
+                            _wl612 += [(_a, _b, False) for _a, _b in zip(_x612, _y612)]
+                        elif isinstance(_x612, slice):
+                            # 3.14 folds a constant slice `x[1:2]` into a `slice` constant
+                            _wl612 += [(_x612.start, _y612.start, False),
+                                       (_x612.stop, _y612.stop, False),
+                                       (_x612.step, _y612.step, False)]
+                        elif isinstance(_x612, frozenset):
+                            _ks612 = []
+                            for _fs612 in (_x612, _y612):
+                                _kk612 = []
+                                for _e612 in _fs612:
+                                    if type(_e612) is float:
+                                        _kk612.append("f" + _sp612.pack("<d", _e612).hex())
+                                    elif type(_e612) is complex:
+                                        _kk612.append("c" + _sp612.pack(
+                                            "<dd", _e612.real, _e612.imag).hex())
+                                    elif type(_e612) in (int, bool, str, bytes, type(None)) or (
+                                            type(_e612) is tuple and all(
+                                                type(_t) in (int, bool, str, bytes, type(None))
+                                                for _t in _e612)):
+                                        _kk612.append(repr((type(_e612).__name__, _e612)))
+                                    else:
+                                        _eq612 = False
+                                _ks612.append(sorted(_kk612))
+                            if _ks612[0] != _ks612[1]:
+                                _eq612 = False
+                        elif type(_x612) is float:
+                            _eq612 = _sp612.pack("<d", _x612) == _sp612.pack("<d", _y612)
+                        elif type(_x612) is complex:
+                            _eq612 = (_sp612.pack("<dd", _x612.real, _x612.imag)
+                                      == _sp612.pack("<dd", _y612.real, _y612.imag))
+                        elif type(_x612) in (int, bool, str, bytes, type(None), type(...)):
+                            _eq612 = _x612 == _y612
+                        else:
+                            _eq612 = False
+                except Exception:
+                    _eq612 = False
+                if not _eq612:
+                    _bad612 = _cf612
+                    break
+        if _bad612 is not None:
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"`import {'.' * level}{module_dotted}`: the bytecode cache {_bad612} is one "
+                f"CPython's source loader may run INSTEAD of the source pycsl reads (an "
+                f"unchecked / hash-based pyc, or a timestamp pyc whose header matches the "
+                f"source), and it is not provably the compilation of that source, so the module "
+                f"the program runs is not the module verified here (route #611 r12: a forged "
+                f"unchecked `__pycache__/hashlib.cpython-314.pyc` beside a stdlib-identical "
+                f"`hashlib.py` makes CPython's two digests differ). FIX: delete the "
+                f"`__pycache__` entry (CPython regenerates a faithful one).",
+                filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED")
     # (#49) gen #40, ROUTE #475 (red team 39; MEASURED PROVED on d6abee90b: a dependency with
     # a `latin-1` / `cp1252` / vim-style / post-shebang coding cookie over non-ASCII bytes,
     # and a `utf-7` dependency whose comment `# +AAo-K = 0` CPython decodes to a NEWLINE and

@@ -3100,7 +3100,14 @@ the interpreter's own source (`PYCSL-SEM-IMPORT-SHADOWS-STDLIB`); a program (or 
 of a resolved dependency) that edits `sys.path` / `sys.modules` / `sys.meta_path` /
 `sys.path_hooks` / `sys.path_importer_cache` other than by a pure read or the idempotent
 script-directory insert, or that uses dynamic-import machinery beside a locally-resolved
-import, is refused (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`). annotations.md §7.16, §T.6.27.
+import, is refused (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`). A resolved module (a dependency,
+each parent package `__init__.py` on its dotted path, and every `.py` of an admitted
+stdlib-identical package copy) whose `__pycache__/<m>.<cache_tag>[.opt-N].pyc` CPython's
+source loader could run instead of the source (an unchecked / checked hash-based pyc, or a
+timestamp pyc whose header matches the source's stat) is refused unless that pyc's code
+object equals `compile(source, path, 'exec', dont_inherit=True, optimize=min(N, 2))`
+attribute by attribute (`PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route #611 r12; a genuine
+CPython-written cache validates). annotations.md §7.16, §T.6.27.
 
 ### C.1 Declared model assumptions (routes #250, #253, #256, #276, #282, #298)
 
