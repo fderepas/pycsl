@@ -1,0 +1,21 @@
+p01_two_calls_equal: VIOLATION False
+p02_body_vs_ensures: VIOLATION 0
+p03_requires_then_call: VIOLATION -1
+p04_call_mutates_arg: VIOLATION 2
+p05_call_then_read_before_after: VIOLATION -1
+p06_raises_no_exception: VIOLATION ValueError boom
+p07_never_returns: CPython: g(h, 0) never returns (not run); partial-correctness claim only
+p08_stored_then_called: VIOLATION False
+p09_stored_in_field: VIOLATION False
+p10_passed_on: VIOLATION False
+p11_builtin_map_key: VIOLATION False
+p12_dunder_call: VIOLATION False
+p13_assert_applies: ok (assert is a ghost claim; CPython: f(x) at assert point differs)
+p14_global_effect_assigns_nothing: VIOLATION (assigns \nothing, caller-visible list mutated) 0 [0]
+p15_control_uncalled: ok 2
+p16_lambda_arg_call: VIOLATION False
+p17_method_callable_param: VIOLATION False
+p18_callable_field_cb: VIOLATION False
+p19_annotated_local_alias: VIOLATION False
+p20_sorted_key: VIOLATION False
+p21_lambda_in_body: VIOLATION False

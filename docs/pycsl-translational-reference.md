@@ -8809,10 +8809,30 @@ int-encodes bool), `str`→`string`, `float`→`real`, a record/variant name→i
 WhyML name; an unknown bare name falls back to `int` (Why3 then rejects a
 mismatched application — sound, never weaker than S1).
 
-**Call site.** Unchanged — the existing Call lowering already emits `(f a1 ...
-an)` as WhyML application; with `f` now function-typed, the application
-type-checks. C4: a value postcondition on a bare callable is correctly
-unprovable (`f` is opaque); refused, NOT shortcut.
+**Call site — REFUSED (route #612, run #8).** The arrow `(f: a1 -> ... -> r)` is
+a MATHEMATICAL function, so the application `(f a1 ... an)` carried four
+assumptions no Python callable makes: two applications to equal arguments are
+equal (`f(s) == f(s)` decided True), a body call equals the same application in
+a contract (`ensures \result == f(x)`, `requires f(x) >= 0` then `return f(x)`),
+the call changes nothing (an `assigns \nothing` / `len(xs)`-after-the-call claim
+proved over a callable that appends to the caller's list), and the call returns
+normally. A Python callable may keep state (`itertools.count`), mutate
+caller-visible state, raise or not return: each of those four PROVED at
+0057c8b94 with a CPython counterexample (witnesses `10170`-`10176`). The rule,
+in `_run_pipeline` (whose mirror twin is `\trusted`; placed after every other
+IR-semantic refusal): a name whose `symbol_table` tag starts with `callable:`
+(a parameter, or an annotated local) may be DECLARED and may not be REFERENCED —
+no `Call` whose `func` is the name or `<name>.<attr>` (`f.__call__`), and no
+`Var` of the name anywhere in the function's IR (body, nested lambdas, every
+contract, assertion and invariant). Refused with
+`PYCSL-R612-CALLABLE-ASSUMED-PURE`. A per-call fresh (`any`) result was
+measured and not chosen: it would also have to havoc every caller-visible
+location and refuse every `no_exception` / termination claim at each call, and
+of the 15 corpus files that write a `Callable` parameter (0 in
+`python-reference`, 0 in the mirror) one emitting file applied it (1878), with a
+claim CPython falsifies. Declared-only `Callable` parameters (`1853`, `1854`,
+`6641`, control `10177`) are unaffected. C4 (a value postcondition on a bare
+callable) is subsumed: the contract cannot name `f` at all.
 
 **Validation (core_ir_semantic).** `_check_callable_params` is a
 belt-and-suspenders well-formedness guard on the `"callable:"` encoding

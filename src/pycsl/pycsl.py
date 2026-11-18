@@ -18401,6 +18401,85 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     filename=args.file, line=int(_f498.get("line") or 0),
                     stage="ir-semantic", code="PYCSL-R498-IS-ON-FRESH-VALUE")
 
+    # (run #8) ROUTE #612 -- A `Callable` PARAMETER WAS ASSUMED PURE.
+    #
+    # §T.TY3.8 lowers `f: Callable[[A1, ..., An], R]` to a WhyML function-type parameter
+    # `(f: a1 -> ... -> r)` and a call `f(a)` to the application `(f a)`. A WhyML arrow is a
+    # MATHEMATICAL function, so the model decided four things no Python callable promises:
+    #   * two calls with equal arguments are equal (`f(s) == f(s)` PROVED `\result == True`;
+    #     CPython with `itertools.count` is False -- lvX, evidence/r612);
+    #   * a body call equals the same application in a contract (`ensures \result == f(x)`,
+    #     `requires f(x) >= 0` then `return f(x)`);
+    #   * a call changes nothing (`assigns \nothing` PROVED over a callable that appends to a
+    #     caller-visible list; `len(xs)` read after the call kept its old value);
+    #   * a call returns, and returns normally.
+    # The same pure value reached every spelling of an application: `f.__call__(x)` (an
+    # abstract `val`, still pure), a lambda wrapping `f`, an annotated local alias
+    # `g: Callable[...] = f`.
+    #
+    # THE RULE (refuse rather than approximate): a `Callable`-typed name -- every
+    # `symbol_table` entry tagged `callable:`, parameters and annotated locals -- may be
+    # DECLARED, and may not be REFERENCED at all: no application (`f(..)`, `f.<attr>(..)`)
+    # and no other occurrence (passed on, stored, aliased, compared, returned), in the body
+    # or in any contract / assertion / invariant. A "fresh value per call" model was
+    # measured and not chosen: it would still have to havoc every caller-visible location
+    # at each call and refuse every `no_exception` / termination claim, and the census
+    # says it would serve nobody -- of the 15 corpus files (0 pyref, 0 mirror, 0
+    # `src/pycsl_lib`) that write a `Callable` parameter, exactly ONE emitting file
+    # references it (1878, `requires f(x) >= 0` / `return f(x)`), and that claim is FALSE
+    # in CPython for a stateful callable. Declared-only parameters (1853, 1854, 6641) keep
+    # proving. Placed LAST among the IR-semantic refusals so every existing refusal keeps
+    # its own diagnostic; `_run_pipeline`'s mirror twin is `\trusted` (choke-point rule),
+    # so no marker and no mirror emission moves.
+    for _f612 in (ir_data.get("functions", []) or []):
+        _st612 = _f612.get("symbol_table") or {}
+        if not isinstance(_st612, dict):
+            continue
+        _cn612 = set()
+        for _v612, _t612 in _st612.items():
+            if isinstance(_t612, str) and _t612.startswith("callable:"):
+                _cn612.add(_v612)
+        if not _cn612:
+            continue
+        _hit612 = None
+        _todo612 = [_x for _k, _x in sorted(_f612.items()) if _k != "symbol_table"]
+        while _todo612 and _hit612 is None:
+            _n612 = _todo612.pop()
+            if isinstance(_n612, list):
+                _todo612.extend(_n612)
+                continue
+            if not isinstance(_n612, dict):
+                continue
+            _ty612 = _n612.get("type")
+            _fn612 = _n612.get("func")
+            if _ty612 == "Call" and isinstance(_fn612, str):
+                for _v612 in sorted(_cn612):
+                    if _fn612 == _v612 or _fn612.startswith(_v612 + "."):
+                        _hit612 = (_v612, "APPLIED (`%s(...)`)" % _fn612)
+                        break
+            if (_hit612 is None and _ty612 == "Var"
+                    and _n612.get("name") in _cn612):
+                _hit612 = (_n612.get("name"),
+                           "REFERENCED as a value (passed on, stored, aliased, compared "
+                           "or returned)")
+            _todo612.extend(_n612.values())
+        if _hit612 is not None:
+            from errors import PyCSLSemanticError as _R612Err
+            raise _R612Err(
+                "function '%s': the `Callable` parameter '%s' is %s. A `Callable` "
+                "parameter is lowered to a PURE WhyML function, so the model assumes that "
+                "two calls with the same arguments return the same value, that a call in "
+                "the body equals the same application in a contract, and that a call "
+                "changes nothing, never raises and always returns; a Python callable may "
+                "keep state (`itertools.count`), mutate what the caller sees, raise or not "
+                "return, and CPython's `f(s) == f(s)` is then False while the model "
+                "decides it True (route #612). A `Callable` parameter may be declared but "
+                "not applied or referenced, in the body or in any contract. Make the "
+                "callable a verified function of this program and call it by name."
+                % (_f612.get("name"), _hit612[0], _hit612[1]),
+                filename=args.file, line=int(_f612.get("line") or 0),
+                stage="ir-semantic", code="PYCSL-R612-CALLABLE-ASSUMED-PURE")
+
     from errors import PyCSLError as _PyCSLErr460
 
     # [Module 6] WhyML Transpilation
