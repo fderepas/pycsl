@@ -22561,9 +22561,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if isinstance(_t, _ast614.Name) and _t.id in _gl614.get(id(_fd), ()):
                             _why614 = "binds a Path value to a global / nonlocal name"
             elif isinstance(_n, (_ast614.Return, _ast614.Yield, _ast614.YieldFrom)):
+                # a non-Path return annotation that the model types as a string or a
+                # container (str, Any, object, Optional, a container, none at all) lets the
+                # Path flow on as a str; a scalar non-str one (`-> int` of `return Path(x)`)
+                # is a type confusion the model does not lower as a string (pyref fixtures)
                 if (_n.value is not None and id(_n.value) in _pv614
                         and (_fd.returns is None
-                             or not _pa614.search(_ast614.unparse(_fd.returns)))):
+                             or (not _pa614.search(_ast614.unparse(_fd.returns))
+                                 and _ast614.unparse(_fd.returns).strip("'\"") not in (
+                                     "int", "float", "bool", "bytes", "complex", "None",
+                                     "NoReturn")))):
                     _why614 = (f"returns a Path value from '{_fd.name}', which is not "
                                f"annotated to return a Path")
             elif isinstance(_n, _ast614.Subscript) and id(_n.slice) in _pv614:
