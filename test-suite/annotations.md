@@ -1443,7 +1443,11 @@ bytecode cache CPython could load INSTEAD of a resolved module's source — an u
 checked hash-based `__pycache__` pyc, or a timestamp pyc whose header matches, at any
 `.opt-N` level — must be provably the compilation of that source, its code object equal to
 `compile(source)`, or the import is REFUSED, `PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route
-#611 r12): CPython
+#611 r12; and the whole import CLOSURE is judged, not only the program's own imports: an
+entry in any resolution root named like a module the closure may reach — a stdlib / builtin
+name, or any name the interpreter's stdlib source imports — is judged as a direct import of
+it and REFUSED unless admitted, `PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`, route #613: a local
+`re.py` beside a program that imports only `json` is the `re` that `json` runs): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or
 startup-loaded module, and for the rest which one runs depends on `sys.path` and startup.
 A program that edits the import system — any reference to `sys.path`, `sys.modules`,
