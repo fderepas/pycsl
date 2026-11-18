@@ -1,4 +1,4 @@
-r"""Test 10173 -- route #612 (expected FAIL): a call of a `Callable` parameter was assumed to change nothing. `requires len(xs) == 1` / `f(0)` / `return len(xs)` with `ensures \result == 1` PROVED at base 0057c8b94; CPython with a callable that appends to the caller's list returns 2 (the driver prints VIOLATION). Now REFUSED (PYCSL-R612-CALLABLE-ASSUMED-PURE).
+r"""Test 10173 -- route #612 (expected FAIL): a call of a `Callable` parameter was assumed to change nothing. `requires len(xs) == 1` / `f(0)` / `return len(xs)` with `ensures \result == 1` PROVED at base 0057c8b94 (hoare; typed / store fail there on the pre-existing "depends on external variables" `let function` error); CPython with a callable that appends to the caller's list returns 2 (the driver prints VIOLATION). Now REFUSED (PYCSL-R612-CALLABLE-ASSUMED-PURE).
 """
 # pycsl-expected: FAIL
 from typing import Callable, List

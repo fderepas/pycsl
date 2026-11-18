@@ -1,4 +1,4 @@
-r"""Test 10172 -- route #612 (expected FAIL): `requires f(x) >= 0` then `return f(x)` with `ensures \result >= 0` PROVED at base 0057c8b94 (the old shape of control 1878): the precondition's application was assumed to be the body's call. CPython: the caller checks `h(0) >= 0` (1), the body's call returns -1 (the driver prints VIOLATION). Now REFUSED (PYCSL-R612-CALLABLE-ASSUMED-PURE).
+r"""Test 10172 -- route #612 (expected FAIL): `requires f(x) >= 0` then `return f(x)` with `ensures \result >= 0` PROVED at base 0057c8b94 (hoare; typed / store fail there on the pre-existing "depends on external variables" `let function` error) (the old shape of control 1878): the precondition's application was assumed to be the body's call. CPython: the caller checks `h(0) >= 0` (1), the body's call returns -1 (the driver prints VIOLATION). Now REFUSED (PYCSL-R612-CALLABLE-ASSUMED-PURE).
 """
 # pycsl-expected: FAIL
 from typing import Callable

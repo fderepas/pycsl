@@ -1,4 +1,4 @@
-r"""Test 10170 -- route #612 (expected FAIL): a `Callable[[str], int]` parameter was lowered to a PURE WhyML function `string -> int`, so `f(s) == f(s)` was decided True and `ensures \result == True` PROVED at base 0057c8b94. CPython with a stateful callable (`itertools.count`) returns False (the `__main__` driver prints VIOLATION). Now REFUSED (PYCSL-R612-CALLABLE-ASSUMED-PURE).
+r"""Test 10170 -- route #612 (expected FAIL): a `Callable[[str], int]` parameter was lowered to a PURE WhyML function `string -> int`, so `f(s) == f(s)` was decided True and `ensures \result == True` PROVED at base 0057c8b94 (hoare; typed / store fail there on the pre-existing "depends on external variables" `let function` error). CPython with a stateful callable (`itertools.count`) returns False (the `__main__` driver prints VIOLATION). Now REFUSED (PYCSL-R612-CALLABLE-ASSUMED-PURE).
 """
 # pycsl-expected: FAIL
 from typing import Callable

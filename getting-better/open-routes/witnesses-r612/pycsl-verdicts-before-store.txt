@@ -1,0 +1,9 @@
+10170_r612_callable_two_calls_equal_false rc=1 NOT-PROVED: Warnings/Errors from Why3:
+10171_r612_callable_body_vs_ensures_false rc=1 NOT-PROVED: Warnings/Errors from Why3:
+10172_r612_callable_requires_then_call_false rc=1 NOT-PROVED: Warnings/Errors from Why3:
+10173_r612_callable_effect_under_assigns_nothing_false rc=1 NOT-PROVED: Warnings/Errors from Why3:
+10174_r612_callable_dunder_call_false rc=1 NOT-PROVED: Prover result is: Unknown (why3: Unknown
+10175_r612_callable_annotated_alias_false rc=1 NOT-PROVED: Warnings/Errors from Why3:
+10176_r612_callable_method_param_false rc=0 PROVED
+10177_r612_callable_declared_only_ctl rc=1 NOT-PROVED: Warnings/Errors from Why3:
+10178_r612_named_verified_function_ctl rc=1 NOT-PROVED: Warnings/Errors from Why3:

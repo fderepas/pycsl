@@ -63,13 +63,13 @@ narrowest one that removes all four assumptions without a model.
 
 | file | shape | base 0057c8b94 | HEAD |
 |---|---|---|---|
-| 10170 | `f(s) == f(s)` (lvX) | see report | REFUSED |
-| 10171 | `ensures \result == f(x)` / `return f(x)` | see report | REFUSED |
-| 10172 | `requires f(x) >= 0` / `return f(x)` | see report | REFUSED |
-| 10173 | `f(0)` then `len(xs)` | see report | REFUSED |
-| 10174 | `f.__call__(x) == f.__call__(x)` | see report | REFUSED |
-| 10175 | annotated alias `g: Callable[[int], int] = f` | see report | REFUSED |
-| 10176 | method parameter | see report | REFUSED |
+| 10170 | `f(s) == f(s)` (lvX) | PROVED (hoare) | REFUSED |
+| 10171 | `ensures \result == f(x)` / `return f(x)` | PROVED (hoare) | REFUSED |
+| 10172 | `requires f(x) >= 0` / `return f(x)` | PROVED (hoare) | REFUSED |
+| 10173 | `f(0)` then `len(xs)` | PROVED (hoare) | REFUSED |
+| 10174 | `f.__call__(x) == f.__call__(x)` | Unknown (hardening) | REFUSED |
+| 10175 | annotated alias `g: Callable[[int], int] = f` | Why3 type error (hardening) | REFUSED |
+| 10176 | method parameter | PROVED (x3) | REFUSED |
 | 10177 | CONTROL: declared, never referenced | PASS | PASS |
 | 10178 | CONTROL: a verified function called by name | PASS | PASS |
 
