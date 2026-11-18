@@ -22143,6 +22143,597 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"`requires len(str(p)) == 1` proved, CPython TypeError). Convert it "
                         f"first (`ord(str(p)[0])`), or drop `\\all` from the context.",
                         stage="whyml", code="PYCSL-R434-ORD-PATH")
+    # (#49) driver run #8, ROUTE #614 (red team rt65; MEASURED PROVED at a5303269e = run8-lvX and at
+    # run8-int68 4d753c2f1, 9 confirmed false proofs, CPython disagrees on each) -- A `pathlib.Path`
+    # VALUE AND ITS `str` ARE CONFLATED. The value model represents a Path as a Why3 `string`: #31
+    # erases a `Path` annotation (parameter / local / field / return) to `str`, and lvX lowers
+    # `Path(<str>)` to the law-free `ext_path_of_str_op s : string`; `str(x)` / `f"{x}"` of a
+    # string-typed expression is then the identity. So `p == str(p)` became `str_eq_op !p !p`
+    # (a01: `ensures \result == True` PROVED; CPython `PosixPath('a') == 'a'` is False), likewise
+    # `!=` (a19), `p in [str(p)]` (b03), `f"{p}" == p` (b09), a branch on `q == p` (b10, g03), a
+    # method (d06), the #31 parameter (a07, PRE-EXISTING), and ORDERING `p < q` was decided as
+    # string ordering (g01; CPython orders by parts: `Path("a/b") < Path("a-b")` is True while
+    # `"a/b" < "a-b"` is False). Only the SOURCE still knows which values are Paths, so this pass
+    # reads the AST (route #434's shape). RULE (refusal-only, fail-closed): in every function that
+    # is verified (some non-`\trusted`, non-`\abstract` IR function carries its bare name), a
+    # value is PATH-ISH when it is a name annotated `Path` / `PurePath` / `PosixPath` /
+    # `WindowsPath` / `Pure*Path` / `PathLike` (a container annotation such as `List[Path]` /
+    # `Optional[Path]` counts), a name or field bound from a path-ish value (to a fixpoint:
+    # assignment, walrus, `for` / comprehension targets, `append` / `insert` / item store into a
+    # container), a call of a Path class, of a Path-only method (`resolve`, `with_suffix`,
+    # `iterdir`, ...) or of a unit function returning a Path, `x.parent` / `x.parents`, a `/`
+    # with a path-ish operand, or a subscript / conditional / boolean / container literal /
+    # comprehension / lambda of one. REFUSED (PYCSL-R614-PATH-STR-CONFLATED): a comparison
+    # (`==` `!=` `<` `<=` `>` `>=` `in` `not in` `is` `is not`) with a path-ish operand, except
+    # `is None` / `is not None` and `Path(a) == Path(b)` / `!=` with BOTH operands a direct
+    # one-argument `Path(..)` call (the model is a deterministic function of the argument, so
+    # it equates two paths only when the arguments are equal, and CPython agrees; it has no
+    # injectivity law, so it never decides two paths DIFFERENT, e.g. `Path("a//b")` vs
+    # `Path("a/b")`); a sort / min / max / hash / set / dict / membership / equality method
+    # (`index` `count` `remove` `get` `pop` `__eq__` `operator.eq` `bisect` `heapq` ...) or
+    # `isinstance` / `type` / `repr` / `ascii` / `id` involving one; a path-ish set element or
+    # dict key; a `!r` / `!a` conversion, `%` formatting or `.format(..)` of one; a `match` on
+    # one; returning one from a function not annotated to return a Path; passing one to a unit
+    # function parameter not annotated `Path`; storing one into a parameter's container or a
+    # non-name container. The same comparisons are refused in the function's CONTRACTS
+    # (requires / ensures / assert / loop invariants), read on the IR. `str(p)` itself stays
+    # admitted: it IS a `str`, so comparing it with a `str` is decided as CPython does.
+    import ast as _ast614
+    import re as _re614
+    _chk614 = set()
+    for _f614 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
+        if (isinstance(_f614, dict) and not _f614.get("trusted")
+                and not _f614.get("abstract")):
+            _chk614.add(str(_f614.get("name", "")).rsplit("__", 1)[-1])
+    _tree614 = None
+    if _chk614 and _re614.search(r"Path", source_code):
+        try:
+            _tree614 = _ast614.parse(source_code)
+        except SyntaxError:
+            _tree614 = None
+    if _tree614 is not None:
+        _pa614 = _re614.compile(r"\b(?:Pure)?(?:Posix|Windows)?Path(?:Like)?\b")
+        _pc614 = {"Path", "PurePath", "PosixPath", "WindowsPath", "PurePosixPath",
+                  "PureWindowsPath"}
+        _pm614 = {"resolve", "absolute", "with_suffix", "with_name", "with_stem", "joinpath",
+                  "relative_to", "expanduser", "home", "cwd", "readlink", "iterdir", "glob",
+                  "rglob", "with_segments", "from_uri"}
+        _bl614 = {"list", "tuple", "sorted", "reversed", "set", "frozenset", "iter", "next",
+                  "min", "max", "copy", "deepcopy", "filter", "enumerate", "zip", "map",
+                  "chain", "islice"}
+        _gt614 = {"get", "pop", "copy", "values", "items", "keys", "setdefault", "popitem",
+                  "__getitem__"}
+        _mu614 = {"append", "insert", "extend", "add", "update", "setdefault", "appendleft",
+                  "extendleft", "__setitem__", "push"}
+        _ho614 = {"sorted", "min", "max", "hash", "set", "frozenset", "dict", "sort", "Counter",
+                  "OrderedDict", "defaultdict", "index", "count", "remove", "get", "pop",
+                  "setdefault", "fromkeys", "discard", "add", "update", "union", "intersection",
+                  "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint",
+                  "intersection_update", "difference_update", "symmetric_difference_update",
+                  "__contains__", "__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__",
+                  "__hash__", "eq", "ne", "lt", "le", "gt", "ge", "contains", "countOf",
+                  "indexOf", "cmp_to_key", "bisect", "bisect_left", "bisect_right", "insort",
+                  "insort_left", "insort_right", "heappush", "heappop", "heapify", "heapreplace",
+                  "heappushpop", "nsmallest", "nlargest", "isinstance", "type", "repr", "ascii",
+                  "id", "format", "__format__", "__repr__", "casefold", "unique"}
+        # one pre-order walk: the scope (outermost def, 0 = module), the innermost def, the parent
+        _sc614, _fn614, _par614, _nodes614 = {}, {}, {}, []
+        _st614 = [(_tree614, 0, None, None)]
+        while _st614:
+            _n, _s, _fd, _pp = _st614.pop()
+            if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef)):
+                if _s == 0:
+                    _s = id(_n)
+                _sc614[id(_n)], _fn614[id(_n)], _par614[id(_n)] = _s, _fd, _pp
+                _fd = _n
+            else:
+                _sc614[id(_n)], _fn614[id(_n)], _par614[id(_n)] = _s, _fd, _pp
+            _nodes614.append(_n)
+            for _c in _ast614.iter_child_nodes(_n):
+                _st614.append((_c, _s, _fd, _n))
+        _snm614, _gl614, _imp614, _lam614, _dcf614, _iorig614 = {}, {}, set(), set(), {}, {}
+        for _n in _nodes614:
+            if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef)):
+                if _sc614[id(_n)] == id(_n):
+                    _snm614[id(_n)] = _n.name
+            elif isinstance(_n, (_ast614.Global, _ast614.Nonlocal)):
+                _gl614.setdefault(id(_fn614.get(id(_n))), set()).update(_n.names)
+            elif isinstance(_n, (_ast614.Import, _ast614.ImportFrom)):
+                _imp614.update((_a.asname or _a.name).split(".")[0] for _a in _n.names)
+                for _a in _n.names:
+                    _iorig614[(_a.asname or _a.name).split(".")[0]] = _a.name.rsplit(".", 1)[-1]
+            elif isinstance(_n, _ast614.Assign) and isinstance(_n.value, _ast614.Lambda):
+                _lam614.update(_t.id for _t in _n.targets if isinstance(_t, _ast614.Name))
+            elif isinstance(_n, _ast614.ClassDef) and not any(
+                    isinstance(_b, (_ast614.FunctionDef, _ast614.AsyncFunctionDef))
+                    and _b.name == "__init__" for _b in _n.body):
+                _dcf614[_n.name] = [(_b.target.id, _b.annotation) for _b in _n.body
+                                    if isinstance(_b, _ast614.AnnAssign)
+                                    and isinstance(_b.target, _ast614.Name)]
+        _defs614 = {}
+        for _n in _nodes614:
+            if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef)):
+                _defs614.setdefault(_n.name, []).append(_n)
+            elif isinstance(_n, _ast614.ClassDef):
+                for _b in _n.body:
+                    if (isinstance(_b, (_ast614.FunctionDef, _ast614.AsyncFunctionDef))
+                            and _b.name == "__init__"):
+                        _defs614.setdefault(_n.name, []).append(_b)
+        # every binding of a name in its scope: a FRESH container (a display, a comprehension,
+        # a `list(..)` / `dict(..)` / `set(..)` copy) or something else (None)
+        _bv614 = {}
+        for _n in _nodes614:
+            _s = _sc614[id(_n)]
+            if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef, _ast614.Lambda)):
+                for _a in (_n.args.posonlyargs + _n.args.args + _n.args.kwonlyargs
+                           + [_x for _x in (_n.args.vararg, _n.args.kwarg) if _x is not None]):
+                    _bv614.setdefault((_sc614[id(_n)], _a.arg), []).append(None)
+            elif isinstance(_n, (_ast614.Assign, _ast614.AnnAssign)):
+                for _t in (_n.targets if isinstance(_n, _ast614.Assign) else [_n.target]):
+                    if isinstance(_t, _ast614.Name):
+                        _v = _n.value
+                        _bv614.setdefault((_s, _t.id), []).append(
+                            _v if (isinstance(_v, (_ast614.List, _ast614.Dict, _ast614.Set,
+                                                   _ast614.ListComp, _ast614.DictComp,
+                                                   _ast614.SetComp))
+                                   or (isinstance(_v, _ast614.Call)
+                                       and isinstance(_v.func, _ast614.Name)
+                                       and _v.func.id in ("list", "dict", "set", "deque",
+                                                          "defaultdict", "OrderedDict",
+                                                          "Counter"))) else None)
+                    else:
+                        for _z in _ast614.walk(_t):
+                            if isinstance(_z, _ast614.Name):
+                                _bv614.setdefault((_s, _z.id), []).append(None)
+            elif isinstance(_n, (_ast614.AugAssign, _ast614.NamedExpr, _ast614.For,
+                                 _ast614.AsyncFor, _ast614.comprehension, _ast614.withitem,
+                                 _ast614.Global, _ast614.Nonlocal)):
+                _tt = (getattr(_n, "target", None) or getattr(_n, "optional_vars", None))
+                for _z in (_ast614.walk(_tt) if _tt is not None else []):
+                    if isinstance(_z, _ast614.Name):
+                        _bv614.setdefault((_s, _z.id), []).append(None)
+                for _z in getattr(_n, "names", None) or []:
+                    _bv614.setdefault((_s, _z), []).append(None)
+        # seeds: annotated names / fields, Path-returning functions
+        _nm614, _fl614, _rt614, _pv614 = set(), {"parent", "parents"}, set(), set()
+        _mk614 = set()  # mutator calls (`xs.append(p)`) that store a path-ish value
+        for _n in _nodes614:
+            if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef)):
+                for _a in (_n.args.posonlyargs + _n.args.args + _n.args.kwonlyargs
+                           + [_x for _x in (_n.args.vararg, _n.args.kwarg) if _x is not None]):
+                    if (_a.annotation is not None
+                            and _pa614.search(_ast614.unparse(_a.annotation))):
+                        _nm614.add((_sc614[id(_n)], _a.arg))
+                if _n.returns is not None and _pa614.search(_ast614.unparse(_n.returns)):
+                    _rt614.add(_n.name)
+                    _fl614.add(_n.name)  # a `@property` (or a bound-method read) of a Path
+            elif (isinstance(_n, _ast614.AnnAssign)
+                    and _pa614.search(_ast614.unparse(_n.annotation))):
+                if isinstance(_n.target, _ast614.Name):
+                    _nm614.add((_sc614[id(_n)], _n.target.id))
+                    if isinstance(_par614.get(id(_n)), _ast614.ClassDef):
+                        _fl614.add(_n.target.id)
+                elif isinstance(_n.target, _ast614.Attribute):
+                    _fl614.add(_n.target.attr)
+        _rv614 = list(reversed(_nodes614))  # every node after all of its descendants
+        _ch614 = True
+        while _ch614:
+            _ch614 = False
+            for _n in _rv614:
+                _s = _sc614[id(_n)]
+                _p = False
+                if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef,
+                                   _ast614.Lambda)):
+                    _pd = list(_n.args.posonlyargs + _n.args.args)
+                    for _a, _dv in (list(zip(_pd[len(_pd) - len(_n.args.defaults):],
+                                             _n.args.defaults))
+                                    + list(zip(_n.args.kwonlyargs, _n.args.kw_defaults))):
+                        if (_dv is not None and id(_dv) in _pv614
+                                and (_sc614[id(_n)], _a.arg) not in _nm614):
+                            _nm614.add((_sc614[id(_n)], _a.arg))
+                            _ch614 = True
+                if isinstance(_n, _ast614.Name):
+                    _p = (_s, _n.id) in _nm614 or (0, _n.id) in _nm614
+                elif isinstance(_n, _ast614.Attribute):
+                    _p = _n.attr in _fl614
+                elif isinstance(_n, _ast614.Call):
+                    _cf = _n.func
+                    _cn = (_cf.id if isinstance(_cf, _ast614.Name)
+                           else _cf.attr if isinstance(_cf, _ast614.Attribute) else None)
+                    _ar = list(_n.args) + [_k.value for _k in _n.keywords]
+                    _p = (_cn in _pc614 or _cn in _rt614
+                          or (_cn in _pm614 and isinstance(_cf, _ast614.Attribute)
+                              and (id(_cf.value) in _pv614
+                                   or (isinstance(_cf.value, _ast614.Name)
+                                       and _cf.value.id in _pc614)))
+                          or (_cn in _bl614 and any(id(_x) in _pv614 for _x in _ar))
+                          or (isinstance(_cf, _ast614.Attribute) and _cn in _gt614
+                              and id(_cf.value) in _pv614))
+                elif isinstance(_n, _ast614.BinOp):
+                    _p = (isinstance(_n.op, (_ast614.Div, _ast614.Add))
+                          and (id(_n.left) in _pv614 or id(_n.right) in _pv614))
+                elif isinstance(_n, (_ast614.Subscript, _ast614.Starred, _ast614.NamedExpr,
+                                     _ast614.Await)):
+                    _p = id(_n.value) in _pv614
+                elif isinstance(_n, _ast614.IfExp):
+                    _p = id(_n.body) in _pv614 or id(_n.orelse) in _pv614
+                elif isinstance(_n, _ast614.BoolOp):
+                    _p = any(id(_x) in _pv614 for _x in _n.values)
+                elif isinstance(_n, (_ast614.List, _ast614.Tuple, _ast614.Set)):
+                    _p = any(id(_x) in _pv614 for _x in _n.elts)
+                elif isinstance(_n, _ast614.Dict):
+                    _p = any(_x is not None and id(_x) in _pv614 for _x in _n.keys + _n.values)
+                elif isinstance(_n, (_ast614.ListComp, _ast614.SetComp,
+                                     _ast614.GeneratorExp)):
+                    _p = id(_n.elt) in _pv614
+                elif isinstance(_n, _ast614.DictComp):
+                    _p = id(_n.key) in _pv614 or id(_n.value) in _pv614
+                elif isinstance(_n, _ast614.Lambda):
+                    _p = id(_n.body) in _pv614
+                if _p and id(_n) not in _pv614:
+                    _pv614.add(id(_n))
+                    _ch614 = True
+                # binding propagation: targets of a path-ish value become path-ish
+                _tg, _vl = [], None
+                if isinstance(_n, _ast614.Assign):
+                    _tg, _vl = list(_n.targets), _n.value
+                elif isinstance(_n, (_ast614.AnnAssign, _ast614.AugAssign, _ast614.NamedExpr)):
+                    _tg, _vl = [_n.target], _n.value
+                elif isinstance(_n, (_ast614.For, _ast614.AsyncFor, _ast614.comprehension)):
+                    _tg, _vl = [_n.target], _n.iter
+                elif (isinstance(_n, _ast614.Call) and isinstance(_n.func, _ast614.Attribute)
+                        and _n.func.attr in _mu614
+                        and any(id(_x) in _pv614 for _x in list(_n.args)
+                                + [_k.value for _k in _n.keywords])):
+                    _tg, _vl = [_n.func.value], _n
+                    _mk614.add(id(_n))
+                elif (isinstance(_n, _ast614.Return) and _n.value is not None
+                        and id(_n.value) in _pv614 and _fn614.get(id(_n)) is not None
+                        and _fn614[id(_n)].name not in _rt614):
+                    _rt614.add(_fn614[id(_n)].name)
+                    _ch614 = True
+                if _vl is not None and (id(_vl) in _pv614 or _vl is _n):
+                    _wk = list(_tg)
+                    while _wk:
+                        _t = _wk.pop()
+                        if isinstance(_t, _ast614.Name):
+                            if (_s, _t.id) not in _nm614:
+                                _nm614.add((_s, _t.id))
+                                _ch614 = True
+                        elif isinstance(_t, _ast614.Attribute):
+                            if _t.attr not in _fl614:
+                                _fl614.add(_t.attr)
+                                _ch614 = True
+                        elif isinstance(_t, (_ast614.Tuple, _ast614.List)):
+                            _wk += list(_t.elts)
+                        elif isinstance(_t, (_ast614.Starred, _ast614.Subscript)):
+                            _wk.append(_t.value)
+        # the checks, in every node whose outermost def is verified
+        _why614 = None
+        for _n in _nodes614:
+            _s = _sc614[id(_n)]
+            _fd = _fn614.get(id(_n))
+            if _s == 0 or _fd is None:
+                continue
+            _onm = _snm614.get(_s)
+            if _onm not in _chk614:
+                continue
+            if isinstance(_n, _ast614.Compare):
+                _ops = [_n.left] + list(_n.comparators)
+                for _k, _o in enumerate(_n.ops):
+                    _a, _b = _ops[_k], _ops[_k + 1]
+                    if id(_a) not in _pv614 and id(_b) not in _pv614:
+                        continue
+                    if (isinstance(_o, (_ast614.Is, _ast614.IsNot))
+                            and any(isinstance(_x, _ast614.Constant) and _x.value is None
+                                    for _x in (_a, _b))):
+                        continue
+                    if (isinstance(_o, (_ast614.Eq, _ast614.NotEq))
+                            and all(isinstance(_x, _ast614.Call)
+                                    and isinstance(_x.func, _ast614.Name)
+                                    and _x.func.id == "Path" and len(_x.args) == 1
+                                    and not _x.keywords
+                                    and not isinstance(_x.args[0], _ast614.Starred)
+                                    for _x in (_a, _b))):
+                        continue
+                    _why614 = "compares a Path value (Path vs str, or ordering of Paths)"
+                    break
+            elif isinstance(_n, _ast614.Call):
+                _cf = _n.func
+                _cn = (_cf.id if isinstance(_cf, _ast614.Name)
+                       else _cf.attr if isinstance(_cf, _ast614.Attribute) else None)
+                _ar = list(_n.args) + [_k.value for _k in _n.keywords]
+                _rcv = _cf.value if isinstance(_cf, _ast614.Attribute) else None
+                if isinstance(_cf, _ast614.Name) and _cn in _iorig614:
+                    _cn = _iorig614[_cn]
+                if (_cn in _ho614
+                        and (any(id(_x) in _pv614 for _x in _ar)
+                             or (_rcv is not None and id(_rcv) in _pv614))
+                        and not (_cn == "format" and isinstance(_cf, _ast614.Name))
+                        and not (_cn == "format" and isinstance(_rcv, _ast614.Constant)
+                                 and isinstance(_rcv.value, str)
+                                 and "!r" not in _rcv.value and "!a" not in _rcv.value)):
+                    _why614 = (f"applies `{_cn}` (ordering / hashing / equality / type / "
+                               f"repr) to a Path value")
+                elif _cn in ("map", "filter", "starmap", "reduce", "partial", "setattr",
+                             "__setattr__", "apply", "accumulate") and any(
+                                 id(_x) in _pv614 for _x in _ar):
+                    _why614 = (f"hands a Path value to `{_cn}`, whose callee the pass cannot "
+                               f"check")
+                elif id(_n) in _mk614:
+                    _bs = _rcv
+                    while isinstance(_bs, _ast614.Subscript):
+                        _bs = _bs.value
+                    if not (isinstance(_bs, _ast614.Name) and _bv614.get((_s, _bs.id))
+                            and all(_v is not None for _v in _bv614[(_s, _bs.id)])):
+                        _why614 = ("stores a Path value into a container that is not a fresh "
+                                   "local one (a parameter's, a field's, an alias's), where "
+                                   "the pass cannot follow it")
+                elif (any(id(_x) in _pv614 for _x in _ar)
+                        and not isinstance(_cf, (_ast614.Name, _ast614.Attribute))):
+                    _why614 = "passes a Path value to a computed callee"
+                elif (any(id(_x) in _pv614 for _x in _ar) and isinstance(_cf, _ast614.Name)
+                        and _cn not in _defs614 and _cn not in _dcf614 and _cn not in _pc614
+                        and (_cn in _lam614 or (_s, _cn) in _bv614
+                             or _cn not in _imp614 and _cn not in (
+                                 "str", "len", "print", "open", "bool", "fspath", "list",
+                                 "tuple", "enumerate", "zip", "reversed", "iter", "next", "any",
+                                 "all", "super", "getattr", "hasattr", "isinstance",
+                                 "callable", "exists", "isfile", "isdir"))):
+                    _why614 = (f"passes a Path value to `{_cn}`, a callable the pass cannot "
+                               f"check (a parameter, a lambda, a local)")
+                elif (any(id(_x) in _pv614 for _x in _ar) and _rcv is not None
+                        and _cn not in _defs614 and id(_rcv) not in _pv614
+                        and not isinstance(_rcv, _ast614.Constant)):
+                    _bs = _rcv
+                    while isinstance(_bs, (_ast614.Attribute, _ast614.Subscript)):
+                        _bs = _bs.value
+                    if not (isinstance(_bs, _ast614.Name) and _bs.id in _imp614
+                            and (_s, _bs.id) not in _bv614):
+                        _why614 = (f"passes a Path value to the method `{_cn}` of a value the "
+                                   f"pass cannot check (not a module, not a Path)")
+                elif _cn in _dcf614 and isinstance(_cf, _ast614.Name):
+                    _fs = _dcf614[_cn]
+                    for _i, _x in enumerate(_n.args):
+                        if id(_x) in _pv614 and (
+                                isinstance(_x, _ast614.Starred) or _i >= len(_fs)
+                                or not _pa614.search(_ast614.unparse(_fs[_i][1]))):
+                            _why614 = (f"passes a Path value to the class `{_cn}`, whose field "
+                                       f"is not annotated `Path`")
+                    for _kw in _n.keywords:
+                        if id(_kw.value) in _pv614 and not any(
+                                _f == _kw.arg and _pa614.search(_ast614.unparse(_a))
+                                for _f, _a in _fs):
+                            _why614 = (f"passes a Path value to the class `{_cn}`, whose field "
+                                       f"is not annotated `Path`")
+                elif _cn in _defs614 and not _cn in _pc614:
+                    for _d in _defs614[_cn]:
+                        _ps = list(_d.args.posonlyargs + _d.args.args)
+                        if (isinstance(_par614.get(id(_d)), _ast614.ClassDef) and _ps
+                                and not any(isinstance(_z, _ast614.Name)
+                                            and _z.id == "staticmethod"
+                                            for _z in _d.decorator_list)):
+                            _ps = _ps[1:]
+                        for _i, _x in enumerate(_n.args):
+                            if id(_x) not in _pv614:
+                                continue
+                            _pr = (None if isinstance(_x, _ast614.Starred)
+                                   else _ps[_i] if _i < len(_ps) else _d.args.vararg)
+                            if (_pr is None or _pr.annotation is None
+                                    or not _pa614.search(_ast614.unparse(_pr.annotation))):
+                                _why614 = (f"passes a Path value to `{_cn}`, whose parameter "
+                                           f"is not annotated `Path`")
+                        for _kw in _n.keywords:
+                            if id(_kw.value) not in _pv614:
+                                continue
+                            _pr = next((_z for _z in _d.args.posonlyargs + _d.args.args
+                                        + _d.args.kwonlyargs if _z.arg == _kw.arg),
+                                       _d.args.kwarg)
+                            if (_kw.arg is None or _pr is None or _pr.annotation is None
+                                    or not _pa614.search(_ast614.unparse(_pr.annotation))):
+                                _why614 = (f"passes a Path value to `{_cn}`, whose parameter "
+                                           f"is not annotated `Path`")
+            elif isinstance(_n, (_ast614.Assign, _ast614.AnnAssign, _ast614.AugAssign)):
+                _vl = _n.value
+                if _vl is not None and id(_vl) in _pv614:
+                    for _t in (_n.targets if isinstance(_n, _ast614.Assign) else [_n.target]):
+                        if isinstance(_t, _ast614.Subscript):
+                            _bs = _t
+                            while isinstance(_bs, _ast614.Subscript):
+                                _bs = _bs.value
+                            if not (isinstance(_bs, _ast614.Name) and _bv614.get((_s, _bs.id))
+                                    and all(_v is not None for _v in _bv614[(_s, _bs.id)])):
+                                _why614 = ("stores a Path value into a container that is not "
+                                           "a fresh local one (a parameter's, a field's, an "
+                                           "alias's), where the pass cannot follow it")
+                        if isinstance(_t, _ast614.Name) and _t.id in _gl614.get(id(_fd), ()):
+                            _why614 = "binds a Path value to a global / nonlocal name"
+            elif isinstance(_n, (_ast614.Return, _ast614.Yield, _ast614.YieldFrom)):
+                if (_n.value is not None and id(_n.value) in _pv614
+                        and (_fd.returns is None
+                             or not _pa614.search(_ast614.unparse(_fd.returns)))):
+                    _why614 = (f"returns a Path value from '{_fd.name}', which is not "
+                               f"annotated to return a Path")
+            elif isinstance(_n, _ast614.Subscript) and id(_n.slice) in _pv614:
+                _why614 = "indexes / keys a container by a Path value (hashing / equality)"
+            elif (isinstance(_n, _ast614.Attribute) and _n.attr.startswith("__")
+                    and id(_n.value) in _pv614):
+                _why614 = f"reads the dunder `{_n.attr}` of a Path value"
+            elif isinstance(_n, _ast614.FormattedValue):
+                if id(_n.value) in _pv614 and _n.conversion in (114, 97):
+                    _why614 = "formats a Path value with `!r` / `!a`"
+            elif isinstance(_n, _ast614.BinOp):
+                if isinstance(_n.op, _ast614.Mod) and id(_n.right) in _pv614:
+                    _why614 = "formats a Path value with `%`"
+            elif isinstance(_n, _ast614.Match):
+                if id(_n.subject) in _pv614:
+                    _why614 = "matches on a Path value (the case patterns compare it)"
+            elif isinstance(_n, _ast614.Set):
+                if any(id(_x) in _pv614 for _x in _n.elts):
+                    _why614 = "hashes a Path value (a set element)"
+            elif isinstance(_n, _ast614.Dict):
+                if any(_x is not None and id(_x) in _pv614 for _x in _n.keys):
+                    _why614 = "hashes a Path value (a dict key)"
+            elif isinstance(_n, _ast614.SetComp):
+                if id(_n.elt) in _pv614:
+                    _why614 = "hashes a Path value (a set element)"
+            elif isinstance(_n, _ast614.DictComp):
+                if id(_n.key) in _pv614:
+                    _why614 = "hashes a Path value (a dict key)"
+            if _why614 is not None:
+                from errors import PyCSLSemanticError as _PyCSLSemErr614
+                raise _PyCSLSemErr614(
+                    f"PYCSL-R614-PATH-STR-CONFLATED: line {getattr(_n, 'lineno', 0)}: "
+                    f"`{_ast614.unparse(_n)[:160]}` in '{_onm}' {_why614}. The model "
+                    f"represents a pathlib.Path as its string form (a Why3 `string`: #31's "
+                    f"annotation erasure, lvX's `Path(<str>)`), so a Path and its str are the "
+                    f"same value there, while in CPython a Path never equals a str and Paths "
+                    f"order by parts, not by string (route #614; measured: `p == str(p)` "
+                    f"proved `\\result == True`, CPython False). Compare the strings "
+                    f"explicitly (`str(p) == s`, `str(p) < str(q)`), or keep the Path out of "
+                    f"the comparison.",
+                    stage="whyml", code="PYCSL-R614-PATH-STR-CONFLATED")
+        # the CONTRACTS (requires / ensures / assert / loop invariant), read on the IR: the same
+        # comparisons, with the same two exemptions (`is None`; `Path(a) == Path(b)`)
+        _ast_by614 = {}
+        for _n in _nodes614:
+            if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef)):
+                _ast_by614.setdefault(_n.name, []).append(_n)
+        for _f614 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
+            if not (isinstance(_f614, dict) and not _f614.get("trusted")
+                    and not _f614.get("abstract")):
+                continue
+            _bn = str(_f614.get("name", "")).rsplit("__", 1)[-1]
+            _fds = _ast_by614.get(_bn, [])
+            _scs = {0} | {_sc614[id(_x)] for _x in _fds}
+            _rp = any(_x.returns is not None and _pa614.search(_ast614.unparse(_x.returns))
+                      for _x in _fds)
+            _ist, _inodes = [_f614.get("contracts") or {}, _f614.get("body") or []], []
+            while _ist:
+                _x = _ist.pop()
+                if isinstance(_x, dict):
+                    _inodes.append(_x)
+                    _ist += list(_x.values())
+                elif isinstance(_x, list):
+                    _ist += _x
+            # the CONTRACT part (the clauses, `#@ assert` / `assume`, loop invariants / variants)
+            _cst, _cid = [_f614.get("contracts") or {}], set()
+            _bst = [_f614.get("body") or []]
+            while _bst:
+                _x = _bst.pop()
+                if isinstance(_x, dict):
+                    for _k, _v in _x.items():
+                        if (_k in ("invariants", "variants", "variant", "decreases")
+                                or (_k == "test" and str(_x.get("stmt", "")).startswith("Proof"))):
+                            _cst.append(_v)
+                        else:
+                            _bst.append(_v)
+                elif isinstance(_x, list):
+                    _bst += _x
+            while _cst:
+                _x = _cst.pop()
+                if isinstance(_x, dict):
+                    _cid.add(id(_x))
+                    _cst += list(_x.values())
+                elif isinstance(_x, list):
+                    _cst += _x
+            _ipv = set()
+            for _x in reversed(_inodes):
+                _ty = _x.get("type")
+                _kids = [_v for _v in _x.values() if isinstance(_v, dict)] + [
+                    _w for _v in _x.values() if isinstance(_v, list) for _w in _v
+                    if isinstance(_w, dict)]
+                _p = False
+                if _ty == "Var":
+                    _p = any((_c, _x.get("name")) in _nm614 for _c in _scs)
+                elif _ty == "Result":
+                    _p = _rp
+                elif _ty == "Attribute":
+                    _p = _x.get("attr") in _fl614
+                elif _ty == "Call":
+                    _cn = str(_x.get("func") or "").rsplit(".", 1)[-1]
+                    _p = (_cn in _pc614 or _cn in _rt614
+                          or (_cn in _pm614 and (
+                              (isinstance(_x.get("receiver"), dict)
+                               and id(_x["receiver"]) in _ipv)
+                              or str(_x.get("func") or "").split(".")[0] in _pc614))
+                          or (_cn in _bl614 and any(id(_w) in _ipv for _w in _kids))
+                          or (_cn in _gt614 and isinstance(_x.get("receiver"), dict)
+                              and id(_x["receiver"]) in _ipv))
+                elif _ty == "BinOp" and _x.get("op") in ("/", "+"):
+                    _p = any(id(_w) in _ipv for _w in _kids)
+                elif _ty in ("Old", "At", "Subscript", "Starred", "IfExp", "BoolOp", "List",
+                             "Tuple", "Set", "ListLit", "TupleLit", "SetLit", "ListComp",
+                             "SetComp", "GeneratorExp", "Lambda", "NamedExpr", "Paren"):
+                    _p = any(id(_w) in _ipv for _w in _kids
+                             if not (_ty == "Subscript" and _w is _x.get("index")))
+                if _p:
+                    _ipv.add(id(_x))
+            for _x in _inodes:
+                _ty = _x.get("type")
+                _bad = False
+                if _ty == "BinOp" and _x.get("op") in ("==", "!=", "<", "<=", ">", ">=", "in",
+                                                       "not in", "is", "is not"):
+                    _a, _b = _x.get("left"), _x.get("right")
+                    if any(isinstance(_w, dict) and id(_w) in _ipv for _w in (_a, _b)):
+                        _bad = not (
+                            any(isinstance(_w, dict) and _w.get("type") == "None"
+                                for _w in (_a, _b)) and (
+                                    _x.get("py_is") or _x.get("op") in ("is", "is not"))
+                            or (_x.get("op") in ("==", "!=") and all(
+                                isinstance(_w, dict) and _w.get("type") == "Call"
+                                and _w.get("func") == "Path" and _w.get("receiver") is None
+                                and len(_w.get("args") or []) == 1
+                                and not _w.get("keywords") for _w in (_a, _b))))
+                elif _ty in ("In", "NotIn", "CSLIn", "CSLNotIn", "SetMem", "Contains"):
+                    _bad = any(isinstance(_w, dict) and id(_w) in _ipv for _w in _x.values())
+                elif _ty == "Call" and str(_x.get("func") or "").rsplit(".", 1)[-1] in _ho614:
+                    _bad = any(isinstance(_w, dict) and id(_w) in _ipv
+                               for _w in list(_x.get("args") or []) + [_x.get("receiver")])
+                elif (_ty == "Subscript" and isinstance(_x.get("index"), dict)
+                        and id(_x["index"]) in _ipv):
+                    _bad = True
+                elif (_ty == "Call" and id(_x) in _cid
+                        and any(isinstance(_w, dict) and id(_w) in _ipv
+                                for _w in (_x.get("args") or []))):
+                    # a call with a Path argument: admitted for `str` / `len` / the Path classes
+                    # and methods, the module functions, and a unit function whose parameter
+                    # at that position is annotated `Path`; anything else is unchecked
+                    _cfn = str(_x.get("func") or "")
+                    _cl = _cfn.rsplit(".", 1)[-1]
+                    if _cl in _defs614:
+                        for _d in _defs614[_cl]:
+                            _ps = list(_d.args.posonlyargs + _d.args.args)
+                            if (isinstance(_par614.get(id(_d)), _ast614.ClassDef) and _ps
+                                    and (isinstance(_x.get("receiver"), dict)
+                                         or _cl in _dcf614 or _d.name == "__init__")):
+                                _ps = _ps[1:]
+                            for _i, _w in enumerate(_x.get("args") or []):
+                                if (isinstance(_w, dict) and id(_w) in _ipv
+                                        and (_i >= len(_ps) or _ps[_i].annotation is None
+                                             or not _pa614.search(
+                                                 _ast614.unparse(_ps[_i].annotation)))):
+                                    _bad = True
+                    elif not (_cl in _pc614 or _cl in _pm614 or _cl in _bl614
+                              or _cl in ("str", "len", "print", "open", "bool", "fspath",
+                                         "any", "all", "exists", "isfile", "isdir",
+                                         "is_file", "is_dir", "read_bytes", "read_text",
+                                         "write_text", "write_bytes", "mkdir", "unlink",
+                                         "stat", "touch", "rmdir")
+                              or (isinstance(_x.get("receiver"), dict)
+                                  and id(_x["receiver"]) in _ipv)
+                              or _cfn.split(".")[0] in _imp614):
+                        _bad = True
+                if _bad:
+                    from errors import PyCSLSemanticError as _PyCSLSemErr614c
+                    raise _PyCSLSemErr614c(
+                        f"PYCSL-R614-PATH-STR-CONFLATED: in '{_bn}' (line "
+                        f"{_f614.get('line', 0)}), a contract or body comparison has a "
+                        f"pathlib.Path operand (op `{_x.get('op') or _ty}`). The model "
+                        f"represents a Path as its string form, so a Path and its str are the "
+                        f"same value there, while in CPython a Path never equals a str and "
+                        f"Paths order by parts (route #614). Compare `str(p)` explicitly.",
+                        stage="whyml", code="PYCSL-R614-PATH-STR-CONFLATED")
     # (#49) driver run #3, ROUTE #478 (red team 39 F5; MEASURED PROVED on d6abee90b under
     # `--memory-model typed` AND `store`) -- AN AUGMENTED ASSIGNMENT ON A COLLECTION-TYPED
     # PARAMETER, JUDGED ONCE FOR EVERY MEMORY MODEL. Route #49's refusal in
