@@ -175,3 +175,62 @@ Wed Nov 18 14:50:36 UTC 2026 u53: jobB waiting in NORMAL queue
 Wed Nov 18 14:59:23 UTC 2026 u53: jobB waiting in NORMAL queue
 Wed Nov 18 15:08:16 UTC 2026 u53: jobB waiting in NORMAL queue
 Wed Nov 18 15:17:06 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 15:25:58 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 15:34:41 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 15:43:24 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 15:52:10 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 16:00:55 UTC 2026 u53: jobB waiting in NORMAL queue
+Wed Nov 18 16:01:36 UTC 2026 u53: batch b1 10200 hoare rc=1
+Wed Nov 18 16:01:37 UTC 2026 u53: batch b1 10200 typed rc=1
+Wed Nov 18 16:01:38 UTC 2026 u53: batch b1 10200 store rc=1
+Wed Nov 18 16:01:40 UTC 2026 u53: batch b1 10201 hoare rc=1
+Wed Nov 18 16:01:41 UTC 2026 u53: batch b1 10201 typed rc=1
+Wed Nov 18 16:01:42 UTC 2026 u53: batch b1 10201 store rc=1
+Wed Nov 18 16:01:44 UTC 2026 u53: batch b1 10202 hoare rc=1
+Wed Nov 18 16:01:45 UTC 2026 u53: batch b1 10202 typed rc=1
+Wed Nov 18 16:01:46 UTC 2026 u53: batch b1 10202 store rc=1
+Wed Nov 18 16:01:48 UTC 2026 u53: batch b1 10203 hoare rc=1
+Wed Nov 18 16:01:49 UTC 2026 u53: batch b1 10203 typed rc=1
+Wed Nov 18 16:01:50 UTC 2026 u53: batch b1 10203 store rc=1
+Wed Nov 18 16:01:52 UTC 2026 u53: batch b1 10204 hoare rc=1
+Wed Nov 18 16:01:53 UTC 2026 u53: batch b1 10204 typed rc=1
+Wed Nov 18 16:01:54 UTC 2026 u53: batch b1 10204 store rc=1
+Wed Nov 18 16:01:56 UTC 2026 u53: batch b1 10205 hoare rc=1
+Wed Nov 18 16:01:58 UTC 2026 u53: batch b1 10205 typed rc=1
+Wed Nov 18 16:01:59 UTC 2026 u53: batch b1 10205 store rc=1
+Wed Nov 18 16:02:00 UTC 2026 u53: batch b1 10206 hoare rc=1
+Wed Nov 18 16:02:02 UTC 2026 u53: batch b1 10206 typed rc=1
+Wed Nov 18 16:02:03 UTC 2026 u53: batch b1 10206 store rc=1
+Wed Nov 18 16:02:16 UTC 2026 u53: batch b1 10207 hoare rc=0
+Wed Nov 18 16:02:29 UTC 2026 u53: batch b1 10207 typed rc=0
+Wed Nov 18 16:02:42 UTC 2026 u53: batch b1 10207 store rc=0
+Wed Nov 18 16:02:55 UTC 2026 u53: batch b1 10140 hoare rc=0
+Wed Nov 18 16:03:27 UTC 2026 u53: batch b1 10141 hoare rc=1
+Wed Nov 18 16:03:29 UTC 2026 u53: batch b1 10142 hoare rc=1
+Wed Nov 18 16:03:30 UTC 2026 u53: batch b1 10143 hoare rc=1
+Wed Nov 18 16:04:32 UTC 2026 u53: batch b1 10144 hoare rc=1
+Wed Nov 18 16:07:16 UTC 2026 u53: batch b1 10145 hoare rc=0
+Wed Nov 18 16:07:18 UTC 2026 u53: batch b1 rt65_a01 hoare rc=1
+Wed Nov 18 16:07:19 UTC 2026 u53: batch b1 rt65_a07 hoare rc=1
+Wed Nov 18 16:07:20 UTC 2026 u53: batch b1 rt65_a19 hoare rc=1
+Wed Nov 18 16:07:22 UTC 2026 u53: batch b1 rt65_a20 hoare rc=1
+Wed Nov 18 16:07:23 UTC 2026 u53: batch b1 rt65_b03 hoare rc=1
+Wed Nov 18 16:07:24 UTC 2026 u53: batch b1 rt65_b09 hoare rc=1
+Wed Nov 18 16:07:25 UTC 2026 u53: batch b1 rt65_b10 hoare rc=1
+Wed Nov 18 16:07:27 UTC 2026 u53: batch b1 rt65_g03 hoare rc=1
+Wed Nov 18 16:07:28 UTC 2026 u53: batch b1 rt65_g01 hoare rc=1
+Wed Nov 18 16:07:29 UTC 2026 u53: batch b1 rt65_d06 hoare rc=1
+Wed Nov 18 16:07:31 UTC 2026 u53: batch b1 rt65_g02 hoare rc=1
+Wed Nov 18 16:07:43 UTC 2026 u53: batch b1 rt65_w10140 hoare rc=0
+Wed Nov 18 16:07:46 UTC 2026 u53: jobB running (proof batch)
+Wed Nov 18 16:08:46 UTC 2026 u53: batch b1 rt65_c01 hoare rc=1
+Wed Nov 18 16:09:48 UTC 2026 u53: batch b1 rt65_c04 hoare rc=1
+Wed Nov 18 16:09:50 UTC 2026 u53: batch b1 x10 hoare rc=1
+Wed Nov 18 16:10:02 UTC 2026 u53: post p1: start oom oom_kill 5 HEAD 4a0533fac
+Wed Nov 18 16:13:42 UTC 2026 u53: jobB mirror sweep
+Wed Nov 18 16:14:22 UTC 2026 u53: post p1: 2 mirror sweep rc=0 53 mlw
+Wed Nov 18 16:14:22 UTC 2026 u53: post p1: 2 mirror diff lines 0: 
+Wed Nov 18 16:14:22 UTC 2026 u53: post p1: 2 mirror cmp rc=0 [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+Wed Nov 18 16:22:26 UTC 2026 u53: jobB emit1
+Wed Nov 18 16:26:52 UTC 2026 u53: post p1: 3 single-underscore emission 53 mlw
+Wed Nov 18 16:26:52 UTC 2026 u53: post p1: end oom oom_kill 5
