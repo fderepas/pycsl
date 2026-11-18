@@ -11,3 +11,7 @@
 2026-11-17T16:36:55Z START fun_wrap_catch /home/fabrice/git/pycsl-lvW module6_whyml/statements.py --fun statementemissionmixin___wrap_body_with_return_catch PCC=4
 2026-11-17T21:48:12Z END fun_wrap_catch rc=0 wall=18677s valid=1088 total=1088 nonvalid=0 Verification SUCCESS oom_kill=0->0
 2026-11-17T21:48:29Z START fun_handle_return /home/fabrice/git/pycsl-lvW module6_whyml/stmt_control_flow.py --fun controlflowstmtmixin___handle_return_stmt PCC=4
+2026-11-17T23:26:46Z END fun_handle_return rc=0 wall=5897s valid=3534 total=3534 nonvalid=0 Verification SUCCESS oom_kill=0->0
+2026-11-17T23:27:02Z START fun_why3_typecheck /home/fabrice/git/pycsl-lvW pycsl.py --fun _why3_typecheck PCC=4
+2026-11-18T03:54:52Z END fun_why3_typecheck rc=0 wall=16070s valid=761 total=761 nonvalid=0 Verification SUCCESS oom_kill=0->0
+2026-11-18T03:55:06Z START whole_pycsl /home/fabrice/git/pycsl-lvW pycsl.py  PCC=6

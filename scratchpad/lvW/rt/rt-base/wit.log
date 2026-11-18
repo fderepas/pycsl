@@ -1,0 +1,17 @@
+oom_before oom_kill 0
+r1_nested rc=1 3s Verification FAILED valid=0 total=0 | 
+r1b_record rc=1 2s Verification FAILED valid=0 total=0 | 
+r1c_list rc=1 1s Verification FAILED valid=0 total=0 | 
+r2_tryfinally rc=1 1s  valid=0 total=0 | 
+r2m_tryfinally_mut rc=1 2s  valid=0 total=0 | 
+r3_nested_fn rc=1 1s Verification FAILED valid=0 total=0 | 
+r3b_generator rc=1 2s Verification FAILED valid=0 total=2 | 
+r3c_nested_sub rc=1 1s Verification FAILED valid=0 total=0 | 
+r3d_nested_plain rc=1 2s Verification FAILED valid=0 total=0 | 
+r3dm_nested_plain_mut rc=1 1s Verification FAILED valid=0 total=0 | 
+r4_shared rc=1 2s Verification FAILED valid=0 total=0 | 
+r4m_shared_mut rc=1 1s Verification FAILED valid=0 total=0 | 
+r5_rec rc=1 2s Verification FAILED valid=0 total=0 | 
+r5b_rec_sub rc=1 1s Verification FAILED valid=0 total=0 | 
+r5bm_rec_sub_mut rc=1 1s Verification FAILED valid=0 total=0 | 
+oom_after oom_kill 0

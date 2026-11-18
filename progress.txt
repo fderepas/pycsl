@@ -77,3 +77,46 @@ Tue Nov 17 22:02:30 UTC 2026 lvW: queued
 Tue Nov 17 22:10:53 UTC 2026 lvW: queued
 Tue Nov 17 22:19:05 UTC 2026 lvW: queued
 Tue Nov 17 22:27:16 UTC 2026 lvW: queued
+Tue Nov 17 22:37:01 UTC 2026 lvW: witnesses fixed + committed; fast planes rerun queued; handle_return --fun queued
+Tue Nov 17 22:42:27 UTC 2026 lvW: queued/running handle_return --fun, fast planes
+Tue Nov 17 22:50:55 UTC 2026 lvW: handle_return --fun running
+Tue Nov 17 22:59:24 UTC 2026 lvW: handle_return --fun running
+Tue Nov 17 23:07:56 UTC 2026 lvW: handle_return --fun running
+Tue Nov 17 23:16:24 UTC 2026 lvW: handle_return --fun running
+Tue Nov 17 23:24:52 UTC 2026 lvW: handle_return --fun running
+Tue Nov 17 23:27:02 UTC 2026 lvW: handle_return --fun 3534/3534; why3_typecheck --fun queued
+Tue Nov 17 23:32:21 UTC 2026 lvW: queued (why3_typecheck --fun, fast planes)
+Tue Nov 17 23:38:05 UTC 2026 lvW: queued
+Tue Nov 17 23:46:34 UTC 2026 lvW: queued
+Tue Nov 17 23:55:05 UTC 2026 lvW: queued
+Wed Nov 18 00:03:43 UTC 2026 lvW: queued
+Wed Nov 18 00:12:07 UTC 2026 lvW: queued
+Wed Nov 18 00:20:36 UTC 2026 lvW: queued
+Wed Nov 18 00:29:04 UTC 2026 lvW: queued
+Wed Nov 18 00:37:29 UTC 2026 lvW: queued
+Wed Nov 18 00:45:40 UTC 2026 lvW: queued
+Wed Nov 18 00:54:00 UTC 2026 lvW: queued
+Wed Nov 18 01:02:24 UTC 2026 lvW: queued
+Wed Nov 18 01:13:51 UTC 2026 lvW: queued
+Wed Nov 18 01:19:36 UTC 2026 lvW: queued
+Wed Nov 18 01:28:08 UTC 2026 lvW: queued
+Wed Nov 18 01:36:35 UTC 2026 lvW: queued
+Wed Nov 18 01:45:03 UTC 2026 lvW: queued
+Wed Nov 18 01:53:44 UTC 2026 lvW: queued
+Wed Nov 18 01:59:30 UTC 2026 lvW: queued (driver v66 sweep on slot2)
+Wed Nov 18 02:07:58 UTC 2026 lvW: queued
+Wed Nov 18 02:16:32 UTC 2026 lvW: queued
+Wed Nov 18 02:25:03 UTC 2026 lvW: queued
+Wed Nov 18 02:33:29 UTC 2026 lvW: queued
+Wed Nov 18 02:39:10 UTC 2026 lvW: fast planes rerun running
+Wed Nov 18 02:47:42 UTC 2026 lvW: fast planes running
+Wed Nov 18 02:56:16 UTC 2026 lvW: fast planes running
+Wed Nov 18 03:04:53 UTC 2026 lvW: fast planes running
+Wed Nov 18 03:08:50 UTC 2026 lvW: fast planes 62/62 green; fidelity scripts next
+Wed Nov 18 03:14:28 UTC 2026 lvW: queued (why3_typecheck --fun, fidelity)
+Wed Nov 18 03:23:02 UTC 2026 lvW: why3_typecheck --fun running
+Wed Nov 18 03:31:20 UTC 2026 lvW: why3_typecheck --fun running
+Wed Nov 18 03:39:32 UTC 2026 lvW: why3_typecheck --fun running
+Wed Nov 18 03:47:43 UTC 2026 lvW: why3_typecheck --fun running
+Wed Nov 18 03:55:06 UTC 2026 lvW: why3_typecheck --fun 761/761; pycsl whole-file (LOW, PCC=6) queued
+Wed Nov 18 03:56:20 UTC 2026 lvW: report drafted; whole-file pycsl + fidelity queued

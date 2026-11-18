@@ -1,0 +1,4 @@
+oom_before oom_kill 0
+r3d_nested_plain rc=0 12s Verification SUCCESS valid=5 total=5 | 
+r3dm_nested_plain_mut rc=1 32s Verification FAILED valid=4 total=6 | 
+oom_after oom_kill 0
