@@ -1,0 +1,10 @@
+2026-11-06T00:59:18+00:00 git systemd[8357]: Started run-p1312788-i22265030.scope - [systemd-run] /home/fabrice/git/pycsl-int39/.venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/stmt_control_flow.py --import-path src/pycsl.
+2026-11-06T07:14:40+00:00 git systemd[8357]: run-p1312788-i22265030.scope: Consumed 21h 1min 28.835s CPU time over 6h 15min 21.308s wall clock time, 6G memory peak, 889.8M memory swap peak.
+2026-11-07T01:19:51+00:00 git systemd[8357]: Started run-p708007-i25872190.scope - [systemd-run] /home/fabrice/git/pycsl-int48/.venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/stmt_control_flow.py --import-path src/pycsl.
+2026-11-07T01:47:58+00:00 git systemd[8357]: Started run-p760921-i25913590.scope - [systemd-run] /home/fabrice/git/pycsl-int48/.venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/statements.py --import-path src/pycsl.
+2026-11-07T06:29:27+00:00 git systemd[8357]: run-p708007-i25872190.scope: Consumed 15h 30min 17.729s CPU time over 5h 9min 35.917s wall clock time, 5.2G memory peak, 592.5M memory swap peak.
+2026-11-07T11:09:07+00:00 git systemd[8357]: run-p760921-i25913590.scope: Consumed 1d 12h 53min 26.055s CPU time over 9h 21min 9.104s wall clock time, 6G memory peak, 686.8M memory swap peak.
+2026-11-09T11:49:47+00:00 git systemd[8357]: Started run-p2592390-i31946341.scope - [systemd-run] /home/fabrice/git/pycsl-int55/.venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/statements.py --import-path src/pycsl.
+2026-11-09T17:04:31+00:00 git systemd[8357]: run-p2592390-i31946341.scope: Consumed 23h 18min 46.630s CPU time over 5h 14min 43.690s wall clock time, 6G memory peak, 1.1G memory swap peak.
+2026-11-18T12:16:31+00:00 git systemd[5782]: Started run-p3133659-i3136011.scope - [systemd-run] /home/fabrice/git/pycsl-snapD/.venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/expressions.py --import-path src/pycsl.
+2026-11-18T14:17:10+00:00 git systemd[5782]: run-p3133659-i3136011.scope: Consumed 2h 7min 58.895s CPU time over 2h 39.046s wall clock time, 6G memory peak, 186.8M memory swap peak.

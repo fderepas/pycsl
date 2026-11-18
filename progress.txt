@@ -1,0 +1,16 @@
+Wed Nov 18 16:45:09 UTC 2026 u54 start: worktree created
+Wed Nov 18 16:46:57 UTC 2026 base sweep (corpus+mirror) of pycsl-u54-base @41fc6f781 launching
+Wed Nov 18 16:53:37 UTC 2026 base sweep running; audit research (journal) in progress
+Wed Nov 18 16:55:37 UTC 2026 repair code drafted; base sweep queued behind PRIO
+Wed Nov 18 16:56:34 UTC 2026 waiting for heavy slot (base sweep queued)
+Wed Nov 18 17:07:58 UTC 2026 still queued (PRIO waiting ahead); drafting audit
+Wed Nov 18 17:17:51 UTC 2026 queued behind PRIO 3992490; audit draft written
+Wed Nov 18 17:27:11 UTC 2026 still queued
+Wed Nov 18 17:33:57 UTC 2026 job1 (rc probes + base witness + base sweeps) queued via heavy.sh
+Wed Nov 18 17:40:58 UTC 2026 job1 queued
+Wed Nov 18 17:48:07 UTC 2026 job1 still queued (slots: snapD2 + lvY batch3; PRIO full.sh ahead)
+Wed Nov 18 17:54:45 UTC 2026 job1 queued; job2 script prepared
+Wed Nov 18 18:06:54 UTC 2026 job1 queued
+Wed Nov 18 18:16:23 UTC 2026 job1 queued (PRIO ahead now running)
+Wed Nov 18 18:25:38 UTC 2026 job1 queued
+Wed Nov 18 18:34:51 UTC 2026 job1 queued

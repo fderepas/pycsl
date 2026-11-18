@@ -40829,6 +40829,27 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                             except FileNotFoundError:
                                 return fname, None
                             _recs267 = _json_goal_records(r.stdout)
+                            # (#49) ROUTE #615 — A PROBE THAT NEVER RAN IS NOT A PASS. A why3
+                            # run that died at the PROCESS level (a signal: the kernel OOM
+                            # killer inside a 6 GiB heavy scope, measured 2026-11-18 on the
+                            # snapD expressions proof; a shell-reported 126+ code; or a
+                            # non-zero exit with no JSON on stdout AND nothing on stderr) has said
+                            # nothing about the probe. Before this repair it was folded into
+                            # the warning below and the gate went on as if checked. Now it
+                            # FAILS the gate as 'could not be checked'. The warning below is
+                            # kept ONLY for a why3 that RAN and rejected the rewritten body
+                            # (non-zero exit, a diagnostic on stderr, no signal).
+                            if (r.returncode < 0 or r.returncode >= 126
+                                    or (r.returncode != 0 and not _parse_why3_json(r.stdout)
+                                        and not (r.stderr or "").strip())):
+                                print(f"[-] vacuity call-site probe for '{fname}' could not be "
+                                      f"checked: the why3 run itself FAILED (prover {p}, exit "
+                                      f"code {r.returncode}"
+                                      + (f", signal {-r.returncode}" if r.returncode < 0 else "")
+                                      + f", {len((r.stdout or '').strip())} bytes of stdout).")
+                                return (f"{fname} [could not be checked: the call-site probe's "
+                                        f"why3 run FAILED (prover {p}, exit code "
+                                        f"{r.returncode}) — route #615]"), True
                             if not any(((rec.get("term") or {}).get("loc") or {}).get(
                                     "start-line") in _map267 for rec in _recs267):
                                 # why3 surfaced none of the probe goals (it rejected the
@@ -40866,10 +40887,39 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                     r = _run_why3_prove(base_cmd, p, tl, probe_path, sel)
                 except FileNotFoundError:
                     return fname, None
+                # (#49) ROUTE #615 — FAIL-OPEN ON A DEAD PROVER RUN. Below, "no false-goal
+                # record surfaced" means "no normal exit" (#260 logic), i.e. NOT vacuous. But
+                # a why3 that was KILLED surfaces no record either: measured 2026-11-18, five
+                # vacuity-probe why3 children of the snapD expressions.py whole-file proof
+                # were OOM-killed inside its 6 GiB scope, and every one of them would have
+                # been counted 'not vacuous' — a probe that never ran, counted as passed.
+                # A run is a PROCESS-LEVEL FAILURE when it died on a signal (returncode < 0
+                # from subprocess, or >= 126 from a shell wrapper / exec failure), or it
+                # exited non-zero with no JSON goal record at all on stdout (empty or
+                # unparsable output). A prover that ran and answered (Valid / Invalid /
+                # Unknown / Timeout / OutOfMemory / StepLimitExceeded) is NOT a failure, nor
+                # is a clean run whose selected goal set is empty (no normal exit). A
+                # process failure of ANY configured prover makes the probe 'could not be
+                # checked' (best-of-N lost an instrument: the dead prover might have proved
+                # `false`), and that FAILS the gate: it is never read as non-vacuous.
+                # `HighFailure` (why3's answer when the prover child itself crashed or was
+                # killed) on the injected goal is the same failure one level down.
+                _recs615 = _json_goal_records(r.stdout)
+                _hf615 = [rec for rec in _recs615 if _is_false_goal(rec)
+                          and _record_answer(rec) == "HighFailure"]
+                if (r.returncode < 0 or r.returncode >= 126
+                        or (r.returncode != 0 and not _recs615)
+                        or _hf615):
+                    print(f"[-] vacuity probe for '{fname}' could not be checked: the why3 "
+                          f"run itself FAILED (prover {p}, exit code {r.returncode}"
+                          + (f", signal {-r.returncode}" if r.returncode < 0 else "")
+                          + (", prover answered HighFailure" if _hf615 else "")
+                          + f", {len(_recs615)} goal record(s) on stdout).")
+                    return (f"{fname} [could not be checked: the vacuity probe's why3 run "
+                            f"FAILED (prover {p}, exit code {r.returncode}) — route #615]"), True
                 # #6: read structured --json records, not re-grepped text. Keep ONLY the
                 # injected false-goal(s) — never the sibling real-postcondition goals.
-                per_prover.append([rec for rec in _json_goal_records(r.stdout)
-                                   if _is_false_goal(rec)])
+                per_prover.append([rec for rec in _recs615 if _is_false_goal(rec)])
             # best-of-N: a normal-exit path counts inconsistent if ANY prover proved its
             # false-goal Valid; align the per-path goals by occurrence across provers.
             merged = [rec for rec in _merge_records_best_of_n(per_prover)
@@ -41048,6 +41098,20 @@ def _dispatch_provers(base_cmd: "List[str]", provers: List[str], timelimit: str,
             stderrs.append(r.stderr.strip())
         last_rc = r.returncode
         record_lists.append(_json_goal_records(r.stdout))
+        # (#49) ROUTE #615 (main-goal phase) — A KILLED RUN IS NOT A SHORTER PROOF. why3 died
+        # on a signal (subprocess returncode < 0, e.g. -9 from the kernel OOM killer inside a
+        # heavy.sh scope) or a shell / exec failure (>= 126): whatever records it streamed
+        # before dying are a PREFIX of its goals. Before this guard, an all-Valid prefix
+        # early-exited below with rc 0 — fewer goals, reported as a full green — and the
+        # conservation guard could not see it (it compares against this same truncated
+        # first run). Fail the dispatch instead; never early-exit on a dead run.
+        if r.returncode < 0 or r.returncode >= 126:
+            print(f"[-] why3 run FAILED at the process level (prover {prover}, exit code "
+                  f"{r.returncode}" + (f", signal {-r.returncode}" if r.returncode < 0 else "")
+                  + f"): its {len(record_lists[-1])} goal record(s) are an incomplete prefix, "
+                  f"so this is NOT a verdict (route #615). A killed prover is a resource "
+                  f"failure: re-run with more memory.")
+            return _finalize(_merge_records_best_of_n(record_lists), r.returncode)
         merged = _merge_records_best_of_n(record_lists)
         if merged:
             any_goals = True
@@ -41159,6 +41223,31 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
                 # because here `ir_data` is out of scope (gate runs in `_run_proofs`).
                 _nr_names = getattr(args, "_vacuity_exempt", set())
                 vac = _run_vacuity_gate(mlw_code, provers, args, _nr_names)
+                # (#49) ROUTE #615: a probe whose why3 run FAILED is reported as such, and
+                # fails the gate on its own — it is neither 'vacuous' nor 'not vacuous'.
+                _unc615 = [n for n in (vac or []) if "[could not be checked:" in n]
+                if _unc615:
+                    print("\n[-] NON-VACUITY GATE FAILED: the vacuity probe of the following "
+                          "function(s) COULD NOT BE CHECKED — the why3 run itself failed "
+                          "(killed / crashed / no JSON), so nothing is known about whether "
+                          "their assumed context is consistent (route #615):")
+                    for name in _unc615:
+                        print(f"    {name}")
+                    print("    A killed prover is a RESOURCE failure, not a verdict: re-run "
+                          "with more memory / fewer vacuity workers (PYTHON_CPU_COUNT).")
+                    vac = [n for n in vac if n not in _unc615]
+                    if not vac:
+                        if getattr(args, "diagnostics_json", False):
+                            print(_json.dumps({
+                                "code": "PYCSL-VACUITY-UNCHECKED",
+                                "stage": "vacuity-gate",
+                                "file": getattr(args, "file", ""),
+                                "line": 0,
+                                "message": "vacuity not checked: " + ", ".join(_unc615),
+                            }, sort_keys=True), file=sys.stderr)
+                        print("\n[-] Verification FAILED (vacuity could not be checked). "
+                              "Check the solver output.")
+                        sys.exit(1)
                 if vac:
                     print("\n[-] NON-VACUITY GATE FAILED: the following function(s) verify "
                           "VACUOUSLY — their assumed context is logically inconsistent, so "
