@@ -5181,6 +5181,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and (((getattr(self, "_module_func_raises", {}) or {}).get(ir.get("func"))
                       or [{}])[0].get("ext") in ("Path.cwd", "json.dumps"))):
             return True
+        # lvX (run #8): a modelled `Path(<str>)` is a `string` (`ext_path_of_str_op`), as its
+        # lowering in `_handle_call_expr` is -- the IDENTICAL test, inlined (keep in step).
+        if (t == "Call" and ir.get("func") == "Path" and ir.get("receiver") is None
+                and not ir.get("keywords") and len(ir.get("args") or []) == 1
+                and isinstance(ir["args"][0], dict)):
+            _i8x = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                    if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+            _t8x = getattr(self, "shadow_r610", None)
+            _m8x = getattr(self, "shadow_mod_r610", None)
+            _q8x = getattr(self, "_current_sig_func_name", None)
+            if (any(_i[0] == "Path" for _i in _i8x)
+                    and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                            for _i in _i8x if _i[0] == "Path")
+                    and all(_i[0] != "*" for _i in _i8x)
+                    and isinstance(_t8x, dict) and _q8x in _t8x and "Path" not in _t8x[_q8x]
+                    and isinstance(_m8x, set) and "Path" not in _m8x
+                    and "Path" not in {_f.get("name") for _f in (
+                        (getattr(self, "ir", None) or {}).get("functions") or [])
+                        if isinstance(_f, dict)}
+                    and "Path" not in {_t.get("name") for _t in (
+                        (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                        if isinstance(_t, dict)}
+                    and self._is_string_expr(ir["args"][0])):
+                return True
         # lvV (run #7): a modelled `hashlib.sha256(..).hexdigest()` is a `string`
         # (`ext_sha256_hexdigest_op`), as its lowering is.
         if (t == "Call" and ir.get("func") == "hexdigest" and not ir.get("args")
@@ -11548,6 +11572,45 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     f"val ext_str_encode_check_op (s: string) : unit raises {{ {_x7vr} }}")
                 return (f"(let _x7v_e = {_sw7v} in ext_str_encode_check_op _x7v_e; "
                         f"ext_sha256_hexdigest_op (ext_str_enc_bytes _x7v_e))")
+        # lvX (run #8) THE `Path(<str>)` CONSTRUCTOR, on lvQ's open-world path frame (#31: a
+        # `pathlib.Path` is a Why3 `string`). It used to fall to the generic fallback
+        # `path_1 (str_hash_op s) : int`, an int FACADE that hashed the string, so a Path
+        # built from a str could reach no path op (`.read_bytes()`, `.mkdir()`, `/`). It is
+        # now `val function ext_path_of_str_op (s: string) : string`: DETERMINISTIC (pathlib's
+        # parsing is lexical: no filesystem, cwd or environment read) and LAW-FREE -- NOT the
+        # identity (CPython normalises `Path("a//b")` to `a/b`, `Path("")` to `.`, drops a
+        # trailing `/`), no length / prefix / injectivity law. CPython raises nothing for a
+        # `str` argument; the TypeError of a non-str argument is not modelled, so the shape is
+        # admitted only for an argument the emitter positively types as a string (a str or,
+        # by the #31 erasure, a Path, which `Path` also accepts). ROUTE #610: `Path` must be
+        # the `from pathlib import Path` binding (every import binding `Path` is that one,
+        # absolute, no star import) and be bound nowhere in this function and not rebound at
+        # module level (pycsl.py's source table; absent -> shadowed, fail-closed); otherwise
+        # NO model: the old lowering is kept. No raise, so no registry row; the identical
+        # test is inlined in `_is_string_expr` (keep the two in step).
+        if (func_name == "Path" and expr.get("receiver") is None and not expr.get("keywords")
+                and len(expr.get("args") or []) == 1 and isinstance(expr["args"][0], dict)):
+            _i8x = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                    if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+            _t8x = getattr(self, "shadow_r610", None)
+            _m8x = getattr(self, "shadow_mod_r610", None)
+            _q8x = getattr(self, "_current_sig_func_name", None)
+            if (any(_i[0] == "Path" for _i in _i8x)
+                    and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                            for _i in _i8x if _i[0] == "Path")
+                    and all(_i[0] != "*" for _i in _i8x)
+                    and isinstance(_t8x, dict) and _q8x in _t8x and "Path" not in _t8x[_q8x]
+                    and isinstance(_m8x, set) and "Path" not in _m8x
+                    and "Path" not in {_f.get("name") for _f in (
+                        (getattr(self, "ir", None) or {}).get("functions") or [])
+                        if isinstance(_f, dict)}
+                    and "Path" not in {_t.get("name") for _t in (
+                        (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                        if isinstance(_t, dict)}
+                    and self._is_string_expr(expr["args"][0])):
+                _s8x = self._expr_to_whyml(expr["args"][0], local_refs, invariant_ctx, subst)
+                self._add_abstract_op("val function ext_path_of_str_op (s: string) : string")
+                return f"(ext_path_of_str_op {_s8x})"
         # (#49) ROUTES #435 / #436 -- two call sites whose CPython TypeError / OverflowError had
         # no obligation, under `\all` only (TypeError and OverflowError are not Phase 1;
         # route #332's rule, as #417 / #426). MEASURED PROVED at 78b519f63 (red team 34):
