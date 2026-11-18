@@ -1,6 +1,7 @@
 #!/bin/bash
 # quick.sh <tree> <out> <file.py>... : --no-proof --no-typecheck emission of each file, cwd = tree
 # root; prints the refusal code / message head or EMITTED. Honours `# pycsl-flags:`.
+source /home/fabrice/git/pycsl/scratchpad/g29/env.sh  # why3 on PATH, PYTHONHASHSEED=0
 T="$1"; O="$2"; shift 2; mkdir -p "$O"; cd "$T" || exit 2
 for f in "$@"; do
   flags=$(grep -m1 '^# pycsl-flags:' "$f" 2>/dev/null | sed 's/^# pycsl-flags://')

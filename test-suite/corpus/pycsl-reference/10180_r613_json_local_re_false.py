@@ -8,7 +8,7 @@ import json
 #@ ensures \result == True
 #@ assigns \nothing
 def same() -> bool:
-    return json.dumps([1]) == json.dumps([1])
+    return json.dumps("a") == json.dumps("a")
 
 
 if __name__ == "__main__":

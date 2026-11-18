@@ -1,0 +1,17 @@
+usage: pycsl.py [-h] [-p PROVER] [--provers PROVERS]
+                [--memory-model {hoare,typed,store,concurrent}] [--keep-mlw]
+                [--soundness-report] [--fun NAME] [--deep] [--import-path DIR]
+                [--diagnostics-json] [--no-proof] [--typecheck]
+                [--no-typecheck] [--check-vacuity] [--no-check-vacuity]
+                [--vacuity-timelimit SECS] [--rocq DIR] [--rocq-proofs [DIR]]
+                [--strict-concurrent-checks] [--verify-imports]
+                [--allow-unverified-imports] [--strict-hash-eq-consistency]
+                [--strict-float-finite] [--strict-latin1]
+                [--strict-bare-containers] [--strict-hval-keys]
+                [--check-behavioral-subtyping] [--assume-class-exact]
+                [--strict-no-exception-propagation] [--audit-proof]
+                [--audit-proof-rocq] [--audit-proof-lean]
+                [--rocq-proofs-path DIR] [--lean-proofs-path DIR]
+                [--reverify-proofs]
+                file
+pycsl.py: error: unrecognized arguments: --type-only

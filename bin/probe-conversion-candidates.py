@@ -258,6 +258,9 @@ def _probe_emit(name, cls, orig, new, sig_note):
                    PYTHONHASHSEED="0")
         r = subprocess.run([sys.executable, os.path.join(ROOT, "src/pycsl/pycsl.py"), MIRROR,
                             "--import-path", os.path.join(ROOT, "src/pycsl"),
+                            *(["--as-package-module", os.path.join(ROOT, "src", "self-annotate", "src")]
+                              if os.path.abspath(MIRROR).startswith(os.path.join(ROOT, "src", "self-annotate", "src") + os.sep)
+                              else []),  # route #613: a mirror file is a package module (declared run mode)
                             "--no-proof", "--keep-mlw"],
                            capture_output=True, text=True, cwd=ROOT, env=env, timeout=300)
         if "L3-tc ✓" not in r.stdout:

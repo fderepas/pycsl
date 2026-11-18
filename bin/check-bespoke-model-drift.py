@@ -101,6 +101,9 @@ for _cls in [c for c in vars(F).values() if isinstance(c, type)]:
             return wrapper
         setattr(_cls, _nm, _mk(_orig, _nm))
 sys.argv = ["pycsl.py", target, "--import-path", os.path.join(ROOT, "src", "pycsl"),
+            *(["--as-package-module", os.path.join(ROOT, "src", "self-annotate", "src")]
+              if os.path.abspath(target).startswith(os.path.join(ROOT, "src", "self-annotate", "src") + os.sep)
+              else []),  # route #613: a mirror file is a package module (declared run mode)
             "--no-proof", "--no-typecheck"]
 import pycsl
 try:

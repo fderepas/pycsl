@@ -3735,9 +3735,24 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
         _names613 = (set(sys.stdlib_module_names) | set(sys.builtin_module_names)
                      | {_x for _v in _graph613.values() for _x in _v}) - {"__main__"}
         _sd613 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # …/src/pycsl
+        # The DECLARED run mode `--as-package-module ROOT` (PYCSL_AS_PACKAGE_MODULE; never
+        # inferred, listed by --soundness-report): the program is imported as a submodule of
+        # the package rooted at ROOT, so sys.path[0] is ROOT, not the program's directory. The
+        # closure check then searches ROOT (and its realpath) in that place, and judges each
+        # candidate as an import made from ROOT (`_chk613`, a notional entry script there).
+        # Only this check moves: what the program's own imports resolve to is unchanged, so
+        # the emission is too. An invalid ROOT (not a directory containing the program) is
+        # ignored here -- script mode, the default (`main` refuses it before this point).
+        _chk613 = main_file
+        _pm613 = os.environ.get("PYCSL_AS_PACKAGE_MODULE") or ""
+        if not (_pm613 and os.path.isdir(_pm613) and os.path.commonpath(
+                [os.path.abspath(_pm613), os.path.abspath(main_file)]) == os.path.abspath(_pm613)):
+            _pm613 = ""
+        if _pm613:
+            _chk613 = os.path.join(os.path.abspath(_pm613), "__pycsl_r613_entry__.py")
         _roots613: List[str] = []
-        for _r613 in [os.path.dirname(os.path.realpath(main_file)),
-                      os.path.dirname(os.path.abspath(main_file)), os.getcwd(),
+        for _r613 in [os.path.dirname(os.path.realpath(_chk613)),
+                      os.path.dirname(os.path.abspath(_chk613)), os.getcwd(),
                       os.path.dirname(_sd613), os.path.join(_sd613, "Lib"),
                       *_EXTRA_IMPORT_PATHS]:
             if _r613 not in _roots613 and os.path.isdir(_r613):
@@ -3759,7 +3774,7 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             if _bad613 is not None:
                 break
             try:
-                _h613 = _resolve_module_path(_t613, 0, main_file)
+                _h613 = _resolve_module_path(_t613, 0, _chk613)
             except _E613 as _x613:
                 _bad613 = (_t613, _cand613[_t613][0],
                            f"that node is refused ({_x613.code or 'refused'} at `{_t613}`): "
@@ -3814,7 +3829,7 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 _nx613 = list(_graph613.get(_u613, []))
                 if _u613 not in _graph613 and _u613 not in sys.stdlib_module_names:
                     try:
-                        _lf613 = _resolve_module_path(_u613, 0, main_file)
+                        _lf613 = _resolve_module_path(_u613, 0, _chk613)
                         if _lf613 is not None:
                             for _n613 in _a613.walk(_a613.parse(
                                     __import__("pathlib").Path(_lf613).read_bytes())):
@@ -3829,6 +3844,9 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     if _v613 not in _par613:
                         _par613[_v613] = _u613
                         _todo613.append(_v613)
+            # shown relative to cwd when under it (the census / goldens stay tree-independent)
+            if os.path.abspath(_bad613[1]).startswith(os.getcwd() + os.sep):
+                _bad613 = (_bad613[0], os.path.relpath(_bad613[1]), _bad613[2])
             if _bad613[0] in _par613:
                 _ch613 = [_bad613[0]]
                 while _par613.get(_ch613[-1]) is not None:

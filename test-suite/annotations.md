@@ -1447,7 +1447,12 @@ checked hash-based `__pycache__` pyc, or a timestamp pyc whose header matches, a
 entry in any resolution root named like a module the closure may reach — a stdlib / builtin
 name, or any name the interpreter's stdlib source imports — is judged as a direct import of
 it and REFUSED unless admitted, `PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`, route #613: a local
-`re.py` beside a program that imports only `json` is the `re` that `json` runs): CPython
+`re.py` beside a program that imports only `json` is the `re` that `json` runs; the roots are
+those of a SCRIPT, the program's own directory first, unless the run mode is DECLARED with
+`--as-package-module ROOT` — the program is imported as a submodule of the package rooted at
+ROOT, which then takes the program directory's place in this check only; never inferred,
+listed by `--soundness-report` as AS-PACKAGE-MODULE, passed by the mirror gates with ROOT =
+`src/self-annotate/src`): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or
 startup-loaded module, and for the rest which one runs depends on `sys.path` and startup.
 A program that edits the import system — any reference to `sys.path`, `sys.modules`,

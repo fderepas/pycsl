@@ -1,0 +1,4 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/10188_r613_json_no_shadow_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'json': ['dumps'] (trusted stubs, module-qualified)
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

@@ -1,6 +1,7 @@
 #!/bin/bash
 # run-probes.sh <tree> <outdir> <probe-dir>... : pycsl verdict of each probe x3 memory models,
 # cwd = the tree root (rule 28).
+source /home/fabrice/git/pycsl/scratchpad/g29/env.sh  # why3 on PATH, PYTHONHASHSEED=0
 T="$1"; O="$2"; shift 2
 mkdir -p "$O"; cd "$T" || exit 2
 for d in "$@"; do

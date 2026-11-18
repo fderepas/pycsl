@@ -3116,7 +3116,9 @@ directory, cwd, `src/`, `Lib/`, `--import-path`) named like a module the closure
 imports anywhere -- is judged as a direct import of that name, and refused unless admitted
 (a byte-identical stdlib copy, or a bare namespace directory that a regular module of that
 name outranks): `PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`, naming the chain (`program -> json -> re
--> ./re.py`). annotations.md §7.16, §T.6.27.
+-> ./re.py`). Under the declared run mode `--as-package-module ROOT` (a package submodule, not a
+script; never inferred, a `--soundness-report` model assumption) ROOT replaces the program's
+directory among those roots. annotations.md §7.16, §T.6.27.
 
 ### C.1 Declared model assumptions (routes #250, #253, #256, #276, #282, #298)
 

@@ -1525,6 +1525,19 @@ forms.
 
 ---
 
+### 11.3 Command-line run mode (route #613)
+
+`--as-package-module ROOT` is not annotation syntax but a DECLARED assumption about how the
+program runs: it is imported as a submodule of the package rooted at ROOT (a directory that
+contains the file), never run as a script. It is opt-in and never inferred. It changes only the
+roots of the transitive stdlib-shadow check (`PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`): ROOT takes
+the place of the program's own directory, whose same-named siblings are then not on
+`sys.path`. The program's own imports, and so the emitted WhyML, are unchanged. pycsl passes it
+to its own sub-invocations as `PYCSL_AS_PACKAGE_MODULE`, and `--soundness-report` lists it as
+the model assumption AS-PACKAGE-MODULE. The mirror gates (`bin/mirror-emit-sweep.sh`, the
+shared mirror emission of `bin/run-soundness-planes.sh`, and the mirror-emitting checks) pass
+ROOT = `src/self-annotate/src`.
+
 ## Appendix A. AST Node Hierarchy
 
 For reference, the complete hierarchy of CSL AST nodes defined in
