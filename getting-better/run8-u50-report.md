@@ -12,7 +12,9 @@ the start and end of every heavy job (`scratchpad/u50/oom-*.txt`).
 | `69529e2de` | task 1 follow-up (driver review cr63): `_co_code_adaptive`, unlistable cache dir, latent stale timestamp pyc, no `with ... as`, dotted-path witnesses 10126-10128, residuals documented (`R12-FOLLOWUP`) |
 | `88d9fb8c3` | census rows for 10124-10127 regenerated with `_census_row` |
 | `4740c6c0d` | task 2: batch B (R1, R2 narrowed, R4 ported from run7-u48 e4e1bea94; R3 dropped), witnesses 10130-10136, census rows |
-| (this file) | report |
+| `239701fca` | report (first version) |
+| `249c49e5d` | **FINAL code.** Driver decision: the stale-timestamp part of `69529e2de` is reverted, so non-matching timestamp headers are ignored again, as CPython ignores them. R1 and Q3 are kept. The metadata-later case is documented with TOCTOU. Census rows for 10124-10127 regenerated. |
+| (this commit) | report update |
 
 ## Task 1: route #611 r12 (forged `__pycache__` pyc)
 
@@ -66,10 +68,11 @@ Each probe ran under CPython in six configurations: default, -O, -OO, -OOO, `--c
 - **At BASE 0057c8b94:**
   - **N1 and T1 PROVE.** These are live pre-existing false proofs: CPython returns 3 instead of 2, and tomllib runs the forged loader.
   - A* were held only by the rebound-name rule, and J* only by route #305.
-- These first-round probe verdicts are from `89e942ec4`. The follow-up's stale-pyc change refuses A4 too (see the follow-up section below).
+- These first-round probe verdicts are from `89e942ec4`. The intermediate `69529e2de` also refused A4. The final `249c49e5d` accepts A4 again (see the final-code section).
 - **Main tree** (live caches, exact rule code via `blk.py`, `maintree-scan.txt`):
   - at `89e942ec4`: all 241 source modules with a cache, plus the repo-root `json/` package, are accepted;
-  - after the follow-up: 25 of the 242 are refused, all honestly stale headers (follow-up below).
+  - at the intermediate `69529e2de`: 25 of the 242 were refused, all honestly stale headers (reverted);
+  - at the final `249c49e5d`: 0 of 242 refused.
 
 ### Witnesses (x3 models: hoare / typed / store)
 
@@ -103,7 +106,20 @@ Each probe ran under CPython in six configurations: default, -O, -OO, -OOO, `--c
   - `check-dropped-mutation` CTXBIND 53 > 51, caused by my two `with open() as`;
   - `check-corpus-executes`: 10128 was not loadable under CPython.
 
-### Follow-up (driver review cr63) and the over-refusal it costs
+### Final code `249c49e5d` (driver decision on residual 3)
+
+The stale-timestamp validation of `69529e2de` is REVERTED. Its measured cost is recorded below for the record.
+- **Main-tree scan** on the final code (`scratchpad/u50/maintree-scan3.txt`, committed as `witnesses-r611r12/maintree-scan.txt`): **0 of 242 caches refused**.
+- **The 22 probes** through pycsl on the final code (`scratchpad/u50/pyc-head3/`, `pyc-head3.verdicts`, committed as `witnesses-r611r12/pycsl-verdicts-final.txt`):
+  - the refused set is EXACTLY the CPython-VIOLATION set (A1 A2 A3 A6 A7 A9 J1 N1 T1);
+  - A4 (a stale forged timestamp pyc) is accepted by r12 again, and falls through to the rebound-name refusal exactly as at base.
+- **Census rows** for 10124-10127 were regenerated on the final message text (`scratchpad/u50/t1-census3.tsv`).
+- **Gate:** the driver's L15 battery on `249c49e5d` (corpus + pyref + mirror vs base8, fidelity, fast planes, --slow) supersedes my g4. g4 was cancelled before it started, on the driver's instruction.
+- **Already measured, to compare with the battery:**
+  - every final-code delta vs `88d9fb8c3` is inside `_resolve_module_path`: the restored skip of non-matching timestamp headers, comments, and the message text;
+  - the sweeps on `88d9fb8c3` (g2) and `4740c6c0d` (g3) were 0 MOVED / 0 GONE, the mirror had 0 diff, and the fast planes were 62 / 62 green.
+
+### Follow-up (driver review cr63) and the over-refusal it cost (stale-timestamp part SUPERSEDED by `249c49e5d`)
 
 - **R1:** `_co_code_adaptive` must be equal. It costs 0 genuine caches.
 - **Q3:** an `os.listdir` OSError now refuses instead of crashing.
@@ -121,7 +137,8 @@ Each probe ran under CPython in six configurations: default, -O, -OO, -OOO, `--c
 - The program's runtime PYTHONPYCACHEPREFIX, another interpreter's cache tag, and `python -m prog`: the main file's cache and the package chain above it are not checked.
 - TOCTOU: a cache that appears after verification.
 - Fields not compared: `localspluskinds`, and constant identity / sharing.
-- Over-refusals (all fail-closed): a stale checked-hash pyc, `-X no_debug_ranges` caches, an unreadable cache, a different patch release, and the stale-timestamp cost measured above.
+- TOCTOU also covers a stale timestamp pyc that a later metadata change (`touch -d`, `cp -p`, `rsync -t`) makes header-matching: a new pycsl run then validates it (driver decision).
+- Over-refusals (all fail-closed): a stale checked-hash pyc, `-X no_debug_ranges` caches, an unreadable cache, a different patch release.
 - Adjacent, not a pyc issue, not repaired: a stdlib module transitively imported by an admitted copy, or by the real stdlib (`json` imports `re`), can be shadowed by a local `re.py` that the program never imports itself.
 
 ## Task 2: batch B (rules ported into `_run_pipeline`, mirror twin `\trusted`)
