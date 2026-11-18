@@ -145,7 +145,7 @@ _process_file() {
             _log "  WARN  [$path] $filename — $msg"
             _log "        restored previous annotated file; running pycsl --no-proof on it"
             local vfy
-            vfy=$(python src/pycsl/pycsl.py --no-proof "$dst" 2>&1)
+            vfy=$(python src/pycsl/pycsl.py --no-proof $(case "$dst" in src/self-annotate/src/*) echo --as-package-module src/self-annotate/src ;; esac) "$dst" 2>&1)  # route #613: declared run mode
             if echo "$vfy" | grep -q 'SUCCESS'; then
                 _log "  PASS  [$path] $filename (from previous)"
                 return 0
@@ -190,7 +190,7 @@ _process_file() {
     # --- Step 4: pycsl --no-proof ---
     _log "  VFY   [$path] $filename — pycsl --no-proof ..."
     local pycsl_out
-    pycsl_out=$(python src/pycsl/pycsl.py --no-proof "$dst" 2>&1)
+    pycsl_out=$(python src/pycsl/pycsl.py --no-proof $(case "$dst" in src/self-annotate/src/*) echo --as-package-module src/self-annotate/src ;; esac) "$dst" 2>&1)  # route #613: declared run mode
     if echo "$pycsl_out" | grep -q 'SUCCESS'; then
         _log "  PASS  [$path] $filename"
         rm -f "$backup"

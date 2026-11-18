@@ -1,0 +1,16 @@
+j0__prog rc=0 1.78 s no-code :: [+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).
+j1__prog rc=1 Command exited with non-zero status 1
+1.74 s PYCSL-SEM-IMPORT-SHADOWS-STDLIB :: [imports] /home/fabrice/git/pycsl-u52/witnesses-r613/j1/prog.py: the program's import closure may load `re` from /home/fabrice/git/pycsl-u52/witnesses-r613/j1/re.py (program -> json -> re -> /home/fabrice/git/pycsl-u52/witnesses-r613/j1/re.py): CPython resolves an import made INSIDE an i
+h0__prog rc=0 1.64 s no-code :: [+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).
+h1__prog rc=1 Command exited with non-zero status 1
+1.48 s PYCSL-SEM-IMPORT-SHADOWS-STDLIB :: [imports] /home/fabrice/git/pycsl-u52/witnesses-r613/h1/prog.py: the program's import closure may load `_hashlib` from /home/fabrice/git/pycsl-u52/witnesses-r613/h1/_hashlib.py (program -> hashlib -> _hashlib -> /home/fabrice/git/pycsl-u52/witnesses-r613/h1/_hashlib.py): CPython resolves
+n1__prog rc=1 Command exited with non-zero status 1
+1.41 s PYCSL-SEM-IMPORT-SHADOWS-STDLIB :: [imports] /home/fabrice/git/pycsl-u52/witnesses-r613/n1/prog.py: the program's import closure may load `re` from /home/fabrice/git/pycsl-u52/witnesses-r613/n1/re.py (program -> builtins (C code whose imports pycsl cannot see) -> re -> /home/fabrice/git/pycsl-u52/witnesses-r613/n1/re.py):
+s1__prog rc=1 Command exited with non-zero status 1
+1.45 s no-code :: [imports] /home/fabrice/git/pycsl-u52/witnesses-r613/s1/prog.py: the program's import closure may load `sitecustomize` from /home/fabrice/git/pycsl-u52/witnesses-r613/s1/sitecustomize.py (program -> json -> _colorize -> collections -> heapq -> doctest -> pdb -> _pyrepl -> site -> sitecustomize -> /home/fabrice/
+pycsl-reference__10183_r613_json_local_nonstdlib_name_false rc=1 Command exited with non-zero status 1
+1.44 s no-code :: [imports] /home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/10183_r613_json_local_nonstdlib_name_false.py: the program's import closure may load `sitecustomize` from /home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/nonstd/sitecustomize.py (program -> json -> _coloriz
+module6_whyml__types rc=1 Command exited with non-zero status 1
+1.80 s PYCSL-SEM-IMPORT-SHADOWS-STDLIB :: [imports] src/self-annotate/src/module6_whyml/types.py: the program's import closure may load `types` from /home/fabrice/git/pycsl-u52/src/self-annotate/src/module6_whyml/types.py (program -> typing -> types -> /home/fabrice/git/pycsl-u52/src/self-annotate/src/module6_whyml/types.py): CP
+module6_whyml__scc rc=1 Command exited with non-zero status 1
+1.61 s PYCSL-SEM-IMPORT-SHADOWS-STDLIB :: [imports] src/self-annotate/src/module6_whyml/scc.py: the program's import closure may load `types` from /home/fabrice/git/pycsl-u52/src/self-annotate/src/module6_whyml/types.py (program -> typing -> types -> /home/fabrice/git/pycsl-u52/src/self-annotate/src/module6_whyml/types.py): CPyt

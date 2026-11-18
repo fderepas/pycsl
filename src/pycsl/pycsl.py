@@ -1033,6 +1033,26 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
             "strict_mode": "--strict-hval-keys",
             "relied_on_by": sorted(set(_hk_uses)),
         })
+    # (#49) run #8 ROUTE #613 -- the DECLARED RUN MODE `--as-package-module ROOT` (driver
+    # decision): the program is assumed to be imported as a submodule of the package rooted at
+    # ROOT, so CPython's sys.path[0] is not the program's own directory and the transitive
+    # stdlib-shadow check searches ROOT (plus the configured roots) in its place. Never
+    # inferred; listed whenever it is in force.
+    if os.environ.get("PYCSL_AS_PACKAGE_MODULE"):
+        assumptions.append({
+            "name": "AS-PACKAGE-MODULE",
+            "statement": "the program is never run as a script: it is imported as a module of "
+                         "the package rooted at " + os.environ["PYCSL_AS_PACKAGE_MODULE"]
+                         + ", so sys.path[0] is that root (an entry script's directory), not "
+                         "the program's directory; route #613's closure check searches that "
+                         "root instead of the program's directory",
+            "counterexample": "src/pycsl/module6_whyml/scc.py run as a script: its directory "
+                              "is sys.path[0], and `typing`'s own `import types` loads the "
+                              "local module6_whyml/types.py (venv CPython 3.14: ImportError, "
+                              "witnesses-r613/cpython.txt)",
+            "strict_mode": "the default (omit --as-package-module: script mode)",
+            "relied_on_by": [filename],
+        })
     # (#49) ROUTE #292 — A CITED `#@ proof` LEMMA IS EMITTED AS A Why3 `axiom`: the
     # proof's soundness rests on the Rocq/Lean statement AND on the restatement being
     # applied only where it was proved (`UnixFs.Struct.i2.round_trip` was applied to a
@@ -41338,7 +41358,43 @@ def _resolve_runtime_config(args: argparse.Namespace) -> Tuple[str, List[str]]:
 
 
 def main() -> None:
+    # (#49) run #8 ROUTE #613 -- `--as-package-module ROOT`, the DECLARED (opt-in, never
+    # inferred) run mode: the program is imported as a submodule of the package rooted at
+    # ROOT, not run as a script. Taken off argv HERE, not in `_parse_args` (whose mirror twin
+    # is body-verified: an edit there owes a whole-file re-proof of the pycsl.py mirror), and
+    # handed to the resolver -- and to every pycsl sub-invocation, which inherit os.environ --
+    # as PYCSL_AS_PACKAGE_MODULE. ROOT must be a directory that contains the program.
+    _a613 = sys.argv[1:]
+    _r613 = None
+    _k613 = 0
+    _rest613: List[str] = []
+    while _k613 < len(_a613):
+        if _a613[_k613] == "--as-package-module" and _k613 + 1 < len(_a613):
+            _r613 = _a613[_k613 + 1]
+            _k613 += 2
+            continue
+        if _a613[_k613].startswith("--as-package-module="):
+            _r613 = _a613[_k613].split("=", 1)[1]
+            _k613 += 1
+            continue
+        if _a613[_k613] == "--as-package-module":
+            print("[!] Error: --as-package-module needs a ROOT directory.")
+            sys.exit(2)
+        _rest613.append(_a613[_k613])
+        _k613 += 1
+    if _r613 is not None:
+        sys.argv[1:] = _rest613
+        os.environ["PYCSL_AS_PACKAGE_MODULE"] = os.path.abspath(_r613)
     args = _parse_args()
+    if os.environ.get("PYCSL_AS_PACKAGE_MODULE"):
+        _pr613 = os.environ["PYCSL_AS_PACKAGE_MODULE"]
+        if not (os.path.isdir(_pr613) and os.path.commonpath(
+                [_pr613, os.path.abspath(args.file)]) == _pr613):
+            print(f"[!] Error: --as-package-module {_pr613}: not a directory containing "
+                  f"'{args.file}'.")
+            sys.exit(2)
+        print(f"[*] Declared run mode: imported as a module of the package rooted at "
+              f"{_pr613} (--as-package-module; not a script)")
 
     if not os.path.exists(args.file):
         print(f"[!] Error: File '{args.file}' not found.")

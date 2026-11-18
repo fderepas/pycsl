@@ -1,0 +1,19 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u52-b899/test-suite/corpus/pycsl-reference/10181_r613_hashlib_local_underscore_hashlib_false.py'...
+[*] Memory model: typed
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_271_omlp.mlw", line 30, characters 15-27:
+Sub-goal postcondition of goal same'vc.
+Prover result is: Valid (0.00s, 783 steps).
+
+File "/tmp/.pycsl_271_omlp.mlw", line 31, characters 15-38:
+Sub-goal postcondition of goal same'vc.
+Prover result is: Valid (0.00s, 784 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_271_omlp.mlw", line 13, characters 19-20: unused variable m
+Warning, file "/tmp/.pycsl_271_omlp.mlw", line 24, characters 31-32: unused variable s
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -6158,7 +6158,18 @@ no image (`PYCSL-SEM-IMPORT-SHADOWS-STDLIB`): CPython's built-in/frozen finders 
 startup-populated `sys.modules` precede every path entry. A hit also has no image when a
 bytecode cache the source loader may take in its place (`__pycache__/<m>.<tag>[.opt-N].pyc`,
 hash-based, or timestamp-matching) is not the compilation of the hit's source, compared as
-code objects (`PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route #611 r12). $\rho$ is a function of the
+code objects (`PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route #611 r12). The program also has no
+image when ANY resolution root holds an entry for a name its import closure may reach (a
+stdlib / builtin name, or a top-level name the stdlib source imports; the closure always
+includes the builtins, whose C-level imports are invisible) that would have no image as a
+direct import, or that is a non-stdlib local module (`PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`,
+route #613): an import inside the stdlib resolves from `sys.path[0]` first. The roots of that
+check are the program's directory (and its realpath) first -- SCRIPT mode, the default -- or,
+under the DECLARED run mode `--as-package-module ROOT` (the program is imported as a submodule
+of the package rooted at ROOT, which must contain it; never inferred; listed by
+`--soundness-report` as the model assumption AS-PACKAGE-MODULE), ROOT (and its realpath) in
+that place; the program's own imports resolve as before, so the emitted WhyML does not depend
+on the mode. The mirror gates declare ROOT = `src/self-annotate/src`. $\rho$ is a function of the
 source tree only, so a program that can change CPython's binding has no image
 (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
 path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a

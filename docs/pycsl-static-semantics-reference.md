@@ -3107,7 +3107,18 @@ source loader could run instead of the source (an unchecked / checked hash-based
 timestamp pyc whose header matches the source's stat) is refused unless that pyc's code
 object equals `compile(source, path, 'exec', dont_inherit=True, optimize=min(N, 2))`
 attribute by attribute (`PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route #611 r12; a genuine
-CPython-written cache validates). annotations.md §7.16, §T.6.27.
+CPython-written cache validates). The same judgement covers the whole IMPORT CLOSURE, not
+only the program's own imports (route #613): CPython resolves an import made inside an imported
+module from the script's directory first too, and the builtins' C code imports modules no
+source shows, so every entry in any resolution root (the script's realpath directory, its
+directory, cwd, `src/`, `Lib/`, `--import-path`) named like a module the closure may reach -- a
+`sys.stdlib_module_names` / builtin name, or any top-level name the interpreter's stdlib source
+imports anywhere -- is judged as a direct import of that name, and refused unless admitted
+(a byte-identical stdlib copy, or a bare namespace directory that a regular module of that
+name outranks): `PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`, naming the chain (`program -> json -> re
+-> ./re.py`). Under the declared run mode `--as-package-module ROOT` (a package submodule, not a
+script; never inferred, a `--soundness-report` model assumption) ROOT replaces the program's
+directory among those roots. annotations.md §7.16, §T.6.27.
 
 ### C.1 Declared model assumptions (routes #250, #253, #256, #276, #282, #298)
 

@@ -120,7 +120,8 @@ for rel in "${SUITE[@]}"; do
     # Real src/pycsl/ files resolve their own directory already; adding it there is
     # redundant and can perturb resolution (e.g. errors.py), so scope it to mirror.
     case "$rel" in
-        src/self-annotate/*) ip="$IMPORT_PATH" ;;
+        # route #613: a mirror file is a package module (declared run mode)
+        src/self-annotate/*) ip="$IMPORT_PATH --as-package-module $PROJECT_ROOT/src/self-annotate/src" ;;
         *)                   ip="" ;;
     esac
     output=$($PYCSL "$path" $ip 2>&1)

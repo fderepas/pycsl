@@ -1,0 +1,26 @@
+(a) as built
+  a 10180_r613_json_local_re_false rc=1 closure may load `re` 
+  a 10183_r613_json_local_nonstdlib_name_false rc=1 closure may load `sitecustomize` 
+  a 10188_r613_json_no_shadow_ctl rc=0  Verification SUCCESS
+  table r613-stdlib-imports-4147f23a107a2772364564f8ae89fe54a03688c1.json valid, key matches name: True graph keys 193
+(b) truncated to 20 bytes
+20
+  b 10180_r613_json_local_re_false rc=1 closure may load `re` 
+  b 10183_r613_json_local_nonstdlib_name_false rc=1 closure may load `sitecustomize` 
+  b 10188_r613_json_no_shadow_ctl rc=0  Verification SUCCESS
+  table r613-stdlib-imports-4147f23a107a2772364564f8ae89fe54a03688c1.json valid, key matches name: True graph keys 193
+(c) wrong shape
+  c 10180_r613_json_local_re_false rc=1 closure may load `re` 
+  c 10183_r613_json_local_nonstdlib_name_false rc=1 closure may load `sitecustomize` 
+  c 10188_r613_json_no_shadow_ctl rc=0  Verification SUCCESS
+  table r613-stdlib-imports-4147f23a107a2772364564f8ae89fe54a03688c1.json valid, key matches name: True graph keys 193
+(d) stale: right shape, another key, empty graph (would admit sitecustomize if trusted)
+  d 10180_r613_json_local_re_false rc=1 closure may load `re` 
+  d 10183_r613_json_local_nonstdlib_name_false rc=1 closure may load `sitecustomize` 
+  d 10188_r613_json_no_shadow_ctl rc=0  Verification SUCCESS
+  table r613-stdlib-imports-4147f23a107a2772364564f8ae89fe54a03688c1.json valid, key matches name: True graph keys 193
+(e) deleted
+  e 10180_r613_json_local_re_false rc=1 closure may load `re` 
+  e 10183_r613_json_local_nonstdlib_name_false rc=1 closure may load `sitecustomize` 
+  e 10188_r613_json_no_shadow_ctl rc=0  Verification SUCCESS
+  table r613-stdlib-imports-4147f23a107a2772364564f8ae89fe54a03688c1.json valid, key matches name: True graph keys 193

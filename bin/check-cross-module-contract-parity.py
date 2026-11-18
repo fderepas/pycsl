@@ -108,6 +108,9 @@ def _emit_mirrors(out_dir):
             os.unlink(mlw)
         subprocess.run([py, os.path.join(ROOT, "src", "pycsl", "pycsl.py"), src,
                         "--import-path", os.path.join(ROOT, "src", "pycsl"),
+                        *(["--as-package-module", os.path.join(ROOT, "src", "self-annotate", "src")]
+                          if os.path.abspath(src).startswith(os.path.join(ROOT, "src", "self-annotate", "src") + os.sep)
+                          else []),  # route #613: a mirror file is a package module (declared run mode)
                         "--no-proof", "--keep-mlw"],
                        cwd=ROOT, env=env, capture_output=True)
         if os.path.exists(mlw):

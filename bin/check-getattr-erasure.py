@@ -155,6 +155,9 @@ def emit_and_collect(path, import_path=None):
            "--no-proof", "--no-typecheck"]
     if import_path:
         cmd += ["--import-path", import_path]
+    # route #613: a mirror file is a package module (the declared run mode)
+    if os.path.abspath(path).startswith(os.path.join(ROOT, "src", "self-annotate", "src") + os.sep):
+        cmd += ["--as-package-module", os.path.join(ROOT, "src", "self-annotate", "src")]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=900, env=env,
                            cwd=ROOT)
