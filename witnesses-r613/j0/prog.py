@@ -4,11 +4,12 @@ CPython puts the script's realpath directory first on sys.path, so the stdlib `j
 import json
 
 
-#@ ensures \result == True
+#@ ensures \result == 1
 #@ assigns \nothing
-def same() -> bool:
-    return json.dumps("a") == json.dumps("a")
+def f() -> int:
+    s = json.dumps("a")
+    return 1
 
 
 if __name__ == "__main__":
-    print("result", same())
+    print("result", f())

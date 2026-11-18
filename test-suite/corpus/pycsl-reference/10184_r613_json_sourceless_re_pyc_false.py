@@ -5,11 +5,12 @@ r"""Test 10184 -- run #8 route #613 (FAIL): the root holds a SOURCELESS `re.pyc`
 import json
 
 
-#@ ensures \result == True
+#@ ensures \result == 1
 #@ assigns \nothing
-def same() -> bool:
-    return json.dumps("a") == json.dumps("a")
+def f() -> int:
+    s = json.dumps("a")
+    return 1
 
 
 if __name__ == "__main__":
-    print("result", same())
+    print("result", f())

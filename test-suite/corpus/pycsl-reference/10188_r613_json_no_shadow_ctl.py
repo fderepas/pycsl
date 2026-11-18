@@ -4,11 +4,12 @@ r"""Test 10188 -- run #8 route #613 over-refusal CONTROL (PASS): `json` with NO 
 import json
 
 
-#@ ensures \result == True
+#@ ensures \result == 1
 #@ assigns \nothing
-def same() -> bool:
-    return json.dumps("a") == json.dumps("a")
+def f() -> int:
+    s = json.dumps("a")
+    return 1
 
 
 if __name__ == "__main__":
-    print("result", same())
+    print("result", f())
