@@ -6679,6 +6679,34 @@ parameter named `os` used as a plain object next to a genuine `os.access` in ano
 `sorted` in the join model keeps its model).
 Measurements: `getting-better/open-routes/route610-ext-module-name-shadowing.md`.
 
+### 7.614 A pathlib Path value never meets a str in a comparison (route #614, run #8)
+
+The value model represents a `pathlib.Path` as its string form (a Why3 `string`): #31 erases a `Path`
+annotation to `str`, lvX lowers `Path(<str>)` to the law-free `ext_path_of_str_op s : string`, and `str(x)` /
+`f"{x}"` of a string is the identity. So a Path and its str were the SAME value: `p = Path(s); p == str(p)`
+PROVED `\result == True` (CPython `PosixPath('a') == 'a'` is False), likewise `!=`, `p in [str(p)]`,
+`f"{p}" == p`, branches on them, a `p: Path` parameter (PRE-EXISTING), and `p < q` was decided as string
+ordering (CPython orders by parts: `Path("a/b") < Path("a-b")` is True, `"a/b" < "a-b"` False) (red team rt65).
+RULE (`PYCSL-R614-PATH-STR-CONFLATED`, every non-`\trusted` function; `pycsl.py::_run_pipeline`, read on the
+SOURCE): a value is path-ish when it is a name annotated `Path` / `PurePath` / `PosixPath` / `WindowsPath` /
+`Pure*Path` / `PathLike` (also inside `List[..]` / `Optional[..]`), a name / field / container bound from a
+path-ish value (to a fixpoint: assignment, walrus, `for` / comprehension targets, a default, `append` /
+item store into a fresh local container), a Path class call, a Path-only method call, a call of a unit
+function returning a Path, `x.parent`, a `/` with a path-ish operand, or a subscript / conditional / boolean /
+container / comprehension / lambda of one. REFUSED: a comparison (`==` `!=` `<` `<=` `>` `>=` `in` `not in`
+`is` `is not`) with a path-ish operand, except `is None` / `is not None` and `Path(a) == Path(b)` / `!=` with
+both operands a direct one-argument `Path(..)` call (deterministic, never decided different: `Path("a//b") ==
+Path("a/b")` with `\result == False` does not prove, `10205`); sort / min / max / hash / set / dict /
+membership / equality methods, `isinstance` / `type` / `repr` / `id` of one; a path-ish set element, dict
+key or subscript key; `!r` / `!a`, `%` or `.format` with `!r`; `match` on one; returning one from a function
+not annotated to return a Path; passing one to a unit-function parameter (or dataclass field) not annotated
+`Path`, to a parameter / lambda / local callable, to `map` / `filter` / `partial` / `setattr`, or to a method
+of a non-module, non-Path receiver; storing one into a container that is not a fresh local one. The same
+comparisons and calls are refused in the CONTRACTS (requires / ensures / `#@ assert` / loop invariants, read on
+the IR). `str(p)` stays admitted: it IS a `str`. Advice: compare the strings (`str(p) == s`,
+`str(p) < str(q)`). Witnesses `10200`-`10206` (expected FAIL; `10205` fails by proof, the others are refused
+in the default / typed / store models); control `10207`.
+
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
 A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /

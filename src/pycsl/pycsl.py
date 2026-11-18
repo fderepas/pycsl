@@ -22184,7 +22184,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     for _f614 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
         if (isinstance(_f614, dict) and not _f614.get("trusted")
                 and not _f614.get("abstract")):
-            _chk614.add(str(_f614.get("name", "")).rsplit("__", 1)[-1])
+            _nn614 = str(_f614.get("name", ""))
+            _chk614.update({_nn614, _nn614.rsplit("__", 1)[-1], _nn614.split("__", 1)[-1]})
+    # a constructor is not an IR function (its contract and body sit in the class's type_decl):
+    # every `__init__` / `__post_init__` of the unit is checked (fail-closed)
+    _tds614 = [_t for _t in ((getattr(transpiler, "ir", None) or {}).get("type_decls") or [])
+               if isinstance(_t, dict)]
+    if _tds614:
+        _chk614.update({"__init__", "__post_init__"})
     _tree614 = None
     if _chk614 and _re614.search(r"Path", source_code):
         try:
@@ -22599,11 +22606,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         for _n in _nodes614:
             if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef)):
                 _ast_by614.setdefault(_n.name, []).append(_n)
-        for _f614 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
+        for _f614 in (list((getattr(transpiler, "ir", None) or {}).get("functions", []) or [])
+                      + [{"name": "__init__", "line": 0, "body": _t.get("init_body") or [],
+                          "contracts": {"init_ensures": _t.get("init_ensures"),
+                                        "init_contract_check": _t.get("init_contract_check"),
+                                        "class_invariants": _t.get("class_invariants")}}
+                         for _t in _tds614]):
             if not (isinstance(_f614, dict) and not _f614.get("trusted")
                     and not _f614.get("abstract")):
                 continue
             _bn = str(_f614.get("name", "")).rsplit("__", 1)[-1]
+            if _bn == "" or _bn not in _ast_by614:
+                _bn = str(_f614.get("name", "")).split("__", 1)[-1]
             _fds = _ast_by614.get(_bn, [])
             _scs = {0} | {_sc614[id(_x)] for _x in _fds}
             _rp = any(_x.returns is not None and _pa614.search(_ast614.unparse(_x.returns))
@@ -22650,6 +22664,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _p = _rp
                 elif _ty == "Attribute":
                     _p = _x.get("attr") in _fl614
+                elif _ty == "FieldGet":
+                    _p = _x.get("field") in _fl614
                 elif _ty == "Call":
                     _cn = str(_x.get("func") or "").rsplit(".", 1)[-1]
                     _p = (_cn in _pc614 or _cn in _rt614

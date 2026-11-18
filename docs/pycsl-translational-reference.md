@@ -5365,6 +5365,18 @@ function with `no_exception_all`, computes the Path names $P$ (parameters / `Ann
 Path operand, a call of `Path` / `PurePath` / ... or of `resolve` / `with_suffix` / ..., a subscript,
 conditional or walrus of one.
 
+PATH / STR CONFLATION (route #614, `annotations.md` §7.614). In the same function, after the route #434
+pass, `_run_pipeline` computes, for EVERY non-`\trusted` non-`\abstract` IR function, the path-ish AST nodes
+of its `def` by a post-order fixpoint (names per outermost `def`, fields and Path-returning functions
+module-wide), and refuses (`PYCSL-R614-PATH-STR-CONFLATED`) a `Compare` with a path-ish operand (exempt:
+`is None`; `Path(a) == / != Path(b)` with two direct one-argument `Path` calls), an ordering / hashing /
+equality / type / repr call involving one, a path-ish key, a `!r` / `%` format, a `match` subject, an
+un-annotated return / parameter flow and a store into a non-fresh container. It then walks the IR of the
+function: a `BinOp` comparison with a path-ish operand (a `Var` in the set, `Result` of a `-> Path`
+function, a `Path` call, `.parent`, `/`) and, in the contract part (clauses, `ProofAssert`, invariants /
+variants), a call with a path-ish argument to an unchecked callee, is refused the same way. No WhyML is
+emitted differently; a refused file emits nothing.
+
 ### §T.6.148  Unbound builtin descriptors (route #435, run #3)
 
 _Corresponds to `annotations.md` §7.137._
