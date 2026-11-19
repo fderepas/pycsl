@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/2161_gen36_ch13_path_resolve_not_identity_false_claim.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[whyml]: PYCSL-R614-PATH-STR-CONFLATED: in 'resolved' (line 12), a contract or body comparison has a pathlib.Path operand (op `==`). The model represents a Path as its string form, so a Path and its str are the same value there, while in CPython a Path never equals a str and Paths order by parts (route #614). Compare `str(p)` explicitly.
+rc=1

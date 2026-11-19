@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt65/d09_local_def.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+
+[!] PIPELINE ERROR:
+nested function 'Path' is lifted to a sibling of its enclosing function, and the lift is not faithful here: another function in the file has the same name. A lifted body reads a captured name as ONE global opaque constant shared by every call, and two lifted helpers with the same name collapse to one. Pass the captured values as parameters and give the helper a unique name, or move it to module level.
+rc=1

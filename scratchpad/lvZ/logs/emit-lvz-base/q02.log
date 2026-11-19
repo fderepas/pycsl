@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ/scratchpad/lvZ/probes/lvz/q02/main.py'...
+[*] Memory model: hoare
+[*] Imported from 'h': ['mk'] (trusted stubs, module-qualified)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+rc=0

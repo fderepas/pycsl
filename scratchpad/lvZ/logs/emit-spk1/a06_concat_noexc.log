@@ -1,0 +1,8 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt65/a06_concat_noexc.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[parse]: PyCSL Syntax Error around line 7:
+no_exception
+expected name (got EOF '')
+rc=1

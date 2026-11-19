@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt65/b01_repr.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+
+[!] PIPELINE ERROR:
+[whyml]: PYCSL-R614-PATH-STR-CONFLATED: line 7: `repr(Path(s))` in 'f' applies `repr` (ordering / hashing / equality / type / repr) to a Path value. The model represents a pathlib.Path as its string form (a Why3 `string`: #31's annotation erasure, lvX's `Path(<str>)`), so a Path and its str are the same value there, while in CPython a Path never equals a str and Paths order by parts, not by string (route #614; measured: `p == str(p)` proved `\result == True`, CPython False). Compare the strings explicitly (`str(p) == s`, `str(p) < str(q)`), or keep the Path out of the comparison.
+rc=1

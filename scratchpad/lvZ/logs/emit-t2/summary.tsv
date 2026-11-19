@@ -1,0 +1,23 @@
+a01_eq_str_of_path	PIPELINE ERROR
+w10140	Verification SUCCESS
+m02	L3-tc ✗
+m01	L3-tc ✗
+n02_typealias	L3-tc ✗
+n18_typealias_order	L3-tc ✗
+2180_gen36_ch14_path_predicates_compound_receiver	Verification SUCCESS
+2184_gen36_ch14_path_predicate_simple_name_control	Verification SUCCESS
+9700_lvq_ext_mkdir_honest	PIPELINE ERROR
+9706_lvq_ext_write_then_isfile	PIPELINE ERROR
+9961_u44_r599_ctl_path_receiver_under_handler	PIPELINE ERROR
+9962_u44_r599_ctl_two_ext_mkdir_body	PIPELINE ERROR
+9966_u44_r599_ctl_advice_annotate_path	PIPELINE ERROR
+9963_u44_r599_ctl_advice_move_out_of_try	Verification SUCCESS
+10145_lvx_path_ctor_sha_handler_ctl	Verification SUCCESS
+6587_r434_k07_path_convert_ctl	PIPELINE ERROR
+6786_r443_ctl_stdlib_class_param	Verification SUCCESS
+10207_r614_str_of_path_compare_ctl	L3-tc ✗
+10140_lvx_path_ctor_deterministic_ctl	Verification SUCCESS
+9707_lvq_ext_cwd_fnf_reachable	Verification SUCCESS
+10084_lvv_read_bytes_two_reads_unrelated	Verification SUCCESS
+10083_lvv_read_bytes_fnf_reachable	Verification SUCCESS
+DONE

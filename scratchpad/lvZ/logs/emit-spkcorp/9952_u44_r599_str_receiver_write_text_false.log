@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ/test-suite/corpus/pycsl-reference/9952_u44_r599_str_receiver_write_text_false.py'...
+[*] Memory model: hoare
+[*] Import 'argparse.ArgumentParser': external module, no local source found — skipping
+
+[!] PIPELINE ERROR:
+PYCSL-R7Q-EXT-PATH-RECEIVER: `s.write_text(..)` is modelled as `pathlib.Path.write_text` (the file imports `Path` from `pathlib`), but its receiver is not typed as a path / str here, so the call cannot be lowered to the open-world path model. Annotate the receiver as `Path` (or bind it from `<Path> / <str>`) and pass a `str`.
+rc=1

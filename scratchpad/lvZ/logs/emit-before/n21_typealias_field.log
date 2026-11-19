@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt67/n21_typealias_field.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] scratchpad/lvZ/probes/rt67/n21_typealias_field.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'f', the value '_pycsl_seq624216986_0' comes from 'field 'A.p'', a non-int field PyCSL has no model of: it is lowered to an OPAQUE INT whatever its Python type (a float, a string, a module...), and it is used here as an integer (`. p in ( _pycsl_seq624216986_0 = ( str_hash_op (`), where every claim true of all integers (`x % 1 == 0`, `x * 0 == 0`, `x < e or x >= e + 1 or x == e`) would be proved of it. Refused (fail closed). Give it a modelled form: an `int` literal / int expression, or pass it in as a typed parameter with an explicit `requires`.
+rc=1

@@ -1,0 +1,9 @@
+[*] trusted-directives: markers 337 · grep-substring 365 · offset 28 · attached 337 · unattached 0
+    OFFSET (substring hits that are NOT markers):
+        1x  # (#49) gen #32 — CONVERTED. This was `#@ \trusted reviewer: pycsl-sel
+        1x  # `_sig_val_from_let`, which is itself `#@ \trusted`, so the enclosing
+        1x  # over. `_returns_literal_none` is itself `#@ \trusted`, so this closu
+       25x  annotated `#@ \trusted reviewer: pycsl-self-annotate`; bodies
+[*] trusted-directives: declared_in 25 · attached 25 · unattached 0  (a DISTINCT class, NOT in `markers`: cross-mixin declarations certified by bin/check-declaration-conformance.py; same `val` emission)
+    stale (trusted or declared_in, but emitted as a definition): 0 (over 53 matched emission(s))
+[+] trusted-directives: OK

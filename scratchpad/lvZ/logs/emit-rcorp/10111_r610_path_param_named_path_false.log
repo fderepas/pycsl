@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10111_r610_path_param_named_path_false.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[module6-call]: PYCSL-R610-EXT-MODULE-NAME-SHADOWED: in function 'where', `Path.cwd(..)` is modelled as the function of the imported module `Path`, but the name `Path` is also bound in this function (a parameter, a local, a for / with / except / walrus / comprehension target, `global` / `nonlocal`, a nested def / class, an import inside the function) or rebound at module level after the import, so in Python the call may be a method of another object, whose effects and results the module model would drop (route #610). Rename that binding (e.g. `Path_obj`) so that `Path` names only the module.
+rc=1
