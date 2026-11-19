@@ -120,4 +120,18 @@ Note on check-emitted-vacuity: it reports "2 known erasure(s) NO LONGER erased: 
 
 ## Commits (all on run8-u54, none pushed)
 
-COMMITS
+- `f4df01f53`: the repair in `src/pycsl/pycsl.py` (per-function probe, call-site probe, gate verdict, main-goal dispatch), plus the witness wrapper, the driver script and the audit draft.
+- `706e19e29`: main-kill witness program. This is the gated snapshot; its src/bin/test-suite are identical to the final commit.
+- `70adc7d4d`: report draft, main-kill witness rewritten without the callee (with the callee, Z3 answered Unknown in 0.02 s and the kill never landed), `R615_ONLY=main`.
+- `378b93532`: final audit and report, plus this commit list.
+
+The src diff vs base is `git diff 41fc6f781 378b93532 -- src` (pycsl.py only, +91 / -2 at 706e19e29; unchanged since).
+
+Worktrees left for re-proving: `/home/fabrice/git/pycsl-u54-base` (detached @ `41fc6f781`) and `/home/fabrice/git/pycsl-u54-s1` (detached @ `706e19e29`).
+
+Job scripts:
+- `scratchpad/u54/job1.sh`: rc probes, base witness, base sweeps.
+- `scratchpad/u54/job2.sh`: base and head witness, head sweeps, compares, fidelity, planes.
+- `scratchpad/u54/job3.sh`: main-kill witness on base and head.
+
+All my jobs ran with oom_kill 15 -> 15, and none of mine is still running.
