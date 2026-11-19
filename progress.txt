@@ -22,3 +22,32 @@ Wed Nov 18 19:33:30 UTC 2026 job1 queued
 Wed Nov 18 19:45:46 UTC 2026 job1 STARTED (oom_kill 15 at start)
 Wed Nov 18 19:48:34 UTC 2026 job1 running base sweeps; base witness: kill-pf/exit137-pf silently SUCCESS (fail-open confirmed)
 Wed Nov 18 20:00:42 UTC 2026 job1 base corpus sweep running
+Wed Nov 18 20:13:12 UTC 2026 job1 base sweep running; head snapshot pycsl-u54-s1 @706e19e29 ready
+Wed Nov 18 20:25:32 UTC 2026 job1 base pyref sweep
+Wed Nov 18 20:34:40 UTC 2026 job1 base mirror sweep
+Wed Nov 18 20:39:07 UTC 2026 job1 done (base bd 3281/pyref 2185/mir 53, oom 15->15); job2 (head s1) queued
+Wed Nov 18 20:48:09 UTC 2026 job2 queued
+Wed Nov 18 21:00:05 UTC 2026 job2 queued
+Wed Nov 18 21:12:09 UTC 2026 job2 queued
+Wed Nov 18 21:24:25 UTC 2026 job2 queued
+Wed Nov 18 21:29:12 UTC 2026 job2 STARTED
+Wed Nov 18 21:32:48 UTC 2026 job2: head witness OK (kill-pf/exit137/kill-cs -> FAILED could not be checked); sweeps running
+Wed Nov 18 21:41:48 UTC 2026 job2 head corpus sweep
+Wed Nov 18 21:54:01 UTC 2026 job2 head corpus sweep
+Wed Nov 18 22:06:02 UTC 2026 job2 head pyref sweep
+Wed Nov 18 22:17:58 UTC 2026 job2 head mirror sweep
+Wed Nov 18 22:20:22 UTC 2026 job2 fast planes running (emission gates 0/0/0, mirror 0 diff, fidelity rc 0)
+Wed Nov 18 22:29:34 UTC 2026 job2 fast planes running
+Wed Nov 18 22:41:37 UTC 2026 job2 fast planes running
+Wed Nov 18 22:53:44 UTC 2026 job2 fast planes running
+Wed Nov 18 23:02:47 UTC 2026 job2 fast planes running
+Wed Nov 18 23:08:21 UTC 2026 job2 individual planes (check-emitted-vacuity --emit)
+Wed Nov 18 23:10:02 UTC 2026 job2 done (all gates green); job3 (main-kill witness base/head) queued
+Wed Nov 18 23:20:06 UTC 2026 job3 queued
+Wed Nov 18 23:32:22 UTC 2026 job3 queued
+Wed Nov 18 23:44:27 UTC 2026 job3 queued
+Wed Nov 18 23:57:33 UTC 2026 job3 queued; report drafted
+Thu Nov 19 00:13:02 UTC 2026 job3 queued
+Thu Nov 19 00:28:19 UTC 2026 job3 queued
+Thu Nov 19 00:40:37 UTC 2026 job3 queued
+Thu Nov 19 00:52:58 UTC 2026 job3 queued

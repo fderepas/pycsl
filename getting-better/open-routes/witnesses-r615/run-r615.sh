@@ -16,7 +16,8 @@ source /home/fabrice/git/pycsl/scratchpad/g29/env.sh
 export PATH="$W/bin:$PATH"
 cd "$T" || exit 2
 C=test-suite/corpus/pycsl-reference
-for m in off kill-pf exit137-pf ulimit-pf kill-cs; do
+# R615_ONLY=main runs only the main-goal part below.
+[ "$R615_ONLY" = main ] || for m in off kill-pf exit137-pf ulimit-pf kill-cs; do
   for f in $C/2823_gen36_r267_trusted_consistent_on_one_branch_control.py $C/0351.py; do
     b=$(basename "$f" .py | cut -c1-4); L="$O/$m-$b.log"
     R615_MODE=$m PYTHONHASHSEED=0 timeout 900 .venv/bin/python3 src/pycsl/pycsl.py "$f" --import-path src/pycsl > "$L" 2>&1; rc=$?
