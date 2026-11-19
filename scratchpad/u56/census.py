@@ -7,7 +7,10 @@ sys.path.insert(0, os.path.join(tree, "src", "pycsl"))
 import pycsl as P
 lock = threading.Lock()
 rows = []
+if len(mlws) == 1 and mlws[0].endswith(".list"):
+    mlws = [l.strip() for l in open(mlws[0]) if l.strip()]
 for mlw in mlws:
+  try:
     code = open(mlw).read()
     fns, _ = P._function_body_eqs(code)
     def fake(base_cmd, prover, tl, path, sels=None, _fns=fns, _mlw=mlw):
@@ -30,8 +33,11 @@ for mlw in mlws:
     import io, contextlib
     with contextlib.redirect_stdout(io.StringIO()):
         P._run_vacuity_gate(code, ["Alt-Ergo,2.6.3,"], types.SimpleNamespace(vacuity_timelimit="5"), set())
-    print(f"{os.path.basename(mlw)}: {len(fns)} fns, {sum(1 for r in rows if r[0]==os.path.basename(mlw))} with sites, "
+    nrej = sum(1 for r in rows if r[0]==os.path.basename(mlw) and r[3]!=0)
+    if len(mlws) < 100 or nrej: print(f"{os.path.basename(mlw)}: {len(fns)} fns, {sum(1 for r in rows if r[0]==os.path.basename(mlw))} with sites, "
           f"{sum(1 for r in rows if r[0]==os.path.basename(mlw) and r[3]!=0)} rejected", flush=True)
+  except Exception as e:
+    print(f"ERROR {mlw}: {e!r}", flush=True)
 with open(out, "w") as fh:
     for r in sorted(rows):
         fh.write("\t".join(map(str, r)) + "\n")

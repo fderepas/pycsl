@@ -18,6 +18,12 @@ def logged(base_cmd, prover, tl, path, sels=None):
     txt = open(path).read()
     kind = "callsite" if "[@expl:vacpost" in txt and "[@expl:vacprobe]" not in txt else "perfn"
     pl = txt.split("\n")
+    if kind == "perfn" and (os.environ.get("U56_SKIP_PERFN") or os.path.exists("/home/fabrice/git/pycsl-u56/scratchpad/u56/SKIP_PERFN")):
+        # the per-function `ensures false` probe already ran in the landed whole-file proofs;
+        # skipped here to save time: this run's RESULT reflects the CALL-SITE probe only.
+        print(f"[run] perfn prover={prover} SKIPPED (U56_SKIP_PERFN)", flush=True)
+        import subprocess
+        return subprocess.CompletedProcess([], 0, "", "")
     r = _run(base_cmd, prover, tl, path, sels)
     recs = P._json_goal_records(r.stdout)
     want = {int(s.rsplit(":", 1)[1]) for s in (sels or [])}

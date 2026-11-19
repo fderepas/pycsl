@@ -11,3 +11,36 @@ Thu Nov 19 16:14:46 UTC 2026 job1 launched (probes x21, then base sweeps)
 Thu Nov 19 16:23:33 UTC 2026 job1 queued in heavy gate (behind other executors)
 Thu Nov 19 16:26:24 UTC 2026 job1 queued/running
 Thu Nov 19 16:34:42 UTC 2026 job1 still queued
+Thu Nov 19 16:43:15 UTC 2026 job1 queued (gate held by other executors)
+Thu Nov 19 16:54:28 UTC 2026 job1 holds gate, waiting for slot
+Thu Nov 19 17:00:38 UTC 2026 probe _match_block_hdr
+Thu Nov 19 17:02:42 UTC 2026 probe _process_sertop_line
+Thu Nov 19 17:04:07 UTC 2026 probe _sexp_tokens
+Thu Nov 19 17:04:13 UTC 2026 job1 probes running: 2/21
+Thu Nov 19 17:06:52 UTC 2026 probe statementemissionmixin___array_coerce_arg
+Thu Nov 19 17:15:43 UTC 2026 job1 probes 3/21
+Thu Nov 19 17:24:20 UTC 2026 job1 probes 3/21
+Thu Nov 19 17:32:58 UTC 2026 job1 probes 3/21
+Thu Nov 19 17:39:10 UTC 2026 probe statementemissionmixin___first_assign_kind
+Thu Nov 19 17:39:16 UTC 2026 job1 probes 4/21
+Thu Nov 19 17:45:20 UTC 2026 job1 probes 4/21
+Thu Nov 19 17:54:07 UTC 2026 job1 probes 4/21
+Thu Nov 19 18:02:47 UTC 2026 job1 probes 4/21
+Thu Nov 19 18:11:27 UTC 2026 job1 probes 4/21
+Thu Nov 19 18:17:30 UTC 2026 probe statementemissionmixin___wrap_body_with_return_catch
+Thu Nov 19 18:17:37 UTC 2026 job1 probes 5/21
+Thu Nov 19 18:26:10 UTC 2026 job1 probes 5/21
+Thu Nov 19 18:34:45 UTC 2026 job1 probes 5/21
+Thu Nov 19 18:36:25 UTC 2026 probe controlflowstmtmixin___handle_if_stmt
+Thu Nov 19 18:39:31 UTC 2026 job1 probes 6/21
+Thu Nov 19 18:48:10 UTC 2026 job1 probes 6/21
+Thu Nov 19 18:53:08 UTC 2026 probe controlflowstmtmixin___handle_return_stmt
+Thu Nov 19 18:56:02 UTC 2026 job1 probes 7/21
+Thu Nov 19 19:04:43 UTC 2026 job1 probes 7/21
+Thu Nov 19 19:13:22 UTC 2026 job1 probes 7/21
+Thu Nov 19 19:21:58 UTC 2026 job1 probes 7/21
+Thu Nov 19 19:30:36 UTC 2026 job1 probes 7/21 (handle_return_stmt, 80 sites)
+Thu Nov 19 19:42:10 UTC 2026 job1 probes 7/21
+Thu Nov 19 19:42:41 UTC 2026 killed my own why3 3858657 (handle_return_stmt probe, would exceed job1 3600s per-fn timeout); will re-run alone with a longer timeout
+Thu Nov 19 19:42:41 UTC 2026 probe _parser___looks_like_match
+Thu Nov 19 19:43:49 UTC 2026 job1b launched (13 remaining probes, 4h per-fn timeout, then base sweeps)
