@@ -318,3 +318,11 @@ Wed Nov 18 21:29:46 UTC 2026 u53: all gates done; final report commit
 2026-11-19T13:45:14Z lvZ: waiting on battery bat1 ()
 2026-11-19T14:00:21Z lvZ: waiting on battery bat1 ()
 2026-11-19T14:10:44Z lvZ: WIP commit; battery bat1 still queued behind planes --slow + expressions mirror proof
+2026-11-19T14:25:53Z lvZ: waiting on battery bat1 ()
+2026-11-19T14:40:45Z lvZ: waiting on battery bat1 ()
+2026-11-19T14:55:17Z lvZ: waiting on battery bat1 ()
+2026-11-19T15:07:52Z lvZ: battery bat1 STARTED 15:06Z (S1 spike sweep)
+2026-11-19T15:23:05Z lvZ: waiting on battery bat1 (2026-11-19T15:06:16Z oom=15 START spike=fdb9e6419 R=3fc8f5079)
+2026-11-19T15:38:29Z lvZ: waiting on battery bat1 (2026-11-19T15:06:16Z oom=15 START spike=fdb9e6419 R=3fc8f5079)
+2026-11-19T15:53:59Z lvZ: waiting on battery bat1 (2026-11-19T15:06:16Z oom=15 START spike=fdb9e6419 R=3fc8f5079)
+2026-11-19T16:03:15Z SPIKE (R) recommended: (T) fdb9e6419 vs v69 int70: corpus root 3295/3295 24 MOVED 0 GONE 0 APPEARED (all Path files; ~12 expected-PASS owe re-proof); pyref 2185/2185 0/0/0; mirror 53/53 9 MOVED (pycsl, audit_proof, audit_proof_reverify + import_classifier, proof2why3/{crosscheck,crosscheck_ir,extract,extract_lean_meta,sertop}); VERIFIED bodies move outside pycsl/audit_proof* (crosscheck._module_namespace_of, extract_lean_meta.lean_meta_available); probes: all 16 rt67 false proofs -> L3-tc, 3 sound controls over-refused (o03,o04-fixed?,o08)
