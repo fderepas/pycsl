@@ -134,7 +134,15 @@ BASELINE = {
 
 def classify(path, timeout):
     try:
-        p = subprocess.run([PY, DRIVER, "--import-path", os.path.join(ROOT, "src"), path],
+        # (run #8 u55, route #613 / review rt66) `--as-package-module src`: a library module is
+        # never run as a script, it is imported as `pycsl_lib.<X>` -- pyproject.toml's
+        # `[tool.setuptools.packages.find] where = ["src"]`, put on sys.path by the editable
+        # install's `.pth` -- so sys.path[0] is not `src/pycsl_lib/`, whose stdlib-named model
+        # packages (`copyreg/`, `re/`, `os/`, ...) script mode would rightly refuse as shadows
+        # (`__init__.py`, REFUSED TRANSITIVE-SHADOW at ff03f178c). The declared mode's own
+        # rules (ROOT-first absolute imports, the parent `__init__` chain) apply in full.
+        p = subprocess.run([PY, DRIVER, "--import-path", os.path.join(ROOT, "src"),
+                            "--as-package-module", os.path.join(ROOT, "src"), path],
                            capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return "TIMEOUT"

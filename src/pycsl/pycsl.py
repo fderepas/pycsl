@@ -1045,7 +1045,9 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
                          "the package rooted at " + os.environ["PYCSL_AS_PACKAGE_MODULE"]
                          + ", so sys.path[0] is that root (an entry script's directory), not "
                          "the program's directory; route #613's closure check searches that "
-                         "root instead of the program's directory",
+                         "root instead of the program's directory, and (u55) every absolute "
+                         "import and every parent package must resolve from that root as "
+                         "`python -m` resolves them",
             "counterexample": "src/pycsl/module6_whyml/scc.py run as a script: its directory "
                               "is sys.path[0], and `typing`'s own `import types` loads the "
                               "local module6_whyml/types.py (venv CPython 3.14: ImportError, "
