@@ -144,7 +144,7 @@ replaced because u53's contract walk already refused it.
 | 10248 | imported `ident(p: Path) -> Path` | FAIL | REFUSED | REFUSED | REFUSED |
 | 10249 | Path to imported `keep(x: str)` | FAIL | REFUSED | REFUSED | REFUSED |
 | 10250 | `import ... as lib; lib.mk(s)` | FAIL | REFUSED | REFUSED | REFUSED |
-| 10251 | control: Path to imported `name_of(p: Path) -> str` | PASS | SUCCESS 2/2 | see below | see below |
+| 10251 | control: Path to imported `name_of(p: Path) -> str` | PASS | SUCCESS 2/2 | SUCCESS 2/2 (b5c1d5555) | SUCCESS 2/2 (b5c1d5555) |
 | 10252 | control: alias, `str(p)` compared | PASS | SUCCESS 2/2 | SUCCESS 2/2 | SUCCESS 2/2 |
 | 10253 | alias `p in [str(p)]` | FAIL | REFUSED | REFUSED | REFUSED |
 | 10254 | `from ... import *`, `mk(s)` | FAIL | REFUSED | REFUSED | REFUSED |
@@ -155,7 +155,8 @@ Logs: `bat1/wit.tsv`, `bat1/wit.<id>.<model>.log`. oom_kill was 15 -> 15 on ever
 - Its `#@ assigns \nothing` cannot hold, because the injected stub `name_of` declares no frame
   (`val name_of .. writes { int_mem }`, `logs/10251.typed.mlw`).
 - This is a property of the witness's claim, not of the change. The frame claim was dropped at e5b2f55c8.
-- The re-proof is in section 5 (`bat2/wit.tsv`).
+- Re-proved at b5c1d5555 in all three models: SUCCESS 2/2 each, oom 15 -> 15 (`bat2/wit.tsv`,
+  `bat2/wit.10251.<model>.log`; one NORMAL heavy job, PYTHON_CPU_COUNT=2).
 
 Census rows: 13 rows via `_census_row` (all REFUSAL), measured in the battery (`bat1/census-rows.tsv`) and
 appended to `bin/refusal-witness-census.tsv`.
@@ -205,7 +206,6 @@ New over-refusals and pending re-proof:
   affected.
 - Over-refusal: any call to a re-exported dependency function (its `def` not found in the named module) is
   path-ish, so comparing its result with a `str` is refused.
-- 10251 in typed / store at e5b2f55c8 (frame claim dropped): see section 7.
 
 Older residuals, kept from u53:
 - Annotation honesty is trusted.
@@ -218,4 +218,5 @@ Older residuals, kept from u53:
 - c49917934 battery script; 4366f1790 WIP
 - 8df908e6c spike measurement -> (R)
 - e5b2f55c8 (R) gated: census rows; bat1 evidence; 10251 frame claim dropped
+- b5c1d5555 report draft; (final) report + bat2 evidence
 - (spike, branch run8-lvZ-spikeT) fdb9e6419
