@@ -40497,7 +40497,7 @@ def _why3_typecheck(mlw_filename: str) -> Tuple[bool, str]:
         r = subprocess.run(["why3", "prove", "--type-only", mlw_filename],
                            capture_output=True, text=True)
     except FileNotFoundError:
-        return False, ("why3 not found on PATH — the type-check could NOT run, so this is "
+        return False, ("why3 not found on PATH -- the type-check could NOT run, so this is "
                        "NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck "
                        "for an explicitly emit-only run.")
     if r.returncode == 0:

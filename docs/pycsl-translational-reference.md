@@ -5284,6 +5284,29 @@ satisfiable and asserts nothing false of the denoted Python value; the guard $0 
 injectivity finite. `string.Char` is deliberately not used: it relates no `Char` to the solver's
 characters, and its axioms perturbed unrelated goals (measured).
 
+### §T.6.101a  A str value above Latin-1 is refused, not lowered (route #429, run #8)
+
+_Corresponds to `annotations.md` §7.611._
+
+$\tau(\texttt{str})$ is the 8-bit Why3 `string` (LATIN1-STR), so a code point $c > 255$ has no
+image: `whyml_string_literal` writes $\mathit{utf8}(c)$, 2..4 characters, and every `String.length` /
+`String.get` / `String.substring` / equality law then holds of the bytes (measured: `len("\U0001F600")
+== 4` proved). The lowering is now PARTIAL. (1) `whyml_string_literal`'s UTF-8 arm writes each byte
+$b$ as the decimal escape `\`$ddd(b)$ (Why3's lexer reads it as the byte $b$, so the emitted model is
+unchanged; the arm takes `surrogatepass`). (2) In §T.6.101's final pass, each decoded literal is also
+read back as a Python value $v$: a maximal run of decimal escapes $\ge 128$ is UTF-8-decoded
+(`surrogateescape`), every other character / escape is one code point (a raw character above 255,
+written by a raw emitter fold, is itself). (3) Before `_run_pipeline` returns: let $O$ be the values
+$v$ with some code point $> 255$. With $E$ the str `Constant` values the source AST holds ONLY in an
+excused position (an argument / keyword value of a `raise <Name|Attribute>(..)` call or of an
+expression-statement `print(..)` call, closed under f-string constant parts and `+` operands) and $N$
+every other str `Constant` value plus the `ast.literal_eval` of every string token on a `#@` line,
+the run is REFUSED (`PYCSL-R429-NONLATIN1-STR-LITERAL`) iff some $v \in O$ has $v \notin E$ or
+$v \in N$. Excused values reach the model only as an exception payload (bound by wildcard arms,
+never read) or under `print_1 (str_hash_op ..)` (result `unit`). A literal of code points $\le 255$
+is translated exactly as in §T.6.101. All of it is inline in `_run_pipeline` (mirror twin
+`\trusted`); `whyml_string_literal` has no mirror twin.
+
 ### §T.6.144  Attribute receivers that may be `None` or of several classes (route #432, run #3)
 
 _Corresponds to `annotations.md` §7.133._
