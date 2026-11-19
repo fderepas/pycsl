@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt65/d10_type_alias.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt65/d10_type_alias.py line 8: /home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt65/d10_type_alias.py (line 8): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `Path` is bound by the PEP 695 statement `type Path = ...` (line 3) and the code reads it as a value. In CPython that statement BINDS the name (in its scope, whenever it runs) to a typing.TypeAliasType, which is never a number, string, container or callable program value, but PyCSL drops the statement and kept reading the name's other binding (a folded module constant, a parameter, a local, a def, a builtin): `K = 5` ... `type K = int` proved `\result == 5` over `return K` and `no_exception \all` over `n // K` (route #510). A `type` name may be read only as a type (an annotation, an alias value, a bound). Rename the alias so it shadows no value the program reads (`type KT = int`).
+rc=1

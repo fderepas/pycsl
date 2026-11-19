@@ -18658,6 +18658,60 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _shm610 &= _W610
     transpiler.shadow_r610 = _sh610
     transpiler.shadow_mod_r610 = _shm610
+    # (run #8) lvZ2 -- RESTRICTED PATH TYPE SEPARATION: WHICH LOCALS HOLD A MODELLED
+    # `Path(<str>)`. lvX lowered `Path(<str>)` to a `string`, so any channel that let the
+    # value meet a `str` (an imported identity, a dotted callee, an alias) decided
+    # `p == str(p)` / ordering on the string (rt65 / rt67 / rt70). The modelled constructor's
+    # result is now the abstract WhyML `py_path` (Module 6 `_handle_call_expr`), and Module 6
+    # must know which LOCALS hold one (`str(p)`, `p == q`, `p.read_bytes()`, `f"{p}"`). That
+    # exists only in the SOURCE, so it is computed here, per function (route #599's names):
+    # a non-parameter name EVERY binding of which, anywhere in the function (nested scopes
+    # included), is a single-target `n = Path(<one positional arg>)` / `n: T = Path(..)`.
+    # Any other binding (parameter, nested parameter, for / with / walrus / comprehension /
+    # augmented / tuple target, `del`, import, global / nonlocal, def / class, except, match)
+    # disqualifies the name. Module 6 additionally applies lvX's constructor test (the
+    # `from pathlib import Path` binding, route #610's tables); a name it misclassifies only
+    # meets a `py_path` op with another type: a Why3 type error (fail-closed).
+    _pp8z: Dict[str, Set[str]] = {}
+    if _t599 is not None:
+        _sn8z: Set[str] = set()
+        for _fq8z, _fd8z in _fns599:
+            _ok8z: Set[int] = set()
+            for _n8z in _ast599.walk(_fd8z):
+                _v8z = getattr(_n8z, "value", None)
+                if (isinstance(_n8z, (_ast599.Assign, _ast599.AnnAssign))
+                        and isinstance(_v8z, _ast599.Call)
+                        and isinstance(_v8z.func, _ast599.Name) and _v8z.func.id == "Path"
+                        and len(_v8z.args) == 1 and not _v8z.keywords
+                        and not isinstance(_v8z.args[0], _ast599.Starred)):
+                    _tg8z = (_n8z.targets if isinstance(_n8z, _ast599.Assign)
+                             else [_n8z.target])
+                    if len(_tg8z) == 1 and isinstance(_tg8z[0], _ast599.Name):
+                        _ok8z.add(id(_tg8z[0]))
+            _gd8z: Set[str] = set()
+            _bad8z: Set[str] = set()
+            for _n8z in _ast599.walk(_fd8z):
+                if isinstance(_n8z, _ast599.arg):
+                    _bad8z.add(_n8z.arg)
+                elif (isinstance(_n8z, _ast599.Name)
+                      and isinstance(_n8z.ctx, (_ast599.Store, _ast599.Del))):
+                    (_gd8z if id(_n8z) in _ok8z else _bad8z).add(_n8z.id)
+                elif (isinstance(_n8z, (_ast599.FunctionDef, _ast599.AsyncFunctionDef,
+                                        _ast599.ClassDef)) and _n8z is not _fd8z):
+                    _bad8z.add(_n8z.name)
+                elif isinstance(_n8z, (_ast599.Import, _ast599.ImportFrom)):
+                    _bad8z.update((_al.asname or _al.name).split(".")[0] for _al in _n8z.names)
+                elif isinstance(_n8z, (_ast599.Global, _ast599.Nonlocal)):
+                    _bad8z.update(_n8z.names)
+                elif isinstance(_n8z, _ast599.ExceptHandler) and _n8z.name:
+                    _bad8z.add(_n8z.name)
+                elif isinstance(_n8z, (_ast599.MatchAs, _ast599.MatchStar)) and _n8z.name:
+                    _bad8z.add(_n8z.name)
+                elif isinstance(_n8z, _ast599.MatchMapping) and _n8z.rest:
+                    _bad8z.add(_n8z.rest)
+            _pp8z[_fq8z] = set() if _fq8z in _sn8z else (_gd8z - _bad8z)
+            _sn8z.add(_fq8z)
+    transpiler.ppath_locals_lvz2 = _pp8z
     # (run #6) ROUTE #579 -- IR-CLASS IDENTITY BY RESOLUTION, NEVER BY NAME. The emit_ir
     # isinstance recognizers (`isinstance(<emit_ir>, ast.Name)` -> `is_var`, `isinstance(
     # <emit_ir>, CSLFieldAccess)` -> `is_fieldget`) and route #567's narrowing judge read the

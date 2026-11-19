@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt65/e20_noexc.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'f' line 8: the receiver `Path(s)` of the attribute `.isdigit` has an UNDERIVABLE class here (derived: ['#UND'] -- an element / value of an `Any` / `object` / un-parameterised container, an `Any` / `object` / alias / TypeVar annotation, or an unknown callee's result), so it may be an instance of a class without `isdigit` and CPython may raise AttributeError, while this function claims `#@ no_exception` covering AttributeError and the model lowers the access as an opaque value (route #443; measured: `row: List[Any]; len(row[0].strip())` under `#@ no_exception \all` proved). Give the value a concrete type at its source (a container annotated `List[str]` / `Dict[str, str]` rather than `List[Any]` / `Dict[str, Any]` / a bare `list`), or drop the claim.
+rc=1

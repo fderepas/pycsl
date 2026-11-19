@@ -9866,6 +9866,37 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # the `Some (…)` arm with its slot's real type — never the int `ref 0`.
             and v not in getattr(self, "_option_tuple_unpack_targets", set())
         }
+        # lvZ2 (run #8): a local holding a MODELLED `Path(<str>)` (pycsl.py's
+        # `ppath_locals_lvz2` + lvX's constructor test, inlined as in
+        # `expressions._handle_call_expr`) is a `py_path`: it is `let`-bound at its
+        # assignment (`let p = ref (ext_path_of_str_op s) in`), never the int `ref 0`
+        # pre-decl (an L3-tc error against `py_path`). A first binding inside a branch is
+        # then out of scope after it: a Why3 error, fail-closed. Byte-inert elsewhere.
+        _i8z = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+        _t8z = getattr(self, "shadow_r610", None)
+        _m8z = getattr(self, "shadow_mod_r610", None)
+        _q8z = getattr(self, "_current_sig_func_name", None)
+        _ok8z = (any(_i[0] == "Path" for _i in _i8z)
+                 and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                         for _i in _i8z if _i[0] == "Path")
+                 and all(_i[0] != "*" for _i in _i8z)
+                 and isinstance(_t8z, dict) and _q8z in _t8z and "Path" not in _t8z[_q8z]
+                 and isinstance(_m8z, set) and "Path" not in _m8z
+                 and "Path" not in {_f.get("name") for _f in (
+                     (getattr(self, "ir", None) or {}).get("functions") or [])
+                     if isinstance(_f, dict)}
+                 and "Path" not in {_t.get("name") for _t in (
+                     (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                     if isinstance(_t, dict)})
+        _pp8z = lambda _e: bool(_ok8z and isinstance(_e, dict) and (
+            (_e.get("type") == "Var" and _e.get("name") in (
+                (getattr(self, "ppath_locals_lvz2", None) or {}).get(_q8z) or ()))
+            or (_e.get("type") == "Call" and _e.get("func") == "Path"
+                and _e.get("receiver") is None and not _e.get("keywords")
+                and len(_e.get("args") or []) == 1 and isinstance(_e["args"][0], dict)
+                and self._is_string_expr(_e["args"][0]))))
+        pre_decl_vars = {v for v in pre_decl_vars if not _pp8z({"type": "Var", "name": v})}
         # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model),
         # a string local is PRE-DECLARED `ref ""` (not let-bound at first assign), so a
         # local first-assigned inside a conditional branch (`if …: hi = a else: hi = b`)

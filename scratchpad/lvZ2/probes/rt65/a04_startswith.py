@@ -1,0 +1,15 @@
+from __future__ import annotations
+from pathlib import Path
+
+#@ ensures \result == 1
+#@ assigns \nothing
+def f(s: str) -> int:
+    try:
+        b = Path(s).startswith("a")
+        return 1
+    except AttributeError:
+        return 0
+
+
+if __name__ == "__main__":
+    print("result", f("a"))
