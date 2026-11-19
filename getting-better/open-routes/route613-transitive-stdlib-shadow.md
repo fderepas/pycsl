@@ -1,6 +1,8 @@
 # OPEN ROUTE #613: a module CPython loads TRANSITIVELY can be a local file the program never imports
 
-**Status: REPAIRED (refusal-only)** on run #8, branch run8-u52, by executor u52. USER DECISION of
+**Status: REPAIRED (refusal-only)** on run #8, branch run8-u52, by executor u52; FOLLOW-UP REPAIR
+of review rt66's five gaps (g01 / g02 / g08 / g09 / g10) on branch run8-u55 by executor u55 (see the
+section "u55 follow-up" at the end, and `getting-better/run8-u55-report.md`). USER DECISION of
 2026-11-18: "really bad, recursively check imported modules". Recorded first as u50's residual (log
 1071), then opened as a route (log 1090).
 
@@ -123,3 +125,47 @@ top-level stdlib name to every top-level name imported by any `.py` of that modu
   - A shadow of a startup-loaded module (`os`, `codecs`) is refused, although it is never re-imported.
     The startup set depends on the environment (Ubuntu's sitecustomize loads `types`; the venv's does
     not).
+
+
+## u55 follow-up (review rt66: five closure gaps, all refusal-only)
+
+Review rt66 (`scratchpad/rt66/FINDINGS.txt`) found five layouts where CPython loads a module pycsl
+never analysed and pycsl still PROVED the program. Each is now refused; `getting-better/run8-u55-report.md`
+has the base / head evidence.
+
+| gap | origin | rule (code) |
+|---|---|---|
+| g02 | the declared mode | under `--as-package-module ROOT` every absolute import (program and dependencies) is resolved again with ROOT first; another file, or a file on one side only, refuses (`PYCSL-SEM-IMPORT-PACKAGE-MODE-ORDER`) |
+| g08 | the declared mode | each parent package between ROOT and the program, and the program itself, must resolve from ROOT to its own `__init__.py` / file (#326 / #611 / r12 incl. the `__pycache__` / #475 judge each); each parent `__init__.py` is judged as a dependency: the import-system rule, and no dynamic import machinery (`PYCSL-SEM-IMPORT-PACKAGE-MODE-PARENT`, or the dependency's own `STATE-MANIPULATED`) |
+| g01 | pre-existing | the judged names also hold every table key and every module entry of Lib / lib-dynload / the platform stdlib (computed names: `_sysconfigdata_*`), and literal names handed to `__import__` / `import_module` / `resources.files` (`tzdata`, `comtypes`); table key bumped to `r613-v2` |
+| g10 | pre-existing | every candidate is judged IN ITS OWN ROOT (a notional entry script there), not only the first hit in pycsl's order |
+| g09 | pre-existing, environment | the startup-hook closure: `sitecustomize` / `usercustomize` and `.pth` import lines in the site directories of the running interpreter AND its base installation, followed module by module (dotted names to `__init__` chains and module files; never into the stdlib); its own cache `r613-startup-hooks-<key40>.json`, valid only while every probed path keeps its (size, mtime) and every site directory its listing |
+
+**New declared mode `--verification-image ROOT` (driver decision, USER-VISIBLE).** The mirror gates
+no longer use `--as-package-module`. A faithful g02 cannot hold for the mirror. Its ROOT-level files
+resolve `errors` / `frontend.*` to the MIRROR copies, while its subpackage files resolve the same
+names, through `--import-path src/pycsl`, to the LIVE copies, and every such pair differs. So no
+single `sys.path[0]` makes both groups resolve as CPython would.
+
+- Meaning: the file is a verification model that CPython never executes. It makes NO claim about
+  a CPython run.
+- Its own imports resolve as pycsl resolves them, and only the closure check's roots move to ROOT.
+  #613 / #611 / r12 / g01 / g09 / g10 all still apply.
+- Listed by `--soundness-report` as VERIFICATION-IMAGE. Never inferred, and it excludes
+  `--as-package-module`.
+
+**`check-stdlib-modules-verify` declares `--as-package-module src`.** It was red at int69: its
+`src/pycsl_lib/__init__.py` was refused, because that directory holds stdlib-named model packages.
+The library is imported as `pycsl_lib.X` (pyproject `packages.find where = ["src"]`, through the
+editable install's `.pth`), which is the faithful user-facing mode.
+
+**Residuals (u55).**
+
+- **Environment.** The startup-hook closure reads the site directories that pycsl's interpreter
+  and its base installation have now. A different interpreter, PYTHONPATH- or `.pth`-added
+  directories that hold a `sitecustomize`, and user site directories that are disabled at
+  verification time but enabled at run time remain residual.
+- **Flow-insensitive hooks.** The hook closure follows every import of each reached module,
+  including dead branches (`_distutils_hack` -> `setuptools`, ...).
+- **Over-refusal.** A `test/` package or `test.py` beside a program stays refused. `test` is a
+  stdlib directory, and g01 requires every such name. Over-refusal numbers are in the report.
