@@ -1,0 +1,14 @@
+diff --git a/src/self-annotate/src/pycsl.py b/src/self-annotate/src/pycsl.py
+index c5a8ce54c..558400ec8 100644
+--- a/src/self-annotate/src/pycsl.py
++++ b/src/self-annotate/src/pycsl.py
+@@ -670,7 +670,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
+ 
+ 
+ #@ requires True
+-#@ ensures True
++#@ ensures \result[0] == True ==> \result[1] == ""
++#@ ensures \result[0] == True
+ #@ assigns \nothing
+ def _why3_typecheck(mlw_filename: str) -> Tuple[bool, str]:
+     """Phase D honest gate: parse + typecheck the emitted WhyML with why3 (no proof).

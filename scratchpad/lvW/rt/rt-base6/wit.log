@@ -1,0 +1,6 @@
+oom_before oom_kill 0
+r6_object_slot rc=1 1s Verification FAILED valid=0 total=0 | 
+r6b_object_slot_single rc=0 2s Verification SUCCESS valid=1 total=1 | 
+r6c_float_slot rc=1 2s Verification FAILED valid=0 total=0 | 
+r6d_record_single rc=1 1s Verification FAILED valid=0 total=0 | 
+oom_after oom_kill 0

@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-head/r2m_tryfinally_mut.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[module6-assign]: rebinding the parameter `x` inside a nested block is out of scope: the new binding is a block-scoped `let`, so after the `if`/`for`/`while`/`try` the name denotes the CALLER's object again and every later read and write is answered from / applied to the argument (route #319). Measured: `if b: xs = [7, 7, 7]` then `return len(xs)` proved `\result == 2` (CPython 3). Bind the new value to a FRESH local name, or rebind the parameter at the top level of the function body.

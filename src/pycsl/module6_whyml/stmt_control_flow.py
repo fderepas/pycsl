@@ -3681,6 +3681,20 @@ class ControlFlowStmtMixin:
                 _suffix = (func_ret.replace("(", "").replace(")", "")
                            .replace(" ", "").replace(",", "_"))
                 return f"{indent}raise (Return_tup_{_suffix} {val})"
+            # TYPED TUPLE CODOMAIN (run #8 spike sp5, census-3 s376): a tuple return whose
+            # top-level slots are all scalars (int / bool / string / real) and NOT all int
+            # gets its OWN payload-typed exception `Return_tup_<slots>` (declared by
+            # `_emit_preamble_exceptions`), instead of the shared homogeneous
+            # `Return_<arity> (int, .., int)`, which mis-types the non-int slots (an L3-tc
+            # rejection: every emission that moves here failed L3-tc before). An all-int
+            # tuple keeps `Return_<arity>`; a nested / non-scalar slot is unchanged.
+            _tc_sfx = (func_ret.replace("(", "").replace(")", "")
+                       .replace(" ", "").replace(",", "_"))
+            if (func_ret.startswith("(") and "," in func_ret and "(" not in func_ret[1:]
+                    and _tc_sfx.replace("string", "").replace("bool", "").replace("real", "")
+                    .replace("int", "").replace("_", "") == ""
+                    and _tc_sfx.replace("int", "").replace("_", "") != ""):
+                return f"{indent}raise (Return_tup_{_tc_sfx} {val})"
             arity = self._current_tuple_arity
             if arity > 0:
                 # Tuple return: use the dedicated Return_<arity> exception

@@ -1,0 +1,3 @@
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into scratchpad/lvW/mir
+    Compare with: bin/byte-diff-compare.py <baseline> scratchpad/lvW/mir --min-files 45
+rc=0 wall=6937

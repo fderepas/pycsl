@@ -6158,6 +6158,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             _suffix = (return_type.replace("(", "").replace(")", "")
                        .replace(" ", "").replace(",", "_"))
             return f"    try\n{body_code}\n    with Return_tup_{_suffix} r -> r end"
+        # TYPED TUPLE CODOMAIN (run #8 spike sp5, census-3 s376): a tuple return whose
+        # top-level slots are all scalars (int / bool / string / real) and NOT all int
+        # gets its OWN payload-typed exception `Return_tup_<slots>` (declared by
+        # `_emit_preamble_exceptions`), instead of the shared homogeneous
+        # `Return_<arity> (int, .., int)`, which mis-types the non-int slots (an L3-tc
+        # rejection: every emission that moves here failed L3-tc before). An all-int
+        # tuple keeps `Return_<arity>`; a nested / non-scalar slot is unchanged.
+        _tc_sfx = (return_type.replace("(", "").replace(")", "")
+                   .replace(" ", "").replace(",", "_"))
+        if (return_type.startswith("(") and "," in return_type and "(" not in return_type[1:]
+                and _tc_sfx.replace("string", "").replace("bool", "").replace("real", "")
+                .replace("int", "").replace("_", "") == ""
+                and _tc_sfx.replace("int", "").replace("_", "") != ""):
+            return f"    try\n{body_code}\n    with Return_tup_{_tc_sfx} r -> r end"
         if arity > 0:
             return f"    try\n{body_code}\n    with Return_{arity} r -> r end"
         if return_type == "array int":

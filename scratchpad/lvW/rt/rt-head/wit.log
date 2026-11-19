@@ -1,0 +1,13 @@
+oom_before oom_kill 0
+r1_nested rc=1 1s Verification FAILED valid=0 total=0 | 
+r1b_record rc=1 1s Verification FAILED valid=0 total=0 | 
+r1c_list rc=1 2s Verification FAILED valid=0 total=0 | 
+r2_tryfinally rc=1 1s  valid=0 total=0 | 
+r2m_tryfinally_mut rc=1 1s  valid=0 total=0 | 
+r3_nested_fn rc=1 1s Verification FAILED valid=0 total=0 | This expression has type string, but is expected to have type i
+r3b_generator rc=1 2s Verification FAILED valid=0 total=2 | 
+r4_shared rc=0 2s Verification SUCCESS valid=6 total=6 | 
+r4m_shared_mut rc=1 2s Verification FAILED valid=5 total=7 | 
+r5_rec rc=1 2s Verification FAILED valid=0 total=0 | This expression has type string, but is expected to have type i
+r5m_rec_mut rc=1 1s Verification FAILED valid=0 total=0 | This expression has type string, but is expected to have type i
+oom_after oom_kill 0
