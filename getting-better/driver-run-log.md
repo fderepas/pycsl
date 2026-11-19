@@ -1449,3 +1449,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-19T18:05Z | 1175 | STATUS (run hour 54.0; 42 h left). Main = L16 (\trusted 366), ledger 3, oom_kill 15. v71 F (L17) running. Working: lvZ (#614 / #617 R route), u56 (#616), u57 (#429), rt69 (review for L17). |
 2026-11-19T19:03Z | 1176 | STATUS (run hour 55.0; 41 h left). Main = L16 (\trusted 366), ledger 3, oom_kill 15. v71 F (L17) running. lvZ (R) gated e5b2f55c8 + report draft; u57 (#429) WIP; u56 (#616) working; rt69 reviewing. |
 2026-11-19T20:03Z | 1177 | STATUS (run hour 56.0; 40 h left). Main = L16 (\trusted 366), ledger 3, oom_kill 15. v71 F (L17) running. u56: 8 / 21 call-site probes now run, none VACUOUS so far (897f54896). lvZ, u57, rt69 working. |
+2026-11-19T21:01Z | 1178 | STATUS (run hour 57.0; 39 h left). Main = L16 (\trusted 366), ledger 3, oom_kill 15. v71 F (L17) running. lvZ, u56, u57, rt69 working. |
