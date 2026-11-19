@@ -5376,6 +5376,16 @@ function: a `BinOp` comparison with a path-ish operand (a `Var` in the set, `Res
 function, a `Path` call, `.parent`, `/`) and, in the contract part (clauses, `ProofAssert`, invariants /
 variants), a call with a path-ish argument to an unchecked callee, is refused the same way. No WhyML is
 emitted differently; a refused file emits nothing.
+Route #617 (`annotations.md` §7.614): before the seeds, the pass computes the Path ALIASES of the unit
+(fixpoint over `X: T = <type expr>`, `X = <type expr>`, `type X = <type expr>` whose text matches the Path
+pattern or an alias, plus `Path as X` import bindings and aliases imported from a local dependency) and
+widens the annotation pattern and the Path-class set with them; it resolves every imported module whose
+injected `\trusted` stubs the unit calls (`frontend.ir_resolve._resolve_module_path`), parses its source,
+and records each imported callee's `def` (None when absent): a call is path-ish when the `def` returns a
+Path (or is None, or returns unannotated with a path-ish argument), any dependency function / method
+returning a Path joins the Path-returning names, and a path-ish argument to a callee parameter not
+annotated Path is refused, in the body and in the IR contract walk. Still refusal-only: an admitted file
+emits byte-identical WhyML.
 
 ### §T.6.148  Unbound builtin descriptors (route #435, run #3)
 

@@ -300,3 +300,4 @@ Wed Nov 18 21:29:46 UTC 2026 u53: all gates done; final report commit
 2026-11-19T09:57:04Z lvZ: spike sweep queued (NORMAL) on snapshot pycsl-lvZs fdb9e6419
 2026-11-19T10:05:56Z lvZ: (R) R614 alias+imported-callee extension drafted on run8-lvZ; rt67 m02/m05/n02/n17/n18/n24/n27-n31 refused at emission; spike sweep still queued
 2026-11-19T10:11:18Z lvZ: R witnesses 10240-10253 written (CPython agrees), emission refused/admitted as intended; WIP commit
+2026-11-19T10:17:59Z lvZ: R increment 2 (star/re-export/methods) + docs; requeueing ONE combined battery (spike sweep + R sweep + R gates)

@@ -12,3 +12,4 @@
 /home/fabrice/git/pycsl-lvZ/test-suite/corpus/pycsl-reference/10251_r617_imported_name_of_str_ctl.py
 /home/fabrice/git/pycsl-lvZ/test-suite/corpus/pycsl-reference/10252_r617_alias_str_compare_ctl.py
 /home/fabrice/git/pycsl-lvZ/test-suite/corpus/pycsl-reference/10253_r617_alias_in_str_list_false.py
+/home/fabrice/git/pycsl-lvZ/test-suite/corpus/pycsl-reference/10254_r617_star_imported_path_return_false.py

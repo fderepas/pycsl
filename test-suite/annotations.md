@@ -6707,6 +6707,27 @@ the IR). `str(p)` stays admitted: it IS a `str`. Advice: compare the strings (`s
 `str(p) < str(q)`). Witnesses `10200`-`10206` (expected FAIL; `10205` fails by proof, the others are refused
 in the default / typed / store models); control `10207`.
 
+**Route #617 (run #8, lvZ): aliases and imported callees.** Red team rt67 found two channels the
+annotation test above missed, both still lowered as strings: (B) a parameter / return annotated through a
+TYPE ALIAS of a Path type (`Fp: TypeAlias = Path`, PEP 695 `type Fp = Path`, `Fp = pathlib.Path`, an alias
+of `Optional[Path]`, an alias chain), which #31 resolves and erases to `string` (`p == str(p)`, `p != t`,
+`p < q`, `p in [str(p)]` PROVED; CPython False / True); (A) a Path that comes back from an IMPORTED
+function (`resolve_imports` injects it as a `\trusted` stub whose `-> Path` was erased to `string`:
+`q = ident(Path(s)); q == str(q)` PROVED), or that is passed to an imported `str` parameter. The pass now
+(a) resolves aliases to a fixpoint: a name bound anywhere by a TYPE EXPRESSION (a name, attribute, string,
+subscript or `|` union, never a call) that mentions a Path class or an alias, an import binding of a Path
+class (`Path as Fp`), and a name imported from a local dependency where it is such an alias, counts as a
+Path name in every annotation test and as a Path class at a call; (b) reads the DECLARED signature of every
+function imported from a local dependency (`from m import f`, `import m` + `m.f`, `from m import *`) from
+that dependency's source (its own aliases resolved): a call of one declared to return a Path (or with an
+unannotated return and a path-ish argument, or whose `def` cannot be found, e.g. a re-export) is
+path-ish, so are calls of any dependency function or METHOD declared to return a Path (by name), and a
+path-ish argument to an imported parameter not annotated Path (or of an unreadable signature) is REFUSED,
+in the body and in the contracts. The pass also runs on every unit that imports a name (an imported Path
+need not spell `Path` in the importer). Witnesses `10240`-`10250`, `10253`, `10254` (expected FAIL, refused;
+helper `multi_file_lib/r617_pathlib.py`); controls `10251` (a Path to an imported `Path` parameter, `str`
+result) and `10252` (alias-annotated, strings compared).
+
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
 A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /

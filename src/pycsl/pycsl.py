@@ -22318,6 +22318,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # whose source cannot be read or whose def is not found has the unknown signature
         # None: a call of it with a path-ish argument is path-ish and that argument REFUSED.
         _dpd614 = {}
+        _drt614 = set()
         _inj614 = {str(_f.get("name", "")) for _f in (
             (getattr(transpiler, "ir", None) or {}).get("functions") or [])
             if isinstance(_f, dict) and _f.get("trusted")} - set(_defs614)
@@ -22332,6 +22333,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _ism:
                     _keys = [(f"{_loc}.{_x}", _x) for _x in _inj614]
                     _mfile = _mod or _org
+                elif _org == "*":
+                    _keys = [(_x, _x) for _x in _inj614]  # `from h import *`
+                    _mfile = _mod
                 else:
                     _keys = [(_loc, _org)] if _org in _inj614 else []
                     _mfile = _mod
@@ -22392,6 +22396,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                     for _x in sorted(_dal)) + r")\b")
                 if not _ism and _org in _dal and _loc not in _pc614:
                     _al614.add(_loc)  # `from h import Fp`, `Fp` a Path alias in `h`
+                if not _ism and _org == "*":
+                    _al614 |= _dal - _pc614
+                if _dtree is not None:
+                    # every function / METHOD of the dependency declared to return a Path:
+                    # its calls (by name, as for the unit's own) and property reads are
+                    # path-ish (an imported class's `b.mk(s)`)
+                    for _n in _ast614.walk(_dtree):
+                        if (isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef))
+                                and _n.returns is not None
+                                and _dre.search(_ast614.unparse(_n.returns))):
+                            _drt614.add(_n.name)
                 for _key, _onm in _keys:
                     _dd = None
                     if _dtree is not None:
@@ -22400,7 +22415,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                        _ast614.AsyncFunctionDef))
                                     and _b.name == _onm), None)
                     if _dd is None:
-                        if _ism:
+                        if _ism or _org == "*":
                             continue  # not a function of THAT module
                         _dpd614[_key] = None
                     else:
@@ -22446,6 +22461,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _bv614.setdefault((_s, _z), []).append(None)
         # seeds: annotated names / fields, Path-returning functions
         _nm614, _fl614, _rt614, _pv614 = set(), {"parent", "parents"}, set(), set()
+        _rt614 |= _drt614  # lvZ: the dependencies' Path-returning functions / methods
+        _fl614 |= _drt614
         _mk614 = set()  # mutator calls (`xs.append(p)`) that store a path-ish value
         for _n in _nodes614:
             if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef)):
@@ -22502,8 +22519,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                   _ast614.unparse(_dpd614[_dk][0].returns)))
                               or (_dpd614[_dk][0].returns is None
                                   and any(id(_x) in _pv614 for _x in _ar)))
-                              and (_dpd614[_dk] is not None
-                                   or any(id(_x) in _pv614 for _x in _ar)))
+                              )
                           or (_cn in _pm614 and isinstance(_cf, _ast614.Attribute)
                               and (id(_cf.value) in _pv614
                                    or (isinstance(_cf.value, _ast614.Name)
