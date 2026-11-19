@@ -40436,13 +40436,24 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         if _t429 is not None:
             _ok429: Set[int] = set()
             _roots429: List[Any] = []
+            # `print` must be the builtin: a file that binds the name anywhere (def / class /
+            # assignment / import / parameter / any store) gets no `print` excusal.
+            _pb429 = any(
+                (isinstance(_n, (_ast429.FunctionDef, _ast429.AsyncFunctionDef,
+                                 _ast429.ClassDef)) and _n.name == "print")
+                or (isinstance(_n, _ast429.Name) and _n.id == "print"
+                    and not isinstance(_n.ctx, _ast429.Load))
+                or (isinstance(_n, _ast429.alias) and (_n.asname or _n.name) == "print")
+                or (isinstance(_n, _ast429.arg) and _n.arg == "print")
+                or (isinstance(_n, (_ast429.Global, _ast429.Nonlocal)) and "print" in _n.names)
+                for _n in _ast429.walk(_t429))
             for _n429 in _ast429.walk(_t429):
                 if (isinstance(_n429, _ast429.Raise) and isinstance(_n429.exc, _ast429.Call)
                         and isinstance(_n429.exc.func, (_ast429.Name, _ast429.Attribute))):
                     _roots429 += list(_n429.exc.args) + [_k.value for _k in _n429.exc.keywords]
                 elif (isinstance(_n429, _ast429.Expr) and isinstance(_n429.value, _ast429.Call)
                         and isinstance(_n429.value.func, _ast429.Name)
-                        and _n429.value.func.id == "print"):
+                        and _n429.value.func.id == "print" and not _pb429):
                     _roots429 += (list(_n429.value.args)
                                   + [_k.value for _k in _n429.value.keywords])
             while _roots429:
