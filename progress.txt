@@ -80,3 +80,7 @@ Wed Nov 18 15:28:06 UTC 2026 u51 job2 queued
 Wed Nov 18 15:40:04 UTC 2026 u51 job2 queued (next NORMAL)
 Wed Nov 18 15:51:59 UTC 2026 u51 job2 queued
 Wed Nov 18 16:01:57 UTC 2026 u51 job2 done: census rows appended, coverage 476/5 rc0, doc rc0; committing
+Thu Nov 19 00:12:29 UTC 2026 u55 start: worktree created
+Thu Nov 19 00:14:23 UTC 2026 u55: reading code; driver added check-stdlib-modules-verify item
+Thu Nov 19 00:26:15 UTC 2026 u55: implemented g01/g02/g08/g09/g10 + --verification-image; quick probes next
+Thu Nov 19 00:32:07 UTC 2026 u55: witnesses 10220-10228 written; waiting heavy queue for base stdlib plane

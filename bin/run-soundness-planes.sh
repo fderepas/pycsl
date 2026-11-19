@@ -640,7 +640,7 @@ while IFS= read -r _src; do
     rm -f "${_src%.py}.mlw"
     (cd "$PROJECT_ROOT" && PYTHONHASHSEED=0 "$_py" src/pycsl/pycsl.py "$_src" \
         --import-path "$PROJECT_ROOT/src/pycsl" --no-proof --keep-mlw \
-        --as-package-module "$PROJECT_ROOT/src/self-annotate/src") >/dev/null 2>&1  # route #613: declared run mode
+        --verification-image "$PROJECT_ROOT/src/self-annotate/src") >/dev/null 2>&1  # route #613: declared verification image
     [ -f "${_src%.py}.mlw" ] && mv "${_src%.py}.mlw" "$SHARED_EMIT/$_name.mlw"
 done < <(find "$PROJECT_ROOT/src/self-annotate/src" -name '*.py' | sort)
 NEMIT=$(ls "$SHARED_EMIT"/*.mlw 2>/dev/null | wc -l)

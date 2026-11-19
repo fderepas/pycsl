@@ -59,7 +59,7 @@ PY
 for rel in $MIRRORS; do
   f="src/self-annotate/src/$rel"
   echo "--- proving $f ---"
-  if python3 src/pycsl/pycsl.py "$f" --import-path src/pycsl --as-package-module src/self-annotate/src 2>/dev/null | grep -q "Verification SUCCESS"; then
+  if python3 src/pycsl/pycsl.py "$f" --import-path src/pycsl --verification-image src/self-annotate/src 2>/dev/null | grep -q "Verification SUCCESS"; then
     echo "[+] $rel: Verification SUCCESS"
   else
     echo "[!] $rel: verification FAILED"; FAIL=1

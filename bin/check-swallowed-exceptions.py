@@ -201,9 +201,9 @@ mon.use_tool_id(TOOL, "swallow-probe")
 mon.set_events(TOOL, mon.events.EXCEPTION_HANDLED)
 mon.register_callback(TOOL, mon.events.EXCEPTION_HANDLED, on_handled)
 sys.argv = ["pycsl.py", target, "--import-path", os.path.join(ROOT, "src", "pycsl"),
-            *(["--as-package-module", os.path.join(ROOT, "src", "self-annotate", "src")]
+            *(["--verification-image", os.path.join(ROOT, "src", "self-annotate", "src")]
               if os.path.abspath(target).startswith(os.path.join(ROOT, "src", "self-annotate", "src") + os.sep)
-              else []),  # route #613: a mirror file is a package module (declared run mode)
+              else []),  # route #613: a mirror file is a verification image (declared, no CPython-run claim)
             "--no-proof", "--no-typecheck"]
 import pycsl
 try:

@@ -45,16 +45,16 @@ emit_one() {
     return 0
   fi
   rm -f "${f%.py}.mlw"
-  # (run #8 route #613) `--as-package-module src/self-annotate/src`: a mirror file is a SUBMODULE
-  # of the mirror package tree, never a script. The mirror replicates src/pycsl, whose entry script
-  # pycsl.py makes sys.path[0] = src/pycsl with frontend/ module6_whyml/ proof2why3/ as packages
-  # below it; src/self-annotate/src is that same position in the mirror (it holds the mirror
-  # pycsl.py and contains every mirror file, which --as-package-module requires; src/pycsl does not
-  # contain them). It is a DECLARED assumption (--soundness-report lists it); only the route #613
-  # closure check moves (the module6_whyml/types.py sibling is not on sys.path), the emission does not.
+  # (run #8 route #613; u55, driver decision on review rt66 g02 / g08) `--verification-image
+  # src/self-annotate/src`: a mirror file is a VERIFICATION MODEL of src/pycsl that CPython never
+  # executes (no CPython-run claim; --soundness-report lists VERIFICATION-IMAGE). Its own imports
+  # resolve as pycsl resolves them (program dir first, then --import-path: the LIVE src/pycsl),
+  # and route #613's closure check searches src/self-annotate/src -- the image of src/pycsl,
+  # whose entry script pycsl.py makes sys.path[0] -- in the program directory's place (the
+  # module6_whyml/types.py sibling is not on sys.path). The emission does not move.
   PYTHONHASHSEED=0 timeout 900 "$PY" "$ROOT/src/pycsl/pycsl.py" \
       --no-proof --no-typecheck --keep-mlw --import-path "$ROOT/src/pycsl" \
-      --as-package-module "$ROOT/src/self-annotate/src" \
+      --verification-image "$ROOT/src/self-annotate/src" \
       "$f" >/dev/null 2>&1
   [ -f "${f%.py}.mlw" ] && mv "${f%.py}.mlw" "$OUT/$name.mlw"
 }

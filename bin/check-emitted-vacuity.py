@@ -351,8 +351,8 @@ def main():
         subprocess.run(
             ["xargs", "-P", "7", "-I", "{}", "sh", "-c",
              "PYTHONHASHSEED=0 python3 src/pycsl/pycsl.py {} --import-path src/pycsl "
-             "--no-proof --no-typecheck --keep-mlw --as-package-module src/self-annotate/src "
-             ">/dev/null 2>&1"],  # route #613: a mirror file is a package module (declared run mode)
+             "--no-proof --no-typecheck --keep-mlw --verification-image src/self-annotate/src "
+             ">/dev/null 2>&1"],  # route #613: a mirror file is a verification image (declared, no CPython-run claim)
             input="\n".join(files), text=True, check=False)
 
     full, partial, input_blind = [], [], []

@@ -6168,8 +6168,19 @@ check are the program's directory (and its realpath) first -- SCRIPT mode, the d
 under the DECLARED run mode `--as-package-module ROOT` (the program is imported as a submodule
 of the package rooted at ROOT, which must contain it; never inferred; listed by
 `--soundness-report` as the model assumption AS-PACKAGE-MODULE), ROOT (and its realpath) in
-that place; the program's own imports resolve as before, so the emitted WhyML does not depend
-on the mode. The mirror gates declare ROOT = `src/self-annotate/src`. $\rho$ is a function of the
+that place. Under that mode $\rho$ is CPython's `-m` binding: an absolute import whose ROOT-first
+resolution is another file (or a file on one side only) has no image
+(`PYCSL-SEM-IMPORT-PACKAGE-MODE-ORDER`), and neither has a program whose parent packages or own
+module name do not resolve from ROOT to their `__init__.py` / its file, or whose parent
+`__init__.py` edits the import system or uses dynamic import machinery
+(`PYCSL-SEM-IMPORT-PACKAGE-MODE-PARENT`); an agreeing import emits exactly as before. The
+mirror gates declare instead `--verification-image ROOT` with ROOT = `src/self-annotate/src`:
+a verification model that CPython never executes, with no CPython-run claim (the
+`--soundness-report` model assumption VERIFICATION-IMAGE); only this check's roots move, the
+program's own imports resolve as before, and the emitted WhyML does not depend on the mode.
+The judged names include every module entry of the stdlib directories, literal
+`__import__` / `import_module` / `resources.files` names, and the startup-hook closure; each
+candidate is judged in its own root (u55, review rt66 g01 / g09 / g10). $\rho$ is a function of the
 source tree only, so a program that can change CPython's binding has no image
 (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
 path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a

@@ -53,9 +53,9 @@ def emit_all(out_dir):
             os.remove(mlw)
         subprocess.run([py, os.path.join(ROOT, "src", "pycsl", "pycsl.py"), src,
                         "--import-path", os.path.join(ROOT, "src", "pycsl"),
-                        *(["--as-package-module", os.path.join(ROOT, "src", "self-annotate", "src")]
+                        *(["--verification-image", os.path.join(ROOT, "src", "self-annotate", "src")]
                           if os.path.abspath(src).startswith(os.path.join(ROOT, "src", "self-annotate", "src") + os.sep)
-                          else []),  # route #613: a mirror file is a package module (declared run mode)
+                          else []),  # route #613: a mirror file is a verification image (declared, no CPython-run claim)
                         "--no-proof", "--keep-mlw"],
                        cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                        env=env)

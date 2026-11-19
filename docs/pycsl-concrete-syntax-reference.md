@@ -1534,9 +1534,20 @@ roots of the transitive stdlib-shadow check (`PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW
 the place of the program's own directory, whose same-named siblings are then not on
 `sys.path`. The program's own imports, and so the emitted WhyML, are unchanged. pycsl passes it
 to its own sub-invocations as `PYCSL_AS_PACKAGE_MODULE`, and `--soundness-report` lists it as
-the model assumption AS-PACKAGE-MODULE. The mirror gates (`bin/mirror-emit-sweep.sh`, the
-shared mirror emission of `bin/run-soundness-planes.sh`, and the mirror-emitting checks) pass
-ROOT = `src/self-annotate/src`.
+the model assumption AS-PACKAGE-MODULE. (u55, review rt66 g02 / g08) As CPython does under
+`-m`, every absolute import must then resolve with ROOT first to the file pycsl took
+(`PYCSL-SEM-IMPORT-PACKAGE-MODE-ORDER`), and each parent package between ROOT and the program
+must resolve from ROOT to its own `__init__.py`, judged as a dependency
+(`PYCSL-SEM-IMPORT-PACKAGE-MODE-PARENT`); an agreeing program emits unchanged.
+
+`--verification-image ROOT` is a second, distinct declared assumption: the file is a
+VERIFICATION MODEL that CPython never executes, so the proof makes NO claim about a CPython run
+(`--soundness-report` lists VERIFICATION-IMAGE). Its own imports resolve as pycsl resolves them
+(program directory first, then `--import-path`); only the transitive stdlib-shadow check's roots
+move to ROOT, and every other import rule still applies. It is opt-in, never inferred, passed
+as `PYCSL_VERIFICATION_IMAGE`, and excludes `--as-package-module`. The mirror gates
+(`bin/mirror-emit-sweep.sh`, the shared mirror emission of `bin/run-soundness-planes.sh`, and
+the mirror-emitting checks) pass ROOT = `src/self-annotate/src`.
 
 ## Appendix A. AST Node Hierarchy
 

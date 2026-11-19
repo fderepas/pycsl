@@ -1447,12 +1447,27 @@ checked hash-based `__pycache__` pyc, or a timestamp pyc whose header matches, a
 entry in any resolution root named like a module the closure may reach — a stdlib / builtin
 name, or any name the interpreter's stdlib source imports — is judged as a direct import of
 it and REFUSED unless admitted, `PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`, route #613: a local
-`re.py` beside a program that imports only `json` is the `re` that `json` runs; the roots are
-those of a SCRIPT, the program's own directory first, unless the run mode is DECLARED with
-`--as-package-module ROOT` — the program is imported as a submodule of the package rooted at
-ROOT, which then takes the program directory's place in this check only; never inferred,
-listed by `--soundness-report` as AS-PACKAGE-MODULE, passed by the mirror gates with ROOT =
-`src/self-annotate/src`): CPython
+`re.py` beside a program that imports only `json` is the `re` that `json` runs; the judged
+names also include every module entry of the interpreter's stdlib directories (Lib,
+lib-dynload, the platform stdlib: the stdlib imports `_sysconfigdata_<abi>_<platform>` by a
+COMPUTED name), literal names handed to `__import__` / `import_module` /
+`importlib.resources.files`, and the modules the STARTUP HOOKS reach (`sitecustomize`,
+`usercustomize` and `.pth` import lines in the site directories of the interpreter and its
+base installation, followed module by module: Ubuntu's apport hook imports `apport.report`);
+and EVERY candidate in EVERY root is judged in its own root, not only the first hit in pycsl's
+order (u55, review rt66 g01 / g09 / g10); the roots are
+those of a SCRIPT, the program's own directory first, unless a mode is DECLARED (never
+inferred, each listed by `--soundness-report`): `--as-package-module ROOT` — the program runs
+as `python -m` from ROOT, which takes the program directory's place in this check; then, as
+CPython resolves under `-m`, every absolute import must resolve with ROOT first to the file
+pycsl took (`PYCSL-SEM-IMPORT-PACKAGE-MODE-ORDER`), and each parent package between ROOT and
+the program, and the program itself, must resolve from ROOT to its own `__init__.py` / file,
+each parent `__init__.py` judged as a dependency (the import-system rule below, and no dynamic
+import machinery: `PYCSL-SEM-IMPORT-PACKAGE-MODE-PARENT`; AS-PACKAGE-MODULE); or
+`--verification-image ROOT` — the file is a verification model CPython never executes (the
+mirror gates, ROOT = `src/self-annotate/src`): NO claim about a CPython run, its own imports
+resolve as pycsl resolves them, and only this closure check moves to ROOT
+(VERIFICATION-IMAGE)): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or
 startup-loaded module, and for the rest which one runs depends on `sys.path` and startup.
 A program that edits the import system — any reference to `sys.path`, `sys.modules`,
