@@ -1033,28 +1033,6 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
             "strict_mode": "--strict-hval-keys",
             "relied_on_by": sorted(set(_hk_uses)),
         })
-    # (#49) run #8 ROUTE #613 -- the DECLARED RUN MODE `--as-package-module ROOT` (driver
-    # decision): the program is assumed to be imported as a submodule of the package rooted at
-    # ROOT, so CPython's sys.path[0] is not the program's own directory and the transitive
-    # stdlib-shadow check searches ROOT (plus the configured roots) in its place. Never
-    # inferred; listed whenever it is in force.
-    if os.environ.get("PYCSL_AS_PACKAGE_MODULE"):
-        assumptions.append({
-            "name": "AS-PACKAGE-MODULE",
-            "statement": "the program is never run as a script: it is imported as a module of "
-                         "the package rooted at " + os.environ["PYCSL_AS_PACKAGE_MODULE"]
-                         + ", so sys.path[0] is that root (an entry script's directory), not "
-                         "the program's directory; route #613's closure check searches that "
-                         "root instead of the program's directory, and (u55) every absolute "
-                         "import and every parent package must resolve from that root as "
-                         "`python -m` resolves them",
-            "counterexample": "src/pycsl/module6_whyml/scc.py run as a script: its directory "
-                              "is sys.path[0], and `typing`'s own `import types` loads the "
-                              "local module6_whyml/types.py (venv CPython 3.14: ImportError, "
-                              "witnesses-r613/cpython.txt)",
-            "strict_mode": "the default (omit --as-package-module: script mode)",
-            "relied_on_by": [filename],
-        })
     # (#49) run #8 u55 -- the DECLARED `--verification-image ROOT` (driver decision): listed
     # FIRST-CLASS, because a file verified under it carries no claim about a CPython run.
     if os.environ.get("PYCSL_VERIFICATION_IMAGE"):
@@ -1067,10 +1045,10 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
                          "would, so the proof says nothing about running this file; route "
                          "#613's closure check searches that root instead of the program's "
                          "directory",
-            "counterexample": "the same file under --as-package-module ROOT: CPython's -m run "
-                              "takes `import helper` from ROOT, not from the program's "
-                              "directory (review rt66 g02: a false `\\result == 1` PROVED)",
-            "strict_mode": "--as-package-module ROOT (a -m run) or script mode (the default)",
+            "counterexample": "a mirror file run as a script: its own `import errors` resolves to "
+                              "the mirror copy, while its subpackage files type the same name "
+                              "against the live src/pycsl copy (run8-u55 report, section 1)",
+            "strict_mode": "script mode (the default)",
             "relied_on_by": [filename],
         })
     # (#49) ROUTE #292 — A CITED `#@ proof` LEMMA IS EMITTED AS A Why3 `axiom`: the
@@ -41549,71 +41527,67 @@ def _resolve_runtime_config(args: argparse.Namespace) -> Tuple[str, List[str]]:
 
 
 def main() -> None:
-    # (#49) run #8 ROUTE #613 -- `--as-package-module ROOT`, the DECLARED (opt-in, never
-    # inferred) run mode: the program is imported as a submodule of the package rooted at
-    # ROOT, not run as a script. Taken off argv HERE, not in `_parse_args` (whose mirror twin
-    # is body-verified: an edit there owes a whole-file re-proof of the pycsl.py mirror), and
-    # handed to the resolver -- and to every pycsl sub-invocation, which inherit os.environ --
-    # as PYCSL_AS_PACKAGE_MODULE. ROOT must be a directory that contains the program.
+    # (#49) run #8 u58 (driver decision on review rt69) -- `--as-package-module ROOT` is
+    # WITHDRAWN from this release (route #613). The review found four gaps it introduced
+    # (G1: the parent-package `__init__` chain judged only shallowly; G2: `python -m pkg` with
+    # an unread `__main__.py`; G3: a rule skipped by a magic program FILE name; G4: an ancestor
+    # namespace portion beaten by a regular site-packages package) and two over-refusals (o06 /
+    # o07). Passing it -- or inheriting PYCSL_AS_PACKAGE_MODULE -- exits rc 2 BEFORE anything
+    # is verified; it never silently falls back to script mode. The resolver has no code path
+    # for it any more.
     #
     # (#49) run #8 u55 (driver decision on review rt66 g02 / g08) -- `--verification-image
-    # ROOT`, a SECOND, distinct declared mode (PYCSL_VERIFICATION_IMAGE; opt-in, never
-    # inferred): the file is a VERIFICATION MODEL that CPython never executes (the
-    # self-annotation mirror, an image of src/pycsl rooted at ROOT). It makes NO claim about a
-    # CPython run: its own imports resolve as pycsl resolves them (program directory first,
-    # then --import-path, which deliberately types callees against the LIVE tree), so the
-    # -m rules of --as-package-module (ROOT-first resolution of the program's absolute imports,
-    # the parent-package `__init__` chain) do not apply; every other route #613 / #611 / r12
-    # check still does, with ROOT in the program directory's place among the closure roots.
-    # The two modes exclude each other.
+    # ROOT`, a declared mode (PYCSL_VERIFICATION_IMAGE; opt-in, never inferred): the file is a
+    # VERIFICATION MODEL that CPython never executes (the self-annotation mirror, an image of
+    # src/pycsl rooted at ROOT; the pycsl_lib stub models). It makes NO claim about a CPython
+    # run: its own imports resolve as pycsl resolves them (program directory first, then
+    # --import-path, which deliberately types callees against the LIVE tree); every route
+    # #613 / #611 / r12 check still applies, with ROOT in the program directory's place among
+    # the closure roots. Taken off argv HERE, not in `_parse_args` (whose mirror twin is
+    # body-verified), and handed to the resolver -- and to every pycsl sub-invocation, which
+    # inherit os.environ -- as PYCSL_VERIFICATION_IMAGE. ROOT must contain the program.
     _a613 = sys.argv[1:]
-    _r613 = None
     _vi613 = None
     _k613 = 0
     _rest613: List[str] = []
     while _k613 < len(_a613):
+        if (_a613[_k613] == "--as-package-module"
+                or _a613[_k613].startswith("--as-package-module=")):
+            print("[!] Error: --as-package-module is not supported in this release (route #613: "
+                  "withdrawn after review rt69 found gaps in its -m model). Verify the file as a "
+                  "script (the default), or as a verification model with --verification-image "
+                  "ROOT (no CPython-run claim).")
+            sys.exit(2)
         _fl613 = None
-        for _nm613 in ("--as-package-module", "--verification-image"):
-            if _a613[_k613] == _nm613 and _k613 + 1 < len(_a613):
-                _fl613 = (_nm613, _a613[_k613 + 1], 2)
-            elif _a613[_k613].startswith(_nm613 + "="):
-                _fl613 = (_nm613, _a613[_k613].split("=", 1)[1], 1)
-            elif _a613[_k613] == _nm613:
-                print(f"[!] Error: {_nm613} needs a ROOT directory.")
-                sys.exit(2)
+        if _a613[_k613] == "--verification-image" and _k613 + 1 < len(_a613):
+            _fl613 = (_a613[_k613 + 1], 2)
+        elif _a613[_k613].startswith("--verification-image="):
+            _fl613 = (_a613[_k613].split("=", 1)[1], 1)
+        elif _a613[_k613] == "--verification-image":
+            print("[!] Error: --verification-image needs a ROOT directory.")
+            sys.exit(2)
         if _fl613 is not None:
-            if _fl613[0] == "--as-package-module":
-                _r613 = _fl613[1]
-            else:
-                _vi613 = _fl613[1]
-            _k613 += _fl613[2]
+            _vi613 = _fl613[0]
+            _k613 += _fl613[1]
             continue
         _rest613.append(_a613[_k613])
         _k613 += 1
-    if _r613 is not None or _vi613 is not None:
-        sys.argv[1:] = _rest613
-    if _r613 is not None:
-        os.environ["PYCSL_AS_PACKAGE_MODULE"] = os.path.abspath(_r613)
-    if _vi613 is not None:
-        os.environ["PYCSL_VERIFICATION_IMAGE"] = os.path.abspath(_vi613)
-    if os.environ.get("PYCSL_AS_PACKAGE_MODULE") and os.environ.get("PYCSL_VERIFICATION_IMAGE"):
-        print("[!] Error: --as-package-module and --verification-image exclude each other "
-              "(a module run under -m, or a verification model never run).")
-        sys.exit(2)
-    args = _parse_args()
-    for _ev613, _nm613 in (("PYCSL_AS_PACKAGE_MODULE", "--as-package-module"),
-                           ("PYCSL_VERIFICATION_IMAGE", "--verification-image")):
-        if os.environ.get(_ev613):
-            _pr613 = os.environ[_ev613]
-            if not (os.path.isdir(_pr613) and os.path.commonpath(
-                    [_pr613, os.path.abspath(args.file)]) == _pr613):
-                print(f"[!] Error: {_nm613} {_pr613}: not a directory containing "
-                      f"'{args.file}'.")
-                sys.exit(2)
     if os.environ.get("PYCSL_AS_PACKAGE_MODULE"):
-        print(f"[*] Declared run mode: imported as a module of the package rooted at "
-              f"{os.environ['PYCSL_AS_PACKAGE_MODULE']} (--as-package-module; not a script)")
+        print("[!] Error: PYCSL_AS_PACKAGE_MODULE is set, but --as-package-module is not supported "
+              "in this release (route #613: withdrawn after review rt69). Unset it to verify the "
+              "file as a script.")
+        sys.exit(2)
+    if _vi613 is not None:
+        sys.argv[1:] = _rest613
+        os.environ["PYCSL_VERIFICATION_IMAGE"] = os.path.abspath(_vi613)
+    args = _parse_args()
     if os.environ.get("PYCSL_VERIFICATION_IMAGE"):
+        _pr613 = os.environ["PYCSL_VERIFICATION_IMAGE"]
+        if not (os.path.isdir(_pr613) and os.path.commonpath(
+                [_pr613, os.path.abspath(args.file)]) == _pr613):
+            print(f"[!] Error: --verification-image {_pr613}: not a directory containing "
+                  f"'{args.file}'.")
+            sys.exit(2)
         print(f"[*] Declared VERIFICATION IMAGE rooted at "
               f"{os.environ['PYCSL_VERIFICATION_IMAGE']} (--verification-image): a model "
               f"CPython never executes; NO claim about a CPython run")

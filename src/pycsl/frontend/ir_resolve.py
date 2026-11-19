@@ -240,46 +240,137 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                         filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-SHADOWS-STDLIB")
                 if os.path.isdir(loc_root) and os.path.commonpath([hit, loc_root]) == loc_root:
                     _std612 = loc_root
-            break
-        # (#49) run #8 u55 -- review rt66 g02 (INTRODUCED by the declared mode). Under
-        # `--as-package-module ROOT` the program runs as `python -m <pkg>.<mod>` from ROOT, so
-        # CPython's sys.path[0] is ROOT and the program's directory is not on sys.path at all:
-        # every ABSOLUTE import (the program's and its dependencies') is taken from ROOT first.
-        # pycsl's order puts the importing file's directory first (measured: `import helper`
-        # took pkg/helper.py, `\result == 1` PROVED, CPython loaded root/helper.py and returned
-        # 2). RULE (refusal-only; the emission of an agreeing import is unchanged): the same
-        # name is resolved again with ROOT in the importer's place -- all the #326 / #611 / r12
-        # / #475 rules then judge what ROOT holds -- and a different file (or a file on one
-        # side only) REFUSES the import. Not under `--verification-image` (a model CPython
-        # never runs, by declaration), and not for the closure check's notional entry script
-        # (`__pycsl_r613_entry__.py`, already placed at ROOT). Inline; the twin is `\trusted`.
-        _pm02 = os.environ.get("PYCSL_AS_PACKAGE_MODULE") or ""
-        if (_pm02 and os.path.basename(main_file) != "__pycsl_r613_entry__.py"
-                and os.path.isdir(_pm02)
-                and os.path.dirname(os.path.abspath(main_file)) != os.path.abspath(_pm02)):
-            _rt02 = _resolve_module_path(module_dotted, 0, os.path.join(
-                os.path.abspath(_pm02), "__pycsl_r613_entry__.py"))
-            if (None if _rt02 is None else os.path.abspath(_rt02)) != (
-                    None if hit is None else os.path.abspath(hit)):
-                # shown relative to cwd when under it (the census stays tree-independent)
-                _dv02 = [None if _q is None else (
-                    os.path.relpath(_q) if os.path.abspath(_q).startswith(os.getcwd() + os.sep)
-                    else _q) for _q in (_pm02, _rt02, hit)]
+            # (#49) run #8 u58 -- review rt69 G7 (PRE-EXISTING since the first multi-file
+            # resolver). pycsl searches its OWN cwd, and CPython's script mode never does:
+            # sys.path[0] is the script's (realpath) directory, then PYTHONPATH (pycsl's
+            # --import-path), the standard library and the site directories (measured: cwd C
+            # held helperq.py with `ensures \result == 1`, --import-path X held a helperq.py
+            # returning 2; pycsl PROVED the claim, `cd C && PYTHONPATH=X python P/prog.py`
+            # loaded X/helperq.py and printed 2). RULE (refusal-only): a module found FIRST in
+            # the cwd, when the cwd is none of the program's directory (or its realpath), an
+            # --import-path root or pycsl's src/ / Lib/ model roots, is REFUSED -- unless it is
+            # a standard-library name whose local copy passed route #326 / #611 above (an
+            # admitted byte-identical copy, the repo-root ./json/): then CPython loads the
+            # interpreter's own module, whose source is the same file for file, so what pycsl
+            # read is what CPython runs.
+            _cw658 = os.path.realpath(os.getcwd())
+            if (base == os.getcwd()
+                    and _cw658 not in [os.path.realpath(_q) for _q in (
+                        os.path.dirname(os.path.abspath(main_file)),
+                        os.path.dirname(os.path.realpath(main_file)), src_dir, lib_dir,
+                        *_EXTRA_IMPORT_PATHS)]
+                    and parts[0] not in sys.stdlib_module_names
+                    and parts[0] not in sys.builtin_module_names):
                 from errors import PyCSLSemanticError
                 raise PyCSLSemanticError(
-                    f"`import {module_dotted}`: under --as-package-module {_dv02[0]} the program "
-                    f"runs as a package module (`python -m`), so CPython's sys.path[0] is that "
-                    f"root and this absolute import loads "
-                    f"{_dv02[1] if _rt02 is not None else 'no local file there'}, while "
-                    f"pycsl's resolution (the importing file's directory first) took "
-                    f"{_dv02[2] if hit is not None else 'no local file'}; the contracts it would "
-                    f"believe belong to another module than the one CPython runs (review rt66 "
-                    f"g02: `import helper` PROVED `\\result == 1` against pkg/helper.py, "
-                    f"CPython loaded root/helper.py and returned 2). FIX: import the module by "
-                    f"its package path (`from pkg import helper`, or a relative import), or "
-                    f"verify the file as a script.",
-                    filename=main_file, stage="imports",
-                    code="PYCSL-SEM-IMPORT-PACKAGE-MODE-ORDER")
+                    f"`import {module_dotted}` resolves only through pycsl's own working "
+                    f"directory ({hit}), and CPython never searches the working directory when "
+                    f"it runs a script: sys.path[0] is the script's directory, then PYTHONPATH "
+                    f"(--import-path), the standard library and the site directories, so CPython "
+                    f"loads another `{parts[0]}` (or none) than the file pycsl would verify "
+                    f"against (review rt69 G7: a cwd helperq.py PROVED `\\result == 1`, CPython "
+                    f"loaded the --import-path copy and printed 2). FIX: name the module's "
+                    f"directory with --import-path (CPython: PYTHONPATH), or put it beside the "
+                    f"program.",
+                    filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-CWD-ROOT")
+            # (#49) run #8 u58 -- review rt69 G5 (PRE-EXISTING). A directory with no
+            # `__init__.py` is only a NAMESPACE PORTION: CPython's PathFinder records it and
+            # keeps scanning sys.path, and ANY later regular package or module of that name (a
+            # site-packages `lark/__init__.py`, an extension, a PYTHONPATH copy) wins over it;
+            # several portions merge, in sys.path order. pycsl took the first directory hit
+            # as the module (measured: a local bare lark/utils.py with `ensures \result ==
+            # False` PROVED; the venv CPython loaded site-packages lark.utils: True). RULE
+            # (refusal-only, fail-closed): when a package level of the import, down to the
+            # first regular package, is a bare directory in this root, and ANY other root
+            # CPython searches -- the program's directory (and its realpath), --import-path,
+            # the standard library directories, and the site directories of the running
+            # interpreter, its base installation and the user (plus the directories their
+            # `.pth` files add) -- holds an entry of that dotted prefix (module, package,
+            # directory or artifact), the import is REFUSED: which file CPython runs is not the
+            # one pycsl read.
+            # Only the TOP level needs the look: below a regular package, its own directory
+            # is the whole `__path__`; below a top-level portion that no other root holds,
+            # the namespace has that one portion.
+            if len(parts) > 1:
+                _ns658 = (None if os.path.isfile(os.path.join(base, parts[0], "__init__.py"))
+                          else 1)
+                if _ns658 is not None:
+                    import site as _si658
+                    _or658: List[str] = []
+                    try:
+                        _sd658 = [*_si658.getsitepackages(),
+                                  *_si658.getsitepackages([sys.base_prefix, sys.base_exec_prefix]),
+                                  _si658.getusersitepackages()]
+                    except (AttributeError, TypeError):
+                        _sd658 = [_p for _p in sys.path if _p.endswith(
+                            ("site-packages", "dist-packages"))]
+                    _stp658 = sysconfig.get_paths()
+                    for _q658 in [os.path.dirname(os.path.realpath(main_file)),
+                                  os.path.dirname(os.path.abspath(main_file)),
+                                  *_EXTRA_IMPORT_PATHS, _stp658["stdlib"],
+                                  os.path.join(_stp658["stdlib"], "lib-dynload"),
+                                  _stp658.get("platstdlib") or _stp658["stdlib"],
+                                  os.path.join(_stp658.get("platstdlib") or _stp658["stdlib"],
+                                               "lib-dynload"), *_sd658]:
+                        if (isinstance(_q658, str) and os.path.isdir(_q658)
+                                and _q658 not in _or658):
+                            _or658.append(_q658)
+                    for _q658 in list(_or658):
+                        if not _q658.endswith(("site-packages", "dist-packages")):
+                            continue
+                        try:
+                            _pth658 = sorted(_e for _e in os.listdir(_q658) if _e.endswith(".pth"))
+                        except OSError:
+                            continue
+                        for _e658 in _pth658:
+                            try:
+                                _ll658 = __import__("pathlib").Path(os.path.join(
+                                    _q658, _e658)).read_text(errors="replace").splitlines()
+                            except OSError:
+                                continue
+                            for _ln658 in _ll658:
+                                _ln658 = _ln658.rstrip()
+                                if _ln658 and not _ln658.startswith(("#", "import ", "import\t")):
+                                    _d658 = os.path.join(_q658, _ln658)
+                                    if os.path.isdir(_d658) and _d658 not in _or658:
+                                        _or658.append(_d658)
+                    _hit658 = None
+                    for _q658 in _or658:
+                        if os.path.realpath(_q658) == os.path.realpath(base):
+                            continue
+                        _pd658 = os.path.join(_q658, *parts[:_ns658 - 1])
+                        if not os.path.isdir(_pd658):
+                            continue
+                        try:
+                            _ls658 = sorted(os.listdir(_pd658))
+                        except OSError:
+                            _hit658 = _pd658
+                            break
+                        _hm658 = [_e for _e in _ls658 if _e == parts[_ns658 - 1]
+                                  or (_e.startswith(parts[_ns658 - 1] + ".") and _e.endswith((
+                                      ".py", ".pyc", ".pyd", ".so", *__import__(
+                                          "importlib.machinery").machinery.EXTENSION_SUFFIXES)))]
+                        if _hm658:
+                            _hit658 = os.path.join(_pd658, _hm658[0])
+                            break
+                    if _hit658 is not None:
+                        from errors import PyCSLSemanticError
+                        raise PyCSLSemanticError(
+                            f"`import {module_dotted}`: pycsl's resolution took {hit} through "
+                            f"the directory {os.path.join(base, *parts[:_ns658])}, which has no "
+                            f"`__init__.py` -- only a namespace portion -- while another root "
+                            f"CPython searches holds `{'.'.join(parts[:_ns658])}` too "
+                            f"({_hit658}). CPython's PathFinder takes any regular package or "
+                            f"module of that name over a namespace portion, and merges portions "
+                            f"in sys.path order, so the module the program runs is not the one "
+                            f"pycsl read (review rt69 G5: a local bare lark/utils.py PROVED "
+                            f"`\\result == False`, the venv CPython loaded site-packages "
+                            f"lark.utils and returned True). FIX: give the local package an "
+                            f"`__init__.py`, or rename it so it does not collide with an "
+                            f"installed or library package.",
+                            filename=main_file, stage="imports",
+                            code="PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED")
+            break
     # (#49) run #8 ROUTE #611 r12 (open since rt62; held only by accident: for hashlib the
     # rebound-name rule, for json route #305). CPython's SourceFileLoader does not run a source
     # module's `.py` when a cache file for it is acceptable: `__pycache__/<m>.<cache_tag>.pyc`
@@ -304,10 +395,9 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
     # verification (time-of-check vs time-of-use; including a stale timestamp pyc that a later
     # metadata change -- `touch -d`, `cp -p`, `rsync -t` -- makes header-matching), the
     # program's runtime PYTHONPYCACHEPREFIX,
-    # another interpreter's cache tag, and under an UNDECLARED `python -m pkg.prog` the program's
-    # own cache AND its package `__init__` chain (declared with --as-package-module, both are
-    # judged by the u55 parent-chain rule in `resolve_imports`). Inline; the mirror twin is
-    # `\trusted`.
+    # another interpreter's cache tag, and under a `python -m pkg.prog` run (not a mode pycsl
+    # models: `--as-package-module` was withdrawn, run8-u58) the program's own cache AND its
+    # package `__init__` chain. Inline; the mirror twin is `\trusted`.
     if hit is not None and sys.implementation.cache_tag:
         import importlib.util as _iu612
         import marshal as _ma612
@@ -3951,6 +4041,118 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 os.replace(_tmp613, _hf613)
             except OSError:
                 pass
+        # (#49) run #8 u58 -- review rt69 G5 / G6 (PRE-EXISTING). THIRD-PARTY CODE IMPORTS FROM
+        # sys.path[0] FIRST TOO. A program that imports an installed package (`import lark`)
+        # runs that package's code, and the package's OWN imports resolve from the script's
+        # directory first (measured: lark's `try: import regex` loaded a ./regex.py beside the
+        # program, which rebound `len`; pycsl emitted it). So the judged set also holds every
+        # top-level name an installed package can bring in: each module / package / namespace
+        # directory / artifact importable from the site directories (the running
+        # interpreter's, its base installation's and the user's, plus the directories their
+        # `.pth` files add), and every top-level name imported -- anywhere, flow-insensitive,
+        # literal `__import__` / `import_module` names included -- by ANY `.py` source in them
+        # (the brief's simpler, more conservative variant: not only what the program reaches).
+        # Each such entry in a resolution root is then judged exactly as a stdlib name is
+        # (#326 / #611 / r12 at that node; a local module or a bare directory with no regular
+        # stdlib module to lose to is REFUSED). Cached as `r613-site-imports-<key40>.json`, the
+        # key covering every site directory's listing and every `.py`'s (relpath, size,
+        # mtime_ns), re-walked on each run; a stale, foreign or malformed table is rebuilt,
+        # never trusted.
+        _sw613: List[str] = [_p for _p in _site613 if _p != _std613]
+        for _p613 in list(_sw613):
+            for _e613 in _ls613h.get(_p613, []):
+                if not _e613.endswith(".pth"):
+                    continue
+                try:
+                    _pl613 = __import__("pathlib").Path(os.path.join(_p613, _e613)).read_text(
+                        errors="replace").splitlines()
+                except OSError:
+                    _pl613 = []
+                for _ln613 in _pl613:
+                    _ln613 = _ln613.rstrip()
+                    if _ln613 and not _ln613.startswith(("#", "import ", "import\t")):
+                        _q613 = os.path.join(_p613, _ln613)
+                        if os.path.isdir(_q613) and _q613 not in _sw613:
+                            _sw613.append(_q613)
+        _stl613: Dict[str, List[str]] = {}
+        _sfl613: List[Tuple[str, str, int, int]] = []
+        for _p613 in _sw613:
+            try:
+                _stl613[_p613] = sorted(os.listdir(_p613))
+            except OSError:
+                _stl613[_p613] = ["<unlistable>"]
+            for _dp613, _dn613, _fn613 in os.walk(_p613):
+                _dn613[:] = sorted(_d for _d in _dn613 if _d != "__pycache__")
+                for _f613 in sorted(_fn613):
+                    if _f613.endswith(".py"):
+                        try:
+                            _s613 = os.stat(os.path.join(_dp613, _f613))
+                        except OSError:
+                            continue
+                        _sfl613.append((_p613, os.path.relpath(os.path.join(_dp613, _f613), _p613),
+                                        _s613.st_size, _s613.st_mtime_ns))
+        _sk613 = _hl613.sha256(repr(("r613-site-v1", _key613, _sw613, _stl613, _sfl613)).encode()
+                               ).hexdigest()
+        _sf613 = os.path.join(os.path.dirname(_cf613), "r613-site-imports-" + _sk613[:40] + ".json")
+        _sg613: Optional[Dict[str, List[str]]] = None
+        try:
+            _sl613 = _json.loads(__import__("pathlib").Path(_sf613).read_text())
+            if (isinstance(_sl613, dict) and _sl613.get("key") == _sk613
+                    and isinstance(_sl613.get("graph"), dict)
+                    and all(isinstance(_k, str) and isinstance(_v, list)
+                            and all(isinstance(_x, str) for _x in _v)
+                            for _k, _v in _sl613["graph"].items())):
+                _sg613 = _sl613["graph"]
+        except (OSError, ValueError):
+            _sg613 = None
+        if _sg613 is None:
+            # `graph[T]`: every top-level name imported by any `.py` under the top-level entry
+            # T of a site directory (T importable or not: a `.dist-info` script still counts
+            # for its imports); every importable top-level entry is a key.
+            _gt613: Dict[str, Set[str]] = {}
+            _sx613 = (".py", ".pyc", ".pyd", ".so", *__import__(
+                "importlib.machinery").machinery.EXTENSION_SUFFIXES)
+            for _p613 in _sw613:
+                for _e613 in _stl613[_p613]:
+                    if os.path.isdir(os.path.join(_p613, _e613)):
+                        if _e613.isidentifier() and _e613 != "__pycache__":
+                            _gt613.setdefault(_e613, set())
+                    elif _e613.endswith(_sx613) and _e613.split(".", 1)[0].isidentifier():
+                        _gt613.setdefault(_e613.split(".", 1)[0], set())
+            for _p613, _rel613, _sz613, _mt613 in _sfl613:
+                _top613 = _rel613.split(os.sep)[0]
+                if _top613.endswith(".py"):
+                    _top613 = _top613[:-3].split(".", 1)[0]
+                _gt613.setdefault(_top613, set())
+                try:
+                    _tr613 = _a613.parse(__import__("pathlib").Path(
+                        os.path.join(_p613, _rel613)).read_bytes())
+                except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
+                    continue
+                for _n613 in _a613.walk(_tr613):
+                    if isinstance(_n613, _a613.Import):
+                        _gt613[_top613] |= {_al.name.split(".")[0] for _al in _n613.names}
+                    elif (isinstance(_n613, _a613.ImportFrom) and not _n613.level
+                          and _n613.module):
+                        _gt613[_top613].add(_n613.module.split(".")[0])
+                    elif (isinstance(_n613, _a613.Call) and _n613.args
+                          and isinstance(_n613.args[0], _a613.Constant)
+                          and isinstance(_n613.args[0].value, str)
+                          and (getattr(_n613.func, "id", None) or getattr(_n613.func, "attr", None))
+                          in ("__import__", "import_module", "files", "find_spec",
+                              "run_module", "import_fresh_module")
+                          and _n613.args[0].value.split(".")[0].isidentifier()):
+                        _gt613[_top613].add(_n613.args[0].value.split(".")[0])
+            _sg613 = {_k: sorted(_v) for _k, _v in sorted(_gt613.items())}
+            try:
+                _tmp613 = _sf613 + ".tmp" + str(os.getpid())
+                __import__("pathlib").Path(_tmp613).write_text(
+                    _json.dumps({"key": _sk613, "graph": _sg613}, sort_keys=True))
+                os.replace(_tmp613, _sf613)
+            except OSError:
+                pass
+        _site_names613 = ({_k for _k in _sg613 if _k.isidentifier()}
+                          | {_x for _v in _sg613.values() for _x in _v if _x.isidentifier()})
         # (u55, review rt66 g01) A COMPUTED NAME. The stdlib also imports modules by a name it
         # builds at run time (sysconfig: `__import__("_sysconfigdata_" + abiflags + ...)`,
         # reached by `import zoneinfo`), so the judged set also holds EVERY module name the
@@ -3982,120 +4184,25 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     _dirn613.add(_e613.split(".", 1)[0])
         _names613 = (set(sys.stdlib_module_names) | set(sys.builtin_module_names)
                      | set(_graph613) | {_x for _v in _graph613.values() for _x in _v}
-                     | set(_hooks613) | _dirn613) - {"__main__"}
+                     | set(_hooks613) | _dirn613 | _site_names613) - {"__main__"}
         _sd613 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # …/src/pycsl
-        # The DECLARED run mode `--as-package-module ROOT` (PYCSL_AS_PACKAGE_MODULE; never
-        # inferred, listed by --soundness-report): the program is imported as a submodule of
-        # the package rooted at ROOT, so sys.path[0] is ROOT, not the program's directory. The
-        # closure check then searches ROOT (and its realpath) in that place, and judges each
-        # candidate as an import made from ROOT (`_chk613`, a notional entry script there).
-        # Only this check moves: what the program's own imports resolve to is unchanged, so
-        # the emission is too. An invalid ROOT (not a directory containing the program) is
-        # ignored here -- script mode, the default (`main` refuses it before this point).
-        # (u55) `--verification-image ROOT` (PYCSL_VERIFICATION_IMAGE, the mirror gates' declared
-        # model: never run by CPython) puts ROOT in the same place for THIS check; only the
-        # -m rules (g02 in `_resolve_module_path`, the parent chain below) are -m-only.
+        # (u55) The DECLARED `--verification-image ROOT` (PYCSL_VERIFICATION_IMAGE, the mirror
+        # gates' and the pycsl_lib plane's declared model: never run by CPython, no CPython-run
+        # claim; listed by --soundness-report) puts ROOT in the program directory's place among
+        # THIS check's roots, and judges each candidate as an import made from ROOT (`_chk613`,
+        # a notional entry script path there: only its DIRECTORY is used, no rule looks at its
+        # name -- run8-u58, review rt69 G3). What the program's own imports resolve to is
+        # unchanged, so the emission is too. An invalid ROOT (not a directory containing the
+        # program) is ignored here (`main` refuses it before this point). `--as-package-module`
+        # (PYCSL_AS_PACKAGE_MODULE) is WITHDRAWN (run8-u58): `main` exits rc 2 on it, and this
+        # resolver has no code path for it.
         _chk613 = main_file
-        _pkg613 = os.environ.get("PYCSL_AS_PACKAGE_MODULE") or ""
-        _pm613 = _pkg613 or os.environ.get("PYCSL_VERIFICATION_IMAGE") or ""
+        _pm613 = os.environ.get("PYCSL_VERIFICATION_IMAGE") or ""
         if not (_pm613 and os.path.isdir(_pm613) and os.path.commonpath(
                 [os.path.abspath(_pm613), os.path.abspath(main_file)]) == os.path.abspath(_pm613)):
             _pm613 = ""
-            _pkg613 = ""
         if _pm613:
             _chk613 = os.path.join(os.path.abspath(_pm613), "__pycsl_r613_entry__.py")
-        # (#49) run #8 u55 -- review rt66 g08 (INTRODUCED by the declared mode). `python -m
-        # a.b.prog` from ROOT imports the packages `a` and `a.b` first -- their `__init__.py`
-        # run before the program -- and then the program itself, all from sys.path[0] = ROOT
-        # (measured: a.b's `__init__` doing `sys.path.insert(0, root/alt)` made json's `import
-        # re` load root/alt/re.py while pycsl PROVED the program). RULE (refusal-only): each
-        # ancestor package name and the program's own module name must resolve, from ROOT,
-        # to exactly that `__init__.py` (or to no file, a namespace portion) and to the
-        # program file -- which applies #326 / #611 / r12 (its `__pycache__` included) / #475
-        # to each of them -- and every ancestor `__init__.py` is judged as a dependency of the
-        # program: the import-time dynamic-code rule (#326) on its own source, and dynamic
-        # import machinery in it, which runs code pycsl never reads, refuses too.
-        if _pkg613:
-            _rp613 = os.path.relpath(os.path.abspath(main_file), os.path.abspath(_pkg613))
-            _pp613 = _rp613[:-3].split(os.sep) if _rp613.endswith(".py") else []
-            if _pp613 and _pp613[-1] == "__init__":
-                _pp613 = _pp613[:-1]
-            _pe613: Optional[str] = None
-            # (`python -m py-ref.10220_x` runs: runpy takes any name; a `.` inside one
-            # component, or a path outside ROOT, cannot be spelled as a module name)
-            if (not _pp613 or _rp613.startswith("..")
-                    or not all(_q and "." not in _q for _q in _pp613)):
-                _pe613 = (f"`{_rp613}` is not importable as a module under that root (its "
-                          f"path is not a dotted module name), so `python -m` cannot run it "
-                          f"as declared.")
-            for _k613 in range(1, len(_pp613) + 1):
-                if _pe613 is not None:
-                    break
-                _nm613 = ".".join(_pp613[:_k613])
-                _ini613 = os.path.join(os.path.abspath(_pkg613), *_pp613[:_k613], "__init__.py")
-                if _k613 == len(_pp613):
-                    _ex613: Optional[str] = os.path.abspath(main_file)
-                else:
-                    _ex613 = _ini613 if os.path.isfile(_ini613) else None
-                try:
-                    _gt613 = _resolve_module_path(_nm613, 0, _chk613)
-                except _E613 as _x613:
-                    _pe613 = (f"`{_nm613}` is refused there ({_x613.code or 'refused'}): "
-                              + _x613.message().split(" FIX: ")[0])
-                    break
-                if (None if _gt613 is None else os.path.abspath(_gt613)) != _ex613:
-                    _pe613 = (f"`{_nm613}` resolves from that root to "
-                              f"{_gt613 if _gt613 is not None else 'no local file'}, not to "
-                              f"{_ex613 if _ex613 is not None else 'the namespace portion'} "
-                              f"-- CPython runs another module than the one pycsl reads.")
-                    break
-                if _k613 == len(_pp613) or _ex613 is None:
-                    continue
-                try:
-                    _is613 = __import__("pathlib").Path(_ex613).read_text()
-                    _it613 = _ast.parse(_is613)
-                except (OSError, SyntaxError, ValueError, UnicodeDecodeError):
-                    _pe613 = f"its package `__init__` {_ex613} cannot be read as Python source."
-                    break
-                for _n613 in _ast.walk(_it613):
-                    _dy613 = None
-                    if isinstance(_n613, _ast.Import):
-                        _dy613 = next((_al.name for _al in _n613.names if _al.name.split(".")[0]
-                                       in ("importlib", "imp", "zipimport", "pkgutil", "runpy")),
-                                      None)
-                    elif (isinstance(_n613, _ast.ImportFrom) and _n613.module
-                          and not (getattr(_n613, "level", 0) or 0)
-                          and _n613.module.split(".")[0]
-                          in ("importlib", "imp", "zipimport", "pkgutil", "runpy")):
-                        _dy613 = _n613.module
-                    elif isinstance(_n613, _ast.Name) and _n613.id == "__import__":
-                        _dy613 = "__import__"
-                    if _dy613 is not None:
-                        _pe613 = (f"its package `__init__` {_ex613}, which `python -m` runs "
-                                  f"before the program, uses dynamic import machinery "
-                                  f"(`{_dy613}`): it runs code pycsl never reads.")
-                        break
-                if _pe613 is not None:
-                    break
-                if "sys" in _is613:
-                    resolve_imports(_it613, _ex613,
-                                    {"imports": [], "functions": [], "_r326_dep": True})
-            if _pe613 is not None:
-                # shown relative to cwd when under it (the census stays tree-independent)
-                _pe613 = _pe613.replace(os.getcwd() + os.sep, "")
-                _pkd613 = (os.path.relpath(_pkg613) if os.path.abspath(_pkg613).startswith(
-                    os.getcwd() + os.sep) else _pkg613)
-                raise _E613(
-                    f"under --as-package-module {_pkd613} the program runs as `python -m "
-                    f"{'.'.join(_pp613) or _rp613}`, which first imports every parent package "
-                    f"between that root and the program, then the program, from sys.path[0] = "
-                    f"that root; {_pe613} (review rt66 g08: a parent `__init__.py` doing "
-                    f"`sys.path.insert(0, root/alt)` made json's `import re` load "
-                    f"root/alt/re.py while pycsl PROVED the program.) FIX: keep the parent "
-                    f"packages' `__init__.py` free of import-system edits and dynamic imports, "
-                    f"remove the shadowing file, or verify the file as a script.",
-                    filename=main_file, stage="imports",
-                    code="PYCSL-SEM-IMPORT-PACKAGE-MODE-PARENT")
         _roots613: List[str] = []
         for _r613 in [os.path.dirname(os.path.realpath(_chk613)),
                       os.path.dirname(os.path.abspath(_chk613)), os.getcwd(),
@@ -4142,9 +4249,10 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     if (_t613 not in sys.stdlib_module_names
                             and _t613 not in sys.builtin_module_names):
                         _bad613 = (_t613, _h613,
-                                   "it is a local module, and the standard library (or a "
-                                   "startup hook) imports a module of that name (none of "
-                                   "pycsl's models assumes this file).")
+                                   "it is a local module, and the standard library, a startup "
+                                   "hook or installed third-party code imports or provides a "
+                                   "module of that name (none of pycsl's models assumes this "
+                                   "file).")
                         break
                     continue
                 # Nothing importable as source IN THIS ROOT: a non-module file (`re.txt`) is
@@ -4190,7 +4298,7 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             while _qi613 < len(_todo613):
                 _u613 = _todo613[_qi613]
                 _qi613 += 1
-                _nx613 = list(_graph613.get(_u613, []))
+                _nx613 = list(_graph613.get(_u613, [])) + list(_sg613.get(_u613, []))
                 if _u613 not in _graph613 and _u613 not in sys.stdlib_module_names:
                     try:
                         _lf613 = _resolve_module_path(_u613, 0, _chk613)
@@ -4216,6 +4324,9 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 while _par613.get(_ch613[-1]) is not None:
                     _ch613.append(str(_par613[_ch613[-1]]))
                 _chain613 = " -> ".join(["program"] + _ch613[::-1] + [_bad613[1]])
+            elif _bad613[0] in _site_names613 and _bad613[0] not in sys.stdlib_module_names:
+                _chain613 = (f"program -> installed third-party code (any site-directory module "
+                             f"the run reaches) -> {_bad613[0]} -> {_bad613[1]}")
             else:
                 _chain613 = (f"program -> builtins (C code whose imports pycsl cannot see) -> "
                              f"{_bad613[0]} -> {_bad613[1]}")

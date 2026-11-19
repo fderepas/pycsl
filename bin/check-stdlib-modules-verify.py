@@ -134,15 +134,15 @@ BASELINE = {
 
 def classify(path, timeout):
     try:
-        # (run #8 u55, route #613 / review rt66) `--as-package-module src`: a library module is
-        # never run as a script, it is imported as `pycsl_lib.<X>` -- pyproject.toml's
-        # `[tool.setuptools.packages.find] where = ["src"]`, put on sys.path by the editable
-        # install's `.pth` -- so sys.path[0] is not `src/pycsl_lib/`, whose stdlib-named model
-        # packages (`copyreg/`, `re/`, `os/`, ...) script mode would rightly refuse as shadows
-        # (`__init__.py`, REFUSED TRANSITIVE-SHADOW at ff03f178c). The declared mode's own
-        # rules (ROOT-first absolute imports, the parent `__init__` chain) apply in full.
+        # (run #8 u58, route #613 / review rt69; was u55's `--as-package-module src`, a mode
+        # now WITHDRAWN) `--verification-image src`: these files are VERIFICATION MODELS of
+        # library stubs, imported as `pycsl_lib.<X>`, never CPython-run programs -- so
+        # sys.path[0] is not `src/pycsl_lib/`, whose stdlib-named model packages (`copyreg/`,
+        # `re/`, `os/`, ...) script mode would rightly refuse as shadows (`__init__.py`, REFUSED
+        # TRANSITIVE-SHADOW at ff03f178c). The declared model makes no CPython-run claim; the
+        # route #613 / #611 / r12 closure checks still judge ROOT = src.
         p = subprocess.run([PY, DRIVER, "--import-path", os.path.join(ROOT, "src"),
-                            "--as-package-module", os.path.join(ROOT, "src"), path],
+                            "--verification-image", os.path.join(ROOT, "src"), path],
                            capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return "TIMEOUT"
