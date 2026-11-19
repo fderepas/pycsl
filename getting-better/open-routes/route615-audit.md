@@ -45,7 +45,7 @@ These two why3 kills cannot be tied to a recorded proof. Any proof accepted from
 
 A whole-file proof's main goals come from ONE full-file `why3 prove -P Z3 --json` run (`_dispatch_provers`, first attempt). If that run is killed after it has streamed some records, and every streamed record is Valid, then `_dispatch_provers` early-exits with `rc 0` and fewer goals. `_check_goal_conservation` compares against that same truncated first run, so it does not catch the loss. The only defence today is a reviewer comparing `total` with an earlier run's goal count.
 
-Row B's 03:08:25 kill falls in the main-goal window. Its 23799/23799 total cannot be checked against a same-emission clean run, because no other statements proof of the int48 emission exists. The #615 repair also closes this in the proof driver: a signal-killed why3 run now fails `_dispatch_provers`. See `getting-better/run8-u54-report.md` for whether that change was made and how it was witnessed.
+Row B's 03:08:25 kill falls in the main-goal window. Its 23799/23799 total cannot be checked against a same-emission clean run, because no other statements proof of the int48 emission exists. Measured: why3 1.8.2 streams its `--json` records, so a run SIGKILLed after 4 s keeps its first record on stdout. Witness: `witnesses-r615/w615_main_kill_ctl.py`, whose honest verdict is FAIL (Timeout), under `R615_MODE=kill-main`. At base `41fc6f781` it reports **`Verification SUCCESS! All contracts formally proven` on 1 goal of 3**. The #615 repair closes this in `_dispatch_provers`: a signal-killed or 126+ why3 run is never a verdict, and head reports `Verification FAILED`. See `getting-better/run8-u54-report.md`.
 
 ## Re-runs for the driver to schedule
 

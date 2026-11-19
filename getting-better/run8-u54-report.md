@@ -61,7 +61,7 @@ Base is `/home/fabrice/git/pycsl-u54-base` @ `41fc6f781`. Head is the snapshot `
 | kill-cs | 2823 / 0351 | **rc 0 SUCCESS** + 1 warning line | rc 1 FAILED (vacuity could not be checked) |
 | ulimit-pf | 2823 / 0351 | rc 0 SUCCESS | rc 0 SUCCESS (see below) |
 | off | w615main | rc 1 FAILED (Timeout) | rc 1 FAILED |
-| kill-main | w615main | MAIN_BASE | MAIN_HEAD |
+| kill-main | w615main | **rc 0 `Verification SUCCESS! All contracts formally proven` on 1 goal of 3** (main-phase fail-open) | rc 1 `[-] why3 run FAILED at the process level (prover Z3,4.13.3,, exit code -9, signal 9): its 1 goal record(s) are an incomplete prefix ...` then `Verification FAILED` |
 
 `ulimit-pf` is the same at base and head by design. Under the 60 MB cap the why3 process survives, and its **prover** child reports `Out of memory` inside a normal record (rc 2), just like a timeout. That is a prover that ran and hit a budget, not a dead run. If the driver wants OutOfMemory answers on the injected goal to fail too, it is a one-line change in the `_hf615` filter. I did not make it because of the risk of making landed probes fail without a measurement.
 
