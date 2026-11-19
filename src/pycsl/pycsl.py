@@ -40414,7 +40414,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # imported constant): every WhyML string literal route #411's pass decoded above
     # (comments and attributes are not the model and are skipped there) is read back as the
     # Python value it stands for (`_off429`), and one holding a code point > 255 REFUSES the
-    # program -- with ONE narrowing, measured necessary (u57: 5 of the 53 mirror files) and
+    # program -- with ONE narrowing, measured necessary (u57: 7 of the 53 mirror files refused without it, 1 with it) and
     # sound by construction: a value that is, in the source, ONLY the text of a `raise`
     # constructor argument or of a `print(..)` argument (the constant itself, an f-string
     # constant part, an operand of a `+` chain there). Such text reaches the model only as

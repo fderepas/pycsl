@@ -6696,7 +6696,8 @@ back as the Python value it stands for. A value holding a code point > 255 -- wh
 literal of a body, a contract / assertion / invariant literal (§7.81), a module constant, an implicit
 concatenation, a `\N{..}` / `\u` escape, a constant fold that leaves Latin-1 (`"\xff".upper()` is
 U+0178), an imported constant, a docstring the model reads -- REFUSES the program. ONE narrowing,
-measured necessary (5 of the 53 mirror files) and sound: a value that the source holds ONLY as the
+measured necessary (without it 7 of the 53 mirror files are refused -- audit_proof, desugar,
+Module5_IREmitter, expressions, stmt_control_flow, proof2why3/normalize, pycsl -- with it 1) and sound: a value that the source holds ONLY as the
 text of a `raise` constructor argument or of a `print(..)` argument (the constant itself, an f-string
 constant part, an operand of a `+` chain there) is excused -- it reaches the model only as an
 exception payload, which no claim can read (wildcard arms; route #233 refuses reading an `except ..
@@ -6704,7 +6705,8 @@ as e` binding), or as the hashed argument of `print`, and assembling it raises n
 characters. A value also held anywhere else (a docstring included) or as a string token of a `#@`
 line, or not held verbatim by the source (a fold, an import), is not excused. A comment is never
 refused; a literal the model never receives (a `__main__` driver argument, a parameter default the
-body does not see, an f-string part the lowering drops) is not refused either. Witnesses
+body does not see, an f-string part the lowering drops) is not refused either. Code points 0..255 were measured faithful (no false claim over len / index /
+positive slices / concatenation / `in` / `find` / equality proves; corpus 0 moved). Witnesses
 `10260`-`10275` (expected FAIL; refused in the default / typed / store models: rt68 p15 / p16 / p17
 / p19 / p18 / p21 / p22 / p20, a contract-only literal, a fold leaving Latin-1, `\N{..}`, a module
 constant, an imported constant; `10269` / `10270` / `10273` -- an f-string part, a format spec, a
