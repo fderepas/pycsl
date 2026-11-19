@@ -22333,7 +22333,176 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # class or an alias, and every import binding of a Path class (`Path as Fp`), is an
         # ALIAS: it counts as a Path name in every annotation test and as a Path class at a
         # call (fail-closed: an alias of `Optional[Path]` is path-ish like `Optional[Path]`).
+        # lvZ2 (run #8, driver scope addition after red team rt70 t01 / t03 / t04 / m07): an
+        # annotation name the pass CANNOT RESOLVE is a Path alias (fail-closed). Module 5
+        # resolves `Fp = TypeAliasType("Fp", Path)` (route #336) and erases an `Fp`-annotated
+        # name to `string`, but the type-expression fixpoint below skips every call-built
+        # binding, so `p: Fp; p == str(p)` PROVED (CPython False). RULE: every name (or the
+        # attribute tail of a dotted name) that occurs in a parameter / return / annotated-
+        # assignment annotation of the unit (string annotations parsed) is RESOLVED only when
+        # it is a builtin that is not rebound, a class / def of the unit, a name bound only by
+        # TYPE EXPRESSIONS (no call; the fixpoint below decides whether it is a Path alias),
+        # or imported from a standard-library module, or from a local dependency that binds it
+        # at top level by a class / def / type expression. Anything else -- a binding by ANY
+        # call (`TypeAliasType`, `typing.TypeAliasType`, `NewType`, `TypeVar`, a helper), a
+        # PEP 695 type parameter, any other binding, an unreadable / non-local / re-exporting
+        # import, an unbound name -- joins the aliases: path-ish in every annotation test.
+        import builtins as _bi614
+        import sys as _sy614
+        from frontend.ir_resolve import _resolve_module_path as _rmq614
+        _std614 = set(getattr(_sy614, "stdlib_module_names", ())) | {"__future__"}
+        _bk614, _ann614, _atn614 = {}, set(), set()
+        for _n in _nodes614:
+            _axs = []
+            if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef, _ast614.ClassDef)):
+                _bk614.setdefault(_n.name, []).append("decl")
+                for _tp in (getattr(_n, "type_params", None) or []):
+                    _bk614.setdefault(getattr(_tp, "name", ""), []).append("other")
+            if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef)):
+                _axs.append(_n.returns)
+                _axs += [_a.annotation for _a in (
+                    _n.args.posonlyargs + _n.args.args + _n.args.kwonlyargs
+                    + [_x for _x in (_n.args.vararg, _n.args.kwarg) if _x is not None])]
+            elif isinstance(_n, _ast614.AnnAssign):
+                _axs.append(_n.annotation)
+            if isinstance(_n, (_ast614.Assign, _ast614.AnnAssign)) or isinstance(
+                    _n, getattr(_ast614, "TypeAlias", ())):
+                _tgs = (_n.targets if isinstance(_n, _ast614.Assign) else
+                        [_n.target] if isinstance(_n, _ast614.AnnAssign) else [_n.name])
+                _vv = _n.value
+                _tx = (_vv is not None and len(_tgs) == 1
+                       and isinstance(_vv, (_ast614.Name, _ast614.Attribute, _ast614.Constant,
+                                            _ast614.Subscript, _ast614.BinOp))
+                       and not any(isinstance(_z, (_ast614.Call, _ast614.Lambda,
+                                                   _ast614.NamedExpr))
+                                   for _z in _ast614.walk(_vv)))
+                for _t in _tgs:
+                    for _z in _ast614.walk(_t):
+                        if isinstance(_z, _ast614.Name):
+                            _bk614.setdefault(_z.id, []).append(
+                                "texpr" if (_tx and _z is _t) else "other")
+                for _tp in (getattr(_n, "type_params", None) or []):
+                    _bk614.setdefault(getattr(_tp, "name", ""), []).append("other")
+            elif isinstance(_n, (_ast614.Import, _ast614.ImportFrom)):
+                for _a in _n.names:
+                    _bk614.setdefault((_a.asname or _a.name).split(".")[0], []).append(
+                        ("imp", _n, _a))
+            elif (isinstance(_n, _ast614.Name)
+                    and isinstance(_n.ctx, (_ast614.Store, _ast614.Del))
+                    and not isinstance(_par614.get(id(_n)), (_ast614.Assign,
+                                                              _ast614.AnnAssign)
+                                       + ((_ast614.TypeAlias,)
+                                          if hasattr(_ast614, "TypeAlias") else ()))):
+                _bk614.setdefault(_n.id, []).append("other")
+            elif isinstance(_n, _ast614.arg):
+                _bk614.setdefault(_n.arg, []).append("other")
+            for _ax in _axs:
+                _wq = [_ax] if _ax is not None else []
+                while _wq:
+                    _z = _wq.pop()
+                    if isinstance(_z, _ast614.Constant) and isinstance(_z.value, str):
+                        try:
+                            _wq.append(_ast614.parse(_z.value, mode="eval").body)
+                        except SyntaxError:
+                            pass
+                    elif isinstance(_z, _ast614.Name):
+                        _ann614.add(_z.id)
+                    elif isinstance(_z, _ast614.Attribute):
+                        _bz = _z
+                        while isinstance(_bz, _ast614.Attribute):
+                            _bz = _bz.value
+                        _atn614.add((_bz.id if isinstance(_bz, _ast614.Name) else None,
+                                     _z.attr))
+                    else:
+                        _wq.extend(_ast614.iter_child_nodes(_z))
+        _dtq614 = {}
+        _ur614 = set()
+        for _bnm, _nm, _dot in ([(None, _x, False) for _x in sorted(_ann614)]
+                                + [(_q[0], _q[1], True) for _q in sorted(
+                                    _atn614, key=lambda _q: (str(_q[0]), _q[1]))]):
+            # (None, name): an annotation NAME; (base, attr): a dotted annotation's tail
+            if _nm in _pc614:
+                continue
+            if _dot:
+                _bks = _bk614.get(_bnm) or [] if _bnm is not None else []
+                _ok = False
+                if len(_bks) == 1 and isinstance(_bks[0], tuple):
+                    _inn, _ia = _bks[0][1], _bks[0][2]
+                    _imod = (_ia.name if isinstance(_inn, _ast614.Import)
+                             else f"{_inn.module or ''}.{_ia.name}".strip("."))
+                    if not getattr(_inn, "level", 0) and _imod.split(".")[0] in _std614:
+                        _ok = True
+                    else:
+                        _qk = (_imod, getattr(_inn, "level", 0) or 0)
+                        if _qk not in _dtq614:
+                            try:
+                                _qf = _rmq614(_imod, _qk[1], str(getattr(args, "file", "") or ""))
+                                _dtq614[_qk] = (_ast614.parse(open(_qf).read())
+                                                if _qf is not None else None)
+                            except Exception:
+                                _dtq614[_qk] = None
+                        _qt = _dtq614[_qk]
+                        _ok = _qt is not None and any(
+                            (isinstance(_b, (_ast614.ClassDef, _ast614.FunctionDef,
+                                             _ast614.AsyncFunctionDef)) and _b.name == _nm)
+                            for _b in _qt.body)
+                if not _ok:
+                    _ur614.add(_nm)
+                continue
+            _bks = _bk614.get(_nm)
+            if not _bks:
+                if _nm not in dir(_bi614):
+                    _ur614.add(_nm)
+                continue
+            if all(_k in ("decl", "texpr") for _k in _bks):
+                continue
+            if len(_bks) == 1 and isinstance(_bks[0], tuple):
+                _inn, _ia = _bks[0][1], _bks[0][2]
+                if isinstance(_inn, _ast614.Import):
+                    continue  # a module object (its attributes are checked as dotted tails)
+                if not _inn.level and (_inn.module or "").split(".")[0] in _std614:
+                    continue
+                _qk = (_inn.module or "", _inn.level or 0)
+                if _qk not in _dtq614:
+                    try:
+                        _qf = _rmq614(_qk[0], _qk[1], str(getattr(args, "file", "") or ""))
+                        _dtq614[_qk] = (_ast614.parse(open(_qf).read())
+                                        if _qf is not None else None)
+                    except Exception:
+                        _dtq614[_qk] = None
+                _qt = _dtq614[_qk]
+                _qb = []
+                for _b in (_qt.body if _qt is not None else []):
+                    if (isinstance(_b, (_ast614.ClassDef, _ast614.FunctionDef,
+                                        _ast614.AsyncFunctionDef)) and _b.name == _ia.name):
+                        _qb.append("decl")
+                    elif ((isinstance(_b, _ast614.Assign) and len(_b.targets) == 1
+                           and isinstance(_b.targets[0], _ast614.Name)
+                           and _b.targets[0].id == _ia.name)
+                          or (isinstance(_b, _ast614.AnnAssign)
+                              and isinstance(_b.target, _ast614.Name)
+                              and _b.target.id == _ia.name)
+                          or (isinstance(_b, getattr(_ast614, "TypeAlias", ()))
+                              and getattr(_b.name, "id", None) == _ia.name)):
+                        _vv = _b.value
+                        _qb.append("decl" if (
+                            _vv is not None
+                            and isinstance(_vv, (_ast614.Name, _ast614.Attribute,
+                                                 _ast614.Constant, _ast614.Subscript,
+                                                 _ast614.BinOp))
+                            and not getattr(_b, "type_params", None)
+                            and not any(isinstance(_z, (_ast614.Call, _ast614.Lambda,
+                                                        _ast614.NamedExpr))
+                                        for _z in _ast614.walk(_vv))) else "other")
+                    elif (isinstance(_b, (_ast614.Import, _ast614.ImportFrom))
+                          and any((_a.asname or _a.name) == _ia.name for _a in _b.names)):
+                        _qb.append("other")
+                if not (_qb and all(_k == "decl" for _k in _qb)):
+                    _ur614.add(_nm)
+                continue
+            _ur614.add(_nm)
         _al614 = {_k for _k, _v in _iorig614.items() if _v in _pc614 and _k not in _pc614}
+        _al614 |= _ur614
         _ach614 = True
         while _ach614:
             _ach614 = False
@@ -22375,7 +22544,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _drt614 = set()
         _inj614 = {str(_f.get("name", "")) for _f in (
             (getattr(transpiler, "ir", None) or {}).get("functions") or [])
-            if isinstance(_f, dict) and _f.get("trusted")} - set(_defs614)
+            if isinstance(_f, dict) and _f.get("trusted")}
+        # lvZ2 (rt70 m19): a unit def / method of the same name does NOT hide an imported
+        # callee (was `- set(_defs614)`: a local `Box.keep` dropped the imported `keep` here,
+        # so a Path passed to `keep(x: str)` was never checked)
+        _lmd614 = {}  # lvZ2: local name of an import of a LOCAL module -> its tree (or None)
         if True:
             from frontend.ir_resolve import _resolve_module_path as _rmp614
             _dtr614 = {}
@@ -22393,8 +22566,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 else:
                     _keys = [(_loc, _org)] if _org in _inj614 else []
                     _mfile = _mod
-                if not _keys and _ism:
-                    continue
                 try:
                     _dfp = _rmp614(str(_mfile or ""), int(_lvl or 0), str(getattr(args, "file", "") or ""))
                 except Exception:
@@ -22405,6 +22576,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     except (OSError, SyntaxError, ValueError):
                         _dtr614[_dfp] = None
                 _dtree = _dtr614.get(_dfp) if _dfp is not None else None
+                # lvZ2 (rt70 m20): key EVERY top-level def of a local dependency, under the
+                # local spelling AND the dotted module path (`import pkg.h` + `pkg.h.keep`),
+                # and remember the module so that an unkeyed dotted callee of it is UNKNOWN
+                if _dfp is not None and _org != "*":
+                    _lmd614[str(_loc)] = _dtree
+                    if _ism:
+                        _lmd614[str(_org).split(".")[0]] = _dtree if "." not in str(_org) else (
+                            _lmd614.get(str(_org).split(".")[0]))
+                if _dtree is not None:
+                    _tdf = [_b.name for _b in _dtree.body
+                            if isinstance(_b, (_ast614.FunctionDef, _ast614.AsyncFunctionDef))]
+                    if _ism:
+                        _keys = _keys + [(f"{_pf}.{_x}", _x) for _x in _tdf
+                                         for _pf in sorted({str(_loc), str(_org)})]
+                    elif _org != "*" and _org in _tdf and (_loc, _org) not in _keys:
+                        _keys = _keys + [(_loc, _org)]
                 _dal = set()
                 if _dtree is not None:
                     _dnodes = list(_ast614.walk(_dtree))
@@ -22412,6 +22599,79 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if isinstance(_n, _ast614.ImportFrom):
                             _dal |= {_a.asname for _a in _n.names
                                      if _a.asname and _a.name in _pc614}
+                    # lvZ2 (driver scope addition, rt70 m07 / m24): the dependency's own
+                    # UNRESOLVED annotation names (the unit rule above, one level: a name its
+                    # signatures mention that it binds by a call / any non-type-expression, or
+                    # imports from a non-standard-library module, or never binds and is not a
+                    # builtin) are Path aliases there too (`Fp = TypeAliasType("Fp", Path)`;
+                    # `def mk(s) -> Fp`).
+                    _dbk = {}
+                    _dan = set()
+                    for _n in _dnodes:
+                        if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef,
+                                           _ast614.ClassDef)):
+                            _dbk.setdefault(_n.name, []).append("decl")
+                            for _tp in (getattr(_n, "type_params", None) or []):
+                                _dbk.setdefault(getattr(_tp, "name", ""), []).append("other")
+                        if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef)):
+                            for _ax in ([_n.returns] + [_a.annotation for _a in (
+                                    _n.args.posonlyargs + _n.args.args + _n.args.kwonlyargs
+                                    + [_x for _x in (_n.args.vararg, _n.args.kwarg)
+                                       if _x is not None])]):
+                                _wq = [_ax] if _ax is not None else []
+                                while _wq:
+                                    _z = _wq.pop()
+                                    if (isinstance(_z, _ast614.Constant)
+                                            and isinstance(_z.value, str)):
+                                        try:
+                                            _wq.append(_ast614.parse(_z.value, mode="eval").body)
+                                        except SyntaxError:
+                                            pass
+                                    elif isinstance(_z, _ast614.Name):
+                                        _dan.add(_z.id)
+                                    elif isinstance(_z, _ast614.Attribute):
+                                        _dan.add(_z.attr)
+                                    else:
+                                        _wq.extend(_ast614.iter_child_nodes(_z))
+                        elif (isinstance(_n, (_ast614.Assign, _ast614.AnnAssign))
+                              or isinstance(_n, getattr(_ast614, "TypeAlias", ()))):
+                            _tgs = (_n.targets if isinstance(_n, _ast614.Assign) else
+                                    [_n.target] if isinstance(_n, _ast614.AnnAssign)
+                                    else [_n.name])
+                            _vv = _n.value
+                            _tx = (_vv is not None and len(_tgs) == 1
+                                   and not getattr(_n, "type_params", None)
+                                   and isinstance(_vv, (_ast614.Name, _ast614.Attribute,
+                                                        _ast614.Constant, _ast614.Subscript,
+                                                        _ast614.BinOp))
+                                   and not any(isinstance(_z, (_ast614.Call, _ast614.Lambda,
+                                                               _ast614.NamedExpr))
+                                               for _z in _ast614.walk(_vv)))
+                            for _t in _tgs:
+                                for _z in _ast614.walk(_t):
+                                    if isinstance(_z, _ast614.Name):
+                                        _dbk.setdefault(_z.id, []).append(
+                                            "decl" if (_tx and _z is _t) else "other")
+                        elif isinstance(_n, (_ast614.Import, _ast614.ImportFrom)):
+                            for _a in _n.names:
+                                _dbk.setdefault((_a.asname or _a.name).split(".")[0], []).append(
+                                    "decl" if (isinstance(_n, _ast614.Import)
+                                               or (not _n.level and (_n.module or "").split(
+                                                   ".")[0] in _std614)) else "other")
+                        elif isinstance(_n, (_ast614.For, _ast614.AsyncFor, _ast614.With,
+                                             _ast614.AsyncWith, _ast614.NamedExpr,
+                                             _ast614.AugAssign, _ast614.Global,
+                                             _ast614.Nonlocal)):
+                            for _z in _ast614.walk(_n):
+                                if (isinstance(_z, _ast614.Name)
+                                        and isinstance(_z.ctx, _ast614.Store)):
+                                    _dbk.setdefault(_z.id, []).append("other")
+                    for _x in _dan:
+                        if _x in _pc614:
+                            continue
+                        if ((_x not in _dbk and _x not in dir(_bi614))
+                                or (_x in _dbk and not all(_k == "decl" for _k in _dbk[_x]))):
+                            _dal.add(_x)
                     _dch = True
                     while _dch:
                         _dch = False
@@ -22566,7 +22826,23 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _dk = (_cf.id if isinstance(_cf, _ast614.Name) else
                            f"{_cf.value.id}.{_cf.attr}" if isinstance(_cf, _ast614.Attribute)
                            and isinstance(_cf.value, _ast614.Name) else None)
-                    _p = (_cn in _pc614 or _cn in _rt614
+                    # lvZ2 (rt70 m20 / m26): the FULL dotted spelling (`pkg.h.keep`), and a
+                    # dotted callee rooted at a LOCAL module import that is not one of its
+                    # keyed top-level defs nor a constructor of one of its top-level classes
+                    # (`h.Box.keep`, `pkg.h.keep` unkeyed) has an UNKNOWN signature
+                    _dq, _bz = [], _cf
+                    while isinstance(_bz, _ast614.Attribute):
+                        _dq.insert(0, _bz.attr)
+                        _bz = _bz.value
+                    _dkf = (".".join([_bz.id] + _dq)
+                            if isinstance(_bz, _ast614.Name) and _dq else None)
+                    if _dk not in _dpd614 and _dkf in _dpd614:
+                        _dk = _dkf
+                    _unk = (_dkf is not None and _dk not in _dpd614 and _bz.id in _lmd614
+                            and not (len(_dq) == 1 and _lmd614[_bz.id] is not None and any(
+                                isinstance(_b, _ast614.ClassDef) and _b.name == _dq[0]
+                                for _b in _lmd614[_bz.id].body)))
+                    _p = (_cn in _pc614 or _cn in _rt614 or _unk
                           or (_dk in _dpd614 and (
                               _dpd614[_dk] is None
                               or (_dpd614[_dk][0].returns is not None and _dpd614[_dk][1].search(
@@ -22682,6 +22958,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _rcv = _cf.value if isinstance(_cf, _ast614.Attribute) else None
                 if isinstance(_cf, _ast614.Name) and _cn in _iorig614:
                     _cn = _iorig614[_cn]
+                _dq, _bz = [], _cf
+                while isinstance(_bz, _ast614.Attribute):
+                    _dq.insert(0, _bz.attr)
+                    _bz = _bz.value
+                _dkf = (".".join([_bz.id] + _dq)
+                        if isinstance(_bz, _ast614.Name) and _dq else None)
+                _unk = (_dkf is not None and _dkf not in _dpd614 and _bz.id in _lmd614
+                        and (not isinstance(_cf, _ast614.Attribute)
+                             or not isinstance(_cf.value, _ast614.Name)
+                             or f"{_cf.value.id}.{_cf.attr}" not in _dpd614)
+                        and not (len(_dq) == 1 and _lmd614[_bz.id] is not None and any(
+                            isinstance(_b, _ast614.ClassDef) and _b.name == _dq[0]
+                            for _b in _lmd614[_bz.id].body)))
                 if (_cn in _ho614
                         and (any(id(_x) in _pv614 for _x in _ar)
                              or (_rcv is not None and id(_rcv) in _pv614))
@@ -22709,12 +22998,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         and not isinstance(_cf, (_ast614.Name, _ast614.Attribute))):
                     _why614 = "passes a Path value to a computed callee"
                 elif (any(id(_x) in _pv614 for _x in _ar)
-                        and (_cf.id if isinstance(_cf, _ast614.Name) else
-                             f"{_cf.value.id}.{_cf.attr}" if isinstance(_cf, _ast614.Attribute)
-                             and isinstance(_cf.value, _ast614.Name) else None) in _dpd614):
+                        and ((_cf.id if isinstance(_cf, _ast614.Name) else
+                              f"{_cf.value.id}.{_cf.attr}" if isinstance(_cf, _ast614.Attribute)
+                              and isinstance(_cf.value, _ast614.Name) else None) in _dpd614
+                             or _dkf in _dpd614 or _unk)):
                     # lvZ (rt67 m05): an IMPORTED callee's parameter must be annotated Path
-                    _dv = _dpd614[(_cf.id if isinstance(_cf, _ast614.Name)
-                                   else f"{_cf.value.id}.{_cf.attr}")]
+                    # lvZ2 (rt70 m20 / m26): also under its full dotted spelling; an UNKNOWN
+                    # dotted callee of a local module (`_unk`, as in the propagation) is refused
+                    _dkk = (_cf.id if isinstance(_cf, _ast614.Name) else
+                            f"{_cf.value.id}.{_cf.attr}" if isinstance(_cf, _ast614.Attribute)
+                            and isinstance(_cf.value, _ast614.Name) else None)
+                    _dv = (_dpd614[_dkk] if _dkk in _dpd614 else
+                           _dpd614[_dkf] if _dkf in _dpd614 else None)
                     if _dv is None:
                         _why614 = (f"passes a Path value to the imported `{_cn}`, whose "
                                    f"signature the pass cannot read")

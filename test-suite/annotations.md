@@ -6745,6 +6745,22 @@ function -- is a Why3 TYPE ERROR (fail-closed). The #31-erased `p: Path` paramet
 `string`, covered by R614 above). `_sha256_file` stays verified on `py_path`. Witnesses `10280`-`10285`
 (expected FAIL; helper `multi_file_lib/lvz2_pathlib.py`), controls `10286` (`os.fspath(p) == str(p)`),
 `10287` (`f"{p}" == str(p)`), `10288` (two locals `Path(s)` equal).
+**Unresolved aliases and unknown callees (run #8, lvZ2).** Red team rt70: a Path behind
+`Fp = TypeAliasType("Fp", Path)` (also `typing.TypeAliasType`, in the unit or in a dependency's
+`-> Fp`) is erased to `string` by route #336 while the alias fixpoint above skips every call-built
+binding (t01 / t03 / t04 / m07 PROVED, CPython False / True); a unit method named like an imported
+function hid the import from the signature check (m19), and a two-dot callee (`pkg.h.keep`) was never
+keyed (m20). FAIL-CLOSED RULE: every name (or dotted tail) mentioned by an annotation of the unit is
+RESOLVED only when it is an unrebound builtin, a class / def of the unit, bound only by type expressions,
+imported from a standard-library module, or imported from a local dependency that binds it at top level
+by a class / def / type expression; ANY other name (bound by a call -- `TypeAliasType`, `NewType`,
+`TypeVar`, a helper --, a PEP 695 type parameter, any other binding, an unreadable / non-local /
+re-exporting import, an unbound name) is a Path alias; a dependency's signatures get the same rule one
+level deep. Imported callees are no longer hidden by unit defs of the same name; every top-level def of a
+local dependency is keyed under its local and its dotted module spelling, and a dotted callee rooted at a
+local module import that is neither keyed nor a constructor of one of its top-level classes has an
+UNKNOWN signature (its result is path-ish, a path-ish argument to it is refused). Witnesses `10289`-`10295`
+(expected FAIL, refused; helper `multi_file_lib/lvz2r_tat.py`), control `10296`.
 
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
