@@ -22193,7 +22193,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     if _tds614:
         _chk614.update({"__init__", "__post_init__"})
     _tree614 = None
-    if _chk614 and _re614.search(r"Path", source_code):
+    # lvZ: also every unit that imports a name (an imported `-> Path` function or Path alias
+    # carries its Path in ANOTHER file's source: rt67 m01's `p = mk(s)` spells no `Path`)
+    if _chk614 and (_re614.search(r"Path", source_code) or any(
+            isinstance(_im, (list, tuple)) and len(_im) >= 3 and _im[2] != "__future__"
+            for _im in ((getattr(transpiler, "ir", None) or {}).get("imports") or []))):
         try:
             _tree614 = _ast614.parse(source_code)
         except SyntaxError:
@@ -22266,9 +22270,148 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if (isinstance(_b, (_ast614.FunctionDef, _ast614.AsyncFunctionDef))
                             and _b.name == "__init__"):
                         _defs614.setdefault(_n.name, []).append(_b)
+        # lvZ (run #8, red team rt67 (B), routes #614 / #617): TYPE ALIASES of a Path type. #31
+        # resolves `Fp: TypeAlias = Path`, PEP 695 `type Fp = Path`, `Fp = pathlib.Path`, ...
+        # and erases an `Fp`-annotated name to `str`, while the annotation test below matched
+        # only the spelled Path class names (rt67 n02 / n17 / n18 / n24 PROVED, CPython False).
+        # Every name bound (anywhere, to a fixpoint) by a TYPE EXPRESSION -- a name, an
+        # attribute, a string, a subscript, a `|` union; never a call -- that mentions a Path
+        # class or an alias, and every import binding of a Path class (`Path as Fp`), is an
+        # ALIAS: it counts as a Path name in every annotation test and as a Path class at a
+        # call (fail-closed: an alias of `Optional[Path]` is path-ish like `Optional[Path]`).
+        _al614 = {_k for _k, _v in _iorig614.items() if _v in _pc614 and _k not in _pc614}
+        _ach614 = True
+        while _ach614:
+            _ach614 = False
+            _pa614 = _re614.compile(r"\b(?:(?:Pure)?(?:Posix|Windows)?Path(?:Like)?" + "".join(
+                "|" + _re614.escape(_x) for _x in sorted(_al614)) + r")\b")
+            for _n in _nodes614:
+                _anm, _aval = None, None
+                if (isinstance(_n, _ast614.AnnAssign) and isinstance(_n.target, _ast614.Name)
+                        and _n.value is not None):
+                    _anm, _aval = _n.target.id, _n.value
+                elif (isinstance(_n, _ast614.Assign) and len(_n.targets) == 1
+                        and isinstance(_n.targets[0], _ast614.Name)):
+                    _anm, _aval = _n.targets[0].id, _n.value
+                elif isinstance(_n, getattr(_ast614, "TypeAlias", ())):
+                    _anm = getattr(_n.name, "id", None)
+                    _aval = _n.value
+                if (_anm is None or _anm in _al614 or _anm in _pc614
+                        or not isinstance(_aval, (_ast614.Name, _ast614.Attribute,
+                                                  _ast614.Constant, _ast614.Subscript,
+                                                  _ast614.BinOp))):
+                    continue
+                if any(isinstance(_z, (_ast614.Call, _ast614.Lambda, _ast614.NamedExpr))
+                       for _z in _ast614.walk(_aval)):
+                    continue
+                _atx = (_aval.value if isinstance(_aval, _ast614.Constant)
+                        and isinstance(_aval.value, str) else _ast614.unparse(_aval))
+                if _pa614.search(str(_atx)):
+                    _al614.add(_anm)
+                    _ach614 = True
+        _pc614 = _pc614 | _al614
+        # lvZ (run #8, red team rt67 (A)): functions IMPORTED from a LOCAL dependency
+        # (`resolve_imports` injects them as `\trusted` stubs: no source AST here, and #31 has
+        # erased their Path annotations to `str`). Their DECLARED signatures are read from the
+        # dependency's own source (its Path aliases resolved as above), keyed by the local
+        # callee spelling (`mk` for `from h import mk`, `h.mk` for `import h`). A dependency
+        # whose source cannot be read or whose def is not found has the unknown signature
+        # None: a call of it with a path-ish argument is path-ish and that argument REFUSED.
+        _dpd614 = {}
+        _inj614 = {str(_f.get("name", "")) for _f in (
+            (getattr(transpiler, "ir", None) or {}).get("functions") or [])
+            if isinstance(_f, dict) and _f.get("trusted")} - set(_defs614)
+        if True:
+            from frontend.ir_resolve import _resolve_module_path as _rmp614
+            _dtr614 = {}
+            for _im in ((getattr(transpiler, "ir", None) or {}).get("imports") or []):
+                if not (isinstance(_im, (list, tuple)) and len(_im) >= 5):
+                    continue
+                _loc, _org, _mod, _lvl, _ism = _im[:5]
+                _keys = []
+                if _ism:
+                    _keys = [(f"{_loc}.{_x}", _x) for _x in _inj614]
+                    _mfile = _mod or _org
+                else:
+                    _keys = [(_loc, _org)] if _org in _inj614 else []
+                    _mfile = _mod
+                if not _keys and _ism:
+                    continue
+                try:
+                    _dfp = _rmp614(str(_mfile or ""), int(_lvl or 0), str(getattr(args, "file", "") or ""))
+                except Exception:
+                    _dfp = None
+                if _dfp is not None and _dfp not in _dtr614:
+                    try:
+                        _dtr614[_dfp] = _ast614.parse(open(_dfp).read())
+                    except (OSError, SyntaxError, ValueError):
+                        _dtr614[_dfp] = None
+                _dtree = _dtr614.get(_dfp) if _dfp is not None else None
+                _dal = set()
+                if _dtree is not None:
+                    _dnodes = list(_ast614.walk(_dtree))
+                    for _n in _dnodes:
+                        if isinstance(_n, _ast614.ImportFrom):
+                            _dal |= {_a.asname for _a in _n.names
+                                     if _a.asname and _a.name in _pc614}
+                    _dch = True
+                    while _dch:
+                        _dch = False
+                        _dre = _re614.compile(r"\b(?:(?:Pure)?(?:Posix|Windows)?Path(?:Like)?"
+                                              + "".join("|" + _re614.escape(_x)
+                                                        for _x in sorted(_dal)) + r")\b")
+                        for _n in _dnodes:
+                            _anm, _aval = None, None
+                            if (isinstance(_n, _ast614.AnnAssign)
+                                    and isinstance(_n.target, _ast614.Name)
+                                    and _n.value is not None):
+                                _anm, _aval = _n.target.id, _n.value
+                            elif (isinstance(_n, _ast614.Assign) and len(_n.targets) == 1
+                                    and isinstance(_n.targets[0], _ast614.Name)):
+                                _anm, _aval = _n.targets[0].id, _n.value
+                            elif isinstance(_n, getattr(_ast614, "TypeAlias", ())):
+                                _anm = getattr(_n.name, "id", None)
+                                _aval = _n.value
+                            if (_anm is None or _anm in _dal
+                                    or not isinstance(_aval, (_ast614.Name, _ast614.Attribute,
+                                                              _ast614.Constant,
+                                                              _ast614.Subscript,
+                                                              _ast614.BinOp))
+                                    or any(isinstance(_z, (_ast614.Call, _ast614.Lambda,
+                                                           _ast614.NamedExpr))
+                                           for _z in _ast614.walk(_aval))):
+                                continue
+                            _atx = (_aval.value if isinstance(_aval, _ast614.Constant)
+                                    and isinstance(_aval.value, str)
+                                    else _ast614.unparse(_aval))
+                            if _dre.search(str(_atx)):
+                                _dal.add(_anm)
+                                _dch = True
+                    _dre = _re614.compile(r"\b(?:(?:Pure)?(?:Posix|Windows)?Path(?:Like)?"
+                                          + "".join("|" + _re614.escape(_x)
+                                                    for _x in sorted(_dal)) + r")\b")
+                if not _ism and _org in _dal and _loc not in _pc614:
+                    _al614.add(_loc)  # `from h import Fp`, `Fp` a Path alias in `h`
+                for _key, _onm in _keys:
+                    _dd = None
+                    if _dtree is not None:
+                        _dd = next((_b for _b in _dtree.body
+                                    if isinstance(_b, (_ast614.FunctionDef,
+                                                       _ast614.AsyncFunctionDef))
+                                    and _b.name == _onm), None)
+                    if _dd is None:
+                        if _ism:
+                            continue  # not a function of THAT module
+                        _dpd614[_key] = None
+                    else:
+                        _dpd614[_key] = (_dd, _dre)
+        _pa614 = _re614.compile(r"\b(?:(?:Pure)?(?:Posix|Windows)?Path(?:Like)?" + "".join(
+            "|" + _re614.escape(_x) for _x in sorted(_al614)) + r")\b")
+        _pc614 = _pc614 | _al614
         # every binding of a name in its scope: a FRESH container (a display, a comprehension,
         # a `list(..)` / `dict(..)` / `set(..)` copy) or something else (None)
         _bv614 = {}
+
         for _n in _nodes614:
             _s = _sc614[id(_n)]
             if isinstance(_n, (_ast614.FunctionDef, _ast614.AsyncFunctionDef, _ast614.Lambda)):
@@ -22349,7 +22492,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _cn = (_cf.id if isinstance(_cf, _ast614.Name)
                            else _cf.attr if isinstance(_cf, _ast614.Attribute) else None)
                     _ar = list(_n.args) + [_k.value for _k in _n.keywords]
+                    _dk = (_cf.id if isinstance(_cf, _ast614.Name) else
+                           f"{_cf.value.id}.{_cf.attr}" if isinstance(_cf, _ast614.Attribute)
+                           and isinstance(_cf.value, _ast614.Name) else None)
                     _p = (_cn in _pc614 or _cn in _rt614
+                          or (_dk in _dpd614 and (
+                              _dpd614[_dk] is None
+                              or (_dpd614[_dk][0].returns is not None and _dpd614[_dk][1].search(
+                                  _ast614.unparse(_dpd614[_dk][0].returns)))
+                              or (_dpd614[_dk][0].returns is None
+                                  and any(id(_x) in _pv614 for _x in _ar)))
+                              and (_dpd614[_dk] is not None
+                                   or any(id(_x) in _pv614 for _x in _ar)))
                           or (_cn in _pm614 and isinstance(_cf, _ast614.Attribute)
                               and (id(_cf.value) in _pv614
                                    or (isinstance(_cf.value, _ast614.Name)
@@ -22484,6 +22638,38 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 elif (any(id(_x) in _pv614 for _x in _ar)
                         and not isinstance(_cf, (_ast614.Name, _ast614.Attribute))):
                     _why614 = "passes a Path value to a computed callee"
+                elif (any(id(_x) in _pv614 for _x in _ar)
+                        and (_cf.id if isinstance(_cf, _ast614.Name) else
+                             f"{_cf.value.id}.{_cf.attr}" if isinstance(_cf, _ast614.Attribute)
+                             and isinstance(_cf.value, _ast614.Name) else None) in _dpd614):
+                    # lvZ (rt67 m05): an IMPORTED callee's parameter must be annotated Path
+                    _dv = _dpd614[(_cf.id if isinstance(_cf, _ast614.Name)
+                                   else f"{_cf.value.id}.{_cf.attr}")]
+                    if _dv is None:
+                        _why614 = (f"passes a Path value to the imported `{_cn}`, whose "
+                                   f"signature the pass cannot read")
+                    else:
+                        _d, _dre = _dv
+                        _ps = list(_d.args.posonlyargs + _d.args.args)
+                        for _i, _x in enumerate(_n.args):
+                            if id(_x) not in _pv614:
+                                continue
+                            _pr = (None if isinstance(_x, _ast614.Starred)
+                                   else _ps[_i] if _i < len(_ps) else _d.args.vararg)
+                            if (_pr is None or _pr.annotation is None
+                                    or not _dre.search(_ast614.unparse(_pr.annotation))):
+                                _why614 = (f"passes a Path value to the imported `{_cn}`, "
+                                           f"whose parameter is not annotated `Path`")
+                        for _kw in _n.keywords:
+                            if id(_kw.value) not in _pv614:
+                                continue
+                            _pr = next((_z for _z in _d.args.posonlyargs + _d.args.args
+                                        + _d.args.kwonlyargs if _z.arg == _kw.arg),
+                                       _d.args.kwarg)
+                            if (_kw.arg is None or _pr is None or _pr.annotation is None
+                                    or not _dre.search(_ast614.unparse(_pr.annotation))):
+                                _why614 = (f"passes a Path value to the imported `{_cn}`, "
+                                           f"whose parameter is not annotated `Path`")
                 elif (any(id(_x) in _pv614 for _x in _ar) and isinstance(_cf, _ast614.Name)
                         and _cn not in _defs614 and _cn not in _dcf614 and _cn not in _pc614
                         and (_cn in _lam614 or (_s, _cn) in _bv614
@@ -22680,7 +22866,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _p = _x.get("field") in _fl614
                 elif _ty == "Call":
                     _cn = str(_x.get("func") or "").rsplit(".", 1)[-1]
+                    _dkx = str(_x.get("func") or "")
                     _p = (_cn in _pc614 or _cn in _rt614
+                          or (_dkx in _dpd614 and (
+                              _dpd614[_dkx] is None
+                              or _dpd614[_dkx][0].returns is None
+                              or _dpd614[_dkx][1].search(
+                                  _ast614.unparse(_dpd614[_dkx][0].returns))))
                           or (_cn in _pm614 and (
                               (isinstance(_x.get("receiver"), dict)
                                and id(_x["receiver"]) in _ipv)
@@ -22729,7 +22921,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     # at that position is annotated `Path`; anything else is unchecked
                     _cfn = str(_x.get("func") or "")
                     _cl = _cfn.rsplit(".", 1)[-1]
-                    if _cl in _defs614:
+                    if _cfn in _dpd614 and _cl not in _defs614:
+                        # lvZ: an imported callee's parameter must be annotated Path
+                        _dv = _dpd614[_cfn]
+                        _ps = (list(_dv[0].args.posonlyargs + _dv[0].args.args)
+                               if _dv is not None else [])
+                        for _i, _w in enumerate(_x.get("args") or []):
+                            if (isinstance(_w, dict) and id(_w) in _ipv
+                                    and (_dv is None or _i >= len(_ps)
+                                         or _ps[_i].annotation is None
+                                         or not _dv[1].search(
+                                             _ast614.unparse(_ps[_i].annotation)))):
+                                _bad = True
+                    elif _cl in _defs614:
                         for _d in _defs614[_cl]:
                             _ps = list(_d.args.posonlyargs + _d.args.args)
                             if (isinstance(_par614.get(id(_d)), _ast614.ClassDef) and _ps

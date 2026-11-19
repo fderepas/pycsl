@@ -293,3 +293,10 @@ Wed Nov 18 21:28:59 UTC 2026 u53: post q1: 6 frontend-only rc=0 determinism: 10/
 Wed Nov 18 21:28:59 UTC 2026 u53: post q1: 6 core-only rc=0 [+] core-only conformance: 38 OK / 0 MISMATCH (38 goldens) — front-end NOT imported
 Wed Nov 18 21:28:59 UTC 2026 u53: post q1: end oom oom_kill 15
 Wed Nov 18 21:29:46 UTC 2026 u53: all gates done; final report commit
+2026-11-19T09:33:16Z lvZ: worktree created, reading
+2026-11-19T09:36:39Z lvZ: before-emission of rt65/rt67 probes (QUICK)
+2026-11-19T09:41:34Z lvZ: before-emission done (33 emit); starting (T) spike edits on run8-lvZ-spikeT
+2026-11-19T09:50:21Z lvZ: spike T core edits in; emitting probes+path corpus (QUICK)
+2026-11-19T09:57:04Z lvZ: spike sweep queued (NORMAL) on snapshot pycsl-lvZs fdb9e6419
+2026-11-19T10:05:56Z lvZ: (R) R614 alias+imported-callee extension drafted on run8-lvZ; rt67 m02/m05/n02/n17/n18/n24/n27-n31 refused at emission; spike sweep still queued
+2026-11-19T10:11:18Z lvZ: R witnesses 10240-10253 written (CPython agrees), emission refused/admitted as intended; WIP commit
