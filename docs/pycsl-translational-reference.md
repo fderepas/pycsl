@@ -5387,6 +5387,22 @@ returning a Path joins the Path-returning names, and a path-ish argument to a ca
 annotated Path is refused, in the body and in the IR contract walk. Still refusal-only: an admitted file
 emits byte-identical WhyML.
 
+RESTRICTED PATH TYPE SEPARATION (run #8 lvZ2, `annotations.md` §7.614). `_run_pipeline` records, per
+function (route #599's names), `ppath_locals_lvz2`: the non-parameter names every binding of which (nested
+scopes included) is a single-target `n = Path(<one positional arg>)` / `n: T = Path(..)`. Module 6 calls an
+expression MODELLED-PATH when lvX's constructor test holds (every import binding of `Path` is `from pathlib
+import Path`, no star import, route #610's tables show `Path` unshadowed, no unit def / type named `Path`)
+and it is a one-argument `Path(<string>)` call or a `Var` in that table; the test is inlined at every use.
+Lowerings: `Path(<str>)` -> `(ext_path_of_str_op s)` with `val function ext_path_of_str_op (s: string) :
+py_path`; `str(e)` / `os.fspath(e)` (os the module, unshadowed) / an f-string part `{e}` / an `os.path`
+argument -> `(path_str_op e)`, `val function path_str_op (p: py_path) : string`; `e1 == e2` / `!=` ->
+`(path_eq_op e1 e2)` (`val path_eq_op (a b: py_path) : bool ensures { result <-> (a = b) }`; `a = b` in a
+contract); `hashlib.sha256(e.read_bytes()).hexdigest()` -> `ext_ppath_read_bytes_op (p: py_path)` with the
+string twin's raises; `e.exists()` / `.is_file()` / `.is_dir()` -> `ppath_exists_op` / `ppath_isfile_op` /
+`ppath_isdir_op (p: py_path) : int`; a modelled local is `let`-bound at its assignment (never the `ref 0`
+pre-decl). `type py_path` is declared once in the abstract block when an op mentions it. A modelled Path is
+no longer `_is_string_expr`, so every other use meets a monomorphic `string` / `int` op: a Why3 type error.
+
 ### §T.6.148  Unbound builtin descriptors (route #435, run #3)
 
 _Corresponds to `annotations.md` §7.137._

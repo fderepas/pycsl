@@ -6728,6 +6728,24 @@ need not spell `Path` in the importer). Witnesses `10240`-`10250`, `10253`, `102
 helper `multi_file_lib/r617_pathlib.py`); controls `10251` (a Path to an imported `Path` parameter, `str`
 result) and `10252` (alias-annotated, strings compared).
 
+**Restricted type separation (run #8, lvZ2).** Red team rt70 found further channels R614 did not
+follow (an imported `ident(p: Path) -> Fp` with `Fp = TypeAliasType(..)`, a local method named like an
+imported `keep(x: str)`, a dotted `pkg.h.keep(Path(s))`): each let a modelled `Path(<str>)` meet a `str`.
+The class is now closed by TYPING instead of by one more refusal: the modelled constructor's result is the
+abstract WhyML type `py_path` (`type py_path`; `val function ext_path_of_str_op (s: string) : py_path`,
+still deterministic and law-free), and a local holds one when every binding of it in the function is a
+single-target `n = Path(..)` (pycsl.py's source table `ppath_locals_lvz2`). `str(p)` / `os.fspath(p)` /
+`f"{p}"` / an `os.path` argument of such a value is the law-free `val function path_str_op (p: py_path) :
+string` (no inverse, no injectivity, no relation to `s`); `==` / `!=` of two such values is `path_eq_op`, the
+equality of the abstract values (no law relates it to `str` equality); `.read_bytes()` inside the sha
+model and `.exists()` / `.is_file()` / `.is_dir()` take the `py_path` twins `ext_ppath_read_bytes_op` /
+`ppath_*_op` of the same impure, law-free reads. Every other mix -- `p == str(p)`, ordering, a modelled
+Path passed to a `str` / Path parameter of a user, imported or dotted callee, returned from a `-> Path`
+function -- is a Why3 TYPE ERROR (fail-closed). The #31-erased `p: Path` parameter is unchanged (still a
+`string`, covered by R614 above). `_sha256_file` stays verified on `py_path`. Witnesses `10280`-`10285`
+(expected FAIL; helper `multi_file_lib/lvz2_pathlib.py`), controls `10286` (`os.fspath(p) == str(p)`),
+`10287` (`f"{p}" == str(p)`), `10288` (two locals `Path(s)` equal).
+
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
 A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /
