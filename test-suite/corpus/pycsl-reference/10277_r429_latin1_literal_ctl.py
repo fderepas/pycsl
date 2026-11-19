@@ -1,4 +1,4 @@
-r"""Test 10277 -- run #8 u57, route #429 (expected PASS): over-refusal CONTROL: a LATIN-1 literal (`x == "\xe9\xff"`, code points 233 / 255, one string.Char each) => `len(x) == 2 and x[-1:] == "\xff"` (true) still proves.
+r"""Test 10277 -- run #8 u57, route #429 (expected PASS): over-refusal CONTROL: a LATIN-1 literal (`x == "\xe9\xff"`, code points 233 / 255, one string.Char each) => `len(x) == 2 and x[1:2] == "\xff"` (true) still proves (default model).
 """
 # pycsl-expected: PASS
 from typing import Any, Dict, List, Optional, Tuple
@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 #@ assigns \nothing
 def f(x: str) -> int:
     if x == "\xe9\xff":
-        if len(x) == 2 and x[-1:] == "\xff":
+        if len(x) == 2 and x[1:2] == "\xff":
             return 0
         return 1
     return 0

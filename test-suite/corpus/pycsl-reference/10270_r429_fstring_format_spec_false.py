@@ -1,4 +1,4 @@
-r"""Test 10270 -- run #8 u57, route #429 (expected FAIL): an f-string FORMAT SPEC fill character above Latin-1 (`f"{n:€>3}"`), claimed length != 3 (CPython 3). REFUSED: PYCSL-R429-NONLATIN1-STR-LITERAL.
+r"""Test 10270 -- run #8 u57, route #429 (expected FAIL): an f-string FORMAT SPEC fill character above Latin-1 (`f"{n:€>3}"`), claimed length != 3 (CPython 3). NOT refused: the literal does not reach the model (no WhyML string literal is emitted for it), so the claim is unconstrained and the file FAILS by proof (default / typed / store), as at base.
 """
 # pycsl-expected: FAIL
 from typing import Any, Dict, List, Optional, Tuple
