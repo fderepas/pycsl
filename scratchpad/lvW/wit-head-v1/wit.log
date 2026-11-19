@@ -1,0 +1,12 @@
+oom_before oom_kill 0
+10150_typed_tup_bool_str_early_return rc=0 2s Verification SUCCESS valid=9 total=9 | 
+10151_typed_tup_bool_str_leaf_claim rc=0 2s Verification SUCCESS valid=2 total=2 | 
+10152_typed_tup_bool_str_leaf_mut rc=1 2s Verification FAILED valid=1 total=3 | 
+10153_typed_tup_mixed_codomains rc=0 23s Verification SUCCESS valid=11 total=11 | 
+10154_typed_tup_loop_return_mut rc=1 2s Verification FAILED valid=4 total=6 | 
+10155_typed_tup_shared_codomain rc=0 2s Verification SUCCESS valid=6 total=6 | 
+10156_typed_tup_shared_codomain_mut rc=1 2s Verification FAILED valid=5 total=7 | 
+10157_typed_tup_recursion rc=0 7s Verification SUCCESS valid=4 total=4 | 
+10158_typed_tup_recursion_mut rc=1 32s Verification FAILED valid=3 total=5 | 
+10159_typed_tup_nested_function rc=0 13s Verification SUCCESS valid=5 total=5 | 
+oom_after oom_kill 0

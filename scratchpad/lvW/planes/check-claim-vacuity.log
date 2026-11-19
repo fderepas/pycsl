@@ -1,0 +1,5 @@
+[!]   CLAIM-VACUOUS FILE COUNT GREW: 1792 > 1791. A new corpus file whose postcondition is `True` adds a test that cannot fail.
+[!]   `requires True` FILE COUNT GREW: 1138 > 1131.
+[!] claim-vacuity: NOT OK.
+[*] claim-vacuity: 8599 corpus file(s); 1792 carry a TRIVIALLY TRUE postcondition (1849 occurrence(s)); 1138 carry `requires True`.
+[*] claim-vacuity: top name families — proves: 840, fails: 839, twin: 20, projection: 8

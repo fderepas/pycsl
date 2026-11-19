@@ -1,0 +1,7 @@
+oom_before oom_kill 0
+r2_tryfinally rc=1 1s  valid=0 total=0 | 
+r2m_tryfinally_mut rc=1 2s  valid=0 total=0 | 
+r3c_nested_sub rc=1 1s Verification FAILED valid=0 total=0 | This expression has type string, but is expected to have type i
+r5b_rec_sub rc=0 7s Verification SUCCESS valid=4 total=4 | 
+r5bm_rec_sub_mut rc=1 32s Verification FAILED valid=3 total=5 | 
+oom_after oom_kill 0
