@@ -301,3 +301,20 @@ Wed Nov 18 21:29:46 UTC 2026 u53: all gates done; final report commit
 2026-11-19T10:05:56Z lvZ: (R) R614 alias+imported-callee extension drafted on run8-lvZ; rt67 m02/m05/n02/n17/n18/n24/n27-n31 refused at emission; spike sweep still queued
 2026-11-19T10:11:18Z lvZ: R witnesses 10240-10253 written (CPython agrees), emission refused/admitted as intended; WIP commit
 2026-11-19T10:17:59Z lvZ: R increment 2 (star/re-export/methods) + docs; requeueing ONE combined battery (spike sweep + R sweep + R gates)
+2026-11-19T10:18:53Z lvZ: battery bat1 queued NORMAL pid 2687684
+2026-11-19T10:28:41Z lvZ: waiting on battery (queue)
+2026-11-19T10:44:06Z lvZ: waiting on battery bat1 ()
+2026-11-19T11:00:03Z lvZ: waiting on battery bat1 ()
+2026-11-19T11:16:28Z lvZ: waiting on battery bat1 ()
+2026-11-19T11:30:39Z lvZ: waiting on battery bat1 ()
+2026-11-19T11:45:19Z lvZ: waiting on battery bat1 ()
+2026-11-19T12:00:31Z lvZ: waiting on battery bat1 ()
+2026-11-19T12:15:35Z lvZ: waiting on battery bat1 ()
+2026-11-19T12:30:08Z lvZ: waiting on battery bat1 ()
+2026-11-19T12:45:05Z lvZ: waiting on battery bat1 ()
+2026-11-19T13:00:16Z lvZ: waiting on battery bat1 ()
+2026-11-19T13:15:23Z lvZ: waiting on battery bat1 ()
+2026-11-19T13:30:28Z lvZ: waiting on battery bat1 ()
+2026-11-19T13:45:14Z lvZ: waiting on battery bat1 ()
+2026-11-19T14:00:21Z lvZ: waiting on battery bat1 ()
+2026-11-19T14:10:44Z lvZ: WIP commit; battery bat1 still queued behind planes --slow + expressions mirror proof
