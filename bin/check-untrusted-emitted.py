@@ -169,7 +169,10 @@ def emit(path):
         os.remove(mlw)
     subprocess.run(
         [sys.executable, os.path.join(ROOT, "src/pycsl/pycsl.py"), path,
-         "--import-path", LIVE_IMPORT, "--no-proof", "--keep-mlw"],
+         "--import-path", LIVE_IMPORT, "--no-proof", "--keep-mlw",
+         *(["--verification-image", os.path.join(ROOT, "src", "self-annotate", "src")]
+           if os.path.abspath(path).startswith(os.path.join(ROOT, "src", "self-annotate", "src") + os.sep)
+           else [])],  # route #613: a mirror file is a verification image (declared, no CPython-run claim)
         capture_output=True, text=True, cwd=ROOT,
         env={**os.environ, "PYTHONHASHSEED": "0"}, timeout=1800)
     text = open(mlw).read() if os.path.exists(mlw) else ""

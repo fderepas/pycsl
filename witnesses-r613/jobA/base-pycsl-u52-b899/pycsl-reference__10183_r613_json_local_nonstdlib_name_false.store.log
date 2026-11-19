@@ -1,0 +1,23 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u52-b899/test-suite/corpus/pycsl-reference/10183_r613_json_local_nonstdlib_name_false.py'...
+[*] Memory model: store
+[*] Imported from 'json': ['dumps'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_85kwkq6k.mlw", line 28, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_85kwkq6k.mlw", line 29, characters 15-34:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 58 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_85kwkq6k.mlw", line 15, characters 19-20: unused variable m
+Warning, file "/tmp/.pycsl_85kwkq6k.mlw", line 15, characters 19-20: unused variable m
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

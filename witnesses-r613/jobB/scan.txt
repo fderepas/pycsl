@@ -1,0 +1,21 @@
+== root: 6244 files
+  root .: 6244 file(s) search it; entries: json
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r326shadow: 4 file(s) search it; entries: math.py os.py time.py
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r611art: 1 file(s) search it; entries: hashlib.pyc
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r611art/ext: 1 file(s) search it; entries: hashlib.cpython-314-x86_64-linux-gnu.so
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r611art/pkg: 1 file(s) search it; entries: hashlib
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r611r12/hu: 1 file(s) search it; entries: hashlib.py
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r611r12/tok: 1 file(s) search it; entries: tomllib
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r611r12/tu: 1 file(s) search it; entries: tomllib
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r613/dep: 1 file(s) search it; entries: re.py
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r613/hl: 1 file(s) search it; entries: _hashlib.py
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r613/nonstd: 1 file(s) search it; entries: sitecustomize.py
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r613/ns: 1 file(s) search it; entries: re
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r613/pyc: 1 file(s) search it; entries: re.pyc
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r613/re: 2 file(s) search it; entries: re.py
+  root test-suite/corpus/pycsl-reference/multi_file_lib/r613/same: 1 file(s) search it; entries: codecs.py
+== pyref: 2217 files
+  root .: 2217 file(s) search it; entries: json
+== mirror: 53 files
+  root .: 53 file(s) search it; entries: json
+  root src/self-annotate/src/module6_whyml: 16 file(s) search it; entries: types.py

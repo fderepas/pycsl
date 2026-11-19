@@ -1,0 +1,15 @@
+j0__prog hoare rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+j0__prog typed rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+j0__prog store rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+j1__prog hoare rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+j1__prog typed rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+j1__prog store rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+h0__prog hoare rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+h0__prog typed rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+h0__prog store rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+h1__prog hoare rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+h1__prog typed rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+h1__prog store rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+n1__prog hoare rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+n1__prog typed rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 
+n1__prog store rc=1 :: why3 not found on PATH — the type-check could NOT run, so this is NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck for an explicitly emit-only 

@@ -1033,6 +1033,46 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
             "strict_mode": "--strict-hval-keys",
             "relied_on_by": sorted(set(_hk_uses)),
         })
+    # (#49) run #8 ROUTE #613 -- the DECLARED RUN MODE `--as-package-module ROOT` (driver
+    # decision): the program is assumed to be imported as a submodule of the package rooted at
+    # ROOT, so CPython's sys.path[0] is not the program's own directory and the transitive
+    # stdlib-shadow check searches ROOT (plus the configured roots) in its place. Never
+    # inferred; listed whenever it is in force.
+    if os.environ.get("PYCSL_AS_PACKAGE_MODULE"):
+        assumptions.append({
+            "name": "AS-PACKAGE-MODULE",
+            "statement": "the program is never run as a script: it is imported as a module of "
+                         "the package rooted at " + os.environ["PYCSL_AS_PACKAGE_MODULE"]
+                         + ", so sys.path[0] is that root (an entry script's directory), not "
+                         "the program's directory; route #613's closure check searches that "
+                         "root instead of the program's directory, and (u55) every absolute "
+                         "import and every parent package must resolve from that root as "
+                         "`python -m` resolves them",
+            "counterexample": "src/pycsl/module6_whyml/scc.py run as a script: its directory "
+                              "is sys.path[0], and `typing`'s own `import types` loads the "
+                              "local module6_whyml/types.py (venv CPython 3.14: ImportError, "
+                              "witnesses-r613/cpython.txt)",
+            "strict_mode": "the default (omit --as-package-module: script mode)",
+            "relied_on_by": [filename],
+        })
+    # (#49) run #8 u55 -- the DECLARED `--verification-image ROOT` (driver decision): listed
+    # FIRST-CLASS, because a file verified under it carries no claim about a CPython run.
+    if os.environ.get("PYCSL_VERIFICATION_IMAGE"):
+        assumptions.append({
+            "name": "VERIFICATION-IMAGE",
+            "statement": "NO CPython-RUN CLAIM: the file is a verification model rooted at "
+                         + os.environ["PYCSL_VERIFICATION_IMAGE"] + " that CPython never "
+                         "executes; its own imports resolve as pycsl resolves them (program "
+                         "directory first, then --import-path), not as any CPython launch "
+                         "would, so the proof says nothing about running this file; route "
+                         "#613's closure check searches that root instead of the program's "
+                         "directory",
+            "counterexample": "the same file under --as-package-module ROOT: CPython's -m run "
+                              "takes `import helper` from ROOT, not from the program's "
+                              "directory (review rt66 g02: a false `\\result == 1` PROVED)",
+            "strict_mode": "--as-package-module ROOT (a -m run) or script mode (the default)",
+            "relied_on_by": [filename],
+        })
     # (#49) ROUTE #292 — A CITED `#@ proof` LEMMA IS EMITTED AS A Why3 `axiom`: the
     # proof's soundness rests on the Rocq/Lean statement AND on the restatement being
     # applied only where it was proved (`UnixFs.Struct.i2.round_trip` was applied to a
@@ -18380,6 +18420,85 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     % (args.file, _f498.get("name"), _why498),
                     filename=args.file, line=int(_f498.get("line") or 0),
                     stage="ir-semantic", code="PYCSL-R498-IS-ON-FRESH-VALUE")
+
+    # (run #8) ROUTE #612 -- A `Callable` PARAMETER WAS ASSUMED PURE.
+    #
+    # §T.TY3.8 lowers `f: Callable[[A1, ..., An], R]` to a WhyML function-type parameter
+    # `(f: a1 -> ... -> r)` and a call `f(a)` to the application `(f a)`. A WhyML arrow is a
+    # MATHEMATICAL function, so the model decided four things no Python callable promises:
+    #   * two calls with equal arguments are equal (`f(s) == f(s)` PROVED `\result == True`;
+    #     CPython with `itertools.count` is False -- lvX, evidence/r612);
+    #   * a body call equals the same application in a contract (`ensures \result == f(x)`,
+    #     `requires f(x) >= 0` then `return f(x)`);
+    #   * a call changes nothing (`assigns \nothing` PROVED over a callable that appends to a
+    #     caller-visible list; `len(xs)` read after the call kept its old value);
+    #   * a call returns, and returns normally.
+    # The same pure value reached every spelling of an application: `f.__call__(x)` (an
+    # abstract `val`, still pure), a lambda wrapping `f`, an annotated local alias
+    # `g: Callable[...] = f`.
+    #
+    # THE RULE (refuse rather than approximate): a `Callable`-typed name -- every
+    # `symbol_table` entry tagged `callable:`, parameters and annotated locals -- may be
+    # DECLARED, and may not be REFERENCED at all: no application (`f(..)`, `f.<attr>(..)`)
+    # and no other occurrence (passed on, stored, aliased, compared, returned), in the body
+    # or in any contract / assertion / invariant. A "fresh value per call" model was
+    # measured and not chosen: it would still have to havoc every caller-visible location
+    # at each call and refuse every `no_exception` / termination claim, and the census
+    # says it would serve nobody -- of the 15 corpus files (0 pyref, 0 mirror, 0
+    # `src/pycsl_lib`) that write a `Callable` parameter, exactly ONE emitting file
+    # references it (1878, `requires f(x) >= 0` / `return f(x)`), and that claim is FALSE
+    # in CPython for a stateful callable. Declared-only parameters (1853, 1854, 6641) keep
+    # proving. Placed LAST among the IR-semantic refusals so every existing refusal keeps
+    # its own diagnostic; `_run_pipeline`'s mirror twin is `\trusted` (choke-point rule),
+    # so no marker and no mirror emission moves.
+    for _f612 in (ir_data.get("functions", []) or []):
+        _st612 = _f612.get("symbol_table") or {}
+        if not isinstance(_st612, dict):
+            continue
+        _cn612 = set()
+        for _v612, _t612 in _st612.items():
+            if isinstance(_t612, str) and _t612.startswith("callable:"):
+                _cn612.add(_v612)
+        if not _cn612:
+            continue
+        _hit612 = None
+        _todo612 = [_x for _k, _x in sorted(_f612.items()) if _k != "symbol_table"]
+        while _todo612 and _hit612 is None:
+            _n612 = _todo612.pop()
+            if isinstance(_n612, list):
+                _todo612.extend(_n612)
+                continue
+            if not isinstance(_n612, dict):
+                continue
+            _ty612 = _n612.get("type")
+            _fn612 = _n612.get("func")
+            if _ty612 == "Call" and isinstance(_fn612, str):
+                for _v612 in sorted(_cn612):
+                    if _fn612 == _v612 or _fn612.startswith(_v612 + "."):
+                        _hit612 = (_v612, "APPLIED (`%s(...)`)" % _fn612)
+                        break
+            if (_hit612 is None and _ty612 == "Var"
+                    and _n612.get("name") in _cn612):
+                _hit612 = (_n612.get("name"),
+                           "REFERENCED as a value (passed on, stored, aliased, compared "
+                           "or returned)")
+            _todo612.extend(_n612.values())
+        if _hit612 is not None:
+            from errors import PyCSLSemanticError as _R612Err
+            raise _R612Err(
+                "function '%s': the `Callable` parameter '%s' is %s. A `Callable` "
+                "parameter is lowered to a PURE WhyML function, so the model assumes that "
+                "two calls with the same arguments return the same value, that a call in "
+                "the body equals the same application in a contract, and that a call "
+                "changes nothing, never raises and always returns; a Python callable may "
+                "keep state (`itertools.count`), mutate what the caller sees, raise or not "
+                "return, and CPython's `f(s) == f(s)` is then False while the model "
+                "decides it True (route #612). A `Callable` parameter may be declared but "
+                "not applied or referenced, in the body or in any contract. Make the "
+                "callable a verified function of this program and call it by name."
+                % (_f612.get("name"), _hit612[0], _hit612[1]),
+                filename=args.file, line=int(_f612.get("line") or 0),
+                stage="ir-semantic", code="PYCSL-R612-CALLABLE-ASSUMED-PURE")
 
     from errors import PyCSLError as _PyCSLErr460
 
@@ -41341,7 +41460,74 @@ def _resolve_runtime_config(args: argparse.Namespace) -> Tuple[str, List[str]]:
 
 
 def main() -> None:
+    # (#49) run #8 ROUTE #613 -- `--as-package-module ROOT`, the DECLARED (opt-in, never
+    # inferred) run mode: the program is imported as a submodule of the package rooted at
+    # ROOT, not run as a script. Taken off argv HERE, not in `_parse_args` (whose mirror twin
+    # is body-verified: an edit there owes a whole-file re-proof of the pycsl.py mirror), and
+    # handed to the resolver -- and to every pycsl sub-invocation, which inherit os.environ --
+    # as PYCSL_AS_PACKAGE_MODULE. ROOT must be a directory that contains the program.
+    #
+    # (#49) run #8 u55 (driver decision on review rt66 g02 / g08) -- `--verification-image
+    # ROOT`, a SECOND, distinct declared mode (PYCSL_VERIFICATION_IMAGE; opt-in, never
+    # inferred): the file is a VERIFICATION MODEL that CPython never executes (the
+    # self-annotation mirror, an image of src/pycsl rooted at ROOT). It makes NO claim about a
+    # CPython run: its own imports resolve as pycsl resolves them (program directory first,
+    # then --import-path, which deliberately types callees against the LIVE tree), so the
+    # -m rules of --as-package-module (ROOT-first resolution of the program's absolute imports,
+    # the parent-package `__init__` chain) do not apply; every other route #613 / #611 / r12
+    # check still does, with ROOT in the program directory's place among the closure roots.
+    # The two modes exclude each other.
+    _a613 = sys.argv[1:]
+    _r613 = None
+    _vi613 = None
+    _k613 = 0
+    _rest613: List[str] = []
+    while _k613 < len(_a613):
+        _fl613 = None
+        for _nm613 in ("--as-package-module", "--verification-image"):
+            if _a613[_k613] == _nm613 and _k613 + 1 < len(_a613):
+                _fl613 = (_nm613, _a613[_k613 + 1], 2)
+            elif _a613[_k613].startswith(_nm613 + "="):
+                _fl613 = (_nm613, _a613[_k613].split("=", 1)[1], 1)
+            elif _a613[_k613] == _nm613:
+                print(f"[!] Error: {_nm613} needs a ROOT directory.")
+                sys.exit(2)
+        if _fl613 is not None:
+            if _fl613[0] == "--as-package-module":
+                _r613 = _fl613[1]
+            else:
+                _vi613 = _fl613[1]
+            _k613 += _fl613[2]
+            continue
+        _rest613.append(_a613[_k613])
+        _k613 += 1
+    if _r613 is not None or _vi613 is not None:
+        sys.argv[1:] = _rest613
+    if _r613 is not None:
+        os.environ["PYCSL_AS_PACKAGE_MODULE"] = os.path.abspath(_r613)
+    if _vi613 is not None:
+        os.environ["PYCSL_VERIFICATION_IMAGE"] = os.path.abspath(_vi613)
+    if os.environ.get("PYCSL_AS_PACKAGE_MODULE") and os.environ.get("PYCSL_VERIFICATION_IMAGE"):
+        print("[!] Error: --as-package-module and --verification-image exclude each other "
+              "(a module run under -m, or a verification model never run).")
+        sys.exit(2)
     args = _parse_args()
+    for _ev613, _nm613 in (("PYCSL_AS_PACKAGE_MODULE", "--as-package-module"),
+                           ("PYCSL_VERIFICATION_IMAGE", "--verification-image")):
+        if os.environ.get(_ev613):
+            _pr613 = os.environ[_ev613]
+            if not (os.path.isdir(_pr613) and os.path.commonpath(
+                    [_pr613, os.path.abspath(args.file)]) == _pr613):
+                print(f"[!] Error: {_nm613} {_pr613}: not a directory containing "
+                      f"'{args.file}'.")
+                sys.exit(2)
+    if os.environ.get("PYCSL_AS_PACKAGE_MODULE"):
+        print(f"[*] Declared run mode: imported as a module of the package rooted at "
+              f"{os.environ['PYCSL_AS_PACKAGE_MODULE']} (--as-package-module; not a script)")
+    if os.environ.get("PYCSL_VERIFICATION_IMAGE"):
+        print(f"[*] Declared VERIFICATION IMAGE rooted at "
+              f"{os.environ['PYCSL_VERIFICATION_IMAGE']} (--verification-image): a model "
+              f"CPython never executes; NO claim about a CPython run")
 
     if not os.path.exists(args.file):
         print(f"[!] Error: File '{args.file}' not found.")

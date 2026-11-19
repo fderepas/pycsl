@@ -1,0 +1,14 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u52-b899/test-suite/corpus/pycsl-reference/10185_r613_dependency_json_local_re_false.py'...
+[*] Memory model: store
+[*] Imported from 'r613_helper': ['one'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_8qhoynap.mlw", line 11, characters 19-20: unused variable m
+Warning, file "/tmp/.pycsl_8qhoynap.mlw", line 18, character 10 to line 20, character 36: variable store is used under `old` but is not modified by the function
+File "/tmp/.pycsl_8qhoynap.mlw", line 22, characters 15-16:
+This function depends on external variables, it cannot be used as pure
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

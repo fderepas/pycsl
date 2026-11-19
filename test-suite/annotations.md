@@ -1443,7 +1443,31 @@ bytecode cache CPython could load INSTEAD of a resolved module's source — an u
 checked hash-based `__pycache__` pyc, or a timestamp pyc whose header matches, at any
 `.opt-N` level — must be provably the compilation of that source, its code object equal to
 `compile(source)`, or the import is REFUSED, `PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route
-#611 r12): CPython
+#611 r12; and the whole import CLOSURE is judged, not only the program's own imports: an
+entry in any resolution root named like a module the closure may reach — a stdlib / builtin
+name, or any name the interpreter's stdlib source imports — is judged as a direct import of
+it and REFUSED unless admitted, `PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`, route #613: a local
+`re.py` beside a program that imports only `json` is the `re` that `json` runs; the judged
+names also include every module entry of the interpreter's stdlib directories (Lib,
+lib-dynload, the platform stdlib: the stdlib imports `_sysconfigdata_<abi>_<platform>` by a
+COMPUTED name), literal names handed to `__import__` / `import_module` /
+`importlib.resources.files`, and the modules the STARTUP HOOKS reach (`sitecustomize`,
+`usercustomize` and `.pth` import lines in the site directories of the interpreter and its
+base installation, followed module by module: Ubuntu's apport hook imports `apport.report`);
+and EVERY candidate in EVERY root is judged in its own root, not only the first hit in pycsl's
+order (u55, review rt66 g01 / g09 / g10); the roots are
+those of a SCRIPT, the program's own directory first, unless a mode is DECLARED (never
+inferred, each listed by `--soundness-report`): `--as-package-module ROOT` — the program runs
+as `python -m` from ROOT, which takes the program directory's place in this check; then, as
+CPython resolves under `-m`, every absolute import must resolve with ROOT first to the file
+pycsl took (`PYCSL-SEM-IMPORT-PACKAGE-MODE-ORDER`), and each parent package between ROOT and
+the program, and the program itself, must resolve from ROOT to its own `__init__.py` / file,
+each parent `__init__.py` judged as a dependency (the import-system rule below, and no dynamic
+import machinery: `PYCSL-SEM-IMPORT-PACKAGE-MODE-PARENT`; AS-PACKAGE-MODULE); or
+`--verification-image ROOT` — the file is a verification model CPython never executes (the
+mirror gates, ROOT = `src/self-annotate/src`): NO claim about a CPython run, its own imports
+resolve as pycsl resolves them, and only this closure check moves to ROOT
+(VERIFICATION-IMAGE)): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or
 startup-loaded module, and for the rest which one runs depends on `sys.path` and startup.
 A program that edits the import system — any reference to `sys.path`, `sys.modules`,
@@ -8530,6 +8554,19 @@ naming nothing the user wrote. Now refused with the same `PYCSL-TY3-CALLABLE-SCO
 `type_decls` name (records, variants, and IMPORTED classes — import resolution puts them
 there) plus TypeVars (`typevar_registry` and PEP 695 `type_params`), because
 `Callable[[T], int]` over a TypeVar verifies and a narrower set would have forbidden it.
+
+**Application refused (route #612, run #8)**: the arrow parameter is a PURE
+WhyML function, so an application `f(a)` was decided equal to every other
+application to the same arguments, to the same application in a contract, and
+was assumed effect-free, exception-free and terminating; a Python callable is
+none of those (`itertools.count`: `f(s) == f(s)` is False in CPython and PROVED
+True at 0057c8b94). A `Callable`-typed name (a parameter or an annotated local)
+may therefore only be DECLARED: any application (`f(..)`, `f.__call__(..)`) or
+other reference (passed on, stored, aliased, compared, returned), in the body or
+in any contract, assertion or invariant, is refused with
+`PYCSL-R612-CALLABLE-ASSUMED-PURE` (witnesses `10170`-`10176`, controls `10177`
+declared-only and `10178` a verified function called by name). Write the
+callable as a verified function of the program and call it by name.
 
 **Runtime plane** (Shimmed): `Callable[[...], R]` constructs an introspectable
 alias object (R1); `callable(x)` / `isinstance(x, Callable)` is a PRESENCE

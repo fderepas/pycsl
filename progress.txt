@@ -1,0 +1,134 @@
+Wed Nov 18 01:54:21 UTC 2026 u51 start: worktree created, reading docs
+Wed Nov 18 01:55:39 UTC 2026 u51 probes written; running BEFORE probes via heavy.sh
+Wed Nov 18 02:00:35 UTC 2026 u51 BEFORE probes queued in heavy (pid 1667517); census by grep: 15 root Callable files, 0 pyref, 0 mirror
+Wed Nov 18 02:09:30 UTC 2026 u51 waiting in heavy queue (before probes)
+Wed Nov 18 02:18:09 UTC 2026 u51 quick emissions done; queuing BEFORE proofs
+Wed Nov 18 02:20:06 UTC 2026 u51 designing rule while BEFORE proofs queued
+Wed Nov 18 02:21:36 UTC 2026 u51 patch drafted (scratch), BEFORE proofs queued pid 1770510
+Wed Nov 18 02:28:02 UTC 2026 u51 witnesses 10170-10178 + docs drafted; BEFORE proofs still queued
+Wed Nov 18 02:36:49 UTC 2026 u51 still queued (BEFORE proofs)
+Wed Nov 18 02:48:26 UTC 2026 u51 still queued (BEFORE proofs)
+Wed Nov 18 02:57:18 UTC 2026 u51 still queued (BEFORE proofs)
+Wed Nov 18 03:04:04 UTC 2026 u51 patch applied in tree; BEFORE proofs re-queued against base snapshot scratchpad/u51/basetree
+Wed Nov 18 03:10:04 UTC 2026 u51 queued (BEFORE proofs)
+Wed Nov 18 03:18:54 UTC 2026 u51 queued (BEFORE proofs)
+Wed Nov 18 03:28:06 UTC 2026 u51 queued (BEFORE proofs; PRIO battery waiting ahead)
+Wed Nov 18 03:39:41 UTC 2026 u51 queued (BEFORE proofs)
+Wed Nov 18 03:48:04 UTC 2026 u51 requeued as one combined phase1 job (before+after probes, x3 models)
+Wed Nov 18 03:51:25 UTC 2026 u51 queued (phase1); route file + gate script drafted
+Wed Nov 18 04:02:25 UTC 2026 u51 queued (phase1); WIP commit b446e220b
+Wed Nov 18 04:13:26 UTC 2026 u51 queued (phase1)
+Wed Nov 18 04:24:21 UTC 2026 u51 queued (phase1)
+Wed Nov 18 04:35:20 UTC 2026 u51 queued (phase1)
+Wed Nov 18 04:46:16 UTC 2026 u51 queued (phase1)
+Wed Nov 18 04:57:11 UTC 2026 u51 queued (phase1)
+Wed Nov 18 05:08:04 UTC 2026 u51 queued (phase1)
+Wed Nov 18 05:18:59 UTC 2026 u51 queued (phase1)
+Wed Nov 18 05:29:58 UTC 2026 u51 queued (phase1)
+Wed Nov 18 05:41:06 UTC 2026 u51 queued (phase1)
+Wed Nov 18 05:52:24 UTC 2026 u51 queued (phase1)
+Wed Nov 18 06:04:02 UTC 2026 u51 queued (phase1)
+Wed Nov 18 06:15:52 UTC 2026 u51 queued (phase1)
+Wed Nov 18 06:19:38 UTC 2026 u51 queued (phase1, now chained to census+commit+snapshot+gate on go)
+Wed Nov 18 06:34:21 UTC 2026 u51 queued (phase1)
+Wed Nov 18 06:49:08 UTC 2026 u51 queued (phase1)
+Wed Nov 18 07:00:56 UTC 2026 u51 queued (phase1)
+Wed Nov 18 07:15:39 UTC 2026 u51 queued (phase1)
+Wed Nov 18 07:27:33 UTC 2026 u51 queued (phase1)
+Wed Nov 18 07:42:18 UTC 2026 u51 queued (phase1)
+Wed Nov 18 07:54:07 UTC 2026 u51 queued (phase1)
+Wed Nov 18 08:08:50 UTC 2026 u51 queued (phase1)
+Wed Nov 18 08:20:42 UTC 2026 u51 queued (phase1)
+Wed Nov 18 08:35:31 UTC 2026 u51 queued (phase1)
+Wed Nov 18 08:50:27 UTC 2026 u51 queued (phase1)
+Wed Nov 18 09:02:23 UTC 2026 u51 queued (phase1)
+Wed Nov 18 09:14:13 UTC 2026 u51 queued (phase1)
+Wed Nov 18 09:26:40 UTC 2026 u51 queued (phase1)
+Wed Nov 18 09:41:40 UTC 2026 u51 queued (phase1)
+Wed Nov 18 09:53:31 UTC 2026 u51 queued (phase1)
+Wed Nov 18 10:05:23 UTC 2026 u51 queued (phase1)
+Wed Nov 18 10:17:04 UTC 2026 u51 queued (phase1)
+Wed Nov 18 10:31:41 UTC 2026 u51 queued (phase1)
+Wed Nov 18 10:43:32 UTC 2026 u51 queued (phase1)
+Wed Nov 18 10:43:56 UTC 2026 u51 phase1 RUNNING
+Wed Nov 18 10:54:06 UTC 2026 u51 gate g1 RUNNING on snapshot /home/fabrice/git/pycsl-u51-s1 @ b446e220b (phase1 job); census rows deferred (append-new would run 507 unrelated witnesses)
+Wed Nov 18 11:05:22 UTC 2026 u51 gate g1 running (C sweep)
+Wed Nov 18 11:16:55 UTC 2026 u51 gate g1 running (C sweep root)
+Wed Nov 18 11:28:27 UTC 2026 u51 gate g1 running (C sweep pyref)
+Wed Nov 18 11:38:14 UTC 2026 u51 gate g1: C done (root 1 MOVED=1878 intended, pyref inert); D mirror sweep running
+Wed Nov 18 11:42:20 UTC 2026 u51 gate g1: D mirror 53/53 0 diff; E fidelity rc 0/0/0; P planes running
+Wed Nov 18 11:54:04 UTC 2026 u51 gate g1: P planes running
+Wed Nov 18 12:05:45 UTC 2026 u51 gate g1: P planes running
+Wed Nov 18 12:14:18 UTC 2026 u51 gate g1: P 61/62 (only coverage, rows pending); I planes running
+Wed Nov 18 12:25:53 UTC 2026 u51 gate g1: I planes running (getattr-erasure)
+Wed Nov 18 12:34:54 UTC 2026 u51 gate g1 DONE (only red: coverage, rows pending); job2 census rows queued
+Wed Nov 18 12:41:17 UTC 2026 u51 job2 queued; report drafted
+Wed Nov 18 12:53:13 UTC 2026 u51 job2 queued
+Wed Nov 18 13:05:12 UTC 2026 u51 job2 queued
+Wed Nov 18 13:17:09 UTC 2026 u51 job2 queued
+Wed Nov 18 13:28:48 UTC 2026 u51 job2 queued
+Wed Nov 18 13:40:39 UTC 2026 u51 job2 queued
+Wed Nov 18 13:52:39 UTC 2026 u51 job2 queued
+Wed Nov 18 14:04:42 UTC 2026 u51 job2 queued
+Wed Nov 18 14:16:36 UTC 2026 u51 job2 queued
+Wed Nov 18 14:28:18 UTC 2026 u51 job2 queued
+Wed Nov 18 14:40:05 UTC 2026 u51 job2 queued
+Wed Nov 18 14:52:05 UTC 2026 u51 job2 queued
+Wed Nov 18 15:04:02 UTC 2026 u51 job2 queued
+Wed Nov 18 15:16:00 UTC 2026 u51 job2 queued
+Wed Nov 18 15:28:06 UTC 2026 u51 job2 queued
+Wed Nov 18 15:40:04 UTC 2026 u51 job2 queued (next NORMAL)
+Wed Nov 18 15:51:59 UTC 2026 u51 job2 queued
+Wed Nov 18 16:01:57 UTC 2026 u51 job2 done: census rows appended, coverage 476/5 rc0, doc rc0; committing
+Thu Nov 19 00:12:29 UTC 2026 u55 start: worktree created
+Thu Nov 19 00:14:23 UTC 2026 u55: reading code; driver added check-stdlib-modules-verify item
+Thu Nov 19 00:26:15 UTC 2026 u55: implemented g01/g02/g08/g09/g10 + --verification-image; quick probes next
+Thu Nov 19 00:32:07 UTC 2026 u55: witnesses 10220-10228 written; waiting heavy queue for base stdlib plane
+Thu Nov 19 00:46:20 UTC 2026 u55: base stdlib plane running/waiting
+Thu Nov 19 00:53:21 UTC 2026 u55: waiting in heavy queue (base stdlib plane, PRIO); gate scripts jobP/jobG ready
+Thu Nov 19 01:18:52 UTC 2026 u55: still queued (base stdlib plane)
+Thu Nov 19 01:41:51 UTC 2026 u55: base stdlib plane running since 01:31Z
+Thu Nov 19 01:57:21 UTC 2026 u55: base stdlib plane running
+Thu Nov 19 02:49:07 UTC 2026 u55: census rows job queued
+Thu Nov 19 03:08:15 UTC 2026 u55: census rows job queued (slots busy)
+Thu Nov 19 03:21:36 UTC 2026 u55: launching jobC (census+commit+snapshot pycsl-u55-g1+gates)
+Thu Nov 19 03:34:11 UTC 2026 u55: jobC queued
+Thu Nov 19 03:49:36 UTC 2026 u55: jobC queued
+Thu Nov 19 04:02:16 UTC 2026 u55: jobC queued
+Thu Nov 19 04:17:51 UTC 2026 u55: jobC queued
+Thu Nov 19 04:30:14 UTC 2026 u55: jobC queued
+Thu Nov 19 04:45:41 UTC 2026 u55: jobC queued
+Thu Nov 19 05:01:17 UTC 2026 u55: jobC queued
+Thu Nov 19 05:11:29 UTC 2026 u55: gate job G1 sweeping
+Thu Nov 19 05:23:57 UTC 2026 u55: G1 corpus sweep
+Thu Nov 19 05:36:32 UTC 2026 u55: G1 corpus sweep
+Thu Nov 19 05:48:53 UTC 2026 u55: G1 pyref sweep
+Thu Nov 19 05:56:38 UTC 2026 u55: G1 planes
+Thu Nov 19 06:07:07 UTC 2026 u55: G1 planes
+Thu Nov 19 06:14:29 UTC 2026 u55: G1 planes
+Thu Nov 19 06:27:00 UTC 2026 u55: G1 planes
+Thu Nov 19 06:36:27 UTC 2026 u55: G1 ledger planes
+Thu Nov 19 06:45:53 UTC 2026 u55: G1 ledger planes
+Thu Nov 19 06:58:19 UTC 2026 u55: G1 getattr-erasure
+Thu Nov 19 07:05:11 UTC 2026 u55: G1 stdlib plane
+Thu Nov 19 07:17:36 UTC 2026 u55: G1 stdlib plane
+Thu Nov 19 07:29:45 UTC 2026 u55: G1 stdlib plane
+Thu Nov 19 07:42:31 UTC 2026 u55: G1 stdlib plane
+Thu Nov 19 07:49:25 UTC 2026 u55: G2 queued/running
+Thu Nov 19 08:02:31 UTC 2026 u55: G2 queued
+Thu Nov 19 08:14:54 UTC 2026 u55: G2 queued
+Thu Nov 19 08:27:28 UTC 2026 u55: G2 queued
+Thu Nov 19 08:38:10 UTC 2026 u55: G2 queued
+Thu Nov 19 08:43:08 UTC 2026 u55: G2 planes
+Thu Nov 19 08:56:04 UTC 2026 u55: G2 planes
+Thu Nov 19 09:05:34 UTC 2026 u55: G2 planes
+Thu Nov 19 09:21:18 UTC 2026 u55: G3 queued
+Thu Nov 19 09:33:52 UTC 2026 u55: G3 queued
+Thu Nov 19 09:43:56 UTC 2026 u55: G3 queued
+Thu Nov 19 09:52:59 UTC 2026 u55: G3 queued
+Thu Nov 19 10:00:10 UTC 2026 u55: G3 queued
+Thu Nov 19 10:09:15 UTC 2026 u55: G3 planes
+Thu Nov 19 10:18:25 UTC 2026 u55: G3 planes
+Thu Nov 19 10:27:58 UTC 2026 u55: G3 planes
+Thu Nov 19 10:37:38 UTC 2026 u55: G3 planes
+Thu Nov 19 10:38:21 UTC 2026 u55: all gates done; final report commit

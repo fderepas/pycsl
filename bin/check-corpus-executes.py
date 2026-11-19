@@ -196,7 +196,12 @@ def _run_as_package_module(f):
     if base is ROOT:
         cmd = [sys.executable, "-m", rel]
     else:
-        cmd = [sys.executable, "-c", "import %s" % rel]
+        # (run #8 u55) BY NAME, through `importlib.import_module`, not an `import` statement:
+        # a module CPython imports by a COMPUTED name need not be an identifier
+        # (`_sysconfigdata__linux_x86_64-linux-gnu`, witness 10223) and a package path may hold
+        # a `-` (`pycsl-reference/__init__.py`, witness 10222; `python -m py-ref.x` runs). For an
+        # identifier path the two load the same module the same way.
+        cmd = [sys.executable, "-c", "import importlib; importlib.import_module(%r)" % rel]
     try:
         p = subprocess.run(cmd, cwd=base, capture_output=True, timeout=TIMEOUT * 4)
     except subprocess.TimeoutExpired:
