@@ -1,0 +1,3 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl/src/self-annotate/src/module6_whyml/expr_ghost_spec_ops.py'...
+[*] Memory model: hoare
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

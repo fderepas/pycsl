@@ -1,0 +1,16 @@
+    SUCCESS   getting-better/open-routes/route221-carrier-fun-assumes-a-synthesized-frame.py (route #221)
+    FAILED    getting-better/open-routes/route221-control-fun-true-twin-still-fails.py (route #221)
+    FAILED    getting-better/open-routes/route221-control-whole-file-still-fails.py (route #221)
+    REFUSED   getting-better/open-routes/route226-carrier-computed-constructor-store.py (route #226)
+    FAILED    getting-better/open-routes/route226-carrier-length-invariant-over-list-param.py (route #226)
+    REFUSED   getting-better/open-routes/route384-carrier-element-term-masks-length-state.py (route #384)
+    SUCCESS   getting-better/open-routes/route385-carrier-unverified-caller-alias.py (route #385)
+    SUCCESS   getting-better/open-routes/route430-carrier-claimed-caller-unclaimed-hash-callee.py (route #430)
+    SUCCESS   getting-better/open-routes/route431-carrier-caller-finally-swallows-callee-hash.py (route #431)
+    SUCCESS   getting-better/open-routes/route431-carrier-finally-return-swallows-hash.py (route #431)
+    SUCCESS   getting-better/open-routes/route431-carrier-finally-return-swallows-keyerror.py (route #431)
+    FAILED    getting-better/open-routes/setelem-carrier-read-only-str-set-membership.py (route SET-ELEM)
+    SUCCESS   getting-better/open-routes/setelem-control-int-set-membership.py (route SET-ELEM)
+    SUCCESS   getting-better/open-routes/setelem-control-mutated-str-set-membership.py (route SET-ELEM)
+[*] open-route-carriers: 14 carrier(s) checked.
+[+] open-route-carriers: OK — every open route's carrier still reproduces exactly as its ledger row says.

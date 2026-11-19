@@ -1,0 +1,221 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/scc.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 76, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 16714 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 77, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 16770 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 74, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.11s, 335996 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 81, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4362 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 81, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5069 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 80, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 16453 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 84, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4366 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 84, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5430 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 83, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 17688 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 91, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5512 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 87, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 24584 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 118, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 7926 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 118, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30059 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 114, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.52s, 701921 steps).
+
+File "/home/fabrice/.opam/framac-coq8/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 171, characters 15-19:
+Sub-goal postcondition of goal emits_as_logic_symbol'vc.
+Prover result is: Valid (0.01s, 4767 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 180, characters 24-57:
+Sub-goal variant decrease of goal find_calls_in_ir__get_K_type'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 187, characters 24-57:
+Sub-goal variant decrease of goal find_calls_in_ir__get_K_func'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 207, characters 68-109:
+Sub-goal variant decrease of goal find_calls_in_ir'vc.
+Prover result is: Valid (0.03s, 49862 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 207, characters 68-109:
+Sub-goal precondition of goal find_calls_in_ir'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 208, characters 18-58:
+Sub-goal variant decrease of goal find_calls_in_ir'vc.
+Prover result is: Valid (0.02s, 49862 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 208, characters 18-58:
+Sub-goal precondition of goal find_calls_in_ir'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 204, characters 32-36:
+Sub-goal postcondition of goal find_calls_in_ir'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 215, characters 70-114:
+Sub-goal variant decrease of goal find_calls_in_ir__dict'vc.
+Prover result is: Valid (0.02s, 54269 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 215, characters 70-114:
+Sub-goal precondition of goal find_calls_in_ir__dict'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 215, characters 34-69:
+Sub-goal variant decrease of goal find_calls_in_ir__dict'vc.
+Prover result is: Valid (0.02s, 55346 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 215, characters 34-69:
+Sub-goal precondition of goal find_calls_in_ir__dict'vc.
+Prover result is: Valid (0.01s, 4719 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 211, characters 32-36:
+Sub-goal postcondition of goal find_calls_in_ir__dict'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 221, characters 64-105:
+Sub-goal variant decrease of goal find_calls_in_ir__list'vc.
+Prover result is: Valid (0.02s, 52475 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 221, characters 64-105:
+Sub-goal precondition of goal find_calls_in_ir__list'vc.
+Prover result is: Valid (0.01s, 4653 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 221, characters 28-63:
+Sub-goal variant decrease of goal find_calls_in_ir__list'vc.
+Prover result is: Valid (0.02s, 53576 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 221, characters 28-63:
+Sub-goal precondition of goal find_calls_in_ir__list'vc.
+Prover result is: Valid (0.01s, 4662 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 218, characters 32-36:
+Sub-goal postcondition of goal find_calls_in_ir__list'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 232, characters 24-63:
+Sub-goal variant decrease of goal find_self_method_calls__get_K_type'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 239, characters 24-63:
+Sub-goal variant decrease of goal find_self_method_calls__get_K_func'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 261, characters 99-169:
+Sub-goal variant decrease of goal find_self_method_calls'vc.
+Prover result is: Valid (0.02s, 61255 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 261, characters 99-169:
+Sub-goal precondition of goal find_self_method_calls'vc.
+Prover result is: Valid (0.01s, 5125 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 262, characters 20-89:
+Sub-goal variant decrease of goal find_self_method_calls'vc.
+Prover result is: Valid (0.03s, 61255 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 262, characters 20-89:
+Sub-goal precondition of goal find_self_method_calls'vc.
+Prover result is: Valid (0.01s, 5125 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 257, characters 32-36:
+Sub-goal postcondition of goal find_self_method_calls'vc.
+Prover result is: Valid (0.01s, 5109 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 269, characters 99-172:
+Sub-goal variant decrease of goal find_self_method_calls__dict'vc.
+Prover result is: Valid (0.02s, 54269 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 269, characters 99-172:
+Sub-goal precondition of goal find_self_method_calls__dict'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 269, characters 34-98:
+Sub-goal variant decrease of goal find_self_method_calls__dict'vc.
+Prover result is: Valid (0.02s, 55346 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 269, characters 34-98:
+Sub-goal precondition of goal find_self_method_calls__dict'vc.
+Prover result is: Valid (0.01s, 4719 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 265, characters 32-36:
+Sub-goal postcondition of goal find_self_method_calls__dict'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 275, characters 93-163:
+Sub-goal variant decrease of goal find_self_method_calls__list'vc.
+Prover result is: Valid (0.02s, 52475 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 275, characters 93-163:
+Sub-goal precondition of goal find_self_method_calls__list'vc.
+Prover result is: Valid (0.01s, 4653 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 275, characters 28-92:
+Sub-goal variant decrease of goal find_self_method_calls__list'vc.
+Prover result is: Valid (0.02s, 53576 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 275, characters 28-92:
+Sub-goal precondition of goal find_self_method_calls__list'vc.
+Prover result is: Valid (0.01s, 4662 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 272, characters 32-36:
+Sub-goal postcondition of goal find_self_method_calls__list'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 165, characters 20-25: unused variable names
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 165, characters 33-43: unused variable call_graph
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 167, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 171, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 218, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 211, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 204, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 272, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 265, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 257, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 276, characters 29-38: unused variable functions
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 276, characters 52-66: unused variable extra_concrete
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_59lwy8vs.mlw", line 278, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

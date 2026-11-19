@@ -76,8 +76,14 @@ def decimal_remainder(a: int, b: int) -> int:
     return result
 
 
+# (#49) gen #30: the upper guard is NOT decoration. MEASURED: `decimal.getcontext().prec
+# = 5` reads back 5, but `= 10**30` RAISES `OverflowError` — `decimal.MAX_PREC` is
+# 999999999999999999 on this build. Under `requires prec > 0` alone the identity claim was
+# false for every precision above MAX_PREC, a RAISE divergence rather than a wrong value.
 #@ requires prec > 0
+#@ requires prec <= 999999999999999999
 #@ ensures \result == prec
 def getcontext_prec(prec: int) -> int:
-    """Get/set context precision (identity model)."""
+    """Get/set context precision (identity model), for a precision CPython accepts:
+    above `decimal.MAX_PREC` the assignment raises OverflowError."""
     return prec

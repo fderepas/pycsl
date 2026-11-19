@@ -1,0 +1,866 @@
+KEEPS 38
+==========================================================================================
+### Module6_WhyMLTranspiler.py :: Module6_WhyMLTranspiler.__init__
+
+==========================================================================================
+### errors.py :: PyCSLError.message
+  let pycslerror__message (self: pycslerror) : string
+  =
+    (str_dunder_op ())
+
+  val pycslirerror__as_dict (self: pycslirerror) : map int (option int)
+
+  let pycslirerror__message (self: pycslirerror) : string
+  =
+    (str_dunder_op ())
+
+  val pycslparseerror__as_dict (self: pycslparseerror) : map int (option int)
+
+  let pycslparseerror__message (self: pycslparseerror) : string
+  =
+    (str_dunder_op ())
+
+  val pycslsemanticerror__as_dict (self: pycslsemanticerror) : map int (option int)
+
+  let pycslsemanticerror__message (self: pycslsemanticerror) : string
+  =
+    (str_dunder_op ())
+
+end
+
+==========================================================================================
+### frontend/Module1_Ingestor.py :: _Harvester._build
+  let _harvester___build (self: _harvester) (stmt_nodes: int) : array int
+    requires { true }
+    ensures  { true }
+  =
+    let suite_len = ref 0 in
+    let self__flat = Array.make 1024 0 in
+    let self__flat_len = ref 0 in
+    let tgt = ref 0 in
+    let s = ref 0 in
+    let child_suite_nodes = ref 0 in
+    let suite = ref Seq.empty in
+    let _idx_s = ref 0 in
+    while !_idx_s < (iter_length stmt_nodes) do
+      let s = ref ((iter_get stmt_nodes !_idx_s)) in
+      let (_tu_tgt, _tu_child_suite_nodes) = (self__make_1 !s) in
+      tgt := _tu_tgt;
+      child_suite_nodes := _tu_child_suite_nodes;
+      self__flat[!self__flat_len] <- !tgt;
+      self__flat_len := !self__flat_len + 1;
+      if ((get_node_type !tgt) = 121263303) then begin
+        self._cur_class <- (get_node_name !tgt);
+        self._cur_class <- 0
+      end;
+      suite := Seq.snoc !suite !tgt;
+      _idx_s := !_idx_s + 1
+    done;
+
+==========================================================================================
+### frontend/Module3_Weaver.py :: PyCSLWeaver._attach_loop_contracts
+  let pycslweaver___attach_loop_contracts (self: pycslweaver) (node: int) (contracts: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let node_csl_variants = Array.make 1024 0 in
+    let node_csl_variants_len = ref 0 in
+    let node_csl_invariants = Array.make 1024 0 in
+    let node_csl_invariants_len = ref 0 in
+    let node_csl_ghost_assigns = Array.make 1024 0 in
+    let node_csl_ghost_assigns_len = ref 0 in
+    let c = ref 0 in
+    let _idx_c = ref 0 in
+    while !_idx_c < (iter_length contracts) do
+      let c = ref ((iter_get contracts !_idx_c)) in
+      if (py_isinstance_LoopInvariant_int_op !c) then begin
+        node_csl_invariants[!node_csl_invariants_len] <- !c;
+        node_csl_invariants_len := !node_csl_invariants_len + 1
+      end else begin
+        if (py_isinstance_LoopVariant_int_op !c) then begin
+          node_csl_variants[!node_csl_variants_len] <- !c;
+          node_csl_variants_len := !node_csl_variants_len + 1
+        end else begin
+          if ((py_isinstance_GhostAssignDecl_int_op !c) || (py_isinstance_GhostArraySetDecl_int_op !c)) then begin
+            node_csl_ghost_assigns[!node_csl_ghost_assigns_len] <- !c;
+            node_csl_ghost_assigns_len := !node_csl_ghost_assigns_len + 1
+          end
+
+==========================================================================================
+### frontend/Module3_Weaver.py :: PyCSLWeaver._desugar_for
+  let pycslweaver___desugar_for (self: pycslweaver) (contracts: array int) : array int
+    requires { true }
+    ensures  { true }
+    raises { PyCSLSemanticError }
+  =
+    let out_len = ref 0 in
+    let m = ref 0 in
+    let lo = ref 0 in
+    let hi = ref 0 in
+    let clause = ref 0 in
+    let c = ref 0 in
+    let out = ref Seq.empty in
+    let _idx_c = ref 0 in
+    while !_idx_c < Array.length contracts do
+      invariant { 0 <= !_idx_c }
+      variant { Array.length contracts - !_idx_c }
+      try
+        let c = ref (contracts[!_idx_c]) in
+      if (not (py_isinstance_ForExpand_int_op !c)) then begin
+        out := Seq.snoc !out !c;
+        raise PyCSL_Continue
+      end;
+      lo := (pyCSLWeaver__const_int_2 (get_lo !c) (get_var !c));
+      hi := (pyCSLWeaver__const_int_2 (get_hi !c) (get_var !c));
+      if (not ((get_clauses !c) <> 0)) then begin
+        raise PyCSLSemanticError
+
+==========================================================================================
+### frontend/Module3_Weaver.py :: Module3_Weaver._region_bound_str
+  let module3_weaver___region_bound_str (self: module3_weaver) (node: int) : string
+    requires { true }
+    ensures  { true }
+  =
+    try
+    let v = ref 0 in
+    v := 0;
+    if (!v <> 0) then begin
+      raise (Return_str (if ((is_integer_1 (py_float_1 !v)) <> 0) then (str_of_int !v) else (str_of_int !v)))
+    end else begin
+      raise (Return_str "<expr>")
+    end
+    with Return_str r -> r end
+
+  val module3_weaver___subscript_read_site (self: module3_weaver) (sub: subscript) (field: string) : unit
+    requires { true }
+    ensures  { true }
+
+  val module3_weaver___subst_csl_param (self: module3_weaver) (node: int) (param_name: string) (repl: int) : unit
+    requires { true }
+    ensures  { true }
+
+  val module3_weaver___synthesize_selfcomp (self: module3_weaver) (python_ast: int) (hp: happyproperty) : unit
+    requires { true }
+    ensures  { true }
+
+
+==========================================================================================
+### frontend/Module3_Weaver.py :: PyCSLWeaver._validate_function_contracts
+  let pycslweaver___validate_function_contracts (self: pycslweaver) (node: int) : unit
+    requires { true }
+    ensures  { true }
+    raises { ValueError }
+  =
+    let ens = ref 0 in
+    if ((get_csl_trusted node) <> 0) then begin
+      let _idx_ens = ref 0 in
+      while !_idx_ens < (iter_length (get_csl_ensures node)) do
+        let ens = ref ((iter_get (get_csl_ensures node) !_idx_ens)) in
+        if ((if ((if ((if ((if ((if (py_isinstance_BinOp_int_op (get_expr !ens)) && ((get_op (get_expr !ens)) = 688894486) then 1 else 0) <> 0) && (py_isinstance_Number_int_op (get_left (get_expr !ens))) then 1 else 0) <> 0) && ((get_value (get_left (get_expr !ens))) = 1) then 1 else 0) <> 0) && (py_isinstance_Number_int_op (get_right (get_expr !ens))) then 1 else 0) <> 0) && ((get_value (get_right (get_expr !ens))) = 1) then 1 else 0) <> 0) then begin
+          let _ = (warnings_warn_1 (str_concat (str_concat (str_concat (str_concat 1844508116 (get_name node)) 614650760) (get_lineno node)) 442700158)) in ()
+        end;
+        _idx_ens := !_idx_ens + 1
+      done
+    end;
+    if ((if ((get_csl_function_variants node) <> 0) && ((get_csl_diverges node) <> 0) then 1 else 0) <> 0) then begin
+      raise ValueError
+    end
+
+  val pycslweaver__visit_ClassDef (self: pycslweaver) (node: int) : int
+    requires { true }
+    ensures  { true }
+
+  val pycslweaver__visit_For (self: pycslweaver) (node: py_for) : int
+    requires { true }
+
+==========================================================================================
+### frontend/Module3_Weaver.py :: PyCSLWeaver.visit_Module
+  let pycslweaver__visit_Module (self: pycslweaver) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let node_csl_shared_decls = Array.make 1024 0 in
+    let node_csl_shared_decls_len = ref 0 in
+    let node_csl_datatypes = Array.make 1024 0 in
+    let node_csl_datatypes_len = ref 0 in
+    let c = ref 0 in
+    setattr_3 node 1646021205 0;
+    setattr_3 node 673082932 0;
+    setattr_3 node 1085513977 0;
+    setattr_3 node 246648509 0;
+    setattr_3 node 1490175386 0;
+    setattr_3 node 93747507 0;
+    if (contains_check 0 self.contracts_map) then begin
+      let _idx_c = ref 0 in
+      while !_idx_c < (iter_length (subscript_get self.contracts_map 0)) do
+        let c = ref ((iter_get (subscript_get self.contracts_map 0) !_idx_c)) in
+        if (py_isinstance_DatatypeDecl_int_op !c) then begin
+          node_csl_datatypes[!node_csl_datatypes_len] <- !c;
+          node_csl_datatypes_len := !node_csl_datatypes_len + 1
+        end else begin
+          if (py_isinstance_SharedDecl_int_op !c) then begin
+            node_csl_shared_decls[!node_csl_shared_decls_len] <- !c;
+            node_csl_shared_decls_len := !node_csl_shared_decls_len + 1
+
+==========================================================================================
+### frontend/Module3_Weaver.py :: PyCSLWeaver.visit_With
+  let pycslweaver__visit_With (self: pycslweaver) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let c = ref 0 in
+    setattr_3 node 1638281589 0;
+    setattr_3 node 1445460626 0;
+    setattr_3 node 1030270810 0;
+    if (contains_check (get_lineno node) self.contracts_map) then begin
+      let _idx_c = ref 0 in
+      while !_idx_c < (iter_length (subscript_get self.contracts_map (get_lineno node))) do
+        let c = ref ((iter_get (subscript_get self.contracts_map (get_lineno node)) !_idx_c)) in
+        if (py_isinstance_CriticalSection_int_op !c) then begin
+          setattr_3 node 1638281589 (get_mutex !c)
+        end else begin
+          if (py_isinstance_Acquires_int_op !c) then begin
+            setattr_3 node 1445460626 (get_mutex !c)
+          end else begin
+            if (py_isinstance_Releases_int_op !c) then begin
+              setattr_3 node 1030270810 (get_mutex !c)
+            end
+          end
+        end;
+        _idx_c := !_idx_c + 1
+      done
+    end;
+
+==========================================================================================
+### frontend/ir_resolve.py :: ._inject_functions
+  let _inject_functions (dep_funcs: array int) (ir_data: map string (option int)) : map int (option int)
+    requires { true }
+    ensures  { true }
+  =
+    let func_ir = ref 0 in
+    let existing = ref 0 in
+    let imported = ref (const (None: option int)) in
+    existing := (set_comp 0);
+    let _idx_func_ir = ref 0 in
+    while !_idx_func_ir < Array.length dep_funcs do
+      invariant { 0 <= !_idx_func_ir }
+      variant { Array.length dep_funcs - !_idx_func_ir }
+      let func_ir = ref (dep_funcs[!_idx_func_ir]) in
+      if (not (contains_check (subscript_get !func_ir 1878939832) !existing)) then begin
+        let _ = (insert_2 0 !func_ir) in ();
+        imported := map_update_some !imported (subscript_get !func_ir 1878939832) 0;
+        let _ = (existing_add_1 (subscript_get !func_ir 1878939832)) in ()
+      end;
+      _idx_func_ir := !_idx_func_ir + 1
+    done;
+    !imported
+
+  val _process_dependency (filepath: string) (needed_names: int) (cache: int) (deep: int) (processing_set: int) : array int
+    requires { true }
+    ensures  { true }
+
+
+==========================================================================================
+### frontend/pure_ast.py :: AST.__init__
+
+==========================================================================================
+### frontend/pure_ast.py :: _ABC.__instancecheck__
+
+==========================================================================================
+### frontend/pure_ast.py :: Comment.__repr__
+
+==========================================================================================
+### frontend/pure_ast.py :: _Tok.__repr__
+
+==========================================================================================
+### frontend/pure_ast.py :: AST.__repr__
+
+==========================================================================================
+### frontend/pure_ast.py :: ._parse_number
+  let _parse_number (s: int) : int
+    requires { true }
+    ensures  { true }
+  =
+    try
+    let s = ref s in
+    let low = ref 0 in
+    s := (s_replace_2 134451300 313406155);
+    low := (s_lower_0 ());
+    if ((low_endswith_1 1916946140) <> 0) then begin
+      raise (Return (complex_2 0 (py_float_1 0)))
+    end else begin
+      if ((low_startswith_1 2066404720) <> 0) then begin
+        raise (Return (int_2 !s 0))
+      end else begin
+        if ((if (any_1 (Array.make 1 0)) && (not ((low_startswith_1 479463808) <> 0)) then 1 else 0) <> 0) then begin
+          raise (Return (py_float_1 !s))
+        end else begin
+          try
+            raise (Return !s)
+          with ValueError -> 
+            raise (Return (py_float_1 !s))
+          end
+        end
+      end
+    end
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser._write_fstring_inner
+  let _unparser___write_fstring_inner (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+    raises { ValueError }
+  =
+    let value = ref 0 in
+    if (py_isinstance_JoinedStr_int_op node) then begin
+      let _idx_value = ref 0 in
+      while !_idx_value < (iter_length (get_values node)) do
+        let value = ref ((iter_get (get_values node) !_idx_value)) in
+        let _ = (self__write_fstring_inner_1 !value) in ();
+        _idx_value := !_idx_value + 1
+      done
+    end else begin
+      if ((if (py_isinstance_Constant_int_op node) && ((typeof_op 0) = 1) then 1 else 0) <> 0) then begin
+        value := (replace_3 (node_value_replace_2 1619936125 658120212) 1952844275 33737336);
+        let _ = (self_write_1 !value) in ()
+      end else begin
+        if (py_isinstance_FormattedValue_int_op node) then begin
+          let _ = (self_visit_FormattedValue_1 node) in ()
+        end else begin
+          raise ValueError
+        end
+      end
+    end
+
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.do_visit_try
+  let _unparser__do_visit_try (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let ex = ref 0 in
+    let _ = (self_fill_1 503643795) in ();
+    let _ = (self_traverse_1 (get_body node)) in ();
+    let _idx_ex = ref 0 in
+    while !_idx_ex < (iter_length (get_handlers node)) do
+      let ex = ref ((iter_get (get_handlers node) !_idx_ex)) in
+      let _ = (self_traverse_1 !ex) in ();
+      _idx_ex := !_idx_ex + 1
+    done;
+    if ((get_orelse node) <> 0) then begin
+      let _ = (self_fill_1 711760505) in ();
+      let _ = (self_traverse_1 (get_orelse node)) in ()
+    end;
+    if ((get_finalbody node) <> 0) then begin
+      let _ = (self_fill_1 319352198) in ();
+      let _ = (self_traverse_1 (get_finalbody node)) in ()
+    end
+
+  val _unparser__fill (self: _unparser) (text: int) : unit
+    requires { true }
+    ensures  { true }
+
+
+==========================================================================================
+### frontend/pure_ast.py :: _Parser.error
+  let _parser__error (self: _parser) (msg: string) : unit
+    requires { true }
+    ensures  { true }
+    ensures { false }
+    raises { PyCSLSyntaxError }
+    writes {  }
+  =
+    let t = ref { py_type = 0; _tok_string = ""; _tok_start = { field0 = 0; field1 = 0 }; _tok_py_end = { field0 = 0; field1 = 0 } } in
+    t := (_parser__cur self);
+    raise PyCSLSyntaxError
+
+  let _parser__parse_eval (self: _parser) : expression
+    requires { true }
+    ensures  { true }
+    writes { self.i }
+  =
+    let node = ref (IrOther "") in
+    node := (_parser__testlist self);
+    let e = { expression_body = !node } in
+    e
+
+  let _parser__parse_module (self: _parser) : emit_ir
+    requires { true }
+    ensures  { true }
+    ensures  { (self.i >= (old self.i)) }
+    writes { self.i }
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.get_type_comment
+  let _unparser__get_type_comment (self: _unparser) (node: int) : int
+    requires { true }
+    ensures  { true }
+  =
+    try
+    let comment = ref 0 in
+    comment := (if ((self__type_ignores_get_1 0) <> 0) || (0 <> 0) then 1 else 0);
+    if (!comment <> 0) then begin
+      raise (Return (str_concat 817856331 !comment))
+    end else begin
+      raise (Return 0)
+    end
+    with Return r -> r end
+
+  val _unparser__interleave (self: _unparser) (inter: int) (f: int) (seq: int) : unit
+    requires { true }
+    ensures  { true }
+
+  let _unparser__is_non_empty_tuple (self: _unparser) (slice_value: int) : int
+  =
+    (if (py_isinstance_Tuple_int_op slice_value) && ((get_elts slice_value) <> 0) then 1 else 0)
+
+  val _unparser__items_view (self: _unparser) (traverser: int) (items: int) : unit
+    requires { true }
+    ensures  { true }
+
+
+==========================================================================================
+### frontend/pure_ast.py :: .iter_fields
+  let iter_fields (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let field = ref 0 in
+    let _idx_field = ref 0 in
+    while !_idx_field < (iter_length (get__fields node)) do
+      let field = ref ((iter_get (get__fields node) !_idx_field)) in
+      try
+        let _ = 0 in ()
+      with AttributeError -> 
+        ()
+      end;
+      _idx_field := !_idx_field + 1
+    done
+
+  val literal_eval (node_or_string: int) : unit
+    requires { true }
+    ensures  { true }
+
+  val main (args: int) : unit
+    requires { true }
+    ensures  { true }
+
+  let mutable_state (cls: int) : int
+  =
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.set_precedence
+  let _unparser__set_precedence (self: _unparser) (precedence: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let node = ref 0 in
+    let _idx_node = ref 0 in
+    while !_idx_node < (iter_length nodes) do
+      let node = ref ((iter_get nodes !_idx_node)) in
+      subscript_set (getattr__unparser self 1316065256) !node precedence;
+      _idx_node := !_idx_node + 1
+    done
+
+  val _unparser__traverse (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+
+  let _unparser__visit (self: _unparser) (node: int) : int
+    requires { true }
+    ensures  { true }
+  =
+    setattr__unparser self 1975084088 0;
+    let _ = (self_traverse_1 node) in ();
+    (join_1 (getattr__unparser self 1975084088))
+
+  let _unparser__visit_AnnAssign (self: _unparser) (node: int) : unit
+    requires { true }
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.traverse
+  let _unparser__traverse (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let item = ref 0 in
+    if ((typeof_op 422) = 3) then begin
+      let _idx_item = ref 0 in
+      while !_idx_item < (iter_length node) do
+        let item = ref ((iter_get node !_idx_item)) in
+        let _ = (self_traverse_1 !item) in ();
+        _idx_item := !_idx_item + 1
+      done
+    end else begin
+      let _ = (visit_2 (super_0 ()) node) in ()
+    end
+
+  let _unparser__visit (self: _unparser) (node: int) : int
+    requires { true }
+    ensures  { true }
+  =
+    setattr__unparser self 1975084088 0;
+    let _ = (self_traverse_1 node) in ();
+    (join_1 (getattr__unparser self 1975084088))
+
+  let _unparser__visit_AnnAssign (self: _unparser) (node: int) : unit
+    requires { true }
+
+==========================================================================================
+### frontend/pure_ast.py :: _Parser.unsupported
+  let _parser__unsupported (self: _parser) (what: string) : unit
+    requires { true }
+    ensures  { true }
+    ensures { false }
+    raises { PyCSLSyntaxError }
+    writes {  }
+  =
+    let t = ref { py_type = 0; _tok_string = ""; _tok_start = { field0 = 0; field1 = 0 }; _tok_py_end = { field0 = 0; field1 = 0 } } in
+    t := (_parser__cur self);
+    raise PyCSLSyntaxError
+
+  val _precedence__next (self: _precedence) : unit
+    requires { true }
+    ensures  { true }
+
+  val _self_test (limit: int) : unit
+    requires { true }
+    ensures  { true }
+
+  let _splitlines_no_ff (source: string) : array string
+    requires { true }
+    ensures  { true }
+  =
+    let lines_len = ref 0 in
+    let idx = ref 0 in
+    idx := 0;
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.visit_Call
+  let _unparser__visit_Call (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let e = ref 0 in
+    let comma = ref 0 in
+    let _ = (self_set_precedence_2 (get_ATOM _class__Precedence) (get_func node)) in ();
+    let _ = (self_traverse_1 (get_func node)) in ();
+    comma := 0;
+    let _idx_e = ref 0 in
+    while !_idx_e < (iter_length (get_args node)) do
+      let e = ref ((iter_get (get_args node) !_idx_e)) in
+      if (!comma <> 0) then begin
+        let _ = (self_write_1 1916814910) in ()
+      end else begin
+        comma := 1
+      end;
+      let _ = (self_traverse_1 !e) in ();
+      _idx_e := !_idx_e + 1
+    done;
+    let _idx_e = ref 0 in
+    while !_idx_e < (iter_length (get_keywords node)) do
+      let e = ref ((iter_get (get_keywords node) !_idx_e)) in
+      if (!comma <> 0) then begin
+        let _ = (self_write_1 1916814910) in ()
+      end else begin
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.visit_DictComp
+  let _unparser__visit_DictComp (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let gen = ref 0 in
+    let _ = (self_traverse_1 (get_key node)) in ();
+    let _ = (self_write_1 1787172166) in ();
+    let _ = (self_traverse_1 (get_value node)) in ();
+    let _idx_gen = ref 0 in
+    while !_idx_gen < (iter_length (get_generators node)) do
+      let gen = ref ((iter_get (get_generators node) !_idx_gen)) in
+      let _ = (self_traverse_1 !gen) in ();
+      _idx_gen := !_idx_gen + 1
+    done
+
+  let _unparser__visit_Ellipsis (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let _ = (self_write_1 1598900995) in ()
+
+  let _unparser__visit_ExceptHandler (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let _ = (self_fill_1 (if ((getattr__unparser self 1404288927) <> 0) then 1915192761 else 1080855254)) in ();
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.visit_GeneratorExp
+  let _unparser__visit_GeneratorExp (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let gen = ref 0 in
+    let _ = (self_traverse_1 (get_elt node)) in ();
+    let _idx_gen = ref 0 in
+    while !_idx_gen < (iter_length (get_generators node)) do
+      let gen = ref ((iter_get (get_generators node) !_idx_gen)) in
+      let _ = (self_traverse_1 !gen) in ();
+      _idx_gen := !_idx_gen + 1
+    done
+
+  val _unparser__visit_Global (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+
+  val _unparser__visit_If (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+
+  let _unparser__visit_IfExp (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let _ = (self_set_precedence_3 (_Precedence_TEST_next_0 ()) (get_body node) (get_test node)) in ();
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.visit_If
+  let _unparser__visit_If (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let node = ref node in
+    let _ = (self_fill_1 16765619) in ();
+    let _ = (self_traverse_1 (get_test !node)) in ();
+    let _ = (self_traverse_1 (get_body !node)) in ();
+    while ((if ((if ((get_orelse !node) <> 0) && ((iter_length (get_orelse !node)) = 1) then 1 else 0) <> 0) && (py_isinstance_If_int_op (subscript_get (get_orelse !node) 0)) then 1 else 0) <> 0) do
+      node := (subscript_get (get_orelse !node) 0);
+      let _ = (self_fill_1 797966437) in ();
+      let _ = (self_traverse_1 (get_test !node)) in ();
+      let _ = (self_traverse_1 (get_body !node)) in ()
+    done;
+    if ((get_orelse !node) <> 0) then begin
+      let _ = (self_fill_1 711760505) in ();
+      let _ = (self_traverse_1 (get_orelse !node)) in ()
+    end
+
+  let _unparser__visit_IfExp (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let _ = (self_set_precedence_3 (_Precedence_TEST_next_0 ()) (get_body node) (get_test node)) in ();
+    let _ = (self_traverse_1 (get_body node)) in ();
+    let _ = (self_write_1 1471807013) in ();
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.visit_ListComp
+  let _unparser__visit_ListComp (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let gen = ref 0 in
+    let _ = (self_traverse_1 (get_elt node)) in ();
+    let _idx_gen = ref 0 in
+    while !_idx_gen < (iter_length (get_generators node)) do
+      let gen = ref ((iter_get (get_generators node) !_idx_gen)) in
+      let _ = (self_traverse_1 !gen) in ();
+      _idx_gen := !_idx_gen + 1
+    done
+
+  val _unparser__visit_Match (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+
+  let _unparser__visit_MatchAs (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let pattern = ref 0 in
+    let name = ref 0 in
+    name := (get_name node);
+    pattern := (get_pattern node);
+    if (!name = 0) then begin
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.visit_Match
+  let _unparser__visit_Match (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let case = ref 0 in
+    let _ = (self_fill_1 264646499) in ();
+    let _ = (self_traverse_1 (get_subject node)) in ();
+    let _idx_case = ref 0 in
+    while !_idx_case < (iter_length (get_cases node)) do
+      let case = ref ((iter_get (get_cases node) !_idx_case)) in
+      let _ = (self_traverse_1 !case) in ();
+      _idx_case := !_idx_case + 1
+    done
+
+  let _unparser__visit_MatchAs (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let pattern = ref 0 in
+    let name = ref 0 in
+    name := (get_name node);
+    pattern := (get_pattern node);
+    if (!name = 0) then begin
+      let _ = (self_write_1 134451300) in ()
+    end else begin
+      if (!pattern = 0) then begin
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.visit_SetComp
+  let _unparser__visit_SetComp (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let gen = ref 0 in
+    let _ = (self_traverse_1 (get_elt node)) in ();
+    let _idx_gen = ref 0 in
+    while !_idx_gen < (iter_length (get_generators node)) do
+      let gen = ref ((iter_get (get_generators node) !_idx_gen)) in
+      let _ = (self_traverse_1 !gen) in ();
+      _idx_gen := !_idx_gen + 1
+    done
+
+  let _unparser__visit_Slice (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    if ((get_lower node) <> 0) then begin
+      let _ = (self_traverse_1 (get_lower node)) in ()
+    end;
+    let _ = (self_write_1 424321936) in ();
+    if ((get_upper node) <> 0) then begin
+      let _ = (self_traverse_1 (get_upper node)) in ()
+    end;
+    if ((get_step node) <> 0) then begin
+      let _ = (self_write_1 424321936) in ();
+
+==========================================================================================
+### frontend/pure_ast.py :: _Unparser.visit_comprehension
+  let _unparser__visit_comprehension (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let if_clause = ref 0 in
+    if ((get_is_async node) <> 0) then begin
+      let _ = (self_write_1 1660083291) in ()
+    end else begin
+      let _ = (self_write_1 2083262415) in ()
+    end;
+    let _ = (self_set_precedence_2 (get_TUPLE _class__Precedence) (get_target node)) in ();
+    let _ = (self_traverse_1 (get_target node)) in ();
+    let _ = (self_write_1 260070937) in ();
+    let _ = (self_set_precedence_3 (_Precedence_TEST_next_0 ()) (get_iter node) (get_ifs node)) in ();
+    let _ = (self_traverse_1 (get_iter node)) in ();
+    let _idx_if_clause = ref 0 in
+    while !_idx_if_clause < (iter_length (get_ifs node)) do
+      let if_clause = ref ((iter_get (get_ifs node) !_idx_if_clause)) in
+      let _ = (self_write_1 1471807013) in ();
+      let _ = (self_traverse_1 !if_clause) in ();
+      _idx_if_clause := !_idx_if_clause + 1
+    done
+
+  let _unparser__visit_keyword (self: _unparser) (node: int) : unit
+    requires { true }
+    ensures  { true }
+
+==========================================================================================
+### ir_schema.py :: .validate_ir
+  let validate_ir (ir: int) : unit
+    requires { true }
+    ensures  { true }
+    raises { PyCSLIRError -> true }
+  =
+    let name = ref 0 in
+    let missing_top = ref 0 in
+    let missing_func = ref 0 in
+    let missing_contracts = ref 0 in
+    let ir_version = ref 0 in
+    let contracts = ref 0 in
+    let _for_target = ref 0 in
+    if (not ((typeof_op 219) = 4)) then begin
+      raise PyCSLIRError
+    end;
+    missing_top := (_REQUIRED_TOP - (ir_keys_0 ()));
+    if (!missing_top <> 0) then begin
+      raise PyCSLIRError
+    end;
+    ir_version := (ir_get_1 1587253953);
+    if ((if (!ir_version <> 0) && (not (contains_check !ir_version aCCEPTED_IR_VERSIONS)) then 1 else 0) <> 0) then begin
+      raise PyCSLIRError
+    end;
+    if (not ((typeof_op 0) = 3)) then begin
+      raise PyCSLIRError
+    end;
+
+==========================================================================================
+### proof2why3/parser.py :: Token.__repr__
+
+==========================================================================================
+### proof2why3/sertop.py :: SertopSession.__enter__
+
+==========================================================================================
+### proof2why3/sertop.py :: SertopSession.__exit__
+
+==========================================================================================
+### proof2why3/sertop.py :: ._sexp_tokens
+  let _sexp_tokens (s: string) : unit
+    requires { true }
+    ensures  { true }
+  =
+    let n = ref 0 in
+    let j = ref 0 in
+    let i = ref 0 in
+    i := 0;
+    n := (str_length_op s);
+    while (!i < !n) do
+      try
+      let c = ref (str_sub_op s !i 1) in
+      if ((py_isspace_op !c) <> 0) then begin
+        i := !i + 1;
+        raise PyCSL_Continue
+      end;
+      if (str_eq_op !c "(") then begin
+        let _ = 0 in ();
+        i := !i + 1;
+        raise PyCSL_Continue
+      end;
+      if (str_eq_op !c ")") then begin
+        let _ = 0 in ();
+        i := !i + 1;
+        raise PyCSL_Continue
+      end;
+
+==========================================================================================
+### pycsl.py :: ._parse_args
+  let _parse_args () : int
+    requires { true }
+    ensures  { true }
+  =
+    let parser = ref 0 in
+    let g_strict = ref 0 in
+    let g_scope = ref 0 in
+    let g_prover = ref 0 in
+    let g_proof = ref 0 in
+    let g_audit = ref 0 in
+    parser := (argparse_ArgumentParser_0 ());
+    let _ = (parser_add_argument_1 1071507190) in ();
+    g_prover := (parser_add_argument_group_1 1822252285);
+    let _ = (g_prover_add_argument_2 1061364925 1839906211) in ();
+    let _ = (g_prover_add_argument_1 2016249251) in ();
+    let _ = (g_prover_add_argument_1 1481763090) in ();
+    g_scope := (parser_add_argument_group_1 1488512485);
+    let _ = (g_scope_add_argument_1 984129098) in ();
+    let _ = (g_scope_add_argument_1 158753856) in ();
+    let _ = (g_scope_add_argument_1 766121575) in ();
+    let _ = (g_scope_add_argument_1 626225658) in ();
+    let _ = (g_scope_add_argument_1 1082217538) in ();
+    let _ = (g_scope_add_argument_1 548102962) in ();
+    g_proof := (parser_add_argument_group_1 2061036296);
+    let _ = (g_proof_add_argument_1 889847856) in ();
+    let _ = (g_proof_add_argument_1 1347316190) in ();
+

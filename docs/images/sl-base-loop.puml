@@ -1,0 +1,56 @@
+@startuml sl-base-loop
+' Base SL: self-tcb-reduction — per-stub loop (activity)
+skinparam backgroundColor #FDFDFD
+skinparam defaultFontName Helvetica
+skinparam shadowing false
+skinparam ActivityBorderColor #888888
+skinparam ActivityBackgroundColor #F4F8FF
+skinparam ActivityDiamondBackgroundColor #FFF6D6
+skinparam ArrowColor #555555
+
+title self-tcb-reduction — per-stub Squeeze Loop
+
+start
+:coordinator picks next stub
+from the current tier work-list
+(skip the floor denylist);
+:converter ports the LIVE body VERBATIM
++ #@ assigns-framed contract
++ any @mutable_state recognizer
+(--no-proof local, STATUS: DRAFT);
+if (Gate A: tier ok? not floor? contract shape ok?) then (no)
+  :amend / cut / sharpen;
+  stop
+else (APPROVED)
+endif
+:converter removes the \trusted marker,
+commits the increment;
+:verifier runs the THREE L-planes FRESH
+(sync • whole-file proof • byte-diff 0 • suite • count);
+if (Gate B: fidelity ∧ type-safety ∧ corpus-inertness ∧ count ↓ ∧ no smuggle?) then (fail)
+  :REVERT the stub;
+  if (attempt budget exceeded?) then (yes)
+    :floor-auditor triage;
+    if (hard-architectural vs genuine floor?) then (floor)
+      :re-site to F1/F3 with a reason
+      (floor-auditor PASS required);
+      stop
+    else (hard-architectural)
+      :FLAG for a focused high-reasoning pass;
+      stop
+    endif
+  else (no)
+    :re-plan the recognizer;
+    stop
+  endif
+else (pass)
+endif
+if (Gate C: no-blend ∧ non-vacuity ∧ floor-audit if re-sited?) then (fail)
+  :gap doc → re-plan;
+  stop
+else (pass)
+endif
+:stub DONE  →  VERIFIED
+(\trusted count strictly decreased);
+stop
+@enduml

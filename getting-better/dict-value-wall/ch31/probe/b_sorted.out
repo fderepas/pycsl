@@ -1,0 +1,49 @@
+[*] Parsing and Semantic Analysis for 'getting-better/dict-value-wall/ch31/probe/b_sorted.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 35, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2672 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 56, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 2848 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 63, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.01s, 2200 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 70, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2236 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 93, characters 18-30:
+Sub-goal loop invariant init of goal g'vc.
+Prover result is: Valid (0.00s, 767 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 94, characters 16-36:
+Sub-goal loop variant decrease of goal g'vc.
+Prover result is: Valid (0.01s, 7626 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 93, characters 18-30:
+Sub-goal loop invariant preservation of goal g'vc.
+Prover result is: Valid (0.01s, 8348 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 84, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Timeout (30.00s, 28065376 steps).
+
+Warnings/Errors from Why3:
+Warning, file "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 95, characters 10-11: unused variable x
+Warning, file "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 88, characters 8-9: unused variable d
+Warning, file "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 86, characters 8-9: unused variable x
+Warning, file "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 95, characters 10-11: unused variable x
+Warning, file "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 88, characters 8-9: unused variable d
+Warning, file "getting-better/dict-value-wall/ch31/probe/b_sorted.mlw", line 86, characters 8-9: unused variable x
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 28065376 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

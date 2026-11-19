@@ -1,0 +1,20 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt29/k43_method_return_self_field.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_26psdyp1.mlw", line 24, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_26psdyp1.mlw", line 32, characters 15-34:
+Sub-goal postcondition of goal r__get'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_26psdyp1.mlw", line 28, characters 8-9: unused variable s
+Warning, file "/tmp/.pycsl_26psdyp1.mlw", line 23, characters 9-10: unused variable r
+Warning, file "/tmp/.pycsl_26psdyp1.mlw", line 32, characters 15-34: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

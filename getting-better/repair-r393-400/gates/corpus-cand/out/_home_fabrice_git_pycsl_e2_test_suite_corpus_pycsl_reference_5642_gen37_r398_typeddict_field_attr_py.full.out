@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5642_gen37_r398_typeddict_field_attr.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: function 'f': `.a` reads an ATTRIBUTE of a value that may be the TypedDict `TD`: a TypedDict value is a plain `dict` at runtime, so CPython raises AttributeError, while the model reads the record field (route #398: `d.a` on `d: TD` under `no_exception` PROVED). Use `d["a"]`.

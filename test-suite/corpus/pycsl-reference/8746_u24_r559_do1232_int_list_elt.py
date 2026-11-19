@@ -1,0 +1,31 @@
+r"""Test 8746 -- route #559 (expected FAIL: PROVED at base `no_exception \all`, REFUSED PYCSL-R559-BUILTIN-OBJECT-ELEMENT; red team 53 probe g1414/do1232_int_list_elt.py): `ys = [int]; return ys[0] + 1`; CPython TypeError: unsupported operand type(s) for +: 'type' and 'int'
+"""
+# pycsl-expected: FAIL
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterator, Sequence, FrozenSet
+from dataclasses import dataclass
+
+import math
+
+
+def h(x: int) -> int:
+    return x + 1
+
+
+@dataclass
+class R:
+    a: int
+
+
+
+#@ no_exception \all
+def f(k: int, xs: List[int]) -> int:
+    ys = [int]
+    return ys[0] + 1
+
+
+if __name__ == "__main__":
+    try:
+        r = f(1, [1, 2])
+        print("result", repr(r)[:60])
+    except Exception as e:
+        print("VIOLATION", type(e).__name__, e)

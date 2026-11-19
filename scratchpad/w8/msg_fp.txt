@@ -1,0 +1,16 @@
+gate(#43): regression-check #34's frame-preservation fix — routes 8/9/10 stay closed under all ten of this relaunch's changes
+
+Route #13 defeated that fix by ERASING the mutation the fix checks for, so it was worth
+confirming the fix itself still bites after ten routes' worth of refusals landed on top of
+it. Both of #34's original shapes re-probed:
+
+    #@ ensures self.a == 1 / #@ assigns self.a   over a body that also writes self.b
+    #@ ensures True        / #@ assigns \nothing over the same body
+
+with a driver asserting `\result == 0` where Python returns 7. Both correctly FAIL.
+
+So the frame-preservation `ensures` still catches an under-claimed and an empty frame; what
+route #13 showed is that it cannot catch a mutation the emitter deleted before it ran, which
+is why routes #13/#14 are refusals at the erasure site rather than changes to the frame.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

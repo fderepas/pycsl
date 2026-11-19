@@ -1,0 +1,1019 @@
+[*] IR conformance — core corpus (golden IR -> WhyML, no front-end)
+[+] core-only conformance: 38 OK / 0 MISMATCH (38 goldens) — front-end NOT imported
+  [0;32m[OK][0m core-only conformance
+[*] IR conformance — front-end corpus (source -> resolved IR, no prover)
+[*] Imported from 'multi_file_lib.arith': ['double_int'] (trusted stubs)
+[*] Imported from 'multi_file_lib.arith': ['double_int', 'triple_int'] (trusted stubs)
+[*] Imported from 'multi_file_lib.arith': ['double_int'] (trusted stubs, module-qualified)
+[*] Imported from 'multi_file_lib.deep_mid': ['double_plus_one'] (trusted stubs)
+[*] Imported from 'multi_file_lib.circ_a': ['func_a'] (trusted stubs)
+[*] Imported class from 'multi_file_lib.base_counter': Counter (record + 1 method stub(s) + 0 helper(s))
+[*] Imported from 'multi_file_lib.base_counter': ['Counter'] (trusted stubs)
+[*] Imported class from 'multi_file_lib.base_store': Store (record + 1 method stub(s) + 0 helper(s))
+[*] Imported base class from 'multi_file_lib.visitor_base': NodeVisitor (record + 2 method stub(s))
+front-end conformance: 38 OK / 0 MISMATCH (38 goldens; 0 version-skew)
+front-end-only: no core/Module6/prover module in sys.modules (import-based, no subprocess for the conformance check)
+determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
+  [0;32m[OK][0m front-end-only conformance
+[0;32m[+] IR conformance: both corpora pass — front-end<->core contract intact.[0m
+bin/run-reference-tests.sh: line 176: [[: 925_list_record_field: value too great for base (error token is "925_list_record_field")
+bin/run-reference-tests.sh: line 176: [[: 926_record_field_no_exprir_theory: value too great for base (error token is "926_record_field_no_exprir_theory")
+bin/run-reference-tests.sh: line 176: [[: 927_token_cursor_advance: value too great for base (error token is "927_token_cursor_advance")
+bin/run-reference-tests.sh: line 176: [[: 928_self_field_array_projection: value too great for base (error token is "928_self_field_array_projection")
+bin/run-reference-tests.sh: line 176: [[: 929_sibling_record_call_projection: value too great for base (error token is "929_sibling_record_call_projection")
+bin/run-reference-tests.sh: line 176: [[: 930_tail_return_bool_coercion: value too great for base (error token is "930_tail_return_bool_coercion")
+bin/run-reference-tests.sh: line 176: [[: 931_varargs_membership: value too great for base (error token is "931_varargs_membership")
+bin/run-reference-tests.sh: line 176: [[: 932_token_kind_concreteness: value too great for base (error token is "932_token_kind_concreteness")
+bin/run-reference-tests.sh: line 176: [[: 933_optional_record_return_arm: value too great for base (error token is "933_optional_record_return_arm")
+bin/run-reference-tests.sh: line 176: [[: 934_negative_literal_array_index: value too great for base (error token is "934_negative_literal_array_index")
+bin/run-reference-tests.sh: line 176: [[: 935_class_construction_adt_ctor: value too great for base (error token is "935_class_construction_adt_ctor")
+bin/run-reference-tests.sh: line 176: [[: 936_any_all_genexp_fold: value too great for base (error token is "936_any_all_genexp_fold")
+bin/run-reference-tests.sh: line 176: [[: 937_any_genexp_fold_evil_twin: value too great for base (error token is "937_any_genexp_fold_evil_twin")
+bin/run-reference-tests.sh: line 176: [[: 938_spec_genexp_all_any: value too great for base (error token is "938_spec_genexp_all_any")
+bin/run-reference-tests.sh: line 176: [[: 939_spec_genexp_evil_twin: value too great for base (error token is "939_spec_genexp_evil_twin")
+bin/run-reference-tests.sh: line 176: [[: 942_pyval_string_walker: value too great for base (error token is "942_pyval_string_walker")
+bin/run-reference-tests.sh: line 176: [[: 943_pyval_list_walker: value too great for base (error token is "943_pyval_list_walker")
+bin/run-reference-tests.sh: line 176: [[: 944_pyval_list_walker_crosscall: value too great for base (error token is "944_pyval_list_walker_crosscall")
+bin/run-reference-tests.sh: line 176: [[: 945_pyval_list_search: value too great for base (error token is "945_pyval_list_search")
+bin/run-reference-tests.sh: line 176: [[: 946_pyval_string_walker_negidx: value too great for base (error token is "946_pyval_string_walker_negidx")
+bin/run-reference-tests.sh: line 176: [[: 947_pyval_string_walker_negidx2: value too great for base (error token is "947_pyval_string_walker_negidx2")
+bin/run-reference-tests.sh: line 176: [[: 948_pyval_flatten: value too great for base (error token is "948_pyval_flatten")
+bin/run-reference-tests.sh: line 176: [[: 949_pyval_flatten_nohead: value too great for base (error token is "949_pyval_flatten_nohead")
+bin/run-reference-tests.sh: line 176: [[: 950_class_variant_bool_fold: value too great for base (error token is "950_class_variant_bool_fold")
+bin/run-reference-tests.sh: line 176: [[: 951_class_variant_term_transform: value too great for base (error token is "951_class_variant_term_transform")
+bin/run-reference-tests.sh: line 176: [[: 952_term_list_build: value too great for base (error token is "952_term_list_build")
+bin/run-reference-tests.sh: line 176: [[: 953_term_list_build_twin: value too great for base (error token is "953_term_list_build_twin")
+bin/run-reference-tests.sh: line 176: [[: 954_term_flatten_arrow: value too great for base (error token is "954_term_flatten_arrow")
+bin/run-reference-tests.sh: line 176: [[: 955_term_flatten_arrow_twin: value too great for base (error token is "955_term_flatten_arrow_twin")
+bin/run-reference-tests.sh: line 176: [[: 956_term_free_vars: value too great for base (error token is "956_term_free_vars")
+bin/run-reference-tests.sh: line 176: [[: 957_term_free_vars_twin: value too great for base (error token is "957_term_free_vars_twin")
+bin/run-reference-tests.sh: line 176: [[: 958_term_string_pp: value too great for base (error token is "958_term_string_pp")
+bin/run-reference-tests.sh: line 176: [[: 959_term_string_pp_twin: value too great for base (error token is "959_term_string_pp_twin")
+bin/run-reference-tests.sh: line 176: [[: 960_term_pp_methods: value too great for base (error token is "960_term_pp_methods")
+bin/run-reference-tests.sh: line 176: [[: 961_term_pp_methods_twin: value too great for base (error token is "961_term_pp_methods_twin")
+bin/run-reference-tests.sh: line 176: [[: 962_crosscheck_selfstate_registry_skipped: value too great for base (error token is "962_crosscheck_selfstate_registry_skipped")
+bin/run-reference-tests.sh: line 176: [[: 963_crosscheck_selfstate_registry_skipped_twin: value too great for base (error token is "963_crosscheck_selfstate_registry_skipped_twin")
+bin/run-reference-tests.sh: line 176: [[: 964_crosscheck_term_structural: value too great for base (error token is "964_crosscheck_term_structural")
+bin/run-reference-tests.sh: line 176: [[: 965_crosscheck_term_structural_twin: value too great for base (error token is "965_crosscheck_term_structural_twin")
+bin/run-reference-tests.sh: line 176: [[: 966_mutual_recursion_descent_nest: value too great for base (error token is "966_mutual_recursion_descent_nest")
+bin/run-reference-tests.sh: line 176: [[: 967_property_getter_supported: value too great for base (error token is "967_property_getter_supported")
+bin/run-reference-tests.sh: line 176: [[: 968_requires_method_frame: value too great for base (error token is "968_requires_method_frame")
+bin/run-reference-tests.sh: line 176: [[: 969_chained_comparison: value too great for base (error token is "969_chained_comparison")
+bin/run-reference-tests.sh: line 176: [[: 970_annotated_field_store: value too great for base (error token is "970_annotated_field_store")
+bin/run-reference-tests.sh: line 176: [[: 971_multi_target_assign: value too great for base (error token is "971_multi_target_assign")
+bin/run-reference-tests.sh: line 176: [[: 972_try_finally: value too great for base (error token is "972_try_finally")
+[*] 900 tests across 1 suite(s); jobs=6 (cores=12)
+--- pycsl-reference ---
+[0;32m[PASS][0m 0001
+[0;32m[PASS][0m 0002
+[0;32m[PASS][0m 0003
+[0;32m[PASS][0m 0004
+[0;32m[PASS][0m 0005
+[0;32m[PASS][0m 0006
+[0;32m[PASS][0m 0007
+[0;32m[PASS][0m 0008
+[0;32m[PASS][0m 0009
+[0;32m[XFAIL][0m 0010 (expected failure)
+[0;32m[PASS][0m 0011
+[0;32m[PASS][0m 0012
+[0;32m[PASS][0m 0013
+[0;32m[PASS][0m 0014
+[0;32m[PASS][0m 0015
+[0;32m[PASS][0m 0016
+[0;32m[PASS][0m 0017
+[0;32m[PASS][0m 0018
+[0;32m[PASS][0m 0019
+[0;32m[PASS][0m 0020
+[0;32m[PASS][0m 0021
+[0;32m[PASS][0m 0022
+[0;32m[PASS][0m 0023
+[0;32m[PASS][0m 0024
+[0;32m[PASS][0m 0025
+[0;32m[PASS][0m 0026
+[0;32m[PASS][0m 0027
+[0;32m[PASS][0m 0028
+[0;32m[PASS][0m 0029
+[0;32m[PASS][0m 0030
+[0;32m[PASS][0m 0031
+[0;32m[PASS][0m 0032
+[0;32m[PASS][0m 0033
+[0;32m[PASS][0m 0034
+[0;32m[PASS][0m 0035
+[0;32m[PASS][0m 0036
+[0;32m[PASS][0m 0037
+[0;32m[PASS][0m 0038
+[0;32m[PASS][0m 0039
+[0;32m[PASS][0m 0040
+[0;32m[PASS][0m 0041
+[0;32m[PASS][0m 0042
+[0;32m[PASS][0m 0043
+[0;32m[PASS][0m 0044
+[0;32m[PASS][0m 0045
+[0;32m[PASS][0m 0046
+[0;32m[PASS][0m 0047
+[0;32m[PASS][0m 0048
+[0;32m[PASS][0m 0049
+[0;32m[XFAIL][0m 0050 (expected failure)
+[0;32m[PASS][0m 0051
+[0;32m[PASS][0m 0052
+[0;32m[PASS][0m 0053
+[0;32m[PASS][0m 0054
+[0;32m[PASS][0m 0055
+[0;32m[PASS][0m 0056
+[0;32m[PASS][0m 0057
+[0;32m[PASS][0m 0058
+[0;32m[PASS][0m 0059
+[0;32m[PASS][0m 0060
+[0;32m[PASS][0m 0061
+[0;32m[PASS][0m 0062
+[0;32m[PASS][0m 0063
+[0;32m[PASS][0m 0064
+[0;32m[PASS][0m 0065
+[0;32m[PASS][0m 0066
+[0;32m[PASS][0m 0067
+[0;32m[PASS][0m 0068
+[0;32m[PASS][0m 0069
+[0;32m[PASS][0m 0070
+[0;32m[PASS][0m 0071
+[0;32m[PASS][0m 0072
+[0;32m[PASS][0m 0073
+[0;32m[PASS][0m 0074
+[0;32m[PASS][0m 0075
+[0;32m[PASS][0m 0076
+[0;32m[PASS][0m 0077
+[0;32m[PASS][0m 0078
+[0;32m[PASS][0m 0079
+[0;32m[PASS][0m 0080
+[0;32m[PASS][0m 0081
+[0;32m[PASS][0m 0082
+[0;32m[PASS][0m 0083
+[0;32m[PASS][0m 0084
+[0;32m[PASS][0m 0085
+[0;32m[PASS][0m 0086
+[0;32m[PASS][0m 0087
+[0;32m[PASS][0m 0088
+[0;32m[PASS][0m 0089
+[0;32m[PASS][0m 0090
+[0;32m[PASS][0m 0091
+[0;32m[PASS][0m 0092
+[0;32m[PASS][0m 0093
+[0;32m[PASS][0m 0094
+[0;32m[PASS][0m 0095
+[0;32m[PASS][0m 0096
+[0;32m[PASS][0m 0097
+[0;32m[PASS][0m 0098
+[0;32m[PASS][0m 0099
+[0;32m[PASS][0m 0100
+[0;32m[PASS][0m 0101
+[0;32m[PASS][0m 0102
+[0;32m[PASS][0m 0103
+[0;32m[PASS][0m 0104
+[0;32m[PASS][0m 0105
+[0;32m[PASS][0m 0106
+[0;32m[PASS][0m 0107
+[0;32m[PASS][0m 0108
+[0;32m[PASS][0m 0109
+[0;32m[PASS][0m 0110
+[0;32m[PASS][0m 0111
+[0;32m[PASS][0m 0112
+[0;32m[PASS][0m 0113
+[0;32m[PASS][0m 0114
+[0;32m[PASS][0m 0115
+[0;32m[PASS][0m 0116
+[0;32m[PASS][0m 0117
+[0;32m[PASS][0m 0118
+[0;32m[PASS][0m 0119
+[0;32m[PASS][0m 0120
+[0;32m[PASS][0m 0121
+[0;32m[PASS][0m 0122
+[0;32m[PASS][0m 0123
+[0;32m[PASS][0m 0124
+[0;32m[PASS][0m 0125
+[0;32m[PASS][0m 0126
+[0;32m[PASS][0m 0127
+[0;32m[PASS][0m 0128
+[0;32m[PASS][0m 0129
+[0;32m[PASS][0m 0130
+[0;32m[PASS][0m 0131
+[0;32m[PASS][0m 0132
+[0;32m[PASS][0m 0133
+[0;32m[PASS][0m 0134
+[0;32m[PASS][0m 0135
+[0;32m[PASS][0m 0136
+[0;32m[PASS][0m 0137
+[0;32m[PASS][0m 0138
+[0;32m[PASS][0m 0139
+[0;32m[PASS][0m 0140
+[0;32m[PASS][0m 0141
+[0;32m[PASS][0m 0142
+[0;32m[PASS][0m 0143
+[0;32m[PASS][0m 0144
+[0;32m[PASS][0m 0145
+[0;32m[PASS][0m 0146
+[0;32m[PASS][0m 0147
+[0;32m[PASS][0m 0148
+[0;32m[PASS][0m 0149
+[0;32m[PASS][0m 0150
+[0;32m[PASS][0m 0151
+[0;32m[PASS][0m 0152
+[0;32m[PASS][0m 0153
+[0;32m[PASS][0m 0154
+[0;32m[PASS][0m 0155
+[0;32m[PASS][0m 0156
+[0;32m[PASS][0m 0157
+[0;32m[PASS][0m 0158
+[0;32m[PASS][0m 0159
+[0;32m[PASS][0m 0160
+[0;32m[PASS][0m 0161
+[0;32m[PASS][0m 0162
+[0;32m[PASS][0m 0163
+[0;32m[PASS][0m 0164
+[0;32m[PASS][0m 0165
+[0;32m[PASS][0m 0166
+[0;32m[PASS][0m 0167
+[0;32m[PASS][0m 0168
+[0;32m[PASS][0m 0169
+[0;32m[PASS][0m 0170
+[0;32m[PASS][0m 0171
+[0;32m[PASS][0m 0172
+[0;32m[PASS][0m 0173
+[0;32m[PASS][0m 0174
+[0;32m[PASS][0m 0175
+[0;32m[PASS][0m 0176
+[0;32m[PASS][0m 0177
+[0;32m[PASS][0m 0178
+[0;32m[PASS][0m 0179
+[0;32m[PASS][0m 0180
+[0;32m[PASS][0m 0181
+[0;32m[PASS][0m 0182
+[0;32m[PASS][0m 0183
+[0;32m[PASS][0m 0184
+[0;32m[PASS][0m 0185
+[0;32m[PASS][0m 0186
+[0;32m[PASS][0m 0187
+[0;32m[PASS][0m 0188
+[0;32m[PASS][0m 0189
+[0;32m[PASS][0m 0190
+[0;32m[PASS][0m 0191
+[0;32m[PASS][0m 0192
+[0;32m[PASS][0m 0193
+[0;32m[PASS][0m 0194
+[0;32m[PASS][0m 0195
+[0;32m[PASS][0m 0196
+[0;32m[PASS][0m 0197
+[0;32m[PASS][0m 0198
+[0;32m[PASS][0m 0199
+[0;32m[PASS][0m 0200
+[0;32m[PASS][0m 0202
+[0;32m[PASS][0m 0203
+[0;32m[PASS][0m 0204
+[0;32m[PASS][0m 0205
+[0;32m[PASS][0m 0206
+[0;32m[PASS][0m 0207
+[0;32m[XFAIL][0m 0208 (expected failure)
+[0;32m[PASS][0m 0209
+[0;32m[XFAIL][0m 0210 (expected failure)
+[0;31m[FAIL][0m 0211
+[0;31m[FAIL][0m 0212
+[0;31m[FAIL][0m 0213
+[0;31m[FAIL][0m 0214
+[0;31m[FAIL][0m 0215
+[0;31m[FAIL][0m 0216
+[0;31m[FAIL][0m 0217
+[0;31m[FAIL][0m 0218
+[0;31m[FAIL][0m 0219
+[0;31m[FAIL][0m 0220
+[0;32m[PASS][0m 0221
+[0;32m[PASS][0m 0222
+[0;32m[PASS][0m 0223
+[0;32m[PASS][0m 0224
+[0;32m[PASS][0m 0225
+[0;31m[FAIL][0m 0226
+[0;32m[PASS][0m 0227
+[0;32m[PASS][0m 0228
+[0;32m[PASS][0m 0229
+[0;32m[PASS][0m 0230
+[0;32m[PASS][0m 0231
+[0;32m[PASS][0m 0232
+[0;32m[PASS][0m 0233
+[0;32m[PASS][0m 0234
+[0;32m[PASS][0m 0235
+[0;32m[PASS][0m 0236
+[0;32m[PASS][0m 0237
+[0;32m[PASS][0m 0238
+[0;32m[PASS][0m 0239
+[0;32m[PASS][0m 0240
+[0;32m[PASS][0m 0241
+[0;32m[PASS][0m 0242
+[0;32m[PASS][0m 0243
+[0;32m[PASS][0m 0244
+[0;32m[PASS][0m 0250
+[0;32m[PASS][0m 0251
+[0;32m[PASS][0m 0252
+[0;32m[PASS][0m 0253
+[0;32m[XFAIL][0m 0254 (expected failure)
+[0;32m[XFAIL][0m 0255 (expected failure)
+[0;32m[XFAIL][0m 0256 (expected failure)
+[0;32m[PASS][0m 0257
+[0;32m[PASS][0m 0258
+[0;32m[PASS][0m 0259
+[0;32m[PASS][0m 0260
+[0;32m[PASS][0m 0261
+[0;32m[PASS][0m 0262
+[0;32m[PASS][0m 0263
+[0;32m[PASS][0m 0264
+[0;32m[PASS][0m 0265
+[0;32m[PASS][0m 0266
+[0;32m[PASS][0m 0267
+[0;32m[PASS][0m 0268
+[0;32m[PASS][0m 0269
+[0;32m[PASS][0m 0270
+[0;32m[PASS][0m 0271
+[0;32m[PASS][0m 0272
+[0;32m[PASS][0m 0273
+[0;32m[PASS][0m 0274
+[0;32m[PASS][0m 0275
+[0;32m[PASS][0m 0276
+[0;32m[PASS][0m 0277
+[0;32m[PASS][0m 0278
+[0;32m[PASS][0m 0279
+[0;32m[PASS][0m 0280
+[0;32m[XFAIL][0m 0281 (expected failure)
+[0;32m[XFAIL][0m 0282 (expected failure)
+[0;32m[XFAIL][0m 0283 (expected failure)
+[0;32m[XFAIL][0m 0284 (expected failure)
+[0;32m[XFAIL][0m 0285 (expected failure)
+[0;32m[PASS][0m 0286
+[0;32m[PASS][0m 0287
+[0;32m[PASS][0m 0288
+[0;32m[PASS][0m 0289
+[0;32m[PASS][0m 0290
+[0;32m[PASS][0m 0291
+[0;32m[PASS][0m 0292
+[0;32m[PASS][0m 0293
+[0;32m[PASS][0m 0294
+[0;32m[PASS][0m 0295
+[0;32m[PASS][0m 0296
+[0;32m[PASS][0m 0297
+[0;32m[PASS][0m 0298
+[0;32m[PASS][0m 0299
+[0;32m[PASS][0m 0300
+[0;32m[PASS][0m 0301
+[0;32m[XFAIL][0m 0302 (expected failure)
+[0;32m[XFAIL][0m 0303 (expected failure)
+[0;32m[XFAIL][0m 0304 (expected failure)
+[0;32m[PASS][0m 0305
+[0;32m[PASS][0m 0306
+[0;32m[PASS][0m 0307
+[0;32m[PASS][0m 0308
+[0;32m[PASS][0m 0309
+[0;32m[PASS][0m 0310
+[0;32m[PASS][0m 0311
+[0;32m[PASS][0m 0312
+[0;32m[PASS][0m 0313
+[0;32m[PASS][0m 0314
+[0;32m[PASS][0m 0315
+[0;32m[PASS][0m 0316
+[0;32m[XFAIL][0m 0317 (expected failure)
+[0;32m[PASS][0m 0318
+[0;32m[PASS][0m 0319
+[0;32m[PASS][0m 0320
+[0;32m[PASS][0m 0321
+[0;32m[PASS][0m 0322
+[0;32m[PASS][0m 0323
+[0;32m[PASS][0m 0324
+[0;32m[PASS][0m 0325
+[0;32m[PASS][0m 0326
+[0;32m[PASS][0m 0327
+[0;32m[PASS][0m 0328
+[0;32m[PASS][0m 0329
+[0;32m[PASS][0m 0330
+[0;32m[PASS][0m 0331
+[0;32m[PASS][0m 0332
+[0;32m[PASS][0m 0333
+[0;32m[PASS][0m 0334
+[0;32m[PASS][0m 0335
+[0;32m[PASS][0m 0336
+[0;32m[PASS][0m 0337
+[0;32m[PASS][0m 0338
+[0;32m[PASS][0m 0339
+[0;32m[PASS][0m 0340
+[0;32m[PASS][0m 0341
+[0;32m[PASS][0m 0342
+[0;32m[PASS][0m 0343
+[0;32m[PASS][0m 0344
+[0;32m[PASS][0m 0345
+[0;32m[PASS][0m 0346
+[0;32m[PASS][0m 0347
+[0;32m[PASS][0m 0348
+[0;32m[PASS][0m 0349
+[0;32m[PASS][0m 0350
+[0;32m[PASS][0m 0351
+[0;32m[PASS][0m 0352
+[0;32m[PASS][0m 0353
+[0;32m[PASS][0m 0354
+[0;32m[PASS][0m 0355
+[0;32m[XFAIL][0m 0356 (expected failure)
+[0;32m[XFAIL][0m 0357 (expected failure)
+[0;32m[PASS][0m 0358
+[0;32m[PASS][0m 0359
+[0;32m[XFAIL][0m 0360 (expected failure)
+[0;32m[PASS][0m 0361
+[0;32m[PASS][0m 0362
+[0;32m[PASS][0m 0363
+[0;32m[PASS][0m 0365
+[0;32m[PASS][0m 0366
+[0;32m[XFAIL][0m 0367 (expected failure)
+[0;32m[PASS][0m 0368
+[0;32m[PASS][0m 0376
+[0;32m[PASS][0m 0381
+[0;32m[PASS][0m 0382
+[0;32m[PASS][0m 0383
+[0;32m[XFAIL][0m 0386 (expected failure)
+[0;32m[PASS][0m 0391
+[0;32m[XFAIL][0m 0392 (expected failure)
+[0;32m[XFAIL][0m 0393 (expected failure)
+[0;32m[XFAIL][0m 0396 (expected failure)
+[0;32m[PASS][0m 0397
+[0;32m[XFAIL][0m 0398 (expected failure)
+[0;32m[PASS][0m 0400
+[0;32m[XFAIL][0m 0401 (expected failure)
+[0;32m[PASS][0m 0402
+[0;32m[PASS][0m 0403
+[0;32m[XFAIL][0m 0404 (expected failure)
+[0;32m[XFAIL][0m 0405 (expected failure)
+[0;32m[PASS][0m 0406
+[0;32m[PASS][0m 0407
+[0;32m[PASS][0m 0411
+[0;32m[XFAIL][0m 0412 (expected failure)
+[0;32m[PASS][0m 0413
+[0;32m[PASS][0m 0414
+[0;32m[XFAIL][0m 0415 (expected failure)
+[0;32m[PASS][0m 0417
+[0;32m[PASS][0m 0418
+[0;32m[PASS][0m 0420
+[0;32m[PASS][0m 0421
+[0;32m[PASS][0m 0422
+[0;32m[PASS][0m 0423
+[0;32m[PASS][0m 0424
+[0;32m[PASS][0m 0425
+[0;32m[PASS][0m 0426
+[0;32m[PASS][0m 0427
+[0;32m[PASS][0m 0428
+[0;32m[PASS][0m 0440
+[0;32m[PASS][0m 0441
+[0;32m[PASS][0m 0442
+[0;32m[PASS][0m 0443
+[0;32m[PASS][0m 0444
+[0;32m[PASS][0m 0445
+[0;32m[PASS][0m 0446
+[0;32m[PASS][0m 0447
+[0;32m[PASS][0m 0448
+[0;32m[PASS][0m 0449
+[0;32m[PASS][0m 0450
+[0;32m[PASS][0m 0451
+[0;32m[PASS][0m 0452
+[0;32m[PASS][0m 0453
+[0;32m[PASS][0m 0454
+[0;32m[PASS][0m 0455
+[0;32m[XFAIL][0m 0456 (expected failure)
+[0;32m[PASS][0m 0457
+[0;32m[XFAIL][0m 0458 (expected failure)
+[0;32m[PASS][0m 0459
+[0;32m[XFAIL][0m 0460 (expected failure)
+[0;32m[PASS][0m 0461
+[0;32m[XFAIL][0m 0462 (expected failure)
+[0;32m[PASS][0m 0463
+[0;32m[PASS][0m 0464
+[0;32m[PASS][0m 0465
+[0;32m[PASS][0m 0466
+[0;32m[PASS][0m 0467
+[0;32m[PASS][0m 0468
+[0;32m[PASS][0m 0469
+[0;32m[PASS][0m 0470
+[0;32m[PASS][0m 0471
+[0;32m[PASS][0m 0472
+[0;32m[PASS][0m 0473
+[0;32m[PASS][0m 0474
+[0;32m[PASS][0m 0475
+[0;32m[PASS][0m 0476
+[0;32m[PASS][0m 0477
+[0;32m[PASS][0m 0478
+[0;32m[PASS][0m 0479
+[0;32m[PASS][0m 0480
+[0;32m[PASS][0m 0481
+[0;32m[PASS][0m 0482
+[0;32m[PASS][0m 0483
+[0;31m[FAIL][0m 0484
+[0;32m[PASS][0m 0485
+[0;32m[PASS][0m 0486
+[0;32m[PASS][0m 0487
+[0;32m[PASS][0m 0488
+[0;32m[PASS][0m 0489
+[0;32m[PASS][0m 0490
+[0;32m[PASS][0m 0491
+[0;32m[PASS][0m 0492
+[0;32m[PASS][0m 0493
+[0;32m[PASS][0m 0494
+[0;32m[PASS][0m 0495
+[0;32m[PASS][0m 0496
+[0;32m[XFAIL][0m 0497 (expected failure)
+[0;32m[PASS][0m 0498
+[0;32m[PASS][0m 0499
+[0;32m[PASS][0m 0500
+[0;32m[PASS][0m 0501
+[0;32m[PASS][0m 0502
+[0;32m[PASS][0m 0503
+[0;32m[XFAIL][0m 0504 (expected failure)
+[0;32m[PASS][0m 0505
+[0;32m[PASS][0m 0506
+[0;32m[XFAIL][0m 0507 (expected failure)
+[0;32m[XFAIL][0m 0508 (expected failure)
+[0;32m[XFAIL][0m 0509 (expected failure)
+[0;32m[PASS][0m 0510
+[0;32m[PASS][0m 0511
+[0;32m[PASS][0m 0512
+[0;32m[PASS][0m 0513
+[0;32m[PASS][0m 0514
+[0;32m[PASS][0m 0515
+[0;32m[XFAIL][0m 0516 (expected failure)
+[0;32m[PASS][0m 0517
+[0;32m[XFAIL][0m 0518 (expected failure)
+[0;32m[PASS][0m 0519
+[0;32m[PASS][0m 0520
+[0;32m[PASS][0m 0521
+[0;32m[PASS][0m 0522
+[0;32m[PASS][0m 0523
+[0;32m[PASS][0m 0524
+[0;32m[XFAIL][0m 0525 (expected failure)
+[0;32m[PASS][0m 0526
+[0;32m[PASS][0m 0527
+[0;32m[PASS][0m 0528
+[0;32m[PASS][0m 0529
+[0;32m[PASS][0m 0530
+[0;32m[PASS][0m 0531
+[0;32m[PASS][0m 0532
+[0;32m[PASS][0m 0533
+[0;32m[PASS][0m 0534
+[0;32m[PASS][0m 0535
+[0;32m[PASS][0m 0536
+[0;32m[PASS][0m 0537
+[0;32m[PASS][0m 0538
+[0;32m[PASS][0m 0539
+[0;31m[FAIL][0m 0540
+[0;32m[PASS][0m 0541
+[0;32m[PASS][0m 0542
+[0;32m[PASS][0m 0543
+[0;32m[XFAIL][0m 0544 (expected failure)
+[0;32m[PASS][0m 0545
+[0;32m[PASS][0m 0546
+[0;32m[PASS][0m 0547
+[0;32m[PASS][0m 0548
+[0;32m[PASS][0m 0549
+[0;32m[XFAIL][0m 0550 (expected failure)
+[0;32m[XFAIL][0m 0551 (expected failure)
+[0;32m[XFAIL][0m 0552 (expected failure)
+[0;32m[PASS][0m 0553
+[0;32m[PASS][0m 0554
+[0;32m[PASS][0m 0555
+[0;32m[XFAIL][0m 0556 (expected failure)
+[0;32m[XFAIL][0m 0557 (expected failure)
+[0;32m[PASS][0m 0558
+[0;32m[PASS][0m 0559
+[0;32m[XFAIL][0m 0560 (expected failure)
+[0;32m[XFAIL][0m 0561 (expected failure)
+[0;32m[PASS][0m 0562
+[0;32m[XFAIL][0m 0563 (expected failure)
+[0;32m[PASS][0m 0564
+[0;32m[PASS][0m 0565
+[0;32m[PASS][0m 0566
+[0;32m[XFAIL][0m 0567 (expected failure)
+[0;32m[PASS][0m 0568
+[0;32m[XFAIL][0m 0569 (expected failure)
+[0;32m[PASS][0m 0570
+[0;32m[XFAIL][0m 0571 (expected failure)
+[0;32m[PASS][0m 0572
+[0;32m[PASS][0m 0573
+[0;32m[PASS][0m 0574
+[0;32m[XFAIL][0m 0575 (expected failure)
+[0;32m[PASS][0m 0576
+[0;32m[XFAIL][0m 0577 (expected failure)
+[0;32m[PASS][0m 0578
+[0;32m[XFAIL][0m 0579 (expected failure)
+[0;32m[XFAIL][0m 0580 (expected failure)
+[0;32m[PASS][0m 0581
+[0;32m[PASS][0m 0582
+[0;32m[PASS][0m 0583
+[0;32m[PASS][0m 0584
+[0;32m[PASS][0m 0585
+[0;32m[XFAIL][0m 0586 (expected failure)
+[0;32m[PASS][0m 0587
+[0;32m[PASS][0m 0588
+[0;32m[XFAIL][0m 0589 (expected failure)
+[0;32m[PASS][0m 0590
+[0;32m[XFAIL][0m 0591 (expected failure)
+[0;32m[XFAIL][0m 0592 (expected failure)
+[0;32m[PASS][0m 0593
+[0;32m[XFAIL][0m 0594 (expected failure)
+[0;32m[PASS][0m 0595
+[0;32m[XFAIL][0m 0596 (expected failure)
+[0;32m[PASS][0m 0597
+[0;32m[PASS][0m 0598
+[0;32m[PASS][0m 0599
+[0;32m[PASS][0m 0600
+[0;32m[XFAIL][0m 0601 (expected failure)
+[0;32m[PASS][0m 0602
+[0;32m[PASS][0m 0603
+[0;32m[PASS][0m 0604
+[0;32m[PASS][0m 0605
+[0;32m[PASS][0m 0606
+[0;32m[PASS][0m 0607
+[0;32m[XFAIL][0m 0608 (expected failure)
+[0;32m[PASS][0m 0609
+[0;32m[XFAIL][0m 0610 (expected failure)
+[0;32m[PASS][0m 0611
+[0;32m[XFAIL][0m 0612 (expected failure)
+[0;32m[XFAIL][0m 0613 (expected failure)
+[0;32m[PASS][0m 0614
+[0;32m[XFAIL][0m 0615 (expected failure)
+[0;32m[PASS][0m 0616
+[0;32m[PASS][0m 0617
+[0;32m[PASS][0m 0618
+[0;32m[PASS][0m 0619
+[0;32m[PASS][0m 0620
+[0;32m[PASS][0m 0621
+[0;32m[XFAIL][0m 0622 (expected failure)
+[0;32m[PASS][0m 0623
+[0;32m[PASS][0m 0624
+[0;32m[XFAIL][0m 0625 (expected failure)
+[0;32m[PASS][0m 0626
+[0;32m[PASS][0m 0627
+[0;32m[PASS][0m 0628
+[0;32m[PASS][0m 0629
+[0;32m[PASS][0m 0630
+[0;32m[XFAIL][0m 0631 (expected failure)
+[0;32m[PASS][0m 0632
+[0;32m[XFAIL][0m 0633 (expected failure)
+[0;32m[XFAIL][0m 0634 (expected failure)
+[0;32m[PASS][0m 0635
+[0;32m[XFAIL][0m 0636 (expected failure)
+[0;32m[XFAIL][0m 0637 (expected failure)
+[0;32m[XFAIL][0m 0638 (expected failure)
+[0;32m[XFAIL][0m 0639 (expected failure)
+[0;32m[PASS][0m 0640
+[0;32m[PASS][0m 0641
+[0;32m[PASS][0m 0642
+[0;32m[XFAIL][0m 0643 (expected failure)
+[0;32m[XFAIL][0m 0644 (expected failure)
+[0;32m[PASS][0m 0645
+[0;32m[PASS][0m 0646
+[0;32m[PASS][0m 0647
+[0;32m[PASS][0m 0648
+[0;32m[PASS][0m 0649
+[0;32m[PASS][0m 0650
+[0;32m[PASS][0m 0651
+[0;32m[PASS][0m 0652
+[0;32m[PASS][0m 0653
+[0;32m[PASS][0m 0654
+[0;32m[PASS][0m 0655
+[0;32m[PASS][0m 0656
+[0;32m[PASS][0m 0657
+[0;32m[PASS][0m 0658
+[0;32m[PASS][0m 0659
+[0;32m[PASS][0m 0660
+[0;32m[PASS][0m 0661
+[0;32m[PASS][0m 0662
+[0;32m[PASS][0m 0663
+[0;32m[PASS][0m 0664
+[0;32m[PASS][0m 0665
+[0;32m[PASS][0m 0666
+[0;32m[XFAIL][0m 0667 (expected failure)
+[0;32m[XFAIL][0m 0668 (expected failure)
+[0;32m[XFAIL][0m 0669 (expected failure)
+[0;32m[XFAIL][0m 0670 (expected failure)
+[0;32m[XFAIL][0m 0671 (expected failure)
+[0;32m[XFAIL][0m 0672 (expected failure)
+[0;32m[XFAIL][0m 0673 (expected failure)
+[0;32m[XFAIL][0m 0674 (expected failure)
+[0;32m[XFAIL][0m 0675 (expected failure)
+[0;32m[XFAIL][0m 0676 (expected failure)
+[0;32m[XFAIL][0m 0677 (expected failure)
+[0;32m[XFAIL][0m 0678 (expected failure)
+[0;32m[XFAIL][0m 0679 (expected failure)
+[0;32m[XFAIL][0m 0680 (expected failure)
+[0;32m[XFAIL][0m 0681 (expected failure)
+[0;32m[XFAIL][0m 0682 (expected failure)
+[0;32m[XFAIL][0m 0683 (expected failure)
+[0;32m[XFAIL][0m 0684 (expected failure)
+[0;32m[XFAIL][0m 0685 (expected failure)
+[0;32m[XFAIL][0m 0686 (expected failure)
+[0;32m[XFAIL][0m 0687 (expected failure)
+[0;32m[XFAIL][0m 0688 (expected failure)
+[0;32m[XFAIL][0m 0689 (expected failure)
+[0;32m[XFAIL][0m 0690 (expected failure)
+[0;32m[XFAIL][0m 0691 (expected failure)
+[0;32m[XFAIL][0m 0692 (expected failure)
+[0;32m[XFAIL][0m 0693 (expected failure)
+[0;32m[XFAIL][0m 0694 (expected failure)
+[0;32m[XFAIL][0m 0695 (expected failure)
+[0;32m[PASS][0m 0696
+[0;32m[PASS][0m 0697
+[0;32m[PASS][0m 0698
+[0;32m[PASS][0m 0699
+[0;31m[FAIL][0m 0700
+[0;31m[FAIL][0m 0701
+[0;32m[PASS][0m 0702
+[0;32m[PASS][0m 0703
+[0;32m[PASS][0m 0704
+[0;32m[PASS][0m 0705
+[0;32m[PASS][0m 0706
+[0;32m[PASS][0m 0708
+[0;32m[PASS][0m 0709
+[0;32m[PASS][0m 0710
+[0;32m[PASS][0m 0711
+[0;32m[PASS][0m 0712
+[0;32m[PASS][0m 0713
+[0;31m[FAIL][0m 0714
+[0;32m[PASS][0m 0715
+[0;32m[XFAIL][0m 0716 (expected failure)
+[0;32m[XFAIL][0m 0717 (expected failure)
+[0;32m[XFAIL][0m 0718 (expected failure)
+[0;32m[PASS][0m 0719
+[0;32m[XFAIL][0m 0720 (expected failure)
+[0;32m[PASS][0m 0721
+[0;32m[XFAIL][0m 0722 (expected failure)
+[0;32m[PASS][0m 0723
+[0;32m[XFAIL][0m 0724 (expected failure)
+[0;32m[XFAIL][0m 0725 (expected failure)
+[0;32m[PASS][0m 0726
+[0;32m[XFAIL][0m 0727 (expected failure)
+[0;32m[XFAIL][0m 0728 (expected failure)
+[0;32m[PASS][0m 0729
+[0;32m[XFAIL][0m 0730 (expected failure)
+[0;32m[PASS][0m 0731
+[0;32m[PASS][0m 0732
+[0;32m[XFAIL][0m 0733 (expected failure)
+[0;32m[PASS][0m 0734
+[0;32m[XFAIL][0m 0735 (expected failure)
+[0;32m[PASS][0m 0736
+[0;32m[XFAIL][0m 0737 (expected failure)
+[0;32m[PASS][0m 0738
+[0;32m[XFAIL][0m 0739 (expected failure)
+[0;32m[XFAIL][0m 0740 (expected failure)
+[0;32m[PASS][0m 0741
+[0;32m[PASS][0m 0742
+[0;32m[PASS][0m 0743
+[0;32m[PASS][0m 0744
+[0;32m[PASS][0m 0745
+[0;32m[PASS][0m 0746
+[0;32m[PASS][0m 0747
+[0;32m[PASS][0m 0748
+[0;32m[PASS][0m 0749
+[0;32m[PASS][0m 0750
+[0;32m[PASS][0m 0751
+[0;32m[XFAIL][0m 0752 (expected failure)
+[0;32m[PASS][0m 0753
+[0;32m[XFAIL][0m 0754 (expected failure)
+[0;32m[PASS][0m 0755
+[0;32m[PASS][0m 0756
+[0;32m[PASS][0m 0757
+[0;32m[XFAIL][0m 0758 (expected failure)
+[0;32m[PASS][0m 0759
+[0;32m[PASS][0m 0760
+[0;32m[PASS][0m 0761
+[0;32m[PASS][0m 0762
+[0;32m[PASS][0m 0763
+[0;32m[XFAIL][0m 0764 (expected failure)
+[0;32m[PASS][0m 0765
+[0;31m[FAIL][0m 0766
+[0;32m[PASS][0m 0767
+[0;32m[XFAIL][0m 0768 (expected failure)
+[0;32m[PASS][0m 0769
+[0;32m[PASS][0m 0770
+[0;32m[XFAIL][0m 0771 (expected failure)
+[0;32m[PASS][0m 0772
+[0;32m[PASS][0m 0773
+[0;32m[PASS][0m 0774
+[0;32m[PASS][0m 0775
+[0;32m[XFAIL][0m 0776 (expected failure)
+[0;32m[PASS][0m 0777
+[0;32m[PASS][0m 0778
+[0;32m[PASS][0m 0779
+[0;32m[XFAIL][0m 0780 (expected failure)
+[0;32m[XFAIL][0m 0781 (expected failure)
+[0;32m[XFAIL][0m 0782 (expected failure)
+[0;32m[PASS][0m 0783
+[0;32m[XFAIL][0m 0784 (expected failure)
+[0;32m[PASS][0m 0785
+[0;32m[XFAIL][0m 0786 (expected failure)
+[0;32m[PASS][0m 0787
+[0;32m[XFAIL][0m 0788 (expected failure)
+[0;32m[PASS][0m 0789
+[0;32m[XFAIL][0m 0790 (expected failure)
+[0;32m[PASS][0m 0791
+[0;32m[PASS][0m 0792
+[0;32m[XFAIL][0m 0793 (expected failure)
+[0;32m[XFAIL][0m 0794 (expected failure)
+[0;32m[PASS][0m 0795
+[0;32m[XFAIL][0m 0796 (expected failure)
+[0;32m[PASS][0m 0797
+[0;32m[PASS][0m 0798
+[0;32m[PASS][0m 0799
+[0;32m[PASS][0m 0800
+[0;32m[XFAIL][0m 0801 (expected failure)
+[0;32m[PASS][0m 0802
+[0;32m[PASS][0m 0803
+[0;32m[PASS][0m 0804
+[0;32m[PASS][0m 0805
+[0;32m[XFAIL][0m 0806 (expected failure)
+[0;32m[XFAIL][0m 0807 (expected failure)
+[0;32m[PASS][0m 0808
+[0;32m[XFAIL][0m 0809 (expected failure)
+[0;32m[PASS][0m 0810
+[0;32m[PASS][0m 0811
+[0;32m[XFAIL][0m 0812 (expected failure)
+[0;32m[PASS][0m 0813
+[0;32m[XFAIL][0m 0814 (expected failure)
+[0;32m[PASS][0m 0815
+[0;32m[XFAIL][0m 0816 (expected failure)
+[0;32m[PASS][0m 0817
+[0;32m[PASS][0m 0818
+[0;32m[XFAIL][0m 0819 (expected failure)
+[0;32m[PASS][0m 0820
+[0;32m[PASS][0m 0821
+[0;32m[PASS][0m 0822
+[0;32m[PASS][0m 0823
+[0;32m[PASS][0m 0824
+[0;32m[XFAIL][0m 0825 (expected failure)
+[0;32m[PASS][0m 0826
+[0;32m[PASS][0m 0827
+[0;32m[XFAIL][0m 0828 (expected failure)
+[0;32m[PASS][0m 0829
+[0;32m[PASS][0m 0830
+[0;32m[XFAIL][0m 0831 (expected failure)
+[0;32m[PASS][0m 0832
+[0;32m[PASS][0m 0833
+[0;32m[XFAIL][0m 0834 (expected failure)
+[0;32m[PASS][0m 0835
+[0;32m[PASS][0m 0836
+[0;32m[XFAIL][0m 0837 (expected failure)
+[0;32m[XFAIL][0m 0838 (expected failure)
+[0;32m[PASS][0m 0839
+[0;32m[XFAIL][0m 0840 (expected failure)
+[0;32m[PASS][0m 0841
+[0;32m[XFAIL][0m 0842 (expected failure)
+[0;32m[PASS][0m 0843
+[0;32m[XFAIL][0m 0844 (expected failure)
+[0;32m[PASS][0m 0845
+[0;32m[XFAIL][0m 0846 (expected failure)
+[0;32m[PASS][0m 0847
+[0;32m[XFAIL][0m 0848 (expected failure)
+[0;32m[XFAIL][0m 0849 (expected failure)
+[0;32m[PASS][0m 0850
+[0;32m[XFAIL][0m 0851 (expected failure)
+[0;32m[XFAIL][0m 0852 (expected failure)
+[0;32m[XFAIL][0m 0853 (expected failure)
+[0;32m[PASS][0m 0854
+[0;32m[PASS][0m 0855
+[0;32m[XFAIL][0m 0856 (expected failure)
+[0;32m[XFAIL][0m 0857 (expected failure)
+[0;32m[PASS][0m 0858
+[0;32m[PASS][0m 0859
+[0;32m[XFAIL][0m 0860 (expected failure)
+[0;32m[XFAIL][0m 0861 (expected failure)
+[0;32m[PASS][0m 0862
+[0;32m[XFAIL][0m 0863 (expected failure)
+[0;32m[PASS][0m 0864
+[0;32m[PASS][0m 0865
+[0;32m[XFAIL][0m 0866 (expected failure)
+[0;32m[PASS][0m 0867
+[0;32m[XFAIL][0m 0868 (expected failure)
+[0;32m[PASS][0m 0869
+[0;32m[XFAIL][0m 0870 (expected failure)
+[0;32m[XFAIL][0m 0871 (expected failure)
+[0;32m[PASS][0m 0872
+[0;32m[XFAIL][0m 0873 (expected failure)
+[0;32m[PASS][0m 0874
+[0;32m[XFAIL][0m 0875 (expected failure)
+[0;32m[PASS][0m 0876
+[0;32m[XFAIL][0m 0877 (expected failure)
+[0;32m[PASS][0m 0878
+[0;32m[XFAIL][0m 0879 (expected failure)
+[0;32m[PASS][0m 0880
+[0;32m[XFAIL][0m 0881 (expected failure)
+[0;32m[PASS][0m 0882
+[0;32m[PASS][0m 0883
+[0;32m[XFAIL][0m 0884 (expected failure)
+[0;32m[PASS][0m 0885
+[0;32m[PASS][0m 0886
+[0;32m[PASS][0m 0887
+[0;32m[PASS][0m 0888
+[0;32m[PASS][0m 0889
+[0;32m[PASS][0m 0890
+[0;32m[PASS][0m 0891
+[0;32m[PASS][0m 0892
+[0;32m[PASS][0m 0893
+[0;32m[XFAIL][0m 0894 (expected failure)
+[0;32m[PASS][0m 0900
+[0;32m[XFAIL][0m 0901 (expected failure)
+[0;32m[PASS][0m 0925_list_record_field
+[0;32m[PASS][0m 0926_record_field_no_exprir_theory
+[0;32m[PASS][0m 0927_token_cursor_advance
+[0;32m[PASS][0m 0928_self_field_array_projection
+[0;32m[PASS][0m 0929_sibling_record_call_projection
+[0;32m[PASS][0m 0930_tail_return_bool_coercion
+[0;32m[PASS][0m 0931_varargs_membership
+[0;31m[FAIL][0m 0932_token_kind_concreteness
+[0;32m[PASS][0m 0933_optional_record_return_arm
+[0;32m[PASS][0m 0934_negative_literal_array_index
+[0;32m[PASS][0m 0935_class_construction_adt_ctor
+[0;32m[PASS][0m 0936_any_all_genexp_fold
+[0;32m[XFAIL][0m 0937_any_genexp_fold_evil_twin (expected failure)
+[0;31m[FAIL][0m 0938_spec_genexp_all_any
+[0;32m[XFAIL][0m 0939_spec_genexp_evil_twin (expected failure)
+[0;32m[PASS][0m 0940
+[0;32m[PASS][0m 0941
+[0;32m[PASS][0m 0942_pyval_string_walker
+[0;31m[FAIL][0m 0943_pyval_list_walker
+[0;31m[FAIL][0m 0944_pyval_list_walker_crosscall
+[0;32m[PASS][0m 0945_pyval_list_search
+[0;32m[PASS][0m 0946_pyval_string_walker_negidx
+[0;32m[PASS][0m 0947_pyval_string_walker_negidx2
+[0;31m[FAIL][0m 0948_pyval_flatten
+[0;31m[FAIL][0m 0949_pyval_flatten_nohead
+[0;32m[PASS][0m 0950_class_variant_bool_fold
+[0;32m[PASS][0m 0951_class_variant_term_transform
+[0;32m[PASS][0m 0952_term_list_build
+[0;32m[PASS][0m 0953_term_list_build_twin
+[0;32m[PASS][0m 0954_term_flatten_arrow
+[0;32m[PASS][0m 0955_term_flatten_arrow_twin
+[0;32m[PASS][0m 0956_term_free_vars
+[0;32m[PASS][0m 0957_term_free_vars_twin
+[0;32m[PASS][0m 0958_term_string_pp
+[0;32m[PASS][0m 0959_term_string_pp_twin
+[0;32m[PASS][0m 0960_term_pp_methods
+[0;32m[PASS][0m 0961_term_pp_methods_twin
+[0;32m[PASS][0m 0962_crosscheck_selfstate_registry_skipped
+[0;32m[PASS][0m 0963_crosscheck_selfstate_registry_skipped_twin
+[0;32m[PASS][0m 0964_crosscheck_term_structural
+[0;32m[PASS][0m 0965_crosscheck_term_structural_twin
+[0;32m[PASS][0m 0966_mutual_recursion_descent_nest
+[0;32m[PASS][0m 0967_property_getter_supported
+[0;32m[PASS][0m 0968_requires_method_frame
+[0;32m[PASS][0m 0969_chained_comparison
+[0;32m[PASS][0m 0970_annotated_field_store
+[0;32m[PASS][0m 0971_multi_target_assign
+[0;32m[PASS][0m 0972_try_finally
+
+[*] Re-running 23 failure(s) serially to rule out load-induced timeouts...
+  [0;31m[CONFIRMED FAIL][0m 0211
+  [0;31m[CONFIRMED FAIL][0m 0212
+  [0;31m[CONFIRMED FAIL][0m 0213
+  [0;31m[CONFIRMED FAIL][0m 0214
+  [0;31m[CONFIRMED FAIL][0m 0215
+  [0;31m[CONFIRMED FAIL][0m 0216
+  [0;31m[CONFIRMED FAIL][0m 0217
+  [0;31m[CONFIRMED FAIL][0m 0218
+  [0;31m[CONFIRMED FAIL][0m 0219
+  [0;31m[CONFIRMED FAIL][0m 0220
+  [0;31m[CONFIRMED FAIL][0m 0226
+  [0;31m[CONFIRMED FAIL][0m 0484
+  [0;31m[CONFIRMED FAIL][0m 0540
+  [0;31m[CONFIRMED FAIL][0m 0700
+  [0;31m[CONFIRMED FAIL][0m 0701
+  [0;31m[CONFIRMED FAIL][0m 0714
+  [0;31m[CONFIRMED FAIL][0m 0766
+  [0;31m[CONFIRMED FAIL][0m 0932_token_kind_concreteness
+  [0;31m[CONFIRMED FAIL][0m 0938_spec_genexp_all_any
+  [0;31m[CONFIRMED FAIL][0m 0943_pyval_list_walker
+  [0;31m[CONFIRMED FAIL][0m 0944_pyval_list_walker_crosscall
+  [0;31m[CONFIRMED FAIL][0m 0948_pyval_flatten
+  [0;31m[CONFIRMED FAIL][0m 0949_pyval_flatten_nohead
+
+===============================
+ Results: 877/900 passed
+===============================
+Failed/skipped (confirmed):
+  - pycsl-reference/0211
+  - pycsl-reference/0212
+  - pycsl-reference/0213
+  - pycsl-reference/0214
+  - pycsl-reference/0215
+  - pycsl-reference/0216
+  - pycsl-reference/0217
+  - pycsl-reference/0218
+  - pycsl-reference/0219
+  - pycsl-reference/0220
+  - pycsl-reference/0226
+  - pycsl-reference/0484
+  - pycsl-reference/0540
+  - pycsl-reference/0700
+  - pycsl-reference/0701
+  - pycsl-reference/0714
+  - pycsl-reference/0766
+  - pycsl-reference/0932_token_kind_concreteness
+  - pycsl-reference/0938_spec_genexp_all_any
+  - pycsl-reference/0943_pyval_list_walker
+  - pycsl-reference/0944_pyval_list_walker_crosscall
+  - pycsl-reference/0948_pyval_flatten
+  - pycsl-reference/0949_pyval_flatten_nohead

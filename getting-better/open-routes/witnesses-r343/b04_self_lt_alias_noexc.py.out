@@ -1,0 +1,15 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt25/b04_self_lt_alias_noexc.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_cpcs8wp9.mlw", line 13, characters 15-27:
+Sub-goal postcondition of goal p__m'vc.
+Prover result is: Valid (0.00s, 21 steps).
+
+File "/tmp/.pycsl_cpcs8wp9.mlw", line 13, characters 15-27:
+Sub-goal postcondition of goal p__m'vc.
+Prover result is: Valid (0.00s, 37 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

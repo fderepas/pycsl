@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/os/UnixInodeFileSystem.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: class 'UnixInodeFileSystem' line 603: its `__init__` calls `self._format_disk(...)`, whose effect on the fields is not part of the constructor's obligation. 'UnixInodeFileSystem' carries (or its constructor runs for) a `#@ class invariant` over ['_mtime_ticks', 'cur_gid', 'cur_uid', 'dir', 'disk', 'next_fd'], and the constructor's obligation (route #226) is computed from top-level `self.f = e` stores only, so the invariant would be ASSUMED for every instance although the constructor's real effect is not checked against it (route #342). Store each invariant field by a top-level `self.f = e` statement whose value is a literal or an `__init__` parameter (the shapes the constructor goal states), and keep `self` out of calls and aliases in the constructor.

@@ -1,0 +1,6 @@
+/home/fabrice/git/pycsl-w51/src/pycsl/core_ir_semantic.py:100: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_FunctionIR_16'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-w51/src/self-annotate/src/ir_schema.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLIRError (record + 0 method stub(s) + 2 helper(s))
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

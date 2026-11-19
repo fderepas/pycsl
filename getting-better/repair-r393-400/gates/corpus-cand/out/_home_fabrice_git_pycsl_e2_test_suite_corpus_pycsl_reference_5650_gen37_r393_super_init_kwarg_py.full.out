@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5650_gen37_r393_super_init_kwarg.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: '__init__' line 6: the construction `super().__init__(msg=x)` got an unexpected keyword argument 'msg' — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succeeding (route #369). Call the constructor with exactly its parameters (for a `@dataclass`: its fields in declaration order, `InitVar`s included, `ClassVar` / `init=False` members excluded, keyword-only fields by keyword).

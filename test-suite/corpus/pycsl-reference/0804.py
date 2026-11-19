@@ -1,25 +1,40 @@
-"""Test 0804 — NEGATIVE: non-int-leaf in-place inner mutation is REJECTED.
+"""Test 0804 — non-int-leaf inner ELEMENT mutation a[i][j]=v reads back (POSITIVE).
 
-nested-list-mutable.md boundary. In-place inner element mutation `a[i][j] = v` is
-supported ONLY for a RECTANGULAR int leaf (`List[List[int]]` → the mutable
-built-in `matrix int`). A NON-int leaf (`List[List[str]]`) has NO mutable 2-D
-built-in — it stays on the read-only `array (seq string)` model, whose inner
-`seq` is a PURE/immutable Why3 value. So an in-place inner mutation on it has no
-sound WhyML rendering: the transpiler emits an assignment against the immutable
-`seq` element, a HARD type/verification failure (`a[i]` is a `seq string`, not an
-assignable cell). Rather than silently mis-model a shape/element change, the tool
-REJECTS it. This test documents the boundary — mutable inner mutation is
-int-leaf-only; ragged and `a[i].append(...)` (shape-change) mutation likewise stay
-out of the mutable model (see nested-list-mutable.md §residual). The rectangular
-int case IS faithful (0802/0803).
+wrong-lowering-to-fix.md §WL-04f (nested-inner-mutation). A `List[List[str]]` param
+that is IN-PLACE INNER-MUTATED (`a[i][j] = v`) lowers to `array (seq string)` — the
+outer `array` is MUTABLE (`array (array τ)` is Why3 TYPE-rejected, so the inner
+container MUST stay a PURE/immutable `seq`). The int leaf routes to the mutable
+built-in `matrix int` (0802/0803); a NON-int leaf (string/real) has no mutable 2-D
+built-in, so the write lowers to an OUTER-array store of a FUNCTIONALLY-updated inner
+seq (option c):
+
+    a[i][j] = v   ~~>   a[i] <- Seq.set a[i] j v
+
+`Seq.set`'s `requires 0 <= j < length` is the IndexError obligation; the read
+`a[i][j]` is `Seq.get a[i] j`. So a driver proves the mutation reads back:
+`(a[i][j] = v; a[i][j]) == v`. The Gate-B spike
+(spikes/nested-list-inner-mutable-seq.mlw) proved write-read-back + outer/inner frame
++ dims preservation Valid in BOTH Alt-Ergo and Z3, with the FALSE twin unproven; no
+new axiom (Seq/Array laws are Why3 stdlib).
+
+SOUNDNESS (no false claim under aliasing): the value-semantics store diverges from
+Python's in-place reference mutation ONLY under inner aliasing, which is UNEXPRESSIBLE
+in PyCSL — an inner list can be neither bound to a local (`b = a[i]` type-fails: a
+local defaults to int) nor shared across outer slots (`a = [row, row]` type-fails:
+`array (array τ)` is rejected). So every expressible post-state is faithful. The
+false-twin lock is 0848; a `map`-leaf inner mutation stays fail-closed (0849).
 """
-# pycsl-expected: FAIL
 _ = 0  # anchor
 from typing import List
 
 #@ requires 0 <= i and i < len(a)
 #@ requires 0 <= j and j < len(a[i])
-#@ ensures \result == 0
-def bad_str_inner_mutate(a: List[List[str]], i: int, j: int, v: str) -> int:
+#@ ensures \result == v
+def str_inner_mutate(a: List[List[str]], i: int, j: int, v: str) -> str:
     a[i][j] = v
-    return 0
+    return a[i][j]
+
+if __name__ == "__main__":
+    m = [["a", "b", "c"], ["d", "e", "f"]]
+    assert str_inner_mutate(m, 1, 2, "Z") == "Z"
+    assert m[1][2] == "Z"

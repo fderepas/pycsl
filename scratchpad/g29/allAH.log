@@ -1,0 +1,28 @@
+emitted 1254 of 1587 source file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAH/corpus_cand (6 jobs)
+emitted 2199 of 2217 python-reference file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAH/corpus_cand/pyref (6 jobs)
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAH/mirror_cand
+    Compare with: bin/byte-diff-compare.py <baseline> /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAH/mirror_cand --min-files 45
+== COMPARE corpus
+[!]   MOVED 0522.mlw
+[!]   MOVED 1169_route70_dotted_stub_drops_requires.mlw
+[!]   MOVED 1277_route97_fence_uncloned_fieldless_base_method_is_contract_free.mlw
+[!]   MOVED 1571_route167_sibling_self_call_drops_the_param_requires.mlw
+[!]   MOVED 1572_route167_class_qualified_static_call_drops_the_requires.mlw
+[!]   MOVED 1614_route176_claim_true_on_both_paths_still_proves.mlw
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 1247 baseline / 1253 candidate .mlw; 6 MOVED, 0 GONE (0 unexpected), 0 APPEARED, 6 new source file(s) ignored.
+rc=1
+== COMPARE pyref
+[*] byte-diff-compare: 2199 baseline / 2199 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+== COMPARE mirrors
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+EMISSION-DONE 05:59:40Z
+planes rc=0
+[+] soundness-planes: OK — all 19 plane(s) green.
+conf rc=0
+sync rc=0
+FAST-DONE 06:00:31Z

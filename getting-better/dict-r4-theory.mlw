@@ -1,0 +1,576 @@
+(* dict-r4-theory.mlw — the FROZEN r4 mixed-value theory (wall dict-value-model-r4, Gate P
+   step C, executor ce4).  Companion of the two certificates
+     src/formal-semantics/rocq/Phase2m_PyValR4.v      (Rocq, successor of Phase2f_PyVal.v)
+     src/formal-semantics/lean/PyCSL/PyValR4.lean     (Lean, successor of PyVal.lean)
+   Every definition of module `DictR4Theory` below is certified there under the SAME name
+   (identical snake_case names in Rocq and Lean), with the same argument order, the same match
+   structure and the same recursion / fold direction.  The emitter executor copies module
+   `DictR4Theory`'s body VERBATIM into the preamble (it needs `use real.RealInfix`,
+   `use real.FromInt`, `use real.Truncate` — NOT `real.Real`, whose `>=` shadows int's — plus `use string.String`
+   for `hstr_len`'s spec).  Module `DictR4Lemmas` is NOT for the preamble: it is the WhyML-side
+   proof of the companion lemmas (why3 prove, Alt-Ergo and Z3), kept out of every emitted VC.
+
+   Trust surface (ledger stays 3): the theory's only two WhyML `axiom`s are the route-(e2)
+   defining equations of `pairs_get` (user decision log 848), each realised by a named,
+   axiom-free Rocq + Lean lemma (see the comment at `pairs_get`).  It has exactly FOUR
+   specified `val`s (see SPECIFIED VALS below),
+   and four UNINTERPRETED law-free `val`s (no `ensures`): `hval_opaque_str`,
+   `hval_opaque_int`, `hval_len_other`, `hval_tuple_other` — the wrong-tag / TypeError arms
+   (F6: never a concrete junk value; the certificates quantify over them as section
+   variables, so every certified law holds for EVERY interpretation).
+
+   SPECIFIED VALS (impl §1 F11c: each spec is ONE total, deterministic equation / equivalence
+   to a logic term, nothing else, hence realisable by construction):
+     hpairs_key_eq a b : ensures { result <-> a = b }
+        realised by `String.eqb` (Rocq, `hpairs_key_eq_spec` = String.eqb_eq) and
+        `decide (a = b)` (Lean, `PyValR4Cert.hpairs_key_eq_spec`).
+     hreal_eq a b      : ensures { result <-> a = b }                       (NEW)
+        realised by the carrier law `F_eqb_spec` (Rocq section hypothesis /
+        Lean `RealCarrier.F_eqb_spec`); Why3 `real` equality is classical.
+     hreal_int_of f    : ensures { result = if from_int (truncate f) = f
+                                             then Some (truncate f) else None }  (NEW)
+        the certificates use its two consequences `hreal_int_of_some` / `hreal_int_of_none`
+        as carrier laws; `int_of_eqn_some` / `int_of_eqn_none` (Rocq Phase2m_PyValR4.v §9b,
+        Lean PyValR4Cert.int_of_eqn_some/none) prove that ANY function given by this
+        equation satisfies them, from `truncate (from_int i) = i` (real.Truncate.Truncate_int);
+        `from_int` injectivity is a separate carrier law `from_int_inj`
+        (real.FromInt.Injective).  WhyML-side check: lemmas `hreal_int_of_some_law` /
+        `hreal_int_of_none_law` in DictR4Lemmas.
+     hstr_len s        : ensures { result = String.length s }                 (NEW)
+        pinned to the stdlib symbol (the `real_trunc` precedent, preamble.py:6349);
+        realised by `Z.of_nat (String.length s)` (Rocq `hstr_len`) / `s.length` (Lean).
+   The other uninterpreted law-free vals of today's theory (`hval_values_get/len`,
+   `hval_keys_get`, `hval_as_map`, `pycsl_none_map`) are unchanged and not restated here.
+
+   Floats: `HFloat real` carries no NaN (a NaN reaching a comparison is a refusal site).
+   Program-side real equality is `hreal_eq` and bool equality is `if x then y else not y`
+   (int.Int's program `=` is int-only); `from_int` / `truncate` are LOGIC symbols that a `let function` cannot
+   call, hence `hreal_int_of`. *)
+module DictR4Theory
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use real.Truncate
+  use option.Option
+  use string.String
+
+  type hval = HNone | HBool bool | HInt int | HFloat real | HStr string
+            | HTuple hval_list | HArr hval_list | HMap hpairs | HNode hval
+  with hval_list = HNil | HCons hval hval_list
+  with hpairs = PNil | PCons string hval hpairs
+
+  (* ---- the two specified vals (realisable, cert-covered) ---- *)
+  val function hpairs_key_eq (a b: string) : bool ensures { result <-> a = b }
+  (* `String.length` is a LOGIC symbol; the program-callable wrapper is pinned to it
+     exactly (the `real_trunc` precedent, preamble.py:6349): no PyCSL axiom. *)
+  val function hstr_len (s: string) : int ensures { result = String.length s }
+  val function hreal_eq (a b: real) : bool ensures { result <-> a = b }
+  val function hreal_int_of (f: real) : option int
+    ensures { result = if FromInt.from_int (truncate f) = f then Some (truncate f) else None }
+
+  (* ---- uninterpreted, law-free wrong-tag arms ---- *)
+  val function hval_opaque_str (h: hval) : string
+  val function hval_opaque_int (h: hval) : int
+  val function hval_len_other (h: hval) : int
+  val function hval_tuple_other (h: hval) : hval
+
+  (* ---- dict carrier: lookup, replace-first/append store, membership, length ---- *)
+  (* route (e2), user decision log 848: `pairs_get` is declared UNINTERPRETED with exactly
+     its two defining equations as constructor-triggered axioms (fr4's encoding,
+     run7-rp4:scratchpad/fr4/spk/fr4_unfold.mlw).  They are REALISED by the certified
+     recursive `pairs_get`:
+       pairs_get_nil  : Rocq  src/formal-semantics/rocq/Phase2m_PyValR4.v  `pairs_get_nil`
+                        Lean  src/formal-semantics/lean/PyCSL/PyValR4.lean `PyValR4Cert.pairs_get_nil`
+       pairs_get_cons : Rocq  src/formal-semantics/rocq/Phase2m_PyValR4.v  `pairs_get_cons`
+                        Lean  src/formal-semantics/lean/PyCSL/PyValR4.lean `PyValR4Cert.pairs_get_cons`
+     (both lemmas `Closed under the global context` / no axioms).  A `val function` (not a
+     logic `function`) so the program-side `let function`s below may call it.  These are the
+     ONLY two axioms of the theory. *)
+  val function pairs_get (p: hpairs) (k: string) : option hval
+  axiom pairs_get_nil : forall k. pairs_get PNil k = None
+  axiom pairs_get_cons : forall k k' v t [pairs_get (PCons k' v t) k].
+    pairs_get (PCons k' v t) k = (if k = k' then Some v else pairs_get t k)
+  (* verbatim the emitted `pairs_set` (src/pycsl/module6_whyml/preamble.py:8281-8287 at
+     ca505a20c): replace the FIRST binding (the one `pairs_get` reads), else APPEND. *)
+  let rec function pairs_set (p: hpairs) (k: string) (v: hval) : hpairs
+    variant { p }
+    = match p with
+      | PNil -> PCons k v PNil
+      | PCons k' w t -> if hpairs_key_eq k k' then PCons k' v t else PCons k' w (pairs_set t k v)
+      end
+  let function pairs_mem (p: hpairs) (k: string) : bool =
+    match pairs_get p k with None -> false | Some _ -> true end
+  let rec function hpairs_len (p: hpairs) : int
+    variant { p }
+    = match p with PNil -> 0 | PCons _ _ t -> 1 + hpairs_len t end
+  let rec function pairs_nodup (p: hpairs) : bool
+    variant { p }
+    = match p with PNil -> true | PCons k _ t -> not (pairs_mem t k) && pairs_nodup t end
+  let rec function pairs_keys_in (q p: hpairs) : bool
+    variant { q }
+    = match q with PNil -> true | PCons k _ t -> pairs_mem p k && pairs_keys_in t p end
+  let rec function hpairs_keys (p: hpairs) : hval_list
+    variant { p }
+    = match p with PNil -> HNil | PCons k _ t -> HCons (HStr k) (hpairs_keys t) end
+
+  (* ---- Python equality (cross-type numeric tower; dict equality order-independent) ---- *)
+  let function hbool_int (b: bool) : int = if b then 1 else 0
+  (* NOTE: every member of a mutual group is `with function` (a logic + program symbol).
+     A bare `with f` is a PROGRAM-only function, and a `let function` that calls one gets
+     NO logic definition (the ch27 rule): measured on this file, `hval_eq` was then a bare
+     declaration in every prover task and each ground hval_eq fact timed out. *)
+  let rec function hval_eq (a b: hval) : bool
+    variant { a }
+    = match a with
+      | HNone -> (match b with HNone -> true | _ -> false end)
+      | HBool x -> (match b with
+                    | HBool y -> (if x then y else not y)
+                    | HInt j -> hbool_int x = j
+                    | HFloat g -> (match hreal_int_of g with Some j -> hbool_int x = j | None -> false end)
+                    | _ -> false end)
+      | HInt i -> (match b with
+                   | HBool y -> i = hbool_int y
+                   | HInt j -> i = j
+                   | HFloat g -> (match hreal_int_of g with Some j -> i = j | None -> false end)
+                   | _ -> false end)
+      | HFloat f -> (match b with
+                     | HBool y -> (match hreal_int_of f with Some i -> i = hbool_int y | None -> false end)
+                     | HInt j -> (match hreal_int_of f with Some i -> i = j | None -> false end)
+                     | HFloat g -> hreal_eq f g
+                     | _ -> false end)
+      | HStr s -> (match b with HStr t -> hpairs_key_eq s t | _ -> false end)
+      | HTuple l -> (match b with HTuple m -> hlist_eq l m | _ -> false end)
+      | HArr l -> (match b with HArr m -> hlist_eq l m | _ -> false end)
+      | HMap p -> (match b with HMap q -> pairs_incl p q && pairs_keys_in q p | _ -> false end)
+      | HNode x -> (match b with HNode y -> hval_eq x y | _ -> false end)
+      end
+  with function hlist_eq (l m: hval_list) : bool
+    variant { l }
+    = match l with
+      | HNil -> (match m with HNil -> true | _ -> false end)
+      | HCons x t -> (match m with HCons y u -> hval_eq x y && hlist_eq t u | _ -> false end)
+      end
+  with function pairs_incl (p q: hpairs) : bool
+    variant { p }
+    = match p with
+      | PNil -> true
+      | PCons k v t -> (match pairs_get q k with Some w -> hval_eq v w | None -> false end)
+                       && pairs_incl t q
+      end
+
+
+  (* ---- key canonicalisation (d[1], d[True], d[1.0] are one key) and hashability ---- *)
+  let rec function hval_canon (v: hval) : hval
+    variant { v }
+    = match v with
+      | HBool b -> HInt (hbool_int b)
+      | HFloat f -> (match hreal_int_of f with Some i -> HInt i | None -> HFloat f end)
+      | HTuple l -> HTuple (hlist_canon l)
+      | _ -> v
+      end
+  with function hlist_canon (l: hval_list) : hval_list
+    variant { l }
+    = match l with HNil -> HNil | HCons x t -> HCons (hval_canon x) (hlist_canon t) end
+  let rec function hval_hashable (v: hval) : bool
+    variant { v }
+    = match v with
+      | HNone -> true | HBool _ -> true | HInt _ -> true | HFloat _ -> true | HStr _ -> true
+      | HTuple l -> hlist_hashable l
+      | _ -> false
+      end
+  with function hlist_hashable (l: hval_list) : bool
+    variant { l }
+    = match l with HNil -> true | HCons x t -> hval_hashable x && hlist_hashable t end
+
+  (* ---- Python truthiness over all 9 tags ---- *)
+  let function hval_truthy (h: hval) : bool =
+    match h with
+    | HNone -> false
+    | HBool b -> b
+    | HInt i -> i <> 0
+    | HFloat f -> not (hreal_eq f 0.0)
+    | HStr s -> not (hpairs_key_eq s "")
+    | HTuple l -> (match l with HNil -> false | _ -> true end)
+    | HArr l -> (match l with HNil -> false | _ -> true end)
+    | HMap p -> (match p with PNil -> false | _ -> true end)
+    | HNode _ -> true
+    end
+
+  (* ---- projections ---- *)
+  let function hstr_of (h: hval) : string =
+    match h with HStr s -> s | _ -> hval_opaque_str h end
+  let function hint_of (h: hval) : int =
+    match h with HInt i -> i | HBool b -> hbool_int b | _ -> hval_opaque_int h end
+
+  (* ---- sequences: len / nth / tuple / snoc ---- *)
+  let rec function hval_list_len (l: hval_list) : int
+    variant { l }
+    = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end
+  (* verbatim the emitted `hval_list_nth` (out-of-range arm `HInt 0` as emitted today) *)
+  let rec function hval_list_nth (l: hval_list) (i: int) : hval
+    variant { l }
+    = match l with
+      | HNil -> HInt 0
+      | HCons x t -> if i <= 0 then x else hval_list_nth t (i - 1)
+      end
+  let function hval_len (h: hval) : int =
+    match h with
+    | HStr s -> hstr_len s
+    | HTuple l -> hval_list_len l
+    | HArr l -> hval_list_len l
+    | HMap p -> hpairs_len p
+    | _ -> hval_len_other h
+    end
+  let function hval_tuple (h: hval) : hval =
+    match h with
+    | HTuple l -> HTuple l
+    | HArr l -> HTuple l
+    | HMap p -> HTuple (hpairs_keys p)
+    | _ -> hval_tuple_other h
+    end
+  let rec function hval_list_snoc (l: hval_list) (x: hval) : hval_list
+    variant { l }
+    = match l with HNil -> HCons x HNil | HCons h t -> HCons h (hval_list_snoc t x) end
+end
+
+(* ================================================================================== *)
+(* WhyML-side proofs of the companion lemmas (NOT for the preamble), one module per group *)
+(* so that no group's lemmas enter another group's SMT context.                           *)
+(* ================================================================================== *)
+
+module DictR4LemmasSize
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use option.Option
+  use list.List
+  use string.String
+  use DictR4Theory
+
+  (* the cert-side measure (logic only; never emitted) *)
+  function size (v: hval) : int = match v with
+    | HTuple l -> 1 + list_size l
+    | HArr l -> 1 + list_size l
+    | HMap p -> 1 + pairs_size p
+    | HNode n -> 1 + size n
+    | _ -> 1
+    end
+  with list_size (l: hval_list) : int =
+    match l with HNil -> 0 | HCons h t -> size h + list_size t end
+  with pairs_size (p: hpairs) : int =
+    match p with PNil -> 0 | PCons _ v t -> size v + pairs_size t end
+
+  let rec lemma size_pos (v: hval) variant { v } ensures { size v >= 1 }
+  = match v with
+    | HTuple l -> list_size_nonneg l
+    | HArr l -> list_size_nonneg l
+    | HMap p -> pairs_size_nonneg p
+    | HNode n -> size_pos n
+    | _ -> ()
+    end
+  with lemma list_size_nonneg (l: hval_list) variant { l } ensures { list_size l >= 0 }
+  = match l with HNil -> () | HCons h t -> size_pos h; list_size_nonneg t end
+  with lemma pairs_size_nonneg (p: hpairs) variant { p } ensures { pairs_size p >= 0 }
+  = match p with PNil -> () | PCons _ v t -> size_pos v; pairs_size_nonneg t end
+
+end
+
+module DictR4LemmasPairs
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use option.Option
+  use list.List
+  use string.String
+  use DictR4Theory
+
+  (* ---- pairs_set: read-back, nodup, length ---- *)
+  let rec lemma read_same_key (p: hpairs) (k: string) (v: hval)
+    variant { p } ensures { pairs_get (pairs_set p k v) k = Some v }
+  = match p with PNil -> () | PCons _ _ t -> read_same_key t k v end
+  let rec lemma read_other_key (p: hpairs) (k k': string) (v: hval)
+    requires { k' <> k }
+    variant { p } ensures { pairs_get (pairs_set p k v) k' = pairs_get p k' }
+  = match p with PNil -> () | PCons _ _ t -> read_other_key t k k' v end
+  let rec lemma mem_set (p: hpairs) (k j: string) (v: hval)
+    variant { p } ensures { pairs_mem (pairs_set p k v) j <-> (j = k \/ pairs_mem p j) }
+  = match p with PNil -> () | PCons _ _ t -> mem_set t k j v end
+  let rec lemma nodup_preserved (p: hpairs) (k: string) (v: hval)
+    requires { pairs_nodup p }
+    variant { p } ensures { pairs_nodup (pairs_set p k v) }
+  = match p with PNil -> () | PCons _ _ t -> mem_set t k k v; nodup_preserved t k v end
+  let rec lemma len_set (p: hpairs) (k: string) (v: hval)
+    variant { p }
+    ensures { hpairs_len (pairs_set p k v) = if pairs_mem p k then hpairs_len p else hpairs_len p + 1 }
+  = match p with
+    | PNil -> ()
+    | PCons k' _ t ->
+        if hpairs_key_eq k k' then begin
+          assert { pairs_mem p k };
+          assert { hpairs_len (pairs_set p k v) = hpairs_len p }
+        end else begin
+          len_set t k v;
+          assert { pairs_mem p k = pairs_mem t k };
+          assert { hpairs_len (pairs_set p k v) = 1 + hpairs_len (pairs_set t k v) }
+        end
+    end
+
+end
+
+module DictR4LemmasBuild
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use option.Option
+  use list.List
+  use string.String
+  use DictR4Theory
+  use DictR4LemmasPairs
+
+  (* ---- the literal  {k1: v1, ..., kn: vn}  =  pairs_set (.. (pairs_set PNil k1 v1) ..) kn vn ---- *)
+  let rec function pairs_build (acc: hpairs) (l: list (string, hval)) : hpairs
+    variant { l }
+    = match l with Nil -> acc | Cons (k, v) t -> pairs_build (pairs_set acc k v) t end
+  let rec function kv_last (l: list (string, hval)) (k: string) : option hval
+    variant { l }
+    = match l with
+      | Nil -> None
+      | Cons (k', v) t -> (match kv_last t k with
+                           | Some w -> Some w
+                           | None -> if hpairs_key_eq k k' then Some v else None end)
+      end
+  let rec lemma build_fold_read_back (acc: hpairs) (l: list (string, hval)) (k: string)
+    variant { l }
+    ensures { pairs_get (pairs_build acc l) k
+              = match kv_last l k with Some w -> Some w | None -> pairs_get acc k end }
+  = match l with
+    | Nil -> ()
+    | Cons (k', v) t -> build_fold_read_back (pairs_set acc k' v) t k;
+                        if hpairs_key_eq k k' then read_same_key acc k' v else read_other_key acc k' k v
+    end
+  let rec lemma build_nodup (acc: hpairs) (l: list (string, hval))
+    requires { pairs_nodup acc }
+    variant { l } ensures { pairs_nodup (pairs_build acc l) }
+  = match l with Nil -> () | Cons (k, v) t -> nodup_preserved acc k v; build_nodup (pairs_set acc k v) t end
+
+  (* last-wins on a duplicate key: {"a": 1, "a": 2}["a"] == 2 *)
+  lemma build_last_wins: forall a b: hval.
+    pairs_get (pairs_build PNil (Cons ("a", a) (Cons ("a", b) Nil))) "a" = Some b
+  lemma build_len_dup: forall a b: hval.
+    hpairs_len (pairs_build PNil (Cons ("a", a) (Cons ("a", b) Nil))) = 1
+
+end
+
+module DictR4LemmasReal
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use option.Option
+  use list.List
+  use string.String
+  use DictR4Theory
+
+  (* ---- the hreal_int_of equation implies the carrier laws used by the certificates ---- *)
+  lemma hreal_int_of_some_law: forall f: real, i: int.
+    hreal_int_of f = Some i -> FromInt.from_int i = f
+  lemma hreal_int_of_none_law: forall f: real, i: int.
+    hreal_int_of f = None -> FromInt.from_int i <> f
+
+end
+
+module DictR4LemmasTruthy
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use option.Option
+  use list.List
+  use string.String
+  use DictR4Theory
+
+  (* ---- truthiness vs Python ---- *)
+  lemma truthy_none: hval_truthy HNone = false
+  lemma truthy_false: hval_truthy (HBool false) = false
+  lemma truthy_true: hval_truthy (HBool true) = true
+  lemma truthy_zero: hval_truthy (HInt 0) = false
+  lemma truthy_int: forall i: int. i <> 0 -> hval_truthy (HInt i) = true
+  lemma truthy_fzero: hval_truthy (HFloat 0.0) = false
+  lemma truthy_float: forall f: real. f <> 0.0 -> hval_truthy (HFloat f) = true
+  lemma truthy_empty_str: hval_truthy (HStr "") = false
+  lemma truthy_str: forall s: string. s <> "" -> hval_truthy (HStr s) = true
+  lemma truthy_empty_tuple: hval_truthy (HTuple HNil) = false
+  lemma truthy_empty_list: hval_truthy (HArr HNil) = false
+  lemma truthy_empty_dict: hval_truthy (HMap PNil) = false
+  lemma truthy_tuple: forall x l. hval_truthy (HTuple (HCons x l)) = true
+  lemma truthy_list: forall x l. hval_truthy (HArr (HCons x l)) = true
+  lemma truthy_dict: forall k x p. hval_truthy (HMap (PCons k x p)) = true
+  lemma truthy_node: forall n. hval_truthy (HNode n) = true
+
+end
+
+module DictR4LemmasEq
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use option.Option
+  use list.List
+  use string.String
+  use DictR4Theory
+
+  (* ---- the cross-type equality table ---- *)
+  lemma eq_true_one: hval_eq (HBool true) (HInt 1) = true
+  lemma eq_one_true: hval_eq (HInt 1) (HBool true) = true
+  lemma eq_false_zero: hval_eq (HBool false) (HInt 0) = true
+  lemma eq_one_onef: hval_eq (HInt 1) (HFloat 1.0) = true
+  lemma eq_true_onef: hval_eq (HBool true) (HFloat 1.0) = true
+  lemma eq_int_half: forall i: int. hval_eq (HInt i) (HFloat 0.5) = false
+  lemma eq_str_int: forall s i. hval_eq (HStr s) (HInt i) = false
+  lemma eq_none_zero: hval_eq HNone (HInt 0) = false
+  lemma eq_none_false: hval_eq HNone (HBool false) = false
+  lemma eq_tuple_list: forall l. hval_eq (HTuple l) (HArr l) = false
+  lemma eq_one_str_one: hval_eq (HStr "1") (HInt 1) = false
+  (* dict equality is order-independent: {"a": x, "b": y} == {"b": y, "a": x} *)
+  let lemma eq_dict_order (x y: hval)
+    requires { hval_eq x x = true } requires { hval_eq y y = true }
+    ensures { hval_eq (HMap (PCons "a" x (PCons "b" y PNil))) (HMap (PCons "b" y (PCons "a" x PNil))) = true }
+  = assert { "a" <> "b" };
+    assert { pairs_get (PCons "b" y (PCons "a" x PNil)) "a" = Some x };
+    assert { pairs_get (PCons "b" y (PCons "a" x PNil)) "b" = Some y };
+    assert { pairs_get (PCons "a" x (PCons "b" y PNil)) "a" = Some x };
+    assert { pairs_get (PCons "a" x (PCons "b" y PNil)) "b" = Some y };
+    assert { pairs_incl (PCons "b" y PNil) (PCons "b" y (PCons "a" x PNil)) = true };
+    assert { pairs_incl (PCons "a" x (PCons "b" y PNil)) (PCons "b" y (PCons "a" x PNil)) = true };
+    assert { pairs_keys_in (PCons "a" x PNil) (PCons "a" x (PCons "b" y PNil)) = true };
+    assert { pairs_keys_in (PCons "b" y (PCons "a" x PNil)) (PCons "a" x (PCons "b" y PNil)) = true }
+
+end
+
+module DictR4LemmasCanon
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use option.Option
+  use list.List
+  use string.String
+  use DictR4Theory
+
+  (* ---- canon / hashable instances ---- *)
+  lemma canon_true: hval_canon (HBool true) = HInt 1
+  lemma canon_onef: hval_canon (HFloat 1.0) = HInt 1
+  lemma canon_half: hval_canon (HFloat 0.5) = HFloat 0.5
+  lemma hashable_tuple: forall s i. hval_hashable (HTuple (HCons (HStr s) (HCons (HInt i) HNil))) = true
+  lemma unhashable_list: forall l. hval_hashable (HArr l) = false
+  lemma unhashable_dict: forall p. hval_hashable (HMap p) = false
+
+end
+
+module DictR4LemmasSeq
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use option.Option
+  use list.List
+  use string.String
+  use DictR4Theory
+
+  (* ---- sequences ---- *)
+  let rec lemma len_nonneg (l: hval_list) variant { l } ensures { hval_list_len l >= 0 }
+  = match l with HNil -> () | HCons _ t -> len_nonneg t end
+  let rec lemma hpairs_len_nonneg (p: hpairs) variant { p } ensures { hpairs_len p >= 0 }
+  = match p with PNil -> () | PCons _ _ t -> hpairs_len_nonneg t end
+  let rec lemma keys_len (p: hpairs) variant { p } ensures { hval_list_len (hpairs_keys p) = hpairs_len p }
+  = match p with PNil -> () | PCons _ _ t -> keys_len t end
+  let rec lemma snoc_len (l: hval_list) (x: hval) variant { l }
+    ensures { hval_list_len (hval_list_snoc l x) = hval_list_len l + 1 }
+  = match l with HNil -> () | HCons _ t -> snoc_len t x end
+  let rec lemma snoc_nth_last (l: hval_list) (x: hval) variant { l }
+    ensures { hval_list_nth (hval_list_snoc l x) (hval_list_len l) = x }
+  = match l with HNil -> () | HCons _ t -> len_nonneg t; snoc_nth_last t x end
+  predicate in_hlist (x: hval) (l: hval_list) =
+    match l with HNil -> false | HCons y t -> x = y \/ in_hlist x t end
+  let rec lemma nth_in_range (l: hval_list) (i: int)
+    requires { 0 <= i < hval_list_len l }
+    variant { l } ensures { in_hlist (hval_list_nth l i) l }
+  = match l with HNil -> () | HCons _ t -> if i > 0 then nth_in_range t (i - 1) end
+  lemma nth_head: forall x t. hval_list_nth (HCons x t) 0 = x
+  lemma nth_tail: forall x t i. i >= 0 -> hval_list_nth (HCons x t) (i + 1) = hval_list_nth t i
+  lemma len_str: forall s. hval_len (HStr s) = String.length s
+  lemma len_arr: forall l. hval_len (HArr l) = hval_list_len l
+  lemma len_tuple: forall l. hval_len (HTuple l) = hval_list_len l
+  lemma len_map: forall p. hval_len (HMap p) = hpairs_len p
+  lemma tuple_preserves_elems: forall l. hval_tuple (HArr l) = HTuple l /\ hval_tuple (HTuple l) = HTuple l
+  lemma tuple_of_dict_keys: forall p. hval_tuple (HMap p) = HTuple (hpairs_keys p)
+
+end
+
+module DictR4LemmasProj
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use option.Option
+  use list.List
+  use string.String
+  use DictR4Theory
+
+  (* ---- projections ---- *)
+  lemma proj_str: forall s. hstr_of (HStr s) = s
+  lemma proj_int: forall i. hint_of (HInt i) = i
+  lemma proj_bool: forall b. hint_of (HBool b) = if b then 1 else 0
+end
+
+(* one-level unfoldings of hval_eq at a LITERAL: the emitter inlines the RHS at
+   `v == <literal>` (a flat tag match, no recursive unfolding).  Certified as
+   Rocq/Lean `hval_eq_int_lit`, `hval_eq_bool_lit`, `hval_eq_intfloat_lit`,
+   `hval_eq_float_lit`, `hval_eq_none_lit`, `hval_eq_str_lit`. *)
+module DictR4LemmasLit
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use option.Option
+  use list.List
+  use string.String
+  use DictR4Theory
+
+  let lemma hval_eq_int_lit (v: hval) (n: int)
+    ensures { hval_eq v (HInt n) =
+               (match v with
+                | HInt i -> i = n
+                | HBool b -> hbool_int b = n
+                | HFloat f -> (match hreal_int_of f with Some j -> j = n | None -> false end)
+                | _ -> false
+                end) }
+  = match v with HNone -> () | HBool _ -> () | HInt _ -> () | HFloat _ -> () | HStr _ -> ()
+    | HTuple _ -> () | HArr _ -> () | HMap _ -> () | HNode _ -> () end
+  let lemma hval_eq_bool_lit (v: hval) (x: bool)
+    ensures { hval_eq v (HBool x) =
+               (match v with
+                | HInt i -> i = hbool_int x
+                | HBool b -> hbool_int b = hbool_int x
+                | HFloat f -> (match hreal_int_of f with Some j -> j = hbool_int x | None -> false end)
+                | _ -> false
+                end) }
+  = match v with HNone -> () | HBool _ -> () | HInt _ -> () | HFloat _ -> () | HStr _ -> ()
+    | HTuple _ -> () | HArr _ -> () | HMap _ -> () | HNode _ -> () end
+  let lemma hval_eq_intfloat_lit (v: hval) (n: int)
+    ensures { hval_eq v (HFloat (FromInt.from_int n)) =
+               (match v with
+                | HInt i -> i = n
+                | HBool b -> hbool_int b = n
+                | HFloat f -> (match hreal_int_of f with Some j -> j = n | None -> false end)
+                | _ -> false
+                end) }
+  = match v with HNone -> () | HBool _ -> () | HInt _ -> () | HFloat _ -> () | HStr _ -> ()
+    | HTuple _ -> () | HArr _ -> () | HMap _ -> () | HNode _ -> () end
+  let lemma hval_eq_float_lit (v: hval) (c: real)
+    requires { hreal_int_of c = None }
+    ensures { hval_eq v (HFloat c) = (match v with HFloat f -> hreal_eq f c | _ -> false end) }
+  = match v with HNone -> () | HBool _ -> () | HInt _ -> () | HFloat _ -> () | HStr _ -> ()
+    | HTuple _ -> () | HArr _ -> () | HMap _ -> () | HNode _ -> () end
+  let lemma hval_eq_none_lit (v: hval)
+    ensures { hval_eq v HNone = (match v with HNone -> true | _ -> false end) }
+  = match v with HNone -> () | HBool _ -> () | HInt _ -> () | HFloat _ -> () | HStr _ -> ()
+    | HTuple _ -> () | HArr _ -> () | HMap _ -> () | HNode _ -> () end
+  let lemma hval_eq_str_lit (v: hval) (t: string)
+    ensures { hval_eq v (HStr t) = (match v with HStr s -> hpairs_key_eq s t | _ -> false end) }
+  = match v with HNone -> () | HBool _ -> () | HInt _ -> () | HFloat _ -> () | HStr _ -> ()
+    | HTuple _ -> () | HArr _ -> () | HMap _ -> () | HNode _ -> () end
+end

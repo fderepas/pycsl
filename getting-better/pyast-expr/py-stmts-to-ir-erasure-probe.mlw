@@ -1,0 +1,113 @@
+(* MEASURED EVIDENCE — `_py_stmts_to_ir` refutation probe (2026-08-27, relaunch #4).
+   NOT a spike to be proved: this is the emitter's ACTUAL output for the VERBATIM live body
+   of `_py_stmts_to_ir`, captured by un-trusting the mirror stub, emitting, and reverting.
+   It is kept so the next window does not have to re-run the probe to see the wall.
+
+   FOUR ERASURES, all visible below, any ONE of which makes the conversion vacuous:
+
+   (a) THE DISPATCH BRANCH IS EMPTY. `result = getattr(self, handler_name)(stmt, ir_stmts)`
+       became `let py_result = ref  in ()` — the handler call is GONE (and the emission is
+       not even well-formed). The `_PY_STMT_HANDLERS` lookup itself survives only as the
+       opaque `self__PY_STMT_HANDLERS_get_1 (py_type_1 !stmt)`, i.e. the pre-`_PY_OP_MAP`
+       shape where BOTH the type extraction and the table are assumed.
+   (b) ALL FIVE WEAVE-ATTR LISTS ERASE TO THE SAME CONSTANT. `getattr(stmt, 'csl_labels',
+       [])`, `'csl_checkpoints'`, `'csl_ghost_assigns'`, `'csl_trailing_ghost_assigns'`,
+       `'csl_trailing_checkpoints'` all become `iter_length 0` / `iter_get 0 i`. The five
+       loops therefore iterate ONE unknown sequence and each body is invariant under which
+       attribute it was reading — the list analogue of the `isinstance_op 0 0` facade.
+   (c) THE LABEL STATEMENT IS EMITTED AS THE LITERAL 0. `ir_stmts.append({"stmt": "Label",
+       "name": lname})` became `Seq.snoc !ir_stmts 0` — `stmt_ir` has no `SLabel`
+       constructor, so the node is dropped outright. The ProofAssert dict fares slightly
+       better but goes through the int-hashed pyval map (`"stmt" 1378480597`) rather than a
+       `stmt_ir` constructor, because there is no `SProofAssert` either.
+   (d) `isinstance_op 0 0` — the documented FACADE DETECTOR (wall-lessons (ff)) — appears
+       verbatim in the `elif hasattr(ast, 'Match') and isinstance(stmt, ast.Match)` branch,
+       together with the hashed attribute name `hasattr_check ast 503999933`.
+
+   VERDICT: CERTIFIED-BOUNDARY [COST/SCALE]. Nothing here is inexpressible; it is six
+   features for one stub, and two of them add constructors to the CERTIFIED `stmt_ir` ADT
+   (so the Rocq+Lean certificate must be extended under the co-landing rule). The precise
+   reopening capability is in driver-backlog.md. *)
+
+  let pycsltojsonemitter___py_stmts_to_ir (self: pycsltojsonemitter) (stmts: array int) : array int
+    requires { true }
+    ensures  { true }
+    writes {  }
+  =
+    let ir_stmts_len = ref 0 in
+    let stmt = ref 0 in
+    let py_result = ref 0 in
+    let origin = ref 0 in
+    let lname = ref 0 in
+    let handler_name = ref 0 in
+    let ga = ref 0 in
+    let cp = ref 0 in
+    let ir_stmts = ref Seq.empty in
+    let _idx_stmt = ref 0 in
+    while !_idx_stmt < Array.length stmts do
+      invariant { 0 <= !_idx_stmt }
+      variant { Array.length stmts - !_idx_stmt }
+      let stmt = ref (stmts[!_idx_stmt]) in
+      let _idx_lname = ref 0 in
+      while !_idx_lname < (iter_length 0) do
+        invariant { 0 <= !_idx_lname }
+        variant { (iter_length 0) - !_idx_lname }
+        let lname = ref ((iter_get 0 !_idx_lname)) in
+        ir_stmts := Seq.snoc !ir_stmts 0;
+        _idx_lname := !_idx_lname + 1
+      done;
+      let _idx_cp = ref 0 in
+      while !_idx_cp < (iter_length 0) do
+        invariant { 0 <= !_idx_cp }
+        variant { (iter_length 0) - !_idx_cp }
+        let cp = ref ((iter_get 0 !_idx_cp)) in
+        let pa = ref (map_update_some (map_update_some (map_update_some (const (None: option int)) "stmt" 1378480597) "kind" (get_kind !cp)) "test" (self__csl_to_ir_1 (get_expr !cp))) in
+        origin := 0;
+        if (!origin <> 0) then begin
+          pa := map_update_some !pa "origin" !origin
+        end;
+        ir_stmts := Seq.snoc !ir_stmts !pa;
+        _idx_cp := !_idx_cp + 1
+      done;
+      let _idx_ga = ref 0 in
+      while !_idx_ga < (iter_length 0) do
+        invariant { 0 <= !_idx_ga }
+        variant { (iter_length 0) - !_idx_ga }
+        let ga = ref ((iter_get 0 !_idx_ga)) in
+        ir_stmts := Seq.snoc !ir_stmts (self__emit_ghost_assign_1 !ga);
+        _idx_ga := !_idx_ga + 1
+      done;
+      handler_name := (self__PY_STMT_HANDLERS_get_1 (py_type_1 !stmt));
+      if (!handler_name <> 0) then begin
+        let py_result = ref  in
+        ()
+      end else begin
+        if ((if (hasattr_check ast 503999933) && (isinstance_op 0 0) then 1 else 0) <> 0) then begin
+          let _ = (self__py_stmt_match_2 !stmt (materialize !ir_stmts)) in ()
+        end
+      end;
+      let _idx_ga = ref 0 in
+      while !_idx_ga < (iter_length 0) do
+        invariant { 0 <= !_idx_ga }
+        variant { (iter_length 0) - !_idx_ga }
+        let ga = ref ((iter_get 0 !_idx_ga)) in
+        ir_stmts := Seq.snoc !ir_stmts (self__emit_ghost_assign_1 !ga);
+        _idx_ga := !_idx_ga + 1
+      done;
+      let _idx_cp = ref 0 in
+      while !_idx_cp < (iter_length 0) do
+        invariant { 0 <= !_idx_cp }
+        variant { (iter_length 0) - !_idx_cp }
+        let cp = ref ((iter_get 0 !_idx_cp)) in
+        let pa = ref (map_update_some (map_update_some (map_update_some (const (None: option int)) "stmt" 1378480597) "kind" (get_kind !cp)) "test" (self__csl_to_ir_1 (get_expr !cp))) in
+        origin := 0;
+        if (!origin <> 0) then begin
+          pa := map_update_some !pa "origin" !origin
+        end;
+        ir_stmts := Seq.snoc !ir_stmts !pa;
+        _idx_cp := !_idx_cp + 1
+      done;
+      _idx_stmt := !_idx_stmt + 1
+    done;
+    (materialize !ir_stmts)
+

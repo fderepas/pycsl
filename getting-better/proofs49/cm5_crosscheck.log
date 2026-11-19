@@ -1,0 +1,67 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/crosscheck.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_ofo3if_b.mlw", line 35, characters 15-19:
+Sub-goal postcondition of goal _module_namespace_of'vc.
+Prover result is: Valid (0.00s, 748 steps).
+
+File "/tmp/.pycsl_ofo3if_b.mlw", line 44, characters 32-36:
+Sub-goal postcondition of goal crosscheckresult__all_agree'vc.
+Prover result is: Valid (0.00s, 748 steps).
+
+File "/tmp/.pycsl_ofo3if_b.mlw", line 52, characters 15-19:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1093 steps).
+
+File "/tmp/.pycsl_ofo3if_b.mlw", line 53, characters 15-50:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1094 steps).
+
+File "/tmp/.pycsl_ofo3if_b.mlw", line 54, characters 15-48:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1095 steps).
+
+File "/tmp/.pycsl_ofo3if_b.mlw", line 55, characters 15-48:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1096 steps).
+
+File "/tmp/.pycsl_ofo3if_b.mlw", line 56, characters 15-58:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1097 steps).
+
+File "/tmp/.pycsl_ofo3if_b.mlw", line 57, characters 15-56:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1098 steps).
+
+File "/tmp/.pycsl_ofo3if_b.mlw", line 58, characters 15-50:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1099 steps).
+
+File "/tmp/.pycsl_ofo3if_b.mlw", line 59, characters 15-48:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1100 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 30, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 33, characters 37-46: unused variable rocq_file
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 35, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 39, characters 23-30: unused variable py_file
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 41, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 44, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 46, characters 36-40: unused variable self
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 48, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 53, characters 32-35: this `at'/`old' operator is never used
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 54, characters 31-34: this `at'/`old' operator is never used
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 55, characters 31-34: this `at'/`old' operator is never used
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 56, characters 36-39: this `at'/`old' operator is never used
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 57, characters 35-38: this `at'/`old' operator is never used
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 58, characters 32-35: this `at'/`old' operator is never used
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 59, characters 31-34: this `at'/`old' operator is never used
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 52, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 63, characters 12-16: unused variable argv
+Warning, file "/tmp/.pycsl_ofo3if_b.mlw", line 65, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+ELAPSED 12.75 s

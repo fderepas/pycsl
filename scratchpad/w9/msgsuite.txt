@@ -1,0 +1,50 @@
+MEASURE(#44): the reference suite has been RED at 102/3144 all along — classified, cause by cause, and this window added ZERO
+
+`run-reference-tests.sh` over BOTH corpora with the opam PATH exported
+(instrument fact (cd)): 3042/3144 passed, 102 failed. The failure set is
+IDENTICAL, test for test, to #43's `scratchpad/w7/suite.log`. So the
+supervisor's question about `suite.rc`/`suite2.rc` = 1 is answered: those
+runs were NOT a PATH artefact as I first guessed, they were the tree's real
+state, and it has not moved.
+
+All ELEVEN new witnesses behave exactly as declared:
+0991/0993/0994/0996/0997/0998/0999/1000 XFAIL, 0992/0995/1001 PASS.
+
+CLASSIFIED, by re-running every failing test and bucketing the first cause
+(`scratchpad/w9/classify_fails.sh`, output `fail_causes.txt`):
+
+    64  IMPORT-DENYLIST     stdlib/ctypes (+ json) — `import ctypes` is on
+                            the C-extension deny-list, so every test in the
+                            family errors at the import. TWO THIRDS OF THE
+                            RED IS ONE DECISION.
+    11  ROCQ-LIB-ABSENT     0211-0220 + one — "[!] Why3 Coq library not
+                            found — cannot replay Rocq proofs". The opam
+                            switch has why3 and coqc but NOT the Why3 Coq
+                            realization library, so `#@ proof rocq`
+                            citations cannot be replayed in this
+                            environment at all.
+     6  L3-TC-TYPE-ERROR    0700 + python-reference 0043/0048/0079/0095/0110
+     5  SMT-TIMEOUT         0932 + the four pyval walkers (0943/0944/0948/0949)
+     4  SMT-UNKNOWN         0226, 0484, 0766, 0938
+     4  PROVES-ALONE        json dump/loads pairs — they PASS standalone and
+                            FAIL under the harness. A harness/flag
+                            difference, i.e. the instrument and the tool
+                            disagree; worth its own look.
+     2  unbound type `array`  encode_call_{fails,proves}
+     3  PIPELINE-ERROR      0540 `'str' object has no attribute 'get'` (an
+                            INTERNAL CRASH, not a refusal), 0701 "cannot
+                            inline call to 'f.echo'", python-reference 0080
+                            (UB-7.6 rejects a non-trivial `__new__`).
+
+NONE of these is a regression from this window, and the byte-diff already
+implied that: both corpora emit byte-identically to the pre-#44 tree except
+0611/0612 (route #28) and the new witnesses.
+
+WHY IT IS WORTH A COMMIT ANYWAY. Every handoff in this campaign has said
+"every plane green". The campaign's OWN planes are green; the project's CI
+suite is not, and no handoff has said so. A driver who assumes the suite is
+green because the planes are is one step from assuming a plane is green
+because a handoff said so — which is the mistake this window already found
+twice (`o_scf.rc = 1` and the avatar-frame ratchet).
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

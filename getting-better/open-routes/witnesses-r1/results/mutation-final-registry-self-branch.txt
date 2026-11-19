@@ -1,0 +1,4 @@
+line 2028, characters 25-32:	Sub-goal assertion of goal pycsltojsonemitter___collect_final_registry'vc.	Prover result is: Valid (0.03s, 212481 steps).
+line 2028, characters 25-32:	Sub-goal assertion of goal pycsltojsonemitter___collect_final_registry'vc.	Prover result is: Valid (0.03s, 208113 steps).
+line 2028, characters 25-32:	Sub-goal assertion of goal pycsltojsonemitter___collect_final_registry'vc.	Prover result is: Valid (0.03s, 208743 steps).
+line 2028, characters 25-32:	Sub-goal assertion of goal pycsltojsonemitter___collect_final_registry'vc.	Prover result is: Valid (0.03s, 192508 steps).

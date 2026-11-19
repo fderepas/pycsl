@@ -3,7 +3,9 @@
  * One val declaration per WP arm in Phase4_WP.v.
  * Each val's contract mirrors the corresponding Rocq fixpoint arm exactly.
  * SFor: handle_for_init + handle_for_code added; desugar_correct proved (plan-formal-03).
- * Full SFor coherence deferred to wp_for_desugar (open gap).
+ * Full SFor coherence via wp_for_desugar is now PROVED
+ *   (src/formal-semantics/rocq/Phase5c_WpForDesugar.v: wp_for_desugar / wp_desugar_iff,
+ *    0 Admitted; Print Assumptions = only the two standard extensionality axioms).
  *
  * Audit trail: for each val, a comment cites the exact Rocq source line.
  * Human-audited link: the ensures clause is written by inspection of Phase4_WP.v.
@@ -148,7 +150,8 @@ module PyCSL_WP_Spec
    * desugar_correct proved (plan-formal-03): exec st (SFor...) out ↔ exec st (desugar (SFor...)) out.
    * The SFor WP initializes _pycsl_idx to 0, then runs the desugared while loop.
    * handle_for captures the init step; the while loop state transition is handled
-   * by handle_while_* above.  Full coherence (wp_for_desugar) is an open gap. *)
+   * by handle_while_* above.  Full coherence (wp_for_desugar) is now PROVED
+   * (Phase5c_WpForDesugar.v, 0 Admitted). *)
   val handle_for_init (idx_var : ident) (st : state) : state
     ensures { result = update st idx_var (VInt 0) }
 
@@ -640,7 +643,8 @@ module PyCSL_WP_Coherence
 
   (* Axiom: the for-loop code initializes idx to 0 then runs the while body.
    * desugar_correct (plan-formal-03) justifies the desugaring is semantics-preserving.
-   * Full coherence (what the while loop computes) requires wp_for_desugar (open gap).
+   * Full coherence (what the while loop computes) via wp_for_desugar is now PROVED
+   * (Phase5c_WpForDesugar.v, 0 Admitted).
    * Human-audited against Phase4_WP.v:69–95.
    * Note: handle_for_init is a program val; we use update directly in logic. *)
   axiom for_code_init_semantics :
@@ -658,7 +662,8 @@ module PyCSL_WP_Coherence
 
   (* for_code_state_coherent: follows directly from for_code_init_semantics +
    * the ensures of handle_for_init (update st idx_var (VInt 0)).
-   * Full semantic WP equivalence deferred to wp_for_desugar. *)
+   * Full semantic WP equivalence is PROVED by wp_for_desugar
+   * (Phase5c_WpForDesugar.v, 0 Admitted). *)
   lemma for_code_state_coherent :
     forall idx_var len_str elem_bind body_str inv_str var_str indent inner st.
     let code = handle_for_code idx_var len_str elem_bind body_str inv_str var_str indent inner in

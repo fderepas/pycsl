@@ -1,0 +1,30 @@
+FIX(#44): the four json stub tests were TEST defects, diagnosed and fixed — python-reference refusals 75 -> 9
+
+Two distinct generated-test bugs, both confirmed against the stubs before
+touching anything:
+
+  `dump_call_{proves,fails}` — the driver called `json.dump(x)` with ONE
+  argument and returned the result into an `int`. `json.dump(obj, fp)`
+  takes TWO and returns None, which is exactly what the pipeline said:
+  "call to 'dump' passes 1 positional argument(s) but parameter 'fp' has
+  no default (arity 2)", and then, once that was fixed,
+  "This expression has type (), but is expected to have type int".
+  The STUB was right and the TEST was wrong, twice over.
+
+  `loads_call_{proves,fails}` — "this expression raises unlisted exception
+  JSONDecodeError", and after declaring that one, "... unlisted exception
+  TypeError". The stub honestly declares both; the driver declared neither.
+  Two `#@ raises` lines each.
+
+Each fix carries a comment saying which side was wrong, because "the stub
+was honest and the driver was under-specified" is the useful half of the
+finding.
+
+MEASURED: python-reference goes 2206 emitted / 11 refused -> 2208 / 9, with
+ZERO new refusals and exactly TWO previously-emitted files changed (the
+`loads` pair, which now carries its `raises` clauses). Corpus-only: no
+emitter file, no mirror file, nothing owed.
+
+The 9 remaining refusals are all unrelated and pre-existing.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

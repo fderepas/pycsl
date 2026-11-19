@@ -296,13 +296,18 @@ def calcsize(fmt: str) -> Optional[int]:
         m = _TOKEN_RE.match(fmt, pos)
         if not m:
             return None
-        count_str, char = m.group(1), m.group(2)
+        count_str: str = m.group(1)
+        char: str = m.group(2)
         count = int(count_str) if count_str else 1
         if char in ("s", "p"):
             total += count   # N-byte fixed bytes
         elif char in sizes:
             total += sizes[char] * count
         else:
+            return None
+        # The token pattern always consumes at least one char, so `m.end() > pos`
+        # holds and this guard never fires; it states the loop's progress.
+        if m.end() <= pos:
             return None
         pos = m.end()
     return total

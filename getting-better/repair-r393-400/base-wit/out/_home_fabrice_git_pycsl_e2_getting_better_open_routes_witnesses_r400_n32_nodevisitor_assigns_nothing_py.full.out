@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/getting-better/open-routes/witnesses-r400/n32_nodevisitor_assigns_nothing.py'...
+[*] Memory model: hoare
+[*] Import 'ast.parse': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_4k_stdvy.mlw", line 14, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_4k_stdvy.mlw", line 21, characters 15-44:
+Sub-goal postcondition of goal v__visit_Constant'vc.
+Prover result is: Valid (0.00s, 23 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_4k_stdvy.mlw", line 20, characters 35-39: unused variable node
+
+[+] Verification SUCCESS! All contracts formally proven.

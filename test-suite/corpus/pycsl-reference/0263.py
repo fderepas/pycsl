@@ -11,6 +11,7 @@ score = 0
 #@ thread_entry
 #@ \diverges
 def add_score() -> int:
+    global score
     #@ acquires lock_score
     with lock_score:
         score += 10

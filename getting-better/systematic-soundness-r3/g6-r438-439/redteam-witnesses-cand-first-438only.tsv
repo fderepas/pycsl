@@ -1,0 +1,17 @@
+u1_ret_tuple_bare.py	1	
+w00_hash_bare_tuple.py	1	
+w04_ifexp_bare_tuple.py	1	
+w05_tuple_in_tuple.py	1	
+w06_walrus_bare_tuple.py	1	
+w07_typing_Tuple_ret.py	1	
+w11_method_bare_tuple.py	1	
+y00_param_bare_tuple.py	1	
+y01_param_typing_Tuple.py	1	
+y13_ret_bare_tuple_local.py	1	
+y14_field_bare_tuple.py	1	
+j5_usermod_callee.py	0	Verification SUCCESS
+j6_usermod_from.py	0	Verification SUCCESS
+pp08_protocol.py	0	Verification SUCCESS
+pp11_callable_obj.py	0	Verification SUCCESS
+s0_setattr_dyn_name.py	0	Verification SUCCESS
+DONE

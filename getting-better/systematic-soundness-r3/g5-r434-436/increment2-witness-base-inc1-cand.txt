@@ -1,0 +1,19 @@
+6579_r434_z03_ord_path_len1 base rc=0 exp=FAIL Verification SUCCESS 
+6579_r434_z03_ord_path_len1 inc1 rc=0 exp=FAIL Verification SUCCESS 
+6579_r434_z03_ord_path_len1 cand rc=1 exp=FAIL PIPELINE ERROR 
+6573_r434_z04_ord_path_alias base rc=0 exp=FAIL Verification SUCCESS 
+6573_r434_z04_ord_path_alias inc1 rc=0 exp=FAIL Verification SUCCESS 
+6573_r434_z04_ord_path_alias cand rc=1 exp=FAIL PIPELINE ERROR 
+6586_r434_z05_ord_path_sub base rc=0 exp=FAIL Verification SUCCESS 
+6586_r434_z05_ord_path_sub inc1 rc=0 exp=FAIL Verification SUCCESS 
+6586_r434_z05_ord_path_sub cand rc=1 exp=FAIL PIPELINE ERROR 
+6588_r435_z06_str_upper_path base rc=0 exp=FAIL Verification SUCCESS 
+6588_r435_z06_str_upper_path inc1 rc=0 exp=FAIL Verification SUCCESS 
+6588_r435_z06_str_upper_path cand rc=1 exp=FAIL PIPELINE ERROR 
+6587_r434_k07_path_convert_ctl base rc=0 exp=PASS Verification SUCCESS 
+6587_r434_k07_path_convert_ctl inc1 rc=0 exp=PASS Verification SUCCESS 
+6587_r434_k07_path_convert_ctl cand rc=0 exp=PASS Verification SUCCESS 
+DONE
+a434_path_drop_all cand rc=0 exp= Verification SUCCESS 
+DONE
+census rc=0

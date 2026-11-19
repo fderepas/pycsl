@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/proc/__init__.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+`self._env_keys.append(...)` appends to the collection in the field `_env_keys`, and no certified lowering models it: the append is emitted against a FRESH LOCAL array with no write-back, so `self._env_keys` would be UNCHANGED in the model while the run still reported 'All contracts formally proven' — the method would satisfy `#@ assigns \nothing`, satisfy its emitted frame-preservation `ensures`, and re-establish a `\length` class invariant. Rewrite it as an indexed store, or mark the method `#@ \trusted`.

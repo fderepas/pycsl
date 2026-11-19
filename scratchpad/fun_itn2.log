@@ -1,0 +1,676 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/Module3_Weaver.py'...
+[*] Memory model: hoare
+[*] Imported class from 'frontend.Module2_Parser': Requires (record + 0 method stub(s) + 81 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Ensures (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Assigns (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LoopInvariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LoopVariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ClassInvariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLLabel (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FunctionVariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Diverges (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': NoInline (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SiblingConcrete (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': VerifyModule (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': PropagateFrame (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FreshGlobals (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Trusted (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Abstract (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Lemma (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Uses (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': InterfaceClause (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Reveal (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': GhostAssignDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': GhostArraySetDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': RaisesDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': NoExceptionDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': AllowFinalizerDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': AllowIterationMutationDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': BoundedIntDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ProofDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SharedDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': DatatypeDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': InductiveDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ThreadEntry (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Acquires (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Releases (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CriticalSection (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MutexInvariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LockOrder (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': BinOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Number (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Act (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ForExpand (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Given (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Complete (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Disjoint (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Old (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': UnaryOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLBool (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CheckPoint (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': HappyProperty (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Preserves (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Footprint (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Var (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Forall (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FieldSubscript (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MixinDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ProvidesDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SharedStateDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': TouchesFieldDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MethodDependencyDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ComposeFromDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ConformsToDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Imported class from 'frontend.Module1_Ingestor': PyCSLContract (record + 0 method stub(s) + 14 helper(s))
+[*] --fun filter: verifying ['pycslweaver___is_trivial_new'], trusting ['_clean', '_contractparser___err', '_contractparser___grab_reviewer_id', '_contractparser___mk_in', '_contractparser___parse_act_block', '_contractparser___parse_act_names', '_contractparser___parse_and_rhs', '_contractparser___parse_assigns', '_contractparser___parse_assigns_region', '_contractparser___parse_assigns_target', '_contractparser___parse_assumes', '_contractparser___parse_atom', '_contractparser___parse_atom_bs', '_contractparser___parse_atom_name', '_contractparser___parse_atom_primary', '_contractparser___parse_class_invariant', '_contractparser___parse_comparison', '_contractparser___parse_compose_from', '_contractparser___parse_conforms_to', '_contractparser___parse_contract', '_contractparser___parse_datatype', '_contractparser___parse_depends_method', '_contractparser___parse_dotted_path', '_contractparser___parse_dotted_path_list', '_contractparser___parse_equality', '_contractparser___parse_expr', '_contractparser___parse_expr_list', '_contractparser___parse_factor', '_contractparser___parse_footprint', '_contractparser___parse_for_block', '_contractparser___parse_function_variant', '_contractparser___parse_ghost', '_contractparser___parse_happy', '_contractparser___parse_happy_region', '_contractparser___parse_happy_targets', '_contractparser___parse_impl_rhs', '_contractparser___parse_implication', '_contractparser___parse_inductive', '_contractparser___parse_inductive_rules', '_contractparser___parse_interface', '_contractparser___parse_lock_order', '_contractparser___parse_logical_and', '_contractparser___parse_logical_or', '_contractparser___parse_loop', '_contractparser___parse_membership', '_contractparser___parse_mixin_method_sig', '_contractparser___parse_mixin_param', '_contractparser___parse_mixin_params', '_contractparser___parse_mixin_type', '_contractparser___parse_mutex_expr_str', '_contractparser___parse_mutex_invariant', '_contractparser___parse_no_exception', '_contractparser___parse_opt_except', '_contractparser___parse_or_rhs', '_contractparser___parse_proof', '_contractparser___parse_qualname', '_contractparser___parse_quantifier', '_contractparser___parse_raises', '_contractparser___parse_shared', '_contractparser___parse_shared_state', '_contractparser___parse_term', '_contractparser___parse_touches_field', '_contractparser___parse_trusted', '_contractparser___parse_unary', '_contractparser___parse_variant_def', '_contractparser___try', '_contractparser__accept_op', '_contractparser__advance', '_contractparser__at_bs', '_contractparser__at_eof', '_contractparser__at_name', '_contractparser__at_op', '_contractparser__cur', '_contractparser__expect_bs', '_contractparser__expect_name', '_contractparser__expect_op', '_contractparser__parse', '_contractparser__peek', '_csl_to_str', '_harvester___assign', '_harvester___build', '_harvester___emit_block_footer', '_harvester___emit_suite', '_harvester___emit_target', '_harvester___fold_blocks', '_harvester___fold_clauses', '_harvester___make', '_harvester___normalize_leading', '_harvester__run', '_indent_width', '_lex_contract', '_match_block_hdr', 'module1_ingestor__process', 'module2_parser__parse_contract', 'module2_parser__parse_node_contracts', 'module3_weaver___attach_labels_and_ghost_assigns', 'module3_weaver___canonical_preservation_ensures', 'module3_weaver___check_protect_aliasing', 'module3_weaver___collect_field_read_sites', 'module3_weaver___collect_field_sites', 'module3_weaver___collect_protect_index_sites', 'module3_weaver___collect_protect_sites', 'module3_weaver___collect_self_call_sites', 'module3_weaver___consolidate_module_concurrency', 'module3_weaver___expand_happy_properties', 'module3_weaver___extract_happy_properties', 'module3_weaver___field_write_site', 'module3_weaver___happy_predicate', 'module3_weaver___parse_extracted_contracts', 'module3_weaver___region_bound_str', 'module3_weaver___subscript_read_site', 'module3_weaver___subst_csl_param', 'module3_weaver___synthesize_selfcomp', 'module3_weaver___target_dotted_path', 'module3_weaver__process', 'pycslerror__as_dict', 'pycslerror__message', 'pycslweaver___act_guard', 'pycslweaver___attach_loop_contracts', 'pycslweaver___const_int', 'pycslweaver___desugar_acts', 'pycslweaver___desugar_for', 'pycslweaver___dispatch_function_contracts', 'pycslweaver___extract_mixin_directives', 'pycslweaver___init_function_csl_fields', 'pycslweaver___subst_var', 'pycslweaver___validate_function_contracts', 'pycslweaver__visit_ClassDef', 'pycslweaver__visit_For', 'pycslweaver__visit_FunctionDef', 'pycslweaver__visit_Module', 'pycslweaver__visit_While', 'pycslweaver__visit_With']
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 92, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 17247 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 93, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 17166 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 90, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.22s, 629260 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 97, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 97, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5217 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 96, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.02s, 16925 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 100, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4514 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 100, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5578 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 99, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.02s, 18160 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 107, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5660 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 103, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 25056 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 134, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 8074 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 134, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30628 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 130, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.58s, 700666 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 175, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8232 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 186, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 196, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8252 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 197, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8524 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 193, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.02s, 30846 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 201, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 28826 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 201, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.16s, 433134 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 201, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.11s, 281686 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 220, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 591, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__node'vc.
+Prover result is: Valid (0.01s, 3177 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 604, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__cf'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 616, characters 14-72:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 617, characters 14-60:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 3170 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 619, characters 17-76:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.02s, 38843 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 619, characters 17-76:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 3186 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 620, characters 18-77:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.02s, 38843 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 620, characters 18-77:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 3186 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 615, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 3177 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 627, characters 82-141:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.02s, 32727 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 627, characters 82-141:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 627, characters 24-141:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.02s, 38563 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 627, characters 24-141:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.01s, 3179 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 624, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 633, characters 73-132:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.02s, 30933 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 633, characters 73-132:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.01s, 2901 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 633, characters 18-132:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.02s, 36793 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 633, characters 18-132:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.01s, 3122 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 630, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 638, characters 69-125:
+Sub-goal precondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 638, characters 17-129:
+Sub-goal precondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 2967 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 639, characters 18-83:
+Sub-goal precondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 636, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 678, characters 8-78:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__tgts'vc.
+Prover result is: Valid (0.01s, 9895 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 678, characters 8-78:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__tgts'vc.
+Prover result is: Valid (0.01s, 3555 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 652, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__tgts'vc.
+Prover result is: Valid (0.01s, 3173 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 688, characters 13-83:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__node'vc.
+Prover result is: Valid (0.01s, 2977 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 681, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__node'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 694, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__cf'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 706, characters 14-79:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 707, characters 14-68:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 3166 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 709, characters 17-83:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.03s, 37959 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 709, characters 17-83:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 3182 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 710, characters 18-84:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.03s, 37959 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 710, characters 18-84:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 3182 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 705, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 3173 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 717, characters 89-155:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.02s, 32727 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 717, characters 89-155:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 717, characters 24-155:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.02s, 37679 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 717, characters 24-155:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.01s, 3175 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 714, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 723, characters 80-146:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.02s, 30933 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 723, characters 80-146:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.01s, 2901 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 723, characters 18-146:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.03s, 35909 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 723, characters 18-146:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.00s, 3118 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 720, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 728, characters 76-140:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 728, characters 17-144:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 2967 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 729, characters 18-90:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 726, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 743, characters 8-77:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__tgts'vc.
+Prover result is: Valid (0.01s, 9004 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 743, characters 8-77:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__tgts'vc.
+Prover result is: Valid (0.01s, 3172 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 736, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__tgts'vc.
+Prover result is: Valid (0.01s, 3182 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 753, characters 13-82:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__node'vc.
+Prover result is: Valid (0.01s, 2977 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 746, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__node'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 759, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__cf'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 771, characters 14-78:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 772, characters 14-62:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 3166 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 774, characters 17-82:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.03s, 37959 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 774, characters 17-82:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 3182 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 775, characters 18-83:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.03s, 37959 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 775, characters 18-83:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 3182 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 770, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 3173 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 782, characters 88-153:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.02s, 32727 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 782, characters 88-153:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 782, characters 24-153:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.02s, 37679 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 782, characters 24-153:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.01s, 3175 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 779, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 788, characters 79-144:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.02s, 30933 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 788, characters 79-144:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.01s, 2901 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 788, characters 18-144:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.02s, 35909 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 788, characters 18-144:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.01s, 3118 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 785, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 793, characters 75-133:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 793, characters 17-137:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.00s, 2967 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 794, characters 18-89:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 791, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 887, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new__isdoc'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 906, characters 21-58:
+Sub-goal precondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 2901 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 906, characters 64-100:
+Sub-goal variant decrease of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.02s, 30974 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 906, characters 64-100:
+Sub-goal precondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 2901 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 906, characters 113-151:
+Sub-goal variant decrease of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.02s, 31002 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 906, characters 113-151:
+Sub-goal precondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 2910 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 903, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 909, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new__recvok'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 939, characters 20-58:
+Sub-goal precondition of goal pycslweaver___is_trivial_new'vc.
+Prover result is: Valid (0.01s, 2975 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 956, characters 69-110:
+Sub-goal precondition of goal pycslweaver___is_trivial_new'vc.
+Prover result is: Valid (0.01s, 3080 steps).
+
+File "/tmp/.pycsl_xqnrjrg6.mlw", line 934, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 375, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 375, characters 53-56: unused variable msg
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 400, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 489, characters 42-46: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 544, characters 21-25: unused variable body
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 549, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 549, characters 51-60: unused variable raw_lines
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 552, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 552, characters 52-61: unused variable raw_lines
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 552, characters 78-79: unused variable i
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 552, characters 87-88: unused variable n
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 552, characters 96-106: unused variable blk_indent
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 552, characters 114-122: unused variable py_label
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 561, characters 21-27: unused variable source
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 566, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 566, characters 61-73: unused variable contract_str
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 566, characters 84-95: unused variable line_number
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 571, characters 56-60: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 571, characters 79-89: unused variable python_ast
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 571, characters 97-110: unused variable contracts_map
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 571, characters 141-163: unused variable trailing_contracts_map
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 575, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 575, characters 78-80: unused variable hp
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 577, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 579, characters 47-51: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 579, characters 70-74: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 579, characters 82-91: unused variable protected
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 579, characters 116-126: unused variable except_set
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 579, characters 151-159: unused variable cur_func
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 579, characters 167-174: unused variable hp_name
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 583, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 583, characters 72-76: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 583, characters 84-89: unused variable field
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 583, characters 100-108: unused variable cur_func
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 583, characters 116-124: unused variable cur_stmt
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 583, characters 132-135: unused variable out
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 587, characters 49-54: unused variable child
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 587, characters 64-69: unused variable field
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 588, characters 14-18: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 591, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 604, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 630, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 624, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 615, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 635, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 636, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 642, characters 57-58: unused variable v
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 643, characters 14-18: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 652, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 681, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 694, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 720, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 714, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 705, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 725, characters 52-56: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 726, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 732, characters 51-54: unused variable tgt
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 733, characters 14-18: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 736, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 746, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 759, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 785, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 779, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 770, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 790, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 791, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 797, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 797, characters 71-75: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 797, characters 83-89: unused variable target
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 797, characters 100-108: unused variable cur_func
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 797, characters 116-124: unused variable cur_stmt
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 797, characters 132-135: unused variable out
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 801, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 801, characters 78-88: unused variable python_ast
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 801, characters 96-109: unused variable contracts_map
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 805, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 805, characters 71-81: unused variable python_ast
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 805, characters 89-100: unused variable happy_props
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 809, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 809, characters 72-85: unused variable contracts_map
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 811, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 813, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 813, characters 64-68: unused variable stmt
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 813, characters 76-81: unused variable field
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 817, characters 40-44: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 817, characters 63-65: unused variable hp
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 817, characters 83-87: unused variable site
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 817, characters 112-116: unused variable line
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 819, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 821, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 823, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 825, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 825, characters 64-68: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 827, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 829, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 829, characters 67-70: unused variable sub
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 829, characters 84-89: unused variable field
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 833, characters 40-44: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 833, characters 63-67: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 833, characters 75-85: unused variable param_name
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 833, characters 96-100: unused variable repl
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 837, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 837, characters 67-77: unused variable python_ast
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 837, characters 85-87: unused variable hp
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 841, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 841, characters 66-72: unused variable target
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 845, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 847, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 853, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 853, characters 51-54: unused variable act
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 855, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 857, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 857, characters 63-67: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 857, characters 75-84: unused variable contracts
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 861, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 861, characters 63-66: unused variable var
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 866, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 866, characters 54-63: unused variable contracts
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 868, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 870, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 870, characters 53-62: unused variable contracts
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 872, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 874, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 874, characters 69-73: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 874, characters 81-90: unused variable contracts
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 878, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 878, characters 66-70: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 878, characters 78-87: unused variable contracts
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 880, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 882, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 882, characters 66-70: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 887, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 903, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 909, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 934, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 974, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 974, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 974, characters 63-66: unused variable var
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 974, characters 77-78: unused variable m
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 976, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 978, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 978, characters 69-73: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 982, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 982, characters 55-59: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 984, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 986, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 986, characters 50-54: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 988, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 990, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 990, characters 58-62: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 992, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 994, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 994, characters 53-57: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 996, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 998, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 998, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 1000, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 1002, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 1002, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_xqnrjrg6.mlw", line 1004, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

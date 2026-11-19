@@ -1,0 +1,2 @@
+[*] getattr-erasure: 57 fall-through site(s) over 154 file(s) — DECLARED 0 · ABSENT 14 · UNKNOWN 43
+[*] getattr-erasure: wrote 28 row(s) to bin/getattr-erasure-sites.tsv — READ THE DIFF.

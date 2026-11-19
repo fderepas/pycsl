@@ -8,11 +8,20 @@ the source. The mirror-check gate enforces signature parity.
 from __future__ import annotations
 from frontend import pure_ast as ast
 from typing import Any, Dict, Optional
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _module_const_int(value: Any) -> int:
+    """Int value of an int-literal expr (incl. unary `-N`), else None. Mirrors
+    `Module5._const_int_value`."""
+    if (isinstance(value, ast.Constant) and isinstance(value.value, int)
+            and not isinstance(value.value, bool)):
+        return int(value.value)
+    if (isinstance(value, ast.UnaryOp) and isinstance(value.op, ast.USub)
+            and isinstance(value.operand, ast.Constant)
+            and isinstance(value.operand.value, int)
+            and not isinstance(value.operand.value, bool)):
+        return -int(value.operand.value)
     return None
 
 #@ \trusted reviewer: pycsl-self-annotate

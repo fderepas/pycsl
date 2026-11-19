@@ -1,0 +1,34 @@
+FOUND(#43): ROUTE #20 — `with ... as v:` drops the binding, and this is the CTXBIND ratchet-50 population
+
+`check-dropped-mutation.py` has been reporting `50 CTXBIND` every run of this campaign, as a
+tracked and accepted residue. It is exploitable.
+
+`_py_stmt_with` reads `stmt.body` and the `csl_critical_mutex` / `csl_acquires` markers. It
+never reads `stmt.items`. So both the context-manager expression AND the `as v` binding
+vanish, and the body is inlined against the PRE-`with` value of `v`:
+
+    class CM:
+        #@ ensures \result == 7
+        def __enter__(self) -> int:  return 7
+
+    #@ ensures \result == 0                  <-- FALSE OF THE PROGRAM
+    def f() -> int:
+        v: int = 0
+        with CM() as v:
+            return v
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+Python returns 7. The emitted body is
+
+    let v = ref 0 in  v := 0;  !v
+
+`CM()` and `__enter__` are not in the model at all.
+
+Nothing is changed by this commit; it records the reproduction. The census and the refusal
+follow — and the refusal should key on the `as` clause, because the bare `with <lock>:`
+critical-section shape has no binding and is modelled separately, through `CriticalSection`.
+
+Probe under `scratchpad/w8/probes/r20/`.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

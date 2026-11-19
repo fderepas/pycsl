@@ -22,30 +22,49 @@ DEFAULT_DENY_LIST: frozenset = frozenset({'ctypes', 'ctypes.util', 'cffi', 'nump
 def _stub_set(stub_dir: Path) -> int:
     return set()
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def classify(module_name: str, stubs: int, deny_list: frozenset=DEFAULT_DENY_LIST) -> str:
-    return ""
+def classify(module_name: str, stubs: Set[str],
+             deny_list: frozenset = DEFAULT_DENY_LIST) -> str:
+    """Classify a single module name."""
+    top = module_name.split(".", 1)[0]
+    if module_name in deny_list or top in deny_list:
+        return UNVERIFIED
+    if module_name in stubs or top in stubs:
+        return TRUSTED_STUB
+    return UNRESOLVED
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def collect_imports(tree: ast.AST) -> List[int]:
-    return []
+def collect_imports(tree: ast.AST) -> List[Tuple[str, int]]:
+    """Walk an AST and return ``(module_name, line)`` for every Import /
+    ImportFrom statement."""
+    out: List[Tuple[str, int]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                out.append((alias.name, node.lineno))
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                out.append((node.module, node.lineno))
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def any_function_trusted(tree: ast.AST) -> bool:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            if getattr(node, "csl_trusted", False):
+                return True
     return False
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
+#@ raises PyCSLSemanticError when True
 #@ assigns \nothing
 def check_imports(tree: ast.AST, *, stub_dir: Path, allow_unverified: bool=False, filename: str='<input>', deny_list: frozenset=DEFAULT_DENY_LIST) -> List[int]:
     return []

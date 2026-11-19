@@ -11,6 +11,7 @@ total = 0
 #@ thread_entry
 #@ \diverges
 def producer() -> int:
+    global total
     #@ critical lock_total
     with lock_total:
         total += 1
@@ -19,6 +20,7 @@ def producer() -> int:
 #@ thread_entry
 #@ \diverges
 def consumer() -> int:
+    global total
     #@ critical lock_total
     with lock_total:
         total += 1

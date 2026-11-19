@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3a_catch_local.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+`except TypeError` can be reached by an exception the model does not raise (AttributeError, TypeError, OverflowError, UnicodeError, ...), so the handler is dead in the proof while Python can run it, and this function makes a claim that depends on it (route #174; measured: `except AttributeError` around a None `Optional` attribute read proved the other path's value). Catch the specific modelled or explicitly raised exception, or test the condition before the operation.

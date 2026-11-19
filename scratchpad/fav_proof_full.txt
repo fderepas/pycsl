@@ -1,0 +1,1185 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/stmt_control_flow.py'...
+[*] Memory model: hoare
+[*] Imported class from 'ir_schema': ReturnStmt (record + 0 method stub(s) + 18 helper(s))
+[*] Imported class from 'ir_schema': IfStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': WhileStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ForStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': TryStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': MatchStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident', 'safe_exc_name'] (trusted stubs)
+[*] Imported from 'exception_model': ['handler_catches'] (trusted stubs)
+[*] --fun filter: verifying ['controlflowstmtmixin___first_assign_value_ir'], trusting ['_e', '_es', '_expr_from_dict_inner', '_expr_to_dict', '_opt_e', '_opt_o', '_ss', '_stmt_from_dict_inner', '_stmt_to_dict', 'bases_closure', 'controlflowstmtmixin___bool_ir_to_int_wrap', 'controlflowstmtmixin___callee_raised_direct', 'controlflowstmtmixin___callee_raised_in', 'controlflowstmtmixin___classify_iterable', 'controlflowstmtmixin___coerce_to_int', 'controlflowstmtmixin___expr_to_whyml', 'controlflowstmtmixin___handle_for_stmt', 'controlflowstmtmixin___handle_if_stmt', 'controlflowstmtmixin___handle_match_stmt', 'controlflowstmtmixin___handle_return_stmt', 'controlflowstmtmixin___handle_try_stmt', 'controlflowstmtmixin___handle_while_stmt', 'controlflowstmtmixin___infer_return_value_type', 'controlflowstmtmixin___match_pattern_cond', 'controlflowstmtmixin___match_subject_union_info', 'controlflowstmtmixin___materialize_bridge', 'controlflowstmtmixin___materialize_str_bridge', 'controlflowstmtmixin___maybe_inject_union_return', 'controlflowstmtmixin___pattern_has_constructor', 'controlflowstmtmixin___render_match_pattern', 'controlflowstmtmixin___seq_init_expr', 'controlflowstmtmixin___stmts_to_whyml', 'controlflowstmtmixin___to_bool', 'controlflowstmtmixin___try_local_decl_kind', 'controlflowstmtmixin___try_union_is_none_match', 'controlflowstmtmixin___union_arm_whyml_type', 'controlflowstmtmixin___union_ctor_for_arm_tag', 'controlflowstmtmixin__walk', 'expr_from_dict', 'exprir__to_dict', 'from_dict', 'handler_catches', 'irnode__to_dict', 'is_upstream_alias_tag', 'mutable_state', 'safe_exc_name', 'stmt_from_dict', 'stmtir__to_dict', 'to_dict', 'validate_ir', 'whyml_ident']
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_4b6vp32h.mlw", line 86, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 23676 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 87, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 23704 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 84, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.12s, 248208 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 91, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 6210 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 91, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 6917 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 90, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.02s, 22745 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 94, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 6214 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 94, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 7278 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 93, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.02s, 23980 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 101, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 7360 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 97, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 30876 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 128, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 9774 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 128, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 37589 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 124, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.29s, 514312 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 169, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 9932 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 180, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 9906 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 190, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 9952 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 191, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 10224 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 187, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.03s, 37492 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 195, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.03s, 35198 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 195, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.06s, 64 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 195, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.13s, 313074 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 214, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 9906 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 357, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30922 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 357, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30944 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 358, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30938 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 358, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30960 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 359, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30910 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 359, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30932 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 360, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30914 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 360, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30936 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 361, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30870 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 362, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30904 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 363, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30950 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 363, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30972 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 363, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30994 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 364, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30940 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 365, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30944 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 366, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30962 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 367, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30980 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 367, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31002 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 368, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30980 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 368, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31002 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 369, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30984 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 369, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31006 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 370, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30988 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 370, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31010 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 371, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30988 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 371, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31010 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 372, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30992 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 372, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31014 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 373, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31000 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 373, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31022 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 374, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31004 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 374, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 375, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31006 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 376, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31014 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 376, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31036 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 377, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 377, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31048 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 377, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31070 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 378, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31022 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 378, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31044 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 379, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 379, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31048 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 380, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31030 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 380, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31052 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 381, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31040 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 381, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31062 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 382, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31044 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 382, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31066 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 383, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31048 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 383, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31070 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 384, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31052 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 384, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31074 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 385, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31056 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 385, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31078 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 386, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31060 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 386, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31082 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 387, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31072 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 387, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31094 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 387, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31116 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 388, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31068 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 388, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31090 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 389, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31072 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 389, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31094 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 390, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31082 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 390, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31104 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 391, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31076 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 392, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31080 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 393, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31084 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 394, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31098 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 394, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31120 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 395, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31102 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 395, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31124 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 396, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31106 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 396, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31128 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 397, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31100 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 398, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31104 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 399, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31128 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 399, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31150 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 400, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31122 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 401, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31144 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 401, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31166 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 401, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31188 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 402, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31150 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 402, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31172 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 403, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31150 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 403, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31172 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 404, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31154 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 404, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31176 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 405, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31158 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 405, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31180 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 406, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31166 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 407, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31174 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 408, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31204 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 409, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31208 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 410, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31206 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 354, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.06s, 152952 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 415, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.04s, 52226 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 416, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.04s, 53043 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 419, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.03s, 53866 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 420, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.03s, 54683 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 423, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.03s, 55579 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 424, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.03s, 56381 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 425, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.03s, 57209 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 474, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.04s, 57871 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 475, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.03s, 58688 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 476, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.04s, 59436 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 477, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.03s, 60359 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 478, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.04s, 61346 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 479, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.04s, 62163 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 485, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.02s, 19006 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 483, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.04s, 67787 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 489, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.01s, 19042 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 506, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.02s, 19036 steps).
+
+File "/home/fabrice.derepas@canonical.com/.opam/coq-4.14/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.01s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 574, characters 24-79:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__gtype'vc.
+Prover result is: Valid (0.02s, 24552 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 574, characters 24-79:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__gtype'vc.
+Prover result is: Valid (0.02s, 24404 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 581, characters 24-79:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__gfunc'vc.
+Prover result is: Valid (0.02s, 24536 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 587, characters 76-130:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__gexc'vc.
+Prover result is: Valid (0.03s, 24252 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 588, characters 24-78:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__gexc'vc.
+Prover result is: Valid (0.02s, 24524 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 599, characters 10-68:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__rcfold'vc.
+Prover result is: Valid (0.05s, 94509 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 599, characters 10-68:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__rcfold'vc.
+Prover result is: Valid (0.01s, 8978 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 592, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct__rcfold'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 604, characters 102-207:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__leaf'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 601, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct__leaf'vc.
+Prover result is: Valid (0.02s, 9035 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 610, characters 81-135:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.05s, 88656 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 610, characters 81-135:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.01s, 9035 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 610, characters 27-80:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.01s, 9044 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 611, characters 18-71:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.05s, 88656 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 611, characters 18-71:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.01s, 9035 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 608, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 619, characters 69-126:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__dfold'vc.
+Prover result is: Valid (0.05s, 95380 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 619, characters 69-126:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__dfold'vc.
+Prover result is: Valid (0.01s, 9052 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 619, characters 18-68:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__dfold'vc.
+Prover result is: Valid (0.05s, 95595 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 619, characters 18-68:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__dfold'vc.
+Prover result is: Valid (0.02s, 9061 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 615, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct__dfold'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 623, characters 79-133:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__lfold'vc.
+Prover result is: Valid (0.04s, 94509 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 623, characters 79-133:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__lfold'vc.
+Prover result is: Valid (0.01s, 8978 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 623, characters 28-78:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__lfold'vc.
+Prover result is: Valid (0.04s, 95610 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 623, characters 28-78:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__lfold'vc.
+Prover result is: Valid (0.01s, 8987 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 621, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct__lfold'vc.
+Prover result is: Valid (0.01s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 626, characters 4-57:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 625, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct'vc.
+Prover result is: Valid (0.01s, 9035 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 648, characters 70-126:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__gstmt'vc.
+Prover result is: Valid (0.02s, 24252 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 649, characters 24-80:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__gstmt'vc.
+Prover result is: Valid (0.02s, 24524 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 654, characters 24-79:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__gtgt'vc.
+Prover result is: Valid (0.02s, 24536 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 659, characters 24-79:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__gval'vc.
+Prover result is: Valid (0.02s, 24536 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 666, characters 24-83:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__L_body_g'vc.
+Prover result is: Valid (0.02s, 24536 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 662, characters 14-85:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_body_g'vc.
+Prover result is: Valid (0.04s, 84313 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 669, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_body'vc.
+Prover result is: Valid (0.05s, 87242 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 669, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_body'vc.
+Prover result is: Valid (0.90s, 7977007 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 669, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_body'vc.
+Prover result is: Valid (0.15s, 344416 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 677, characters 24-85:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__L_orelse_g'vc.
+Prover result is: Valid (0.02s, 24536 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 673, characters 14-85:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_orelse_g'vc.
+Prover result is: Valid (0.04s, 84313 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 680, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_orelse'vc.
+Prover result is: Valid (0.03s, 87242 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 680, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_orelse'vc.
+Prover result is: Valid (0.74s, 7977007 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 680, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_orelse'vc.
+Prover result is: Valid (0.14s, 344416 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 687, characters 75-139:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody_g'vc.
+Prover result is: Valid (0.02s, 24252 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 688, characters 24-88:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody_g'vc.
+Prover result is: Valid (0.02s, 24524 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 684, characters 14-85:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody_g'vc.
+Prover result is: Valid (0.04s, 91664 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 691, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody'vc.
+Prover result is: Valid (0.04s, 87242 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 691, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody'vc.
+Prover result is: Valid (0.76s, 7977007 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 691, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody'vc.
+Prover result is: Valid (0.13s, 344416 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 705, characters 24-136:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.04s, 98496 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 705, characters 24-136:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.02s, 9165 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 707, characters 24-138:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.05s, 100093 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 707, characters 24-138:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.02s, 9277 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 709, characters 24-141:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.05s, 101714 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 709, characters 24-141:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.01s, 9387 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 711, characters 24-105:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.05s, 103363 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 711, characters 24-105:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.01s, 9497 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 712, characters 83-143:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.04s, 104634 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 712, characters 83-143:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.02s, 9598 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 713, characters 16-76:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.04s, 87814 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 713, characters 16-76:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.01s, 9047 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 695, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 720, characters 43-156:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__hf'vc.
+Prover result is: Valid (0.04s, 94772 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 720, characters 43-156:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__hf'vc.
+Prover result is: Valid (0.01s, 8995 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 721, characters 76-138:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__hf'vc.
+Prover result is: Valid (0.05s, 97766 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 721, characters 76-138:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__hf'vc.
+Prover result is: Valid (0.02s, 9230 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 716, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__hf'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 725, characters 4-65:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir'vc.
+Prover result is: Valid (0.01s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 724, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 746, characters 32-36:
+Sub-goal postcondition of goal handler_catches'vc.
+Prover result is: Valid (0.01s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 783, characters 82-138:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__get'vc.
+Prover result is: Valid (0.02s, 24268 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 784, characters 24-80:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__get'vc.
+Prover result is: Valid (0.02s, 24540 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 784, characters 24-80:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__get'vc.
+Prover result is: Valid (0.02s, 24404 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 792, characters 93-144:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor'vc.
+Prover result is: Valid (0.05s, 88622 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 792, characters 93-144:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor'vc.
+Prover result is: Valid (0.01s, 9048 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 793, characters 18-70:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor'vc.
+Prover result is: Valid (0.05s, 88656 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 793, characters 18-70:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor'vc.
+Prover result is: Valid (0.01s, 9035 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 790, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___pattern_has_constructor'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 797, characters 51-99:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__d'vc.
+Prover result is: Valid (0.05s, 96262 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 797, characters 51-99:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor__d'vc.
+Prover result is: Valid (0.01s, 9035 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 797, characters 103-157:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__d'vc.
+Prover result is: Valid (0.05s, 96331 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 797, characters 103-157:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor__d'vc.
+Prover result is: Valid (0.01s, 9044 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 796, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___pattern_has_constructor__d'vc.
+Prover result is: Valid (0.01s, 9026 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 800, characters 45-93:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__l'vc.
+Prover result is: Valid (0.04s, 94468 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 800, characters 45-93:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor__l'vc.
+Prover result is: Valid (0.01s, 8978 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 800, characters 97-148:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__l'vc.
+Prover result is: Valid (0.05s, 94537 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 800, characters 97-148:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor__l'vc.
+Prover result is: Valid (0.02s, 8987 steps).
+
+File "/tmp/.pycsl_4b6vp32h.mlw", line 799, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___pattern_has_constructor__l'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 566, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 566, characters 79-85: unused variable py_val
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 566, characters 96-102: unused variable val_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 567, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 592, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 601, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 621, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 615, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 608, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 625, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 627, characters 47-51: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 627, characters 76-81: unused variable stmts
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 629, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 631, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 631, characters 77-84: unused variable iter_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 631, characters 96-106: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 631, characters 131-134: unused variable idx
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 633, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 635, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 635, characters 73-79: unused variable py_val
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 636, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 638, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 638, characters 73-77: unused variable expr
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 638, characters 89-99: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 639, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 716, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 695, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 724, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 75-79: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 91-95: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 109-119: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 144-157: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 182-188: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 199-206: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 730, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 74-78: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 89-93: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 107-117: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 142-155: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 180-186: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 197-204: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 734, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 77-81: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 95-99: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 113-123: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 148-161: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 186-192: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 203-210: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 738, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 78-82: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 97-101: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 115-125: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 150-163: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 188-194: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 205-212: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 742, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 746, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 75-79: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 91-95: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 109-119: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 144-157: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 182-188: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 199-206: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 752, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 77-81: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 95-99: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 113-123: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 148-161: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 186-192: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 203-210: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 756, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 758, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 758, characters 83-89: unused variable val_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 760, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 762, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 762, characters 78-81: unused variable pat
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 762, characters 93-100: unused variable subject
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 762, characters 111-121: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 764, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 766, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 766, characters 84-88: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 768, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 770, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 773, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 776, characters 56-60: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 776, characters 85-91: unused variable py_val
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 776, characters 102-108: unused variable val_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 778, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 799, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 796, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 790, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 801, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 801, characters 80-83: unused variable pat
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 801, characters 95-98: unused variable top
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 803, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 805, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 805, characters 73-79: unused variable val_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 805, characters 91-101: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 806, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 74-78: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 92-102: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 127-140: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 165-171: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 182-189: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 810, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 812, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 812, characters 67-76: unused variable whyml_str
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 812, characters 87-94: unused variable ir_expr
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 813, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 815, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 815, characters 79-85: unused variable val_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 817, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 83-87: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 99-103: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 117-127: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 152-165: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 190-196: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 207-214: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 821, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 823, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 823, characters 80-83: unused variable tag
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 825, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 827, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 827, characters 82-87: unused variable vinfo
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 827, characters 99-106: unused variable arm_tag
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 829, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 835, characters 23-27: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 844, characters 19-21: unused variable ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 566, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 566, characters 79-85: unused variable py_val
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 566, characters 96-102: unused variable val_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 567, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 592, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 601, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 621, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 615, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 608, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 625, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 627, characters 47-51: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 627, characters 76-81: unused variable stmts
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 629, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 631, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 631, characters 77-84: unused variable iter_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 631, characters 96-106: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 631, characters 131-134: unused variable idx
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 633, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 635, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 635, characters 73-79: unused variable py_val
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 636, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 638, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 638, characters 73-77: unused variable expr
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 638, characters 89-99: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 639, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 716, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 695, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 724, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 75-79: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 91-95: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 109-119: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 144-157: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 182-188: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 728, characters 199-206: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 730, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 74-78: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 89-93: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 107-117: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 142-155: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 180-186: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 732, characters 197-204: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 734, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 77-81: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 95-99: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 113-123: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 148-161: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 186-192: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 736, characters 203-210: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 738, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 78-82: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 97-101: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 115-125: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 150-163: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 188-194: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 740, characters 205-212: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 742, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 746, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 75-79: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 91-95: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 109-119: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 144-157: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 182-188: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 750, characters 199-206: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 752, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 77-81: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 95-99: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 113-123: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 148-161: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 186-192: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 754, characters 203-210: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 756, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 758, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 758, characters 83-89: unused variable val_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 760, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 762, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 762, characters 78-81: unused variable pat
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 762, characters 93-100: unused variable subject
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 762, characters 111-121: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 764, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 766, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 766, characters 84-88: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 768, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 770, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 773, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 776, characters 56-60: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 776, characters 85-91: unused variable py_val
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 776, characters 102-108: unused variable val_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 778, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 799, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 796, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 790, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 801, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 801, characters 80-83: unused variable pat
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 801, characters 95-98: unused variable top
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 803, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 805, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 805, characters 73-79: unused variable val_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 805, characters 91-101: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 806, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 74-78: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 92-102: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 127-140: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 165-171: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 808, characters 182-189: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 810, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 812, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 812, characters 67-76: unused variable whyml_str
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 812, characters 87-94: unused variable ir_expr
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 813, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 815, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 815, characters 79-85: unused variable val_ir
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 817, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 83-87: unused variable stmt
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 99-103: unused variable rest
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 117-127: unused variable local_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 152-165: unused variable declared_refs
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 190-196: unused variable indent
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 819, characters 207-214: unused variable in_loop
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 821, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 823, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 823, characters 80-83: unused variable tag
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 825, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 827, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 827, characters 82-87: unused variable vinfo
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 827, characters 99-106: unused variable arm_tag
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 829, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 835, characters 23-27: unused variable self
+Warning, file "/tmp/.pycsl_4b6vp32h.mlw", line 844, characters 19-21: unused variable ir
+
+[+] Verification SUCCESS! All contracts formally proven.

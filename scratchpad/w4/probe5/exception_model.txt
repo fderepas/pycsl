@@ -1,0 +1,1 @@
+L3TC-FAIL            <module>.bases_closure  ['This expression has type (), but is expected to have type int']

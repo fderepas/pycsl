@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for 'f15.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "f15.mlw", line 11, characters 15-27:
+Sub-goal postcondition of goal probe'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 24 steps).
+
+File "f15.mlw", line 11, characters 15-27:
+Sub-goal postcondition of goal probe'vc.
+Prover result is: Valid (0.00s, 19 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

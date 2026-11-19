@@ -1,0 +1,22 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/s2/w01_get_hash.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_c9fbg2ry.mlw", line 21, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 275 steps).
+
+File "/tmp/.pycsl_c9fbg2ry.mlw", line 27, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 792 steps).
+
+File "/tmp/.pycsl_c9fbg2ry.mlw", line 27, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 788 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_c9fbg2ry.mlw", line 23, characters 8-9: unused variable s
+Warning, file "/tmp/.pycsl_c9fbg2ry.mlw", line 20, characters 9-10: unused variable m
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,19 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt25/h03_self_alias_eq.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_lll1s6oa.mlw", line 13, characters 15-27:
+Sub-goal postcondition of goal w__m'vc.
+Prover result is: Valid (0.00s, 21 steps).
+
+File "/tmp/.pycsl_lll1s6oa.mlw", line 13, characters 15-27:
+Sub-goal postcondition of goal w__m'vc.
+Prover result is: Valid (0.00s, 8 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_lll1s6oa.mlw", line 8, characters 17-21: unused variable self
+Warning, file "/tmp/.pycsl_lll1s6oa.mlw", line 8, characters 27-28: unused variable o
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

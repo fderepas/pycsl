@@ -1,0 +1,30 @@
+diff --git a/src/pycsl/module6_whyml/identifiers.py b/src/pycsl/module6_whyml/identifiers.py
+index 53e83ce2f..d60060b11 100644
+--- a/src/pycsl/module6_whyml/identifiers.py
++++ b/src/pycsl/module6_whyml/identifiers.py
+@@ -220,11 +220,21 @@ def whyml_string_literal(value: str) -> str:
+             out.append(esc)
+         elif 32 <= ord(ch) <= 126:
+             out.append(ch)
++        elif ord(ch) < 256:
++            # (#49) ROUTE #411 — ONE CODE POINT IS ONE `string.Char`. A Python `str` is
++            # modelled as the Why3 `string` of `string.Char`s, whose codes are 0..255 (the
++            # declared assumption LATIN1-STR). A code point in that range is therefore ONE
++            # Char: `\xHH` of the code point itself. It used to fall to the UTF-8 arm below,
++            # so `"é"` (U+00E9) emitted as the TWO Chars `\xc3\xa9` and `len("é") == 2`,
++            # `"é"[1]` under `no_exception \all` and `"é"[0] != "é"` all PROVED (CPython:
++            # 1, IndexError, False) -- inside the declared domain, so not the assumption.
++            out.append(f"\\x{ord(ch):02x}")
+         else:
+-            # Encode the codepoint's UTF-8 bytes as `\xHH` pairs. Why3's
+-            # `string.Char` models Latin-1 (0..255); for codepoints > 255
+-            # (e.g. emoji) this preserves the byte sequence Why3 would itself
+-            # produce for an equivalent literal entered in a UTF-8 source.
++            # A code point > 255 has no Char: it is OUTSIDE the LATIN1-STR domain, which the
++            # soundness report already declares for every function reading a string
++            # literal. Its UTF-8 bytes are kept (the byte sequence Why3 would itself produce
++            # for the literal in a UTF-8 source); a claim about it holds only under that
++            # declared assumption (route #276).
+             for b in ch.encode("utf-8"):
+                 out.append(f"\\x{b:02x}")
+     return '"' + ''.join(out) + '"'

@@ -11,6 +11,7 @@ counter = 0
 #@ thread_entry
 #@ \diverges
 def worker() -> int:
+    global counter
     #@ critical lock_counter
     with lock_counter:
         counter += 1

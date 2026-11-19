@@ -1,0 +1,69 @@
+6550_r434_bb02_ord_long base rc=0 exp=FAIL Verification SUCCESS 
+6550_r434_bb02_ord_long cand rc=1 exp=FAIL 
+6551_r434_or0_ord_empty base rc=0 exp=FAIL Verification SUCCESS 
+6551_r434_or0_ord_empty cand rc=1 exp=FAIL 
+6552_r434_or1_ord_lit2 base rc=0 exp=FAIL Verification SUCCESS 
+6552_r434_or1_ord_lit2 cand rc=1 exp=FAIL PIPELINE ERROR 
+6553_r434_or2_ord_slice base rc=0 exp=FAIL Verification SUCCESS 
+6553_r434_or2_ord_slice cand rc=1 exp=FAIL 
+6554_r434_or4_ord_upper_sz base rc=0 exp=FAIL Verification SUCCESS 
+6554_r434_or4_ord_upper_sz cand rc=1 exp=FAIL 
+6555_r434_or6_ord_strip base rc=0 exp=FAIL Verification SUCCESS 
+6555_r434_or6_ord_strip cand rc=1 exp=FAIL 
+6556_r434_or8_ord_join base rc=0 exp=FAIL Verification SUCCESS 
+6556_r434_or8_ord_join cand rc=1 exp=FAIL 
+6557_r435_c0_str_unbound_bytes base rc=0 exp=FAIL Verification SUCCESS 
+6557_r435_c0_str_unbound_bytes cand rc=1 exp=FAIL PIPELINE ERROR 
+6558_r435_c1_bytes_unbound_str base rc=0 exp=FAIL Verification SUCCESS 
+6558_r435_c1_bytes_unbound_str cand rc=1 exp=FAIL PIPELINE ERROR 
+6559_r435_c09_str_lower_bytes base rc=0 exp=FAIL Verification SUCCESS 
+6559_r435_c09_str_lower_bytes cand rc=1 exp=FAIL PIPELINE ERROR 
+6560_r435_c10_str_strip_bytes base rc=0 exp=FAIL Verification SUCCESS 
+6560_r435_c10_str_strip_bytes cand rc=1 exp=FAIL PIPELINE ERROR 
+6561_r435_c13_str_upper_bytearray base rc=0 exp=FAIL Verification SUCCESS 
+6561_r435_c13_str_upper_bytearray cand rc=1 exp=FAIL PIPELINE ERROR 
+6562_r435_c14_bytes_upper_bytearray base rc=0 exp=FAIL Verification SUCCESS 
+6562_r435_c14_bytes_upper_bytearray cand rc=1 exp=FAIL PIPELINE ERROR 
+6563_r435_c15_bytes_lower_str base rc=0 exp=FAIL Verification SUCCESS 
+6563_r435_c15_bytes_lower_str cand rc=1 exp=FAIL PIPELINE ERROR 
+6564_r435_c18_str_upper_list base rc=0 exp=FAIL Verification SUCCESS 
+6564_r435_c18_str_upper_list cand rc=1 exp=FAIL PIPELINE ERROR 
+6565_r436_m04_split_maxsplit base rc=0 exp=FAIL Verification SUCCESS 
+6565_r436_m04_split_maxsplit cand rc=1 exp=FAIL 
+6566_r436_t0_split_param base rc=0 exp=FAIL Verification SUCCESS 
+6566_r436_t0_split_param cand rc=1 exp=FAIL 
+6567_r436_t4_split_neg_ok base rc=0 exp=FAIL Verification SUCCESS 
+6567_r436_t4_split_neg_ok cand rc=1 exp=FAIL 
+6568_r436_t7_split_ens base rc=0 exp=FAIL Verification SUCCESS 
+6568_r436_t7_split_ens cand rc=1 exp=FAIL 
+6569_r436_t9_split_loop base rc=0 exp=FAIL Verification SUCCESS 
+6569_r436_t9_split_loop cand rc=1 exp=FAIL PIPELINE ERROR 
+6570_r434_x01_ord_comp base rc=0 exp=FAIL Verification SUCCESS 
+6570_r434_x01_ord_comp cand rc=1 exp=FAIL PIPELINE ERROR 
+6571_r434_x02_ord_bytes_sub base rc=0 exp=FAIL Verification SUCCESS 
+6571_r434_x02_ord_bytes_sub cand rc=1 exp=FAIL PIPELINE ERROR 
+6572_r434_x05_ord_callee base rc=0 exp=FAIL Verification SUCCESS 
+6572_r434_x05_ord_callee cand rc=1 exp=FAIL PIPELINE ERROR 
+6574_r435_x03_int_unbound_float base rc=1 exp=FAIL 
+6574_r435_x03_int_unbound_float cand rc=1 exp=FAIL PIPELINE ERROR 
+6575_r436_x06_split_callee base rc=0 exp=FAIL Verification SUCCESS 
+6575_r436_x06_split_callee cand rc=1 exp=FAIL PIPELINE ERROR 
+6576_r436_p09_rsplit_collide base rc=0 exp=FAIL Verification SUCCESS 
+6576_r436_p09_rsplit_collide cand rc=1 exp=FAIL 
+6577_r436_x07_split_impure base rc=0 exp=FAIL Verification SUCCESS 
+6577_r436_x07_split_impure cand rc=1 exp=FAIL PIPELINE ERROR 
+6578_r436_x08_split_literal_big base rc=0 exp=FAIL Verification SUCCESS 
+6578_r436_x08_split_literal_big cand rc=1 exp=FAIL PIPELINE ERROR 
+6580_r434_k01_ord_ctl base rc=0 exp=PASS Verification SUCCESS 
+6580_r434_k01_ord_ctl cand rc=0 exp=PASS Verification SUCCESS 
+6581_r435_k02_unbound_ctl base rc=0 exp=PASS Verification SUCCESS 
+6581_r435_k02_unbound_ctl cand rc=0 exp=PASS Verification SUCCESS 
+6582_r436_k03_ssize_ctl base rc=0 exp=PASS Verification SUCCESS 
+6582_r436_k03_ssize_ctl cand rc=0 exp=PASS Verification SUCCESS 
+6583_r434_k04_callee_claimed_ctl base rc=0 exp=PASS Verification SUCCESS 
+6583_r434_k04_callee_claimed_ctl cand rc=0 exp=PASS Verification SUCCESS 
+6584_r436_k05_split_local_ctl base rc=1 exp=PASS 
+6584_r436_k05_split_local_ctl cand rc=1 exp=PASS 
+6585_r436_k06_split_bound_g_ctl base rc=0 exp=PASS Verification SUCCESS 
+6585_r436_k06_split_bound_g_ctl cand rc=0 exp=PASS Verification SUCCESS 
+DONE

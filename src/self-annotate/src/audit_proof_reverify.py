@@ -61,7 +61,6 @@ class ReverifyReport:
     qualname_results: List[tuple[str, bool, List[str]]] = field(default_factory=list)
     cached: bool = False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -90,7 +89,6 @@ class ReverifyReport:
 # ---------------------------------------------------------------------------
 # Cache helpers
 # ---------------------------------------------------------------------------
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -101,17 +99,18 @@ def _cache_root(project_root: Path) -> Path:
     root = project_root / ".audit-cache"
     root.mkdir(parents=True, exist_ok=True)
     return root
-#@ \trusted reviewer: pycsl-self-annotate
+# lvV (run #7): VERIFIED on the law-free sha-256 model. `path.read_bytes()` is an open-world
+# read (the OSError family, ValueError on an embedded NUL): the emitted `raises` lists them, and
+# `_cache_key` (its caller) owes them through the transpiler's escaping-row registration; the
+# live body is the one-shot `hashlib.sha256(<bytes>).hexdigest()`.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 
 
 def _sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    h.update(path.read_bytes())
-    return h.hexdigest()
-#@ \trusted reviewer: pycsl-self-annotate
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+# lvV (run #7): VERIFIED; `sorted` of the `List[str]` parameter is a law-free `array string`.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -142,7 +141,6 @@ def _cache_load(project_root: Path, prover: str, key: str) -> Optional[dict]:
         return json.loads(f.read_text())
     except (OSError, json.JSONDecodeError):
         return None
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -301,7 +299,6 @@ def verify_rocq_file(proof_file: Path, qualnames: List[str],
     if use_cache:
         _cache_store(project_root, "rocq", key, _to_cache_payload(report))
     return report
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -324,8 +321,11 @@ def _split_rocq_print_assumptions(stdout: str, qualnames: List[str]) -> dict[str
                "Axioms:", "Section Variables:",
                "Parameters:", "Constants:")
     pos = 0
+    #@ loop invariant 0 <= pos
+    #@ loop variant len(stdout) - pos
     while pos < len(stdout):
         next_start = -1
+        #@ loop invariant next_start == -1 or next_start >= pos
         for marker in markers:
             idx = stdout.find(marker, pos)
             if idx != -1 and (next_start == -1 or idx < next_start):

@@ -1,0 +1,32 @@
+File hit_probe.mlw:
+Goal pairs_get'vc.
+Prover result is: Valid (0.00s, 808 steps).
+
+File hit_probe.mlw:
+Goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 956 steps).
+
+File hit_probe.mlw:
+Goal hval_list_len'vc.
+Prover result is: Valid (0.01s, 780 steps).
+
+File hit_probe.mlw:
+Goal hval_list_nth'vc.
+Prover result is: Valid (0.01s, 798 steps).
+
+File hit_probe.mlw:
+Goal answer_hit'vc.
+Prover result is: Timeout (5.00s, 5792385 steps).
+
+File hit_probe.mlw:
+Goal second_key_hit'vc.
+Prover result is: Timeout (5.00s, 3504797 steps).
+
+File hit_probe.mlw:
+Goal top_hit'vc.
+Prover result is: Timeout (5.00s, 2719700 steps).
+
+File hit_probe.mlw:
+Goal top_twin'vc.
+Prover result is: Timeout (5.00s, 2182751 steps).
+

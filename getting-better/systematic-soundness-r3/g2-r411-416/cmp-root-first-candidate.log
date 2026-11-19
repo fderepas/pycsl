@@ -1,0 +1,6 @@
+[!]   GONE 3269_gen37_r284_percent_unsupported_format_char_false_claim.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 3269_gen37_r284_percent_unsupported_format_char_false_claim.
+[!]   GONE 3271_gen37_r284_format_spec_controls.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 3271_gen37_r284_format_spec_controls.
+[!]   MOVED 1163_route68_negative_shift.mlw — if that is an intended SOURCE repair, pass --expect-moved 1163_route68_negative_shift.
+[!]   MOVED 1164_route68_valid_pow_and_shift.mlw — if that is an intended SOURCE repair, pass --expect-moved 1164_route68_valid_pow_and_shift.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 2441 baseline / 2454 candidate .mlw; 2 MOVED (2 unexpected), 2 GONE (2 unexpected), 0 APPEARED, 15 new source file(s) ignored.

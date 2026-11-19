@@ -9,6 +9,7 @@ lock_items = threading.Lock()
 items = 0
 
 def add_item() -> int:
+    global items
     #@ acquires lock_items
     with lock_items:
         items += 1

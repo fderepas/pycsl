@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'cgd_retyped.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[module6-call]: `.append(...)` on a COMPUTED receiver (a subscript, a tuple element, a call result, or an attribute of one) may MUTATE that receiver in place, and no certified lowering models it: the call becomes an abstract operation that takes no `writes` clause (and, for a collection receiver, not even the receiver), so the mutation would be SILENTLY ABSENT from the model (route #280; measured: `d[0].append(1)` under `#@ assigns \nothing` proved `len(d[0]) == \old(len(d[0]))`). Rewrite the mutation as an explicit store into the container, or mark the enclosing function `#@ \trusted`.

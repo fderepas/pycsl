@@ -1,0 +1,17 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt28/e32_nested_def_default_self.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_s007ysqh.mlw", line 21, characters 15-27:
+Sub-goal postcondition of goal w__m'vc.
+Prover result is: Valid (0.00s, 22 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_s007ysqh.mlw", line 12, characters 18-22: unused variable self
+Warning, file "/tmp/.pycsl_s007ysqh.mlw", line 12, characters 28-29: unused variable o
+Warning, file "/tmp/.pycsl_s007ysqh.mlw", line 16, characters 12-16: unused variable self
+Warning, file "/tmp/.pycsl_s007ysqh.mlw", line 20, characters 12-16: unused variable self
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

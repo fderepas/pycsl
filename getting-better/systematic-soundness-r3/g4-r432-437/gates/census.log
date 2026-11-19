@@ -1,0 +1,42 @@
+new 37
+NEW 6500_r432_optional_str_strip.py REFUSAL [ir-semantic]: 'f' line 9: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str']
+NEW 6501_r432_optional_user_method.py REFUSAL [ir-semantic]: 'f' line 15: the attribute `c.m` is read on `c`, which may be an instance of ['C', 'None'] here
+NEW 6502_r432_optional_dict_get.py REFUSAL [ir-semantic]: 'f' line 9: the attribute `d.get` is read on `d`, which may be an instance of ['Dict', 'None'] 
+NEW 6503_r432_optional_int_bit_length.py REFUSAL [ir-semantic]: 'f' line 9: the attribute `n.bit_length` is read on `n`, which may be an instance of ['None', '
+NEW 6504_r432_optional_upper_unused.py REFUSAL [ir-semantic]: 'f' line 9: the attribute `x.upper` is read on `x`, which may be an instance of ['None', 'str']
+NEW 6505_r432_union_int_str_upper.py REFUSAL [ir-semantic]: 'f' line 9: the attribute `x.upper` is read on `x`, which may be an instance of ['int', 'str'] 
+NEW 6506_r432_pep604_str_none_lower.py REFUSAL [ir-semantic]: 'f' line 9: the attribute `x.lower` is read on `x`, which may be an instance of ['None', 'str']
+NEW 6507_r432_optional_second_param_upper.py REFUSAL [ir-semantic]: 'f' line 8: the attribute `x.upper` is read on `x`, which may be an instance of ['None', 'str']
+NEW 6508_r432_local_from_dict_get.py REFUSAL [ir-semantic]: 'f' line 9: the attribute `v.strip` is read on `v`, which may be an instance of ['None', 'str']
+NEW 6509_r432_param_default_none.py REFUSAL [ir-semantic]: 'f' line 6: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str']
+NEW 6510_r432_optional_field_chain.py REFUSAL [ir-semantic]: 'f' line 14: the attribute `n.next.v` is read on `n.next`, which may be an instance of ['Node',
+NEW 6511_r432_rebind_after_guard.py REFUSAL [ir-semantic]: 'f' line 11: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'
+NEW 6512_r432_loop_rebind_after_use.py REFUSAL [ir-semantic]: 'f' line 11: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'
+NEW 6513_r432_call_between_guard_and_use.py REFUSAL [ir-semantic]: 'f' line 19: the attribute `n.nxt.v` is read on `n.nxt`, which may be an instance of ['Node', '
+NEW 6514_r432_or_guard_does_not_narrow.py REFUSAL [ir-semantic]: 'f' line 9: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str']
+NEW 6519_r432_ctl_assert_not_none.py VERIFY-FAIL 
+NEW 6525_r433_join_tuple_with_optional.py REFUSAL [ir-semantic]: 'f' line 8: `''.join(t)` joins elements that may be ['None'], not all ['str']: `''.join` raises
+NEW 6526_r433_join_dict_values_optional.py REFUSAL [ir-semantic]: 'f' line 8: `' '.join(d.values())` joins elements that may be ['None'], not all ['str']: `' '.j
+NEW 6527_r433_join_union_str_int.py REFUSAL [ir-semantic]: 'f' line 8: `''.join(xs)` joins elements that may be ['int'], not all ['str']: `''.join` raises
+NEW 6528_r433_bytes_join_optional.py REFUSAL [ir-semantic]: 'f' line 8: `b''.join(xs)` joins elements that may be ['None'], not all ['bytearray', 'bytes']:
+NEW 6529_r433_join_any.py REFUSAL [ir-semantic]: 'f' line 8: `''.join(xs)` joins elements that may be ['#UND'], not all ['str']: `''.join` raise
+NEW 6530_r433_join_list_int.py REFUSAL [ir-semantic]: 'f' line 8: `''.join(xs)` joins elements that may be ['int'], not all ['str']: `''.join` raises
+NEW 6531_r433_join_optional_display_in_loop.py REFUSAL [ir-semantic]: 'f' line 10: `','.join([x])` joins elements that may be ['None'], not all ['str']: `','.join` r
+NEW 6532_r433_str_join_bytes.py REFUSAL [ir-semantic]: 'f' line 8: `''.join(xs)` joins elements that may be ['bytes'], not all ['str']: `''.join` rais
+NEW 6533_r433_join_list_optional_str.py REFUSAL [ir-semantic]: 'f' line 8: `','.join(xs)` joins elements that may be ['None'], not all ['str']: `','.join` rai
+NEW 6536_r437_sorted_tuple_str_optional.py REFUSAL [ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `None`: `sorted` raises TypeError unless t
+NEW 6537_r437_sorted_optional_int.py REFUSAL [ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `None`: `sorted` raises TypeError unless t
+NEW 6538_r437_sorted_tuple_int_dict.py REFUSAL [ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `Dict`: `sorted` raises TypeError unless t
+NEW 6539_r437_sorted_tuple_user_class.py REFUSAL [ir-semantic]: 'f' line 12: `sorted(xs)` compares values that may be `C`: `sorted` raises TypeError unless the
+NEW 6540_r437_sorted_tuple_int_optional.py REFUSAL [ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `None`: `sorted` raises TypeError unless t
+NEW 6541_r437_sorted_tuple_str_dict.py REFUSAL [ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `Dict`: `sorted` raises TypeError unless t
+NEW 6542_r437_sorted_optional_str.py REFUSAL [ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `None`: `sorted` raises TypeError unless t
+NEW 6543_r437_sorted_tuple_list_of_dict.py REFUSAL [ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `Dict`: `sorted` raises TypeError unless t
+NEW 6544_r437_sorted_reverse_tuple_dict.py REFUSAL [ir-semantic]: 'f' line 8: `sorted(xs, reverse=True)` compares values that may be `Dict`: `sorted` raises Type
+NEW 6545_r437_sorted_list_of_optional_lists.py REFUSAL [ir-semantic]: 'f' line 8: `sorted(xs)` compares values that may be `None`: `sorted` raises TypeError unless t
+NEW 6548_r432_isinstance_object_does_not_narrow.py REFUSAL [ir-semantic]: 'f' line 9: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str']
+NEW 6549_r432_generator_expression_runs_later.py REFUSAL [ir-semantic]: 'f' line 9: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str']
+OLD 4621_gen37_r343_self_max_noexc.py	REFUSAL	function 'p__m': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: th
+NEW 4621_gen37_r343_self_max_noexc.py	REFUSAL	[ir-semantic]: 'm' line 7: `max(self, 0)` compares values that may be `P`: `max` raises TypeError unless the compared 
+OLD 4810_gen37_r358_join_self_noexc.py	VERIFY-FAIL	
+NEW 4810_gen37_r358_join_self_noexc.py	REFUSAL	[ir-semantic]: 'm' line 7: `''.join([self])` joins elements that may be ['P'], not all ['str']: `''.join` raises Type

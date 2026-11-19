@@ -1,0 +1,21 @@
+2026-10-24T18:09:19Z start
+2026-10-24T18:15:56Z draft: 32/32 witnesses FAIL/REFUSED; controls next
+2026-10-24T18:18:43Z draft candidate root sweep chunk 0/2
+2026-10-24T18:26:21Z draft sweep: root 4 MOVED 1 GONE, pyref 0; analysing
+2026-10-24T18:27:04Z mirror sweep draft
+2026-10-24T18:35:24Z v2 committed; sweep c2
+2026-10-24T18:43:58Z mirror c3: 2 MOVED (unused union decls only), 0 GONE; root sweep c3
+2026-10-24T19:05:25Z v3 (readonly-view refusal) committed; sweep c4
+2026-10-24T19:20:14Z 50 witnesses 4480-4529 written; proving
+2026-10-24T19:48:53Z base proofs of witnesses running; docs
+2026-10-24T19:57:42Z census committed; gates
+2026-10-24T20:09:44Z v5 committed (refusal relocated); sweep c5
+2026-10-24T20:18:16Z mirror 2 movers proved whole-file; fidelity planes
+2026-10-24T20:19:10Z v6 (union arm moved, sync OK); mirror-check + sweep c6
+2026-10-24T20:27:33Z c6 sweeps identical to c5; soundness planes fast
+2026-10-24T20:38:30Z v7 committed; planes again
+2026-10-24T21:04:44Z c7 sweeps: root 9 MOVED/0 GONE, pyref 0, mirror 2 MOVED/0 GONE
+2026-10-24T21:36:30Z v8 self-operator committed; final sweep c8
+2026-10-24T21:47:23Z docs/route committed 2aa25260; waiting c8 pyref chunks
+2026-10-24T21:52:50Z v9 self-op methods-only committed; sweep c9 root+mirror
+2026-10-24T22:11:46Z final gates green (planes 61/61, sweeps c9); cleanup

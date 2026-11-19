@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/ir_resolve.py'...
+[*] Memory model: hoare
+[*] Imported class from 'frontend.Module1_Ingestor': Module1_Ingestor (record + 1 method stub(s) + 13 helper(s))
+[*] Imported class from 'frontend.Module3_Weaver': Module3_Weaver (record + 25 method stub(s) + 18 helper(s))
+[*] Imported class from 'frontend.Module5_IREmitter': Module5_IREmitter (record + 1 method stub(s) + 212 helper(s))
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

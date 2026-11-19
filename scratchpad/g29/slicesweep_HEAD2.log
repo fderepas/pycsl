@@ -1,0 +1,25 @@
+FALSE-PROOF s[:] real=5
+FALSE-PROOF s[:0 - 3] real=2
+FALSE-PROOF s[:0 - 2] real=3
+FALSE-PROOF s[:0 - 1] real=4
+FALSE-PROOF s[0 - 3:] real=3
+FALSE-PROOF s[0 - 3:0 - 2] real=1
+FALSE-PROOF s[0 - 3:0 - 1] real=2
+FALSE-PROOF s[0 - 3:3] real=1
+FALSE-PROOF s[0 - 2:] real=2
+FALSE-PROOF s[0 - 2:0 - 1] real=1
+FALSE-PROOF s[0 - 1:] real=1
+FALSE-PROOF s[0:] real=5
+FALSE-PROOF s[0:0 - 3] real=2
+FALSE-PROOF s[0:0 - 2] real=3
+FALSE-PROOF s[0:0 - 1] real=4
+FALSE-PROOF s[1:] real=4
+FALSE-PROOF s[1:0 - 3] real=1
+FALSE-PROOF s[1:0 - 2] real=2
+FALSE-PROOF s[1:0 - 1] real=3
+FALSE-PROOF s[2:] real=3
+FALSE-PROOF s[2:0 - 2] real=1
+FALSE-PROOF s[2:0 - 1] real=2
+FALSE-PROOF s[3:] real=2
+FALSE-PROOF s[3:0 - 1] real=1
+SLICE-SWEEP-DONE cells=64 false_proofs=24 complete=40 incomplete=24 refused=0

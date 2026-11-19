@@ -1,0 +1,107 @@
+# gen #22 (window #7) IN-FLIGHT WORK, saved by the supervisor 2026-09-14 21:10Z.
+# gen #22 STALLED at 20:10:16Z: its next Bash call (apply a .to_dict() fix via sed, then re-run
+# witnesses e3_dict e3_pos e3_lit e3_lit_true e3_call p_arg p_arg_true from the supervisor scratchpad
+# r111/) never executed — no process, file mtimes unchanged, no result for 57 min. Killed as HUNG.
+# This diff NEVER passed any gate. Treat it as a HINT, re-derive before trusting a line (base 21d5029e).
+# Apply with: git apply getting-better/interrupted/2026-09-14-gen22-hung-route111-112-inflight.patch  (strip these comment lines first or use: grep -v '^# ' | git apply)
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 5fe9131c..3c8544da 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -17268,6 +17268,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                             " : map 'k (option 'v)\n"
+                             "    ensures { result = Map.set m k (Some v) }")
+                         return _acc
++            if _dl_keys:
++                # (#49) ROUTE #112 — A LITERAL WITH KEYS IS NOT THE EMPTY MAP. This fallback
++                # used to return `(const (None: option int))` for EVERY non-empty literal the
++                # gated chain above could not build, and route #86's map-param coercion kept
++                # it because that spelling is on its map-prefix list: `g({1: 5})` PROVED a
++                # callee postcondition evaluated against the EMPTY map (`\result == 0`, CPython
++                # 1) while the true twin was refused. The honest value where the contents are
++                # not reconstructed here is UNKNOWN: the POLYMORPHIC UNCONSTRAINED `any_map`
++                # (routes #85/#86/#89). An EMPTY literal still falls through to the faithful
++                # `const None` below. In a LOGIC context `any_map` is a program symbol and
++                # Why3 rejects it — a refusal, never a false proof.
++                self._add_abstract_op(
++                    "val any_map (_u: unit) : map 'k (option 'v)")
++                return "(any_map ())"
+             return "(const (None: option int))"
+         if isinstance(node, ListCompExpr):
+             # pyconst_val bytes content-comprehension (self-tcb-reduction M5, B-bucket):
+diff --git a/src/pycsl/module6_whyml/statements.py b/src/pycsl/module6_whyml/statements.py
+index 853476a6..cb113352 100644
+--- a/src/pycsl/module6_whyml/statements.py
++++ b/src/pycsl/module6_whyml/statements.py
+@@ -2602,14 +2602,30 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+             if ftype in ("list", "tuple"):
+                 val = self._array_coerce_arg(val)
+             elif ftype in ("set", "dict", "frozenset"):
+-                # Map-typed field: keep map-shaped values, otherwise
+-                # use empty map. (Same pragma as `_handle_dotted_call`.)
++                # Map-typed field: keep map-shaped values; otherwise the value is
++                # NOT KNOWN here, and it is modelled as UNKNOWN, never as empty.
++                # (#49) ROUTE #111 — this used to substitute `(const (None: option int))`,
++                # the EVERYWHERE-EMPTY MAP, for any RHS whose lowered text was not
++                # alphanumeric after deleting `_` and `!`. That is a DEFINITE value, and
++                # `self.b = self.a` (ordinary Python, no adversarial naming) then PROVED
++                # `1 in self.b` false in the same method while CPython found it true; the
++                # same store routed through a local (`!t` IS alnum) was correctly refused.
++                # The substitution now (a) KEEPS an RHS that is itself a map-typed FIELD
++                # READ — a type question answered from the IR, not from the text, and a
++                # key/value mismatch is a Why3 type error (fail-closed) — and (b) otherwise
++                # uses the POLYMORPHIC UNCONSTRAINED `any_map` that routes #85/#86/#89
++                # already spiked. CENSUSED BEFORE LANDING: zero stores in the corpus, the
++                # python-reference corpus, the mirror or pycsl_lib reach this substitution
++                # (all four that reach the arm keep a `set()` / `{}` map prefix).
+                 stripped = val.strip()
+                 map_prefixes = ("(map_update_some ", "(map_update_none ",
+                                 "(const (None: option int)", "(Map.get ")
+                 if not any(stripped.startswith(p) for p in map_prefixes):
+                     if not stripped.replace("_", "").replace("!", "").isalnum():
+-                        val = "(const (None: option int))"
++                        if self._field_type_of(stmt.value) not in ("set", "dict", "frozenset"):
++                            self._add_abstract_op(
++                                "val any_map (_u: unit) : map 'k (option 'v)")
++                            val = "(any_map ())"
+             code = f"{indent}{obj}.{safe_field} <- {val}"
+         else:
+             hash_field = stable_hash(field)
+diff --git a/src/self-annotate/src/module6_whyml/statements.py b/src/self-annotate/src/module6_whyml/statements.py
+index 5c3c5559..6ffdfd69 100644
+--- a/src/self-annotate/src/module6_whyml/statements.py
++++ b/src/self-annotate/src/module6_whyml/statements.py
+@@ -1119,14 +1119,30 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+             if ftype in ("list", "tuple"):
+                 val = self._array_coerce_arg(val)
+             elif ftype in ("set", "dict", "frozenset"):
+-                # Map-typed field: keep map-shaped values, otherwise
+-                # use empty map. (Same pragma as `_handle_dotted_call`.)
++                # Map-typed field: keep map-shaped values; otherwise the value is
++                # NOT KNOWN here, and it is modelled as UNKNOWN, never as empty.
++                # (#49) ROUTE #111 — this used to substitute `(const (None: option int))`,
++                # the EVERYWHERE-EMPTY MAP, for any RHS whose lowered text was not
++                # alphanumeric after deleting `_` and `!`. That is a DEFINITE value, and
++                # `self.b = self.a` (ordinary Python, no adversarial naming) then PROVED
++                # `1 in self.b` false in the same method while CPython found it true; the
++                # same store routed through a local (`!t` IS alnum) was correctly refused.
++                # The substitution now (a) KEEPS an RHS that is itself a map-typed FIELD
++                # READ — a type question answered from the IR, not from the text, and a
++                # key/value mismatch is a Why3 type error (fail-closed) — and (b) otherwise
++                # uses the POLYMORPHIC UNCONSTRAINED `any_map` that routes #85/#86/#89
++                # already spiked. CENSUSED BEFORE LANDING: zero stores in the corpus, the
++                # python-reference corpus, the mirror or pycsl_lib reach this substitution
++                # (all four that reach the arm keep a `set()` / `{}` map prefix).
+                 stripped = val.strip()
+                 map_prefixes = ("(map_update_some ", "(map_update_none ",
+                                 "(const (None: option int)", "(Map.get ")
+                 if not any(stripped.startswith(p) for p in map_prefixes):
+                     if not stripped.replace("_", "").replace("!", "").isalnum():
+-                        val = "(const (None: option int))"
++                        if self._field_type_of(stmt.value) not in ("set", "dict", "frozenset"):
++                            self._add_abstract_op(
++                                "val any_map (_u: unit) : map 'k (option 'v)")
++                            val = "(any_map ())"
+             code = f"{indent}{obj}.{safe_field} <- {val}"
+         else:
+             hash_field = stable_hash(field)

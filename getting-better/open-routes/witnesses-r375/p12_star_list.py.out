@@ -1,0 +1,14 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt28/p12_star_list.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_aok3m9z0.mlw", line 15, characters 26-45:
+Sub-goal array creation size of goal w__m'vc.
+Prover result is: Valid (0.01s, 279 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_aok3m9z0.mlw", line 15, characters 8-10: unused variable xs
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

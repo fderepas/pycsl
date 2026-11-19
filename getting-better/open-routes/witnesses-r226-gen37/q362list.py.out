@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for 'getting-better/open-routes/witnesses-r368/q362list.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_3le8_h1q.mlw", line 9, characters 21-37:
+Sub-goal array creation size of goal d'vc.
+Prover result is: Valid (0.00s, 279 steps).
+
+File "/tmp/.pycsl_3le8_h1q.mlw", line 8, characters 16-24:
+Sub-goal type invariant of goal d'vc.
+Prover result is: Valid (0.00s, 576 steps).
+
+File "/tmp/.pycsl_3le8_h1q.mlw", line 12, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.01s, 3573 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

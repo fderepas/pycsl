@@ -1,0 +1,4 @@
+[*] no-exception-differential: 45 driver(s) — 31 that CPython RAISES on, 14 it RETURNS from (13 of those prove).
+[*]   OUT OF SCOPE — CPython aborts, but with an exception the contract does NOT claim, so the claim holds as written. `\all` expands to exactly 5 names (IndexError, KeyError, StopIteration, ValueError, ZeroDivisionError), NOT to every exception Python has. Reported, never fatal, and never silent: d39_assert_out_of_scope.py (AssertionError)
+[*]   incomplete (CPython returns, PyCSL does not prove — reported, not fatal): d20_set_remove_present.py
+[+] no-exception-differential: OK — no driver that CPython raises on satisfies its `no_exception` claim.

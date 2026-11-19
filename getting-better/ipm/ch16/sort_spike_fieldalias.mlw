@@ -1,0 +1,8 @@
+module SortSpikeFieldAlias
+  use int.Int
+  use array.Array
+  type h = { mutable flat: array int; mutable out: array int }
+  (* cross-field alias of two mutable array fields: Why3 must REJECT (this is what makes
+     the array carrier immune to the cross-method alias that breaks the map carrier) *)
+  let link (self: h) : unit = self.out <- self.flat
+end

@@ -1,0 +1,23 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt26/r07_for_over_self.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_nt1_h7p2.mlw", line 26, characters 18-30:
+Sub-goal loop invariant init of goal p__m'vc.
+Prover result is: Valid (0.00s, 284 steps).
+
+File "/tmp/.pycsl_nt1_h7p2.mlw", line 27, characters 16-36:
+Sub-goal loop variant decrease of goal p__m'vc.
+Prover result is: Valid (0.01s, 3496 steps).
+
+File "/tmp/.pycsl_nt1_h7p2.mlw", line 26, characters 18-30:
+Sub-goal loop invariant preservation of goal p__m'vc.
+Prover result is: Valid (0.00s, 3654 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_nt1_h7p2.mlw", line 28, characters 10-11: unused variable z
+Warning, file "/tmp/.pycsl_nt1_h7p2.mlw", line 20, characters 8-9: unused variable z
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

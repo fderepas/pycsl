@@ -1,0 +1,3 @@
+# OPEN ROUTE #572 — A str LITERAL ASSIGNED TO AN INT-DECLARED LOCAL BECOMES ITS stable_hash AND INT RULES APPLY (name + 1, truthiness, == x) — INTRODUCED BY RUN #5 (lvD capability C2), all three memory models
+**Status: OPEN, Severity 1 (opened in driver run #5, 2026-11-06, from red team rt54 family R54-F4 on 841d5efba = int41).** Census /home/fabrice/git/pycsl/scratchpad/rt54/census.tsv, findings FINDINGS.txt, confirmed list confirmed.txt.
+Exemplar witnesses-r572/fc1525_ih_param_int.py. Driver repro on run5-int44 8358d5d31 (2026-11-06T13:2xZ, scratchpad/run5/rt54repro/out.txt): Verification SUCCESS while CPython breaks the claim (VIOLATION TypeError can only concatenate str (not "int") to str).

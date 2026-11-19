@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5685_gen37_r400_ctl_visit_method_called_directly.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_70ccoibh.mlw", line 15, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 19 steps).
+
+File "/tmp/.pycsl_70ccoibh.mlw", line 22, characters 15-44:
+Sub-goal postcondition of goal v__visit_Constant'vc.
+Prover result is: Valid (0.00s, 23 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_70ccoibh.mlw", line 10, characters 36-38: unused variable x0
+Warning, file "/tmp/.pycsl_70ccoibh.mlw", line 21, characters 35-39: unused variable node
+
+[+] Verification SUCCESS! All contracts formally proven.

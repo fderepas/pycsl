@@ -1,0 +1,80 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/struct_format.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 28, characters 15-19:
+Sub-goal postcondition of goal _short_type'vc.
+Prover result is: Valid (0.00s, 804 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 28, characters 15-19:
+Sub-goal postcondition of goal _short_type'vc.
+Prover result is: Valid (0.00s, 813 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 28, characters 15-19:
+Sub-goal postcondition of goal _short_type'vc.
+Prover result is: Valid (0.00s, 817 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 52, characters 15-19:
+Sub-goal postcondition of goal structformat__arity'vc.
+Prover result is: Valid (0.00s, 799 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 53, characters 15-28:
+Sub-goal postcondition of goal structformat__arity'vc.
+Prover result is: Valid (0.01s, 10190 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 59, characters 15-19:
+Sub-goal postcondition of goal structformat__slot_id'vc.
+Prover result is: Valid (0.00s, 1030 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 68, characters 25-38:
+Sub-goal index in array bounds of goal structformat__slot_id'vc.
+Prover result is: Valid (0.01s, 10279 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 71, characters 6-10:
+Sub-goal termination of goal structformat__slot_id'vc.
+Prover result is: Timeout (30.00s, 86479504 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 72, characters 20-45:
+Sub-goal index in array bounds of goal structformat__slot_id'vc.
+Prover result is: Timeout (30.00s, 31654019 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 76, characters 46-69:
+Sub-goal precondition of goal structformat__slot_id'vc.
+Prover result is: Valid (0.00s, 1184 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 83, characters 42-65:
+Sub-goal precondition of goal structformat__slot_id'vc.
+Prover result is: Valid (0.00s, 1081 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 59, characters 15-19:
+Sub-goal postcondition of goal structformat__slot_id'vc.
+Prover result is: Valid (0.00s, 2018 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 22, characters 20-23: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 22, characters 34-36: unused variable xs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 28, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 42, characters 16-19: unused variable fmt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 44, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 46, characters 20-23: unused variable fmt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 48, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 62, characters 8-15: unused variable out_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 59, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 71, character 6 to line 82, character 10: termination of this expression cannot be proved, but there is no `diverges' clause in the outer specification
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 22, characters 20-23: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 22, characters 34-36: unused variable xs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 28, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 42, characters 16-19: unused variable fmt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 44, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 46, characters 20-23: unused variable fmt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 48, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 62, characters 8-15: unused variable out_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 59, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_efs688b_.mlw", line 71, character 6 to line 82, character 10: termination of this expression cannot be proved, but there is no `diverges' clause in the outer specification
+
+[-] 2 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 86479504 steps).
+    Prover result is: Timeout (30.00s, 31654019 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

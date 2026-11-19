@@ -1,0 +1,27 @@
+=== FINAL BATTERY Fri Sep  4 07:38:22 UTC 2026 HEAD=2fd48384
+count-trusted-directives           rc=0
+check-mirror-loop-annotations      rc=0
+check-trusted-raises-honesty       rc=0
+check-dropped-mutation             rc=0
+check-mirror-coverage              rc=0
+check-mirror-field-parity          rc=0
+check-mirror-signature-drift       rc=0
+check-trusted-frame-honesty        rc=0
+check-untrusted-emitted            rc=0
+check-yield-erasure                rc=0
+check-shadowed-selfcalls           rc=0
+check-ir-field-coverage            rc=0
+check-avatar-frame-parity          rc=2
+check-computed-rhs-erasure         rc=2
+check-clause-survival              rc=2
+check-getattr-erasure              rc=2
+check-bespoke-model-drift          rc=2
+check-swallowed-exceptions         rc=2
+check-emitted-vacuity              rc=2
+check-avatar-frame-parity.py       rc=0
+check-computed-rhs-erasure.py      rc=0
+check-clause-survival.py           rc=0
+check-getattr-erasure.py           rc=0
+check-bespoke-model-drift.py       rc=0
+check-swallowed-exceptions.py      rc=0
+check-emitted-vacuity.py           rc=0

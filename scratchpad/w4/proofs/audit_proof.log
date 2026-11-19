@@ -1,0 +1,339 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/audit_proof.py'...
+[*] Memory model: hoare
+[*] Imported from 'audit_proof_reverify': ['verify_lean_file', 'verify_rocq_file'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_iix4ikv8.mlw", line 26, characters 7-14:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 26, characters 34-41:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 26, characters 51-58:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 25, characters 14-79:
+Sub-goal postcondition of goal pycsl_div'vc.
+Prover result is: Valid (0.03s, 19 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 31, characters 7-14:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 31, characters 34-41:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 31, characters 51-58:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 30, characters 14-79:
+Sub-goal postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.01s, 10848 steps).
+
+File "/home/fabrice/.opam/framac-coq8/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.00s, 2602 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 81, characters 18-27:
+Sub-goal loop invariant init of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.00s, 3777 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 82, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 41941 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 81, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 41719 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 82, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 47196 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 81, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 46973 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 82, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 49913 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 81, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 49690 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 82, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 41923 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 81, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 42909 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 100, characters 30-39:
+Sub-goal loop invariant init of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.00s, 3599 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 101, characters 28-37:
+Sub-goal loop variant decrease of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 46994 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 100, characters 30-39:
+Sub-goal loop invariant preservation of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 46786 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 82, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 49235 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 81, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.00s, 3715 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 82, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 51719 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 81, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 53207 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 70, characters 15-19:
+Sub-goal postcondition of goal _strip_lean_comments'vc.
+Prover result is: Valid (0.01s, 2661 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 132, characters 18-27:
+Sub-goal loop invariant init of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.00s, 3777 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 133, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.01s, 41937 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 132, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.01s, 41724 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 133, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.01s, 47204 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 132, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.01s, 46977 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 133, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.01s, 49969 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 132, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.01s, 49752 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 133, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.01s, 49677 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 132, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.01s, 51118 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 133, characters 16-25:
+Sub-goal loop variant decrease of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.01s, 41016 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 132, characters 18-27:
+Sub-goal loop invariant preservation of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.01s, 41986 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 121, characters 15-19:
+Sub-goal postcondition of goal _strip_rocq_comments'vc.
+Prover result is: Valid (0.00s, 2661 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 220, characters 15-19:
+Sub-goal postcondition of goal _default_lean_dir'vc.
+Prover result is: Valid (0.00s, 2635 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 226, characters 15-19:
+Sub-goal postcondition of goal _default_rocq_dir'vc.
+Prover result is: Valid (0.00s, 2635 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 248, characters 15-19:
+Sub-goal postcondition of goal auditreport__exit_code'vc.
+Prover result is: Valid (0.00s, 2602 steps).
+
+File "/tmp/.pycsl_iix4ikv8.mlw", line 254, characters 15-19:
+Sub-goal postcondition of goal auditreport__extend'vc.
+Prover result is: Valid (0.00s, 2602 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 60, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 60, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 72, characters 8-15: unused variable out_len
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 70, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 115, characters 24-28: unused variable path
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 117, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 123, characters 8-15: unused variable out_len
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 121, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 158, characters 24-28: unused variable path
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 160, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 162, characters 25-35: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 162, characters 46-52: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 164, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 166, characters 33-43: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 166, characters 54-60: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 168, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 170, characters 20-24: unused variable path
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 172, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 174, characters 18-28: unused variable proof_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 174, characters 39-48: unused variable qualnames
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 174, characters 65-71: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 174, characters 82-96: unused variable prover_version
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 176, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 178, characters 19-31: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 180, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 182, characters 19-31: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 182, characters 42-48: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 182, characters 59-62: unused variable key
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 184, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 186, characters 20-32: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 186, characters 43-49: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 186, characters 60-63: unused variable key
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 186, characters 74-81: unused variable payload
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 192, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 194, characters 25-31: unused variable report
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 196, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 198, characters 24-34: unused variable proof_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 198, characters 45-54: unused variable qualnames
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 198, characters 71-83: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 198, characters 94-103: unused variable use_cache
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 200, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 204, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 206, characters 37-43: unused variable stdout
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 206, characters 54-63: unused variable qualnames
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 208, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 210, characters 24-34: unused variable proof_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 210, characters 45-54: unused variable qualnames
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 210, characters 71-83: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 210, characters 94-103: unused variable use_cache
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 212, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 25-32: unused variable py_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 43-53: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 64-70: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 81-91: unused variable directives
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 112-120: unused variable reverify
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 128-140: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 216, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 220, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 226, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 230, characters 27-34: unused variable py_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 232, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 234, characters 18-25: unused variable py_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 234, characters 36-46: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 234, characters 57-65: unused variable reverify
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 234, characters 73-85: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 236, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 238, characters 18-25: unused variable py_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 238, characters 36-46: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 238, characters 57-65: unused variable reverify
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 238, characters 73-85: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 240, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 242, characters 18-25: unused variable py_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 242, characters 36-44: unused variable rocq_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 242, characters 55-63: unused variable lean_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 242, characters 74-82: unused variable reverify
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 242, characters 90-102: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 244, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 248, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 252, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 260, characters 20-26: unused variable report
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 260, characters 42-48: unused variable header
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 60, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 60, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 72, characters 8-15: unused variable out_len
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 70, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 115, characters 24-28: unused variable path
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 117, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 123, characters 8-15: unused variable out_len
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 121, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 158, characters 24-28: unused variable path
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 160, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 162, characters 25-35: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 162, characters 46-52: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 164, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 166, characters 33-43: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 166, characters 54-60: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 168, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 170, characters 20-24: unused variable path
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 172, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 174, characters 18-28: unused variable proof_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 174, characters 39-48: unused variable qualnames
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 174, characters 65-71: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 174, characters 82-96: unused variable prover_version
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 176, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 178, characters 19-31: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 180, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 182, characters 19-31: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 182, characters 42-48: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 182, characters 59-62: unused variable key
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 184, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 186, characters 20-32: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 186, characters 43-49: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 186, characters 60-63: unused variable key
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 186, characters 74-81: unused variable payload
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 192, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 194, characters 25-31: unused variable report
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 196, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 198, characters 24-34: unused variable proof_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 198, characters 45-54: unused variable qualnames
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 198, characters 71-83: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 198, characters 94-103: unused variable use_cache
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 200, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 204, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 206, characters 37-43: unused variable stdout
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 206, characters 54-63: unused variable qualnames
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 208, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 210, characters 24-34: unused variable proof_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 210, characters 45-54: unused variable qualnames
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 210, characters 71-83: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 210, characters 94-103: unused variable use_cache
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 212, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 25-32: unused variable py_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 43-53: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 64-70: unused variable prover
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 81-91: unused variable directives
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 112-120: unused variable reverify
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 214, characters 128-140: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 216, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 220, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 226, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 230, characters 27-34: unused variable py_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 232, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 234, characters 18-25: unused variable py_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 234, characters 36-46: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 234, characters 57-65: unused variable reverify
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 234, characters 73-85: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 236, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 238, characters 18-25: unused variable py_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 238, characters 36-46: unused variable proofs_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 238, characters 57-65: unused variable reverify
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 238, characters 73-85: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 240, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 242, characters 18-25: unused variable py_file
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 242, characters 36-44: unused variable rocq_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 242, characters 55-63: unused variable lean_dir
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 242, characters 74-82: unused variable reverify
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 242, characters 90-102: unused variable project_root
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 244, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 248, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 252, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 260, characters 20-26: unused variable report
+Warning, file "/tmp/.pycsl_iix4ikv8.mlw", line 260, characters 42-48: unused variable header
+
+[+] Verification SUCCESS! All contracts formally proven.

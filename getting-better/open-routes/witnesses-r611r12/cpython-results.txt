@@ -1,0 +1,132 @@
+A0_hash_nocache                    [default]                        result True OK
+A0_hash_nocache                    [-O]                             result True OK
+A0_hash_nocache                    [-OO]                            result True OK
+A0_hash_nocache                    [-OOO]                           result True OK
+A0_hash_nocache                    [--check-hash-based-pycs never]  result True OK
+A0_hash_nocache                    [--check-hash-based-pycs always] result True OK
+A1_hash_forged_unchecked           [default]                        result False VIOLATION ensures
+A1_hash_forged_unchecked           [-O]                             result True OK
+A1_hash_forged_unchecked           [-OO]                            result True OK
+A1_hash_forged_unchecked           [-OOO]                           result True OK
+A1_hash_forged_unchecked           [--check-hash-based-pycs never]  result False VIOLATION ensures
+A1_hash_forged_unchecked           [--check-hash-based-pycs always] result False VIOLATION ensures
+A2_hash_forged_timestamp           [default]                        result False VIOLATION ensures
+A2_hash_forged_timestamp           [-O]                             result True OK
+A2_hash_forged_timestamp           [-OO]                            result True OK
+A2_hash_forged_timestamp           [-OOO]                           result True OK
+A2_hash_forged_timestamp           [--check-hash-based-pycs never]  result False VIOLATION ensures
+A2_hash_forged_timestamp           [--check-hash-based-pycs always] result False VIOLATION ensures
+A3_hash_forged_checked_badhash     [default]                        result True OK
+A3_hash_forged_checked_badhash     [-O]                             result True OK
+A3_hash_forged_checked_badhash     [-OO]                            result True OK
+A3_hash_forged_checked_badhash     [-OOO]                           result True OK
+A3_hash_forged_checked_badhash     [--check-hash-based-pycs never]  result False VIOLATION ensures
+A3_hash_forged_checked_badhash     [--check-hash-based-pycs always] result True OK
+A4_hash_forged_stale_ts            [default]                        result True OK
+A4_hash_forged_stale_ts            [-O]                             result True OK
+A4_hash_forged_stale_ts            [-OO]                            result True OK
+A4_hash_forged_stale_ts            [-OOO]                           result True OK
+A4_hash_forged_stale_ts            [--check-hash-based-pycs never]  result True OK
+A4_hash_forged_stale_ts            [--check-hash-based-pycs always] result True OK
+A5_hash_genuine_ts                 [default]                        result True OK
+A5_hash_genuine_ts                 [-O]                             result True OK
+A5_hash_genuine_ts                 [-OO]                            result True OK
+A5_hash_genuine_ts                 [-OOO]                           result True OK
+A5_hash_genuine_ts                 [--check-hash-based-pycs never]  result True OK
+A5_hash_genuine_ts                 [--check-hash-based-pycs always] result True OK
+A5o_hash_genuine_opt12             [default]                        result True OK
+A5o_hash_genuine_opt12             [-O]                             result True OK
+A5o_hash_genuine_opt12             [-OO]                            result True OK
+A5o_hash_genuine_opt12             [-OOO]                           result True OK
+A5o_hash_genuine_opt12             [--check-hash-based-pycs never]  result True OK
+A5o_hash_genuine_opt12             [--check-hash-based-pycs always] result True OK
+A5r_hash_real_cpython_cache        [default]                        result True OK
+A5r_hash_real_cpython_cache        [-O]                             result True OK
+A5r_hash_real_cpython_cache        [-OO]                            result True OK
+A5r_hash_real_cpython_cache        [-OOO]                           result True OK
+A5r_hash_real_cpython_cache        [--check-hash-based-pycs never]  result True OK
+A5r_hash_real_cpython_cache        [--check-hash-based-pycs always] result True OK
+A5u_hash_genuine_unchecked         [default]                        result True OK
+A5u_hash_genuine_unchecked         [-O]                             result True OK
+A5u_hash_genuine_unchecked         [-OO]                            result True OK
+A5u_hash_genuine_unchecked         [-OOO]                           result True OK
+A5u_hash_genuine_unchecked         [--check-hash-based-pycs never]  result True OK
+A5u_hash_genuine_unchecked         [--check-hash-based-pycs always] result True OK
+A6_hash_forged_opt1                [default]                        result True OK
+A6_hash_forged_opt1                [-O]                             result False VIOLATION ensures
+A6_hash_forged_opt1                [-OO]                            result True OK
+A6_hash_forged_opt1                [-OOO]                           result True OK
+A6_hash_forged_opt1                [--check-hash-based-pycs never]  result True OK
+A6_hash_forged_opt1                [--check-hash-based-pycs always] result True OK
+A7_hash_forged_opt2                [default]                        result True OK
+A7_hash_forged_opt2                [-O]                             result True OK
+A7_hash_forged_opt2                [-OO]                            result False VIOLATION ensures
+A7_hash_forged_opt2                [-OOO]                           result True OK
+A7_hash_forged_opt2                [--check-hash-based-pycs never]  result True OK
+A7_hash_forged_opt2                [--check-hash-based-pycs always] result True OK
+A8_hash_otherver                   [default]                        result True OK
+A8_hash_otherver                   [-O]                             result True OK
+A8_hash_otherver                   [-OO]                            result True OK
+A8_hash_otherver                   [-OOO]                           result True OK
+A8_hash_otherver                   [--check-hash-based-pycs never]  result True OK
+A8_hash_otherver                   [--check-hash-based-pycs always] result True OK
+A9_hash_forged_opt3                [default]                        result True OK
+A9_hash_forged_opt3                [-O]                             result True OK
+A9_hash_forged_opt3                [-OO]                            result True OK
+A9_hash_forged_opt3                [-OOO]                           result False VIOLATION ensures
+A9_hash_forged_opt3                [--check-hash-based-pycs never]  result True OK
+A9_hash_forged_opt3                [--check-hash-based-pycs always] result True OK
+J0_json_nocache                    [default]                        result True OK
+J0_json_nocache                    [-O]                             result True OK
+J0_json_nocache                    [-OO]                            result True OK
+J0_json_nocache                    [-OOO]                           result True OK
+J0_json_nocache                    [--check-hash-based-pycs never]  result True OK
+J0_json_nocache                    [--check-hash-based-pycs always] result True OK
+J1_json_forged_init_unchecked      [default]                        result False VIOLATION ensures
+J1_json_forged_init_unchecked      [-O]                             result True OK
+J1_json_forged_init_unchecked      [-OO]                            result True OK
+J1_json_forged_init_unchecked      [-OOO]                           result True OK
+J1_json_forged_init_unchecked      [--check-hash-based-pycs never]  result False VIOLATION ensures
+J1_json_forged_init_unchecked      [--check-hash-based-pycs always] result False VIOLATION ensures
+J2_json_genuine_copied             [default]                        result True OK
+J2_json_genuine_copied             [-O]                             result True OK
+J2_json_genuine_copied             [-OO]                            result True OK
+J2_json_genuine_copied             [-OOO]                           result True OK
+J2_json_genuine_copied             [--check-hash-based-pycs never]  result True OK
+J2_json_genuine_copied             [--check-hash-based-pycs always] result True OK
+N0_mylib_nocache                   [default]                        result 2 OK
+N0_mylib_nocache                   [-O]                             result 2 OK
+N0_mylib_nocache                   [-OO]                            result 2 OK
+N0_mylib_nocache                   [-OOO]                           result 2 OK
+N0_mylib_nocache                   [--check-hash-based-pycs never]  result 2 OK
+N0_mylib_nocache                   [--check-hash-based-pycs always] result 2 OK
+N1_mylib_forged_unchecked          [default]                        result 3 VIOLATION ensures
+N1_mylib_forged_unchecked          [-O]                             result 2 OK
+N1_mylib_forged_unchecked          [-OO]                            result 2 OK
+N1_mylib_forged_unchecked          [-OOO]                           result 2 OK
+N1_mylib_forged_unchecked          [--check-hash-based-pycs never]  result 3 VIOLATION ensures
+N1_mylib_forged_unchecked          [--check-hash-based-pycs always] result 3 VIOLATION ensures
+N2_mylib_genuine                   [default]                        result 2 OK
+N2_mylib_genuine                   [-O]                             result 2 OK
+N2_mylib_genuine                   [-OO]                            result 2 OK
+N2_mylib_genuine                   [-OOO]                           result 2 OK
+N2_mylib_genuine                   [--check-hash-based-pycs never]  result 2 OK
+N2_mylib_genuine                   [--check-hash-based-pycs always] result 2 OK
+T0_toml_nocache                    [default]                        result 1 1 OK
+T0_toml_nocache                    [-O]                             result 1 1 OK
+T0_toml_nocache                    [-OO]                            result 1 1 OK
+T0_toml_nocache                    [-OOO]                           result 1 1 OK
+T0_toml_nocache                    [--check-hash-based-pycs never]  result 1 1 OK
+T0_toml_nocache                    [--check-hash-based-pycs always] result 1 1 OK
+T1_toml_forged_submodule_unchecked [default]                        result 1 2 VIOLATION (tomllib runs forged bytecode)
+T1_toml_forged_submodule_unchecked [-O]                             result 1 1 OK
+T1_toml_forged_submodule_unchecked [-OO]                            result 1 1 OK
+T1_toml_forged_submodule_unchecked [-OOO]                           result 1 1 OK
+T1_toml_forged_submodule_unchecked [--check-hash-based-pycs never]  result 1 2 VIOLATION (tomllib runs forged bytecode)
+T1_toml_forged_submodule_unchecked [--check-hash-based-pycs always] result 1 2 VIOLATION (tomllib runs forged bytecode)
+T2_toml_genuine_unchecked          [default]                        result 1 1 OK
+T2_toml_genuine_unchecked          [-O]                             result 1 1 OK
+T2_toml_genuine_unchecked          [-OO]                            result 1 1 OK
+T2_toml_genuine_unchecked          [-OOO]                           result 1 1 OK
+T2_toml_genuine_unchecked          [--check-hash-based-pycs never]  result 1 1 OK
+T2_toml_genuine_unchecked          [--check-hash-based-pycs always] result 1 1 OK

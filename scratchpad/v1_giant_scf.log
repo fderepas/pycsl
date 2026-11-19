@@ -1,0 +1,59 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/stmt_control_flow.py'...
+[*] Memory model: hoare
+[*] Imported class from 'ir_schema': ReturnStmt (record + 0 method stub(s) + 18 helper(s))
+[*] Imported class from 'ir_schema': IfStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': WhileStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ForStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': TryStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': MatchStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident', 'safe_exc_name'] (trusted stubs)
+[*] Imported from 'exception_model': ['handler_catches'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 637, characters 43-45: unused variable x0
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 684, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 684, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 691, characters 27-30: unused variable sep
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 691, characters 41-42: unused variable i
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 693, characters 20-21: unused variable s
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 693, characters 32-35: unused variable sep
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 744, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 744, characters 79-85: unused variable py_val
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 744, characters 96-102: unused variable val_ir
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 745, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 770, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 779, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 799, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 793, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 786, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 803, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 805, characters 47-51: unused variable self
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 805, characters 76-81: unused variable stmts
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 807, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 809, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 809, characters 77-84: unused variable iter_ir
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 809, characters 96-106: unused variable local_refs
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 809, characters 131-134: unused variable idx
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 811, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 813, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 813, characters 73-79: unused variable py_val
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 814, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 816, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 816, characters 73-77: unused variable expr
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 816, characters 89-99: unused variable local_refs
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 817, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 894, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 873, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 902, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 923, characters 8-15: unused variable iter_ir
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 912, characters 8-23: unused variable while_parts_len
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 908, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 1040, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 1157, characters 14-21: unused variable new_pat
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 1150, characters 16-29: unused variable arm_ctor_info
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 1109, characters 8-16: unused variable arms_len
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 1108, characters 8-17: unused variable lines_len
+Warning, file "/tmp/.pycsl_3qt4wzub.mlw", line 1104, characters 15-19: unused variable result
+File "/tmp/.pycsl_3qt4wzub.mlw", line 1339, characters 64-70:
+This expression has type array.Array.array PyCSL_Program.emit_ir @rho,
+but is expected to have type int

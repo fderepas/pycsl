@@ -1,0 +1,20 @@
+gate(#44): remove the ir-field dispatcher-block fallback — all ten of its hits were false positives, three refuted by end-to-end probes
+
+It took the blind spot 25 -> 6 and produced ten new hits.
+`SumExpr.base/lo/hi` are read in `expr_ghost_spec_ops`,
+`RaiseStmt.exc_value` in `_STMT_IR_CTORS`, `ForallItemsExpr.key/val/map`
+through `_csl_forall_items`; and `SliceExpr.lower`, `SetCompExpr.elt` and
+`DictCompExpr.generators` were each probed END-TO-END with a contract false
+of the program — a lower-bounded slice, a set comprehension with a
+non-identity element, a dict comprehension over a generator — and all three
+correctly FAIL.
+
+The cause is structural: a `t == "<Kind>"` region is usually a GUARD inside
+some other recognizer, not the lowering.
+
+A baseline of ten false positives trains the reader to ignore the gate,
+which is worse than the blind spot it closes. Removed, and recorded in the
+script so nobody rebuilds it. The 25 unmatched classes are printed on every
+run instead, as an honest limit.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

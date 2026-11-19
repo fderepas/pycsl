@@ -1,0 +1,16 @@
+s2/c_01_get_hash.py	f	5	UND	0	0	m.get('a')	{m.get('a')}
+s2/c_01_get_hash.py	g	10	UND	0	0	f2.get('name')	seen.add(f2.get('name'))
+s2/c_02_q4.py	g	5	UND	0	0	m.get('a')	{m.get('a')}
+s2/c_02_q4.py	h	11	UND	0	0	v	{v}
+s2/c_03_q6.py	names	7	UND	0	0	f.get('name')	seen.add(f.get('name'))
+s2/c_04_unannotated_callee.py	f	10	UND	0	0	mk()	{mk()}
+s2/c_05_values_loop.py	f	7	UND	0	0	v	v in seen
+s2/c_06_dict_key_get.py	f	6	UND	0	0	m.get('a')	{m.get('a'): 1}
+s2/w02_q4.py	g	6	UND	1	0	m.get('a')	{m.get('a')}
+s2/w02_q4.py	h	13	UND	1	0	v	{v}
+s2/w01_get_hash.py	f	6	UND	1	0	m.get('a')	{m.get('a')}
+s2/w01_get_hash.py	g	12	UND	1	0	f2.get('name')	seen.add(f2.get('name'))
+s2/w03_q6.py	names	8	UND	1	0	f.get('name')	seen.add(f.get('name'))
+s2/w05_values_loop.py	f	8	UND	1	0	v	v in seen
+s2/w04_unannotated_callee.py	f	11	UND	1	0	mk()	{mk()}
+s2/w06_dict_key_get.py	f	7	UND	1	0	m.get('a')	{m.get('a'): 1}

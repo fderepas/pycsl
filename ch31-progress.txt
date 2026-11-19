@@ -1,0 +1,30 @@
+2026-10-22T05:34:02Z start
+2026-10-22T05:45:03Z probes of builtins at HEAD running (heavy queue)
+2026-10-22T05:46:43Z found fstring hint_of false-proof candidate + 'in rec[k]' hval_str_mem candidate; awaiting heavy queue
+2026-10-22T05:47:50Z spike_ch31.mlw typechecks; proving (z3)
+2026-10-22T05:59:56Z spike: bool/len/fmt/set/list/sorted PASS, keys PARTIAL; now confirming fs_bug3 + sb_in false proofs
+2026-10-22T06:08:15Z build edits: bool/len/fstring/in-arm in expressions.py; testing probes
+2026-10-22T06:08:47Z probes type-check with build; proving
+2026-10-22T06:17:20Z witnesses 3530-3539 written (5 PASS proved, 5 twins fail by proof); setting up base worktree
+2026-10-22T06:22:23Z base corpus sweep done (1935/2654, pyref 2186); candidate sweep
+2026-10-22T06:32:11Z corpus 0 MOVED/GONE/APPEARED (10 new), pyref 2186/2186 0 MOVED; mirror sweeps
+2026-10-22T06:42:18Z mirror sweeps running; fidelity gates
+2026-10-22T06:42:52Z ported _fstring_str_part to mirror (verified method); sync rc0; waiting for mirror sweeps
+2026-10-22T06:44:12Z re-measure: epa bool resolved -> next StrSet truthiness; bce bool resolved -> self-map key/value typing + set/list
+2026-10-22T06:44:28Z waiting candidate mirror sweep (heavy queue)
+2026-10-22T06:44:38Z still waiting on heavy queue for candidate mirror sweep
+2026-10-22T06:53:20Z mirror sweep: 2 MOVED (expressions, functions) = intended; L3-tc + --fun proofs
+2026-10-22T07:04:06Z committed 73b71ed9; base-fail checks of witnesses
+2026-10-22T07:14:37Z chain-plan section drafted; waiting --fun proofs/base checks
+2026-10-22T07:21:49Z --fun expressions movers PROVED rc0; functions movers next
+2026-10-22T07:41:07Z waiting fun_fn + base checks
+2026-10-22T07:50:24Z waiting fun_fn + base checks
+2026-10-22T08:00:02Z waiting fun_fn + base checks
+2026-10-22T08:05:49Z waiting fun_fn + base checks
+2026-10-22T08:05:55Z --fun functions movers PROVED rc0; starting fast planes
+2026-10-22T08:18:30Z waiting planes/base checks
+2026-10-22T08:19:17Z planes 61/61 rc0; waiting 3538 base
+2026-10-22T08:19:38Z w_in2 (hval-local subscript in) cand+base proofs
+2026-10-22T08:39:13Z waiting w_in2 proofs
+2026-10-22T08:48:48Z waiting w_in2 base proofs
+2026-10-22T08:50:24Z chain plan updated; committing

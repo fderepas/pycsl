@@ -1,0 +1,20 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt29/h60_list_local_display.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_fhtpmn1g.mlw", line 22, characters 26-42:
+Sub-goal array creation size of goal g'vc.
+Prover result is: Valid (0.01s, 279 steps).
+
+File "/tmp/.pycsl_fhtpmn1g.mlw", line 20, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 576 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_fhtpmn1g.mlw", line 23, characters 8-9: unused variable s
+Warning, file "/tmp/.pycsl_fhtpmn1g.mlw", line 22, characters 8-10: unused variable ys
+Warning, file "/tmp/.pycsl_fhtpmn1g.mlw", line 19, characters 9-11: unused variable xs
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

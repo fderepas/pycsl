@@ -1,0 +1,15 @@
+(run6 lvM) Goal-level proofs of the three converted bodies out of the whole-file emissions
+(`why3 prove -T PyCSL_Program -G <fn>'vc`, z3 / alt-ergo, 30 s), real vs MUTANT where the
+emitted `raise (E <payload>)` is replaced by `if (any bool) then raise (E <payload>) else ()`
+(a normal exit: the `-> NoReturn` `ensures { false }` must fail). real = 1/1 Valid, mutant =
+0/1 (Unknown). Python-level mutants (`if t.type == "OP": raise ...`, `return`) are REFUSED by
+the pipeline before any proof (NR2a "NoReturn not justified" / definite assignment in callers
+that rely on the divergence), so the WhyML-level mutant is the one that reaches a VC.
+
+Re-run on the FINAL emissions (after f5a085d29; raw rc lines in mutation-rc.txt): real 1/1 Valid
+(z3 and alt-ergo) for _contractparser___err, _parser__error, _parser__unsupported; mutant 0/1.
+
+MODEL-DEAD BRANCH PROBE (driver acceptance check): the three bodies are straight-line
+(`t = self.cur()` then the raise) -- no branch, no isinstance / compare the model could decide.
+Probe: `assert { false }` inserted before the raise of each emitted body -> 0/1 (Unknown, z3 and
+alt-ergo), i.e. the one path is LIVE in the model; no conversion relies on a model-dead branch.

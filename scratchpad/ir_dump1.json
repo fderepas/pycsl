@@ -1,0 +1,444 @@
+======================================================================
+_check_concurrency params= ['ir'] ret= None
+[
+ {
+  "stmt": "Assign",
+  "target": "shared_list",
+  "value": {
+   "type": "BinOp",
+   "op": "or",
+   "left": {
+    "type": "Call",
+    "func": "ir.get",
+    "args": [
+     {
+      "type": "String",
+      "value": "shared_vars"
+     }
+    ]
+   },
+   "right": {
+    "type": "ArrayLit",
+    "elts": []
+   }
+  }
+ },
+ {
+  "stmt": "If",
+  "test": {
+   "type": "UnaryOp",
+   "op": "not",
+   "expr": {
+    "type": "Var",
+    "name": "shared_list"
+   }
+  },
+  "body": [
+   {
+    "stmt": "Return",
+    "value": null
+   }
+  ],
+  "orelse": []
+ },
+ {
+  "stmt": "Assign",
+  "target": "shared",
+  "value": {
+   "type": "DictComp",
+   "key": {
+    "type": "Call",
+    "func": "sv.get",
+    "args": [
+     {
+      "type": "String",
+      "value": "name"
+     }
+    ]
+   },
+   "value": {
+    "type": "Call",
+    "func": "sv.get",
+    "args": [
+     {
+      "type": "String",
+      "value": "mutex"
+     }
+    ]
+   },
+   "generators": [
+    {
+     "target": "sv",
+     "iter": {
+      "type": "Var",
+      "name": "shared_list"
+     },
+     "ifs": []
+    }
+   ]
+  }
+ },
+ {
+  "stmt": "Assign",
+  "target": "lock_order",
+  "value": {
+   "type": "Call",
+   "func": "ir.get",
+   "args": [
+    {
+     "type": "String",
+     "value": "lock_order"
+    }
+   ]
+  }
+ },
+ {
+  "stmt": "For",
+  "line": 1288,
+  "target": "func",
+  "iter": {
+   "type": "Call",
+   "func": "ir.get",
+   "args": [
+    {
+     "type": "String",
+     "value": "functions"
+    },
+    {
+     "type": "ArrayLit",
+     "elts": []
+    }
+   ]
+  },
+  "invariants": [],
+  "variants": [],
+  "body": [
+   {
+    "stmt": "Assign",
+    "target": "fname",
+    "value": {
+     "type": "Call",
+     "func": "func.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "name"
+      },
+      {
+       "type": "String",
+       "value": "<anonymous>"
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "Expr",
+    "value": {
+     "type": "Call",
+     "func": "_conc_stmts",
+     "args": [
+      {
+       "type": "BinOp",
+       "op": "or",
+       "left": {
+        "type": "Call",
+        "func": "func.get",
+        "args": [
+         {
+          "type": "String",
+          "value": "body"
+         },
+         {
+          "type": "ArrayLit",
+          "elts": []
+         }
+        ]
+       },
+       "right": {
+        "type": "ArrayLit",
+        "elts": []
+       }
+      },
+      {
+       "type": "Call",
+       "func": "set",
+       "args": []
+      },
+      {
+       "type": "Var",
+       "name": "fname"
+      },
+      {
+       "type": "Var",
+       "name": "shared"
+      },
+      {
+       "type": "Var",
+       "name": "lock_order"
+      }
+     ]
+    }
+   }
+  ],
+  "allow_iteration_mutation": false,
+  "lineno": 1288
+ }
+]
+======================================================================
+_conc_check_reads params= ['node', 'held', 'fname', 'shared'] ret= None
+[
+ {
+  "stmt": "If",
+  "test": {
+   "type": "Call",
+   "func": "isinstance",
+   "args": [
+    {
+     "type": "Var",
+     "name": "node"
+    },
+    {
+     "type": "Var",
+     "name": "dict"
+    }
+   ]
+  },
+  "body": [
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "==",
+     "left": {
+      "type": "Call",
+      "func": "node.get",
+      "args": [
+       {
+        "type": "String",
+        "value": "type"
+       }
+      ]
+     },
+     "right": {
+      "type": "String",
+      "value": "Var"
+     }
+    },
+    "body": [
+     {
+      "stmt": "Expr",
+      "value": {
+       "type": "Call",
+       "func": "_conc_check_shared_access",
+       "args": [
+        {
+         "type": "Call",
+         "func": "node.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "name"
+          }
+         ]
+        },
+        {
+         "type": "Var",
+         "name": "held"
+        },
+        {
+         "type": "Var",
+         "name": "fname"
+        },
+        {
+         "type": "Var",
+         "name": "shared"
+        }
+       ],
+       "keywords": [
+        {
+         "arg": "write",
+         "value": {
+          "type": "Bool",
+          "value": false
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "orelse": []
+   },
+   {
+    "stmt": "For",
+    "line": 1313,
+    "target": "v",
+    "iter": {
+     "type": "Call",
+     "func": "node.values",
+     "args": []
+    },
+    "invariants": [],
+    "variants": [],
+    "body": [
+     {
+      "stmt": "Expr",
+      "value": {
+       "type": "Call",
+       "func": "_conc_check_reads",
+       "args": [
+        {
+         "type": "Var",
+         "name": "v"
+        },
+        {
+         "type": "Var",
+         "name": "held"
+        },
+        {
+         "type": "Var",
+         "name": "fname"
+        },
+        {
+         "type": "Var",
+         "name": "shared"
+        }
+       ]
+      }
+     }
+    ],
+    "allow_iteration_mutation": false,
+    "lineno": 1313
+   }
+  ],
+  "orelse": [
+   {
+    "stmt": "If",
+    "test": {
+     "type": "Call",
+     "func": "isinstance",
+     "args": [
+      {
+       "type": "Var",
+       "name": "node"
+      },
+      {
+       "type": "Var",
+       "name": "list"
+      }
+     ]
+    },
+    "body": [
+     {
+      "stmt": "For",
+      "line": 1316,
+      "target": "x",
+      "iter": {
+       "type": "Var",
+       "name": "node"
+      },
+      "invariants": [],
+      "variants": [],
+      "body": [
+       {
+        "stmt": "Expr",
+        "value": {
+         "type": "Call",
+         "func": "_conc_check_reads",
+         "args": [
+          {
+           "type": "Var",
+           "name": "x"
+          },
+          {
+           "type": "Var",
+           "name": "held"
+          },
+          {
+           "type": "Var",
+           "name": "fname"
+          },
+          {
+           "type": "Var",
+           "name": "shared"
+          }
+         ]
+        }
+       }
+      ],
+      "allow_iteration_mutation": false,
+      "lineno": 1316
+     }
+    ],
+    "orelse": []
+   }
+  ]
+ }
+]
+======================================================================
+_conc_stmts params= ['stmts', 'held', 'fname', 'shared', 'lock_order'] ret= None
+[
+ {
+  "stmt": "For",
+  "line": 1321,
+  "target": "s",
+  "iter": {
+   "type": "Var",
+   "name": "stmts"
+  },
+  "invariants": [],
+  "variants": [],
+  "body": [
+   {
+    "stmt": "If",
+    "test": {
+     "type": "Call",
+     "func": "isinstance",
+     "args": [
+      {
+       "type": "Var",
+       "name": "s"
+      },
+      {
+       "type": "Var",
+       "name": "dict"
+      }
+     ]
+    },
+    "body": [
+     {
+      "stmt": "Expr",
+      "value": {
+       "type": "Call",
+       "func": "_conc_stmt",
+       "args": [
+        {
+         "type": "Var",
+         "name": "s"
+        },
+        {
+         "type": "Var",
+         "name": "held"
+        },
+        {
+         "type": "Var",
+         "name": "fname"
+        },
+        {
+         "type": "Var",
+         "name": "shared"
+        },
+        {
+         "type": "Var",
+         "name": "lock_order"
+        }
+       ]
+      }
+     }
+    ],
+    "orelse": []
+   }
+  ],
+  "allow_iteration_mutation": false,
+  "lineno": 1321
+ }
+]

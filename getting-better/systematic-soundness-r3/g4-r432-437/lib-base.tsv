@@ -1,0 +1,104 @@
+UnixInodeFileSystem.py	[ir-semantic]: class 'UnixInodeFileSystem' line 603: its `__init__` calls `self._format_disk(...)`, whose effect on the fields is not part of the constructor's obligation. 'UnixInodeFileSystem' carries (or its constructo
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	-
+__init__.py	PYCSL-VAL-ARG-UNFRAMED: `_scan_json_string` is emitted as a bodyless `val` (`\trusted` or imported) with no `#@ assigns`, and its body may write the parameter `i`, which is not a list, so no `writes` clause can name it. 
+__init__.py	[ir-semantic]: class 'StringIO' line 26: its `__init__` stores or deletes the invariant field `self._size` by a form other than a top-level `self._size = ...` statement (a `for` / `with` / tuple / augmented / `del` targe
+__init__.py	[module6-whyml]: `_warnings_log.append(...)` appends to a list whose length this lowering cannot track: the local is not a growable sequence (it was bound from a call result, a `*` repetition, a loop target, an object fi
+__init__.py	`_world.proc._path.insert(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause, so the mutation would be S
+__init__.py	`self._env_keys.append(...)` appends to the collection in the field `_env_keys`, and no certified lowering models it: the append is emitted against a FRESH LOCAL array with no write-back, so `self._env_keys` would be UNC
+__init__.py	a name's runtime value is not the one the model reads (constant `BACKSLASH` of the module aliased or mutated). An imported name bound twice keeps the FIRST import (measured: `from plainlib import inc` then `from starlib 
+__init__.py	function '_next_name' writes _name_counter through a `global` declaration, and no certified lowering models it: the store lands on a FRESH LOCAL while every read of the module variable is one opaque constant, so a read b
+__init__.py	function 'dataclass': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `return` of a function declared `-> int`. Python does not enforce the annotation (a user `__sub
+__init__.py	function 'dirent_is_dir': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `int` parameter `inode_num` of `DirEntry` (body); the `int` parameter `name` of `DirEntry` 
+__init__.py	function 'run': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `int` parameter `args` of `CompletedProcess` (body); the `int` parameter `args` of `Popen` (body). Py
+__main__.py	-
+_api.py	a name's runtime value is not the one the model reads (constant `BACKSLASH` of the module aliased or mutated). An imported name bound twice keeps the FIRST import (measured: `from plainlib import inc` then `from starlib 
+_engine.py	[ir-semantic] BASE/src/pycsl_lib/re/_engine.py: override '_ColorMatch.group' of 'ReMatch.group' inherits `group` from class `_ColorMatch`, which binds it (line 390) by a statement that is not a
+codec.py	-
+decoder.py	a name's runtime value is not the one the model reads (constant `BACKSLASH` of the module aliased or mutated). An imported name bound twice keeps the FIRST import (measured: `from plainlib import inc` then `from starlib 
+encoder.py	a function, method or class NAME is rebound after its definition (method `default` shadowed by `self.default` at line 147). Every call is resolved against the `def`, so the rebinding would be silently ignored (measured: 
+path.py	-
+scanner.py	nested function '_scan_once' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads match_number, memo, object_hook, object_pairs_hook, parse_array, parse_constant, parse_float, par
+tool.py	a name's runtime binding is not the `def` the model resolves it to (`can_colorize` defined inside a compound statement at line 14 and bound elsewhere in the module; `get_theme` defined inside a compound statement at line

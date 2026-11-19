@@ -1,0 +1,17 @@
+sync rc=0
+mcheck rc=0
+ma rc=0
+mb rc=0
+cmp-mirror rc=0
+--- gates2 (census via census.py; append-new aborted: 367 rowless FAIL witnesses, 329 not g4's) ---
+census rc=0
+remeasure rc=0
+planes rc=0
+rwc rc=0
+advice rc=0
+getattr rc=0
+clause rc=0
+assumed rc=0
+carriers rc=0
+doc rc=0
+GATESDONE

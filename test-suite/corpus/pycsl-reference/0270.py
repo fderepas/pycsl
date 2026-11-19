@@ -11,6 +11,7 @@ flag = 0
 #@ thread_entry
 #@ \diverges
 def signal_thread() -> int:
+    global flag
     #@ acquires lock_flag
     #@ releases lock_flag
     with lock_flag:

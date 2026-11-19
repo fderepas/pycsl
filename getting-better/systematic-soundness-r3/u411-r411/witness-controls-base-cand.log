@@ -1,0 +1,36 @@
+== base
+6050_gen37_r411_latin1_literal_index_exc rc=0 PROVED
+6051_gen37_r411_latin1_contract_index rc=0 PROVED
+6052_gen37_r411_latin1_index_eq rc=0 PROVED
+6053_gen37_r411_latin1_contract_len rc=0 PROVED
+6054_gen37_r411_latin1_concat_len rc=0 PROVED
+6055_gen37_r411_ctl_latin1_literal rc=1 FAIL
+c1_controls rc=1 FAIL
+g03_utf8_index_exc rc=0 PROVED
+g04_utf8_index_eq rc=0 PROVED
+h07_utf8_neq rc=0 PROVED
+j22_utf8_contract_index rc=0 PROVED
+j26_utf8_contains_byte rc=0 PROVED
+p411_newline rc=0 PROVED
+w1_newline_false rc=0 PROVED
+w2_tab_index rc=0 PROVED
+w3_quote_len rc=0 PROVED
+== cand
+6050_gen37_r411_latin1_literal_index_exc rc=1 FAIL
+6051_gen37_r411_latin1_contract_index rc=1 FAIL
+6052_gen37_r411_latin1_index_eq rc=1 FAIL
+6053_gen37_r411_latin1_contract_len rc=1 FAIL
+6054_gen37_r411_latin1_concat_len rc=1 FAIL
+6055_gen37_r411_ctl_latin1_literal rc=0 PROVED
+c1_controls rc=0 PROVED
+g03_utf8_index_exc rc=1 FAIL
+g04_utf8_index_eq rc=1 FAIL
+h07_utf8_neq rc=1 FAIL
+j22_utf8_contract_index rc=1 FAIL
+j26_utf8_contains_byte rc=1 FAIL
+p411_newline rc=1 FAIL
+w1_newline_false rc=1 FAIL
+w2_tab_index rc=1 FAIL
+w3_quote_len rc=1 FAIL
+
+[exited with code 0]

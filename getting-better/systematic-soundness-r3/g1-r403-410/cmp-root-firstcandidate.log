@@ -1,0 +1,3 @@
+[!]   GONE 5464_gen37_gd_ctl_absent_default_file_mro.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 5464_gen37_gd_ctl_absent_default_file_mro.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 2441 baseline / 2440 candidate .mlw; 0 MOVED (0 unexpected), 1 GONE (1 unexpected), 0 APPEARED.

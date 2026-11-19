@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5645_gen37_r399_from_builtins_sum.py'...
+[*] Memory model: hoare
+[*] Import 'builtins.sum': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'f' line 9: the call `sum([1, 2], **{'start': 10})` passes a `*` / `**` argument to the builtin `sum` (imported from `builtins`), whose model reads explicit arguments only (systematic rule SB, routes #390 / #399). The verifier drops a `*` / `**` argument at a call (or counts a `*xs` as one positional), so the keys, length and values it supplies never reach the callee: CPython binds them, or raises TypeError for an unknown, repeated or missing argument (route #379). Pass every argument explicitly, by position or by keyword.

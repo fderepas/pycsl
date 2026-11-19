@@ -1,0 +1,25 @@
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterator, Sequence, FrozenSet
+from dataclasses import dataclass
+
+
+class C:
+    def __init__(self) -> None:
+        self.a: int = 0
+
+    #@ requires True
+    #@ ensures self.a == v
+    #@ assigns self.a
+    def m(self, v: int) -> None:
+        self.a = v
+
+
+C.n = C.m  # type: ignore
+
+
+#@ requires c.a == 0
+#@ ensures \result == 0
+#@ assigns c.a
+def caller(c: C) -> int:
+    c.n(5)
+    return c.a
+

@@ -1,0 +1,65 @@
+(* fb1_wl05_spike.mlw — Phase-0 Spike (b): WL-05 by-ref container mutation.
+
+   Validates M2's TARGET *before* any emitter change: a WhyML function taking a
+   `ref` set-like parameter, mutating it in place (`add`), with a `writes {p}`
+   frame and a non-aliasing precondition, proving the FIXED self-annotation
+   contract shape `requires True / ensures True / writes {p}` (type-safety +
+   frame ONLY — never value-faithful). Confirms Why3 natively accepts
+   `ref`+`writes` for this shape and the frame VC discharges on Alt-Ergo + Z3.
+
+   A set is modelled `map elem bool` (`.add e` -> set true at e). A dict is
+   modelled `map key (option val)`. The point is the FRAME, not the value law:
+   the self-annotation contract never states which element was added, only that
+   the mutation stays inside `writes {p}`. *)
+module Wl05Spike
+  use int.Int
+  use map.Map
+  use map.Const
+  use option.Option
+  use ref.Ref
+
+  val set_add (m: map 'e bool) (e: 'e) : map 'e bool
+    ensures { result = Map.set m e true }
+
+  (* ===== the M2 target: fixed self-annotation contract (type-safety+frame) =====
+     `requires True / ensures True / writes {p}` — exactly the mirror shape.
+     A caller-visible by-ref set param, mutated in place; only the FRAME is
+     asserted. This is the WhyML the M2 emitter routing rule must produce. *)
+  let targets_add (p: ref (map int bool)) (x: int) : unit
+    requires { true }
+    writes   { p }
+    ensures  { true }
+  =
+    p := set_add !p x
+
+  (* dict variant of the same frame-only shape *)
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+
+  let dict_targets_add (d: ref (map int (option int))) (k: int) (v: int) : unit
+    requires { true }
+    writes   { d }
+    ensures  { true }
+  =
+    d := map_update_some !d k v
+
+  (* ===== non-aliasing: two DISTINCT ref params, each in its own frame =====
+     Why3's region typing enforces the non-aliasing precondition structurally:
+     two `ref` params are separated regions; a `writes {p}` cannot touch q.
+     We assert q is untouched after mutating p — the frame property M2 needs. *)
+  let two_frames (p: ref (map int bool)) (q: ref (map int bool)) (x: int) : unit
+    requires { true }
+    writes   { p }
+    ensures  { !q = old !q }        (* q is outside p's frame: unchanged *)
+  =
+    p := set_add !p x
+
+  (* ===== caller-visibility: the mutation escapes to the caller ===== *)
+  let caller () : unit =
+    let p = ref (const false) in
+    targets_add p 5;
+    ()
+
+  (* frame negative control: a body that writes OUTSIDE its declared frame must
+     be REJECTED by Why3 (see fb1_wl05_NEGCTRL below, kept as a separate file). *)
+end

@@ -1,0 +1,145 @@
+18:16 started w49_statements
+18:16 started w49_expressions
+19:11 finished w49_expressions rc=137
+19:11 finished w49_statements rc=137
+19:12 started w49_functions
+19:12 started w49_exec_splice
+19:14 finished w49_exec_splice rc=0
+19:14 started w49_desugar
+19:14 finished w49_desugar rc=0
+19:48 finished w49_functions rc=0
+19:48 QUEUE B DONE
+19:48 started w49b_expressions
+19:48 started w49b_statements
+08:41 started w49d_m5ir
+08:41 started w49d_scf
+08:55 SUITE run2 rc=143
+09:28 SUITE run3 rc=143
+10:04 SUITE run4 rc=143
+10:17 finished w49d_m5ir rc=0
+10:17 started w49d_types
+10:40 finished w49d_scf rc=143
+10:40 started w49d_m2p
+10:55 finished w49d_m2p rc=0
+10:55 started w49d_expressions
+10:58 finished w49d_types rc=0
+10:59 started w49d_statements
+11:31 SUITE run5 rc=1
+13:57 SUITE run6 rc=1
+14:03 started w51f_m5ir (route #56's one owed mover)
+15:08 finished w49d_statements rc=0
+15:42 finished w49d_expressions rc=0
+15:42 QUEUE D DONE
+15:43 started w51_scf
+15:43 started w51_cis
+15:44 finished w51f_m5ir rc=0
+15:44 QUEUE F DONE
+15:56 finished w51_cis rc=1
+17:21 finished w51_scf rc=0
+17:21 QUEUE E DONE
+07:07 started w51g_autotrust
+07:07 started w51g_types
+07:10 finished w51g_autotrust rc=0
+07:11 started w51g_functions
+07:49 finished w51g_types rc=0
+07:49 started w51g_preamble
+07:59 finished w51g_preamble rc=0
+07:59 started w51g_scf
+07:59 finished w51g_functions rc=0
+07:59 started w51g_expressions
+08:00 finished w51g_expressions rc=1
+08:00 started w51h_cis_trusted (disposition test, at HEAD adf2eda5)
+08:00 started w51g_statements
+08:21 started w51g2_expressions (route #57 mover, RELAUNCH after the b6186687 type fix)
+08:56 SUITE run7 started (gate on routes #53/#58 + the #57 type fix)
+09:23 finished w51h_cis_trusted rc=0
+11:38 started w52a --fun probe on statementemissionmixin___wrap_body_with_return_catch (targeted, --fun trusts the rest)
+11:38 finished w52a rc=0 — "Verification SUCCESS! All contracts formally proven". The honest 13-statement body PROVES; the old note's claim that f-string literal segments make it unverifiable is REFUTED. Whole-file statements.py re-proof still owed.
+11:47 finished w51g_scf rc=0
+11:48 SUITE run8 started (owed gate on routes #53/#58, the #57 type fix, and gen #4's plane changes)
+13:06 finished w51g_statements rc=0
+13:06 QUEUE G DONE
+13:08 started w52c_statements (OWED re-proof at the POST-SYNC body — the 13-statement _wrap_body_with_return_catch)
+13:12 started w52d_expressions (OWED re-proof at the POST-MARKER tree — the #@ sibling_concrete on _dv_missing_default). w51g2 is kept running deliberately as the PRE-marker control.
+13:31 SUITE run8 rc=1
+14:31 finished w51g2_expressions rc=0
+17:06 finished w52c_statements rc=0
+17:30 finished w52d_expressions rc=0
+17:36 started w53a_expressions (OWED after landing staged-L1 + staged-route59)
+17:36 finished w53a_expressions rc=1
+17:36 started w53b_scf (OWED after landing staged-L1 + staged-route59)
+17:36 started w53c_statements (OWED after landing staged-L1 + staged-route59)
+17:36 started w53d_transpiler (OWED after landing staged-L1 + staged-route59)
+17:58 finished w53d_transpiler rc=0
+19:37 finished w53b_scf rc=0
+20:18 finished w53c_statements rc=0
+20:54 started w54a_expressions (OWED by the repaired staged-L1 expressions half)
+23:09 finished w54a_expressions rc=0
+18:54 started w58_m5ir (route #77 repair — the OWED Module5 mirror re-proof; live+mirror _py_stmt_delete gain a slice refusal, bespoke lowering gains the err-divergence arm)
+19:46 finished w58_m5ir rc=0
+20:46 started suite58_run1 (route #77 — the ZERO XPASS check)
+21:32 finished suite58_run1 rc=1
+22:13 started suite58_run2 (route #78 — ZERO XPASS check)
+22:59 finished suite58_run2 rc=1
+23:46 started suite58_run3 (route #81 — ZERO XPASS check)
+00:32 finished suite58_run3 rc=1
+01:02 started w59a_m5ir (route #80 — whole-file Module5 mirror re-proof)
+01:57 finished w59a_m5ir rc=0
+01:57 QUEUE 59A DONE
+02:01 started suite59_run1 (route #80 — ZERO XPASS check)
+02:47 finished suite59_run1 rc=1
+03:33 started suite59_run2 (route #82 — ZERO XPASS check)
+04:19 finished suite59_run2 rc=1
+05:29 started suite59_run3 (route #84 — ZERO XPASS check)
+06:15 finished suite59_run3 rc=1
+06:16 started suite59_run4 (route #84 — final tree, 0065 marked expected-FAIL)
+07:02 finished suite59_run4 rc=1
+07:46 started suite59_run5 (route #83 — ZERO XPASS check)
+07:46 started w60_planes (route #83 gate, --slow)
+07:47 NOTE: gen#9's detached suite59_run5 was killed 30s in (zero loss) to avoid running concurrently with the w60 planes battery; suite60_run1 at the same HEAD supersedes it.
+07:47 finished w60_planes rc=143
+07:47 started suite60_run1 (route #83 gate)
+07:49 started suite60_run1 (route #83 gate; sole suite, /tmp at 10%)
+08:16 suite60_run1 still running at 27 min (gen #9's runs took ~45); planes already green; #79 reproduced at HEAD both directions incl. a NEW parameterless-constructor carrier; baseline worktree wt79 built at 46fd6631
+08:35 finished suite60_run1 rc=1
+08:38 started w60 byte-diff sweeps (route #79)
+08:41 base sweep done rc=0
+08:43 cand sweep done rc=0
+08:45 started w60_planes_route79 (--slow)
+09:04 w60_planes_route79 still running at ~20 min (--slow adds 15 prover/emission planes)
+09:13 finished w60_planes_route79 rc=0
+09:13 started suite60_run2 (route #79)
+09:13 w60 planes route79 rc=0 — ALL 34 GREEN. check-bespoke-model-drift passed WITHOUT --update, which is the independent confirmation of the 53/53 mirror inertness (the drift fingerprint would have fired had any emitted mirror WhyML moved); check-mirror-coverage held at 549 with no new defs; check-vacuous-drivers green over the four new witnesses. Suite60_run2 running.
+09:39 suite60_run2 at 27 min, still running (prior run took ~47 min)
+09:59 finished suite60_run2 rc=1
+10:20 started w60 gate85: conformance + sweeps (routes #85/#86)
+10:25 w60 gate85 sweeps done
+10:40 started w60_planes_route85 (--slow)
+10:49 w60_planes_route85 running >9min; routes #85/#86 already byte-inert (983/983, 2203/2203, mirror 53/53), conformance 38/38+38/38, fidelity rc=0, 12-row matrix green
+11:07 finished w60_planes_route85 rc=0
+11:07 started suite60_run3 (routes #85/#86)
+11:08 w60 planes route85/86 rc=0 — ALL 34 GREEN (incl. check-bespoke-model-drift with no --update, check-mirror-coverage 549, check-vacuous-drivers over the six new witnesses). suite60_run3 running.
+11:35 suite60_run3 at 27 min, still running
+11:54 finished suite60_run3 rc=1
+12:06 started w60 gate87 (conformance + fidelity + sweeps)
+12:11 w60 gate87 sweeps done
+12:16 started w60 gate87b: sweeps + planes + suite (route #87)
+12:21 gate87b sweeps done
+12:39 w60 route87 planes running; byte-diff already asserted (4 MOVED = exactly its own witnesses, 0 pre-existing), conformance 38/38+38/38, fidelity rc=0
+12:49 finished w60_planes_route87 rc=0
+12:49 w60 planes route87 rc=0 — ALL 34 GREEN. suite60_run4 running (the decisive gate: #87 is the first repair this generation that moves corpus emissions).
+13:17 suite60_run4 at 28 min, still running
+13:36 finished suite60_run4 rc=1
+13:45 started w60 gate2a (Gap 2a: conformance + fidelity + sweeps + planes + suite)
+13:50 gate2a sweeps done (conformance rc=0)
+14:08 w60 gate2a planes running; byte-diff + conformance already green
+14:18 finished w60_planes_2a rc=0
+14:19 w60 gate2a planes rc=0 — ALL 34 GREEN. suite60_run5 running; expecting the failure baseline to move 19 -> 18 (0700 now proves).
+14:46 suite60_run5 at 28 min, still running
+15:05 finished suite60_run5 rc=1
+15:25 started w60 FINAL planes (after value-differential 36->45)
+15:57 finished w60 FINAL planes rc=0
+15:58 w60 FINAL planes rc=0 — ALL 34 GREEN, re-run AFTER the value-differential growth so the green covers the tree as it stands.
+16:08 started w60 FINAL planes #2 (after no-exception-differential 39->43)
+16:42 finished w60 FINAL planes #2 rc=0
+16:43 w60 FINAL planes #2 rc=0 — ALL 34 GREEN after BOTH corpus growths. Window work complete and fully gated; tree clean, nothing owed, nothing in flight.

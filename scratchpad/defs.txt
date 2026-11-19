@@ -1,0 +1,296 @@
+42:  let function is_pdict (v: pyval) : bool = match v with PDict _ -> true | _ -> false end
+43:  let function is_plist (v: pyval) : bool = match v with PList _ -> true | _ -> false end
+44:  let function is_pstr  (v: pyval) : bool = match v with PStr  _ -> true | _ -> false end
+79:  let rec lemma size_pos (v: pyval) : unit
+92:  let rec lemma size_dict_mem (k: irkey) (d: pydict) : unit
+118:  let rec lemma wf_ir_binds (k: irkey) (d: pydict) : unit
+143:  val set_add (m: map string bool) (e: string) : map string bool
+145:  val pystr_eq (a b: string) : bool
+152:  let function set_union (a b: map string bool) : map string bool
+161:  let rec slookup (k: string) (s: sdict) : option pyval
+172:  let rec sappend (a b: sdict) : sdict
+181:  let rec pget_dyn (name: string) (d: pydict) : option pyval
+189:  let pget_list (name: string) (d: pydict) : list pyval
+194:  let function irkey_to_string (k: irkey) : string
+204:  let rec function pdict_to_sdict (d: pydict) : sdict
+224:  let function kind_of (e: emit_ir) : string =
+287:  let function is_binop (e: emit_ir) : bool =
+291:  let function is_ifexpr (e: emit_ir) : bool =
+295:  let function is_var (e: emit_ir) : bool =
+297:  let function is_num (e: emit_ir) : bool =
+299:  let function is_str (e: emit_ir) : bool =
+301:  let function is_sub (e: emit_ir) : bool =
+303:  let function is_attribute (e: emit_ir) : bool =
+305:  let function is_call (e: emit_ir) : bool =
+307:  let function is_tuple (e: emit_ir) : bool =
+309:  let function is_fieldget (e: emit_ir) : bool =
+312:  let function is_none (e: emit_ir) : bool =
+316:  let function is_slice (e: emit_ir) : bool =
+320:  let function is_ter3 (e: emit_ir) : bool =
+324:  let function op_of (e: emit_ir) : string =
+327:  let function left_of (e: emit_ir) : emit_ir =
+330:  let function right_of (e: emit_ir) : emit_ir =
+334:  let function body_of (e: emit_ir) : emit_ir =
+337:  let function orelse_of (e: emit_ir) : emit_ir =
+341:  let function ter_fst_of (e: emit_ir) : emit_ir =
+344:  let function ter_snd_of (e: emit_ir) : emit_ir =
+347:  let function ter_thd_of (e: emit_ir) : emit_ir =
+351:  let rec function size (e: emit_ir) : int
+425:  let function name_of (e: emit_ir) : string =
+428:  let function value_of (e: emit_ir) : string =
+432:  let function fgobject_of (e: emit_ir) : string =
+435:  let function field_of (e: emit_ir) : string =
+438:  let function object_of (e: emit_ir) : emit_ir =
+442:  let function avalue_of (e: emit_ir) : emit_ir =
+445:  let function func_of (e: emit_ir) : string =
+448:  let function nargs_of (e: emit_ir) : int =
+451:  let function arg0_of (e: emit_ir) : emit_ir =
+455:  val args_of (e: emit_ir) : array emit_ir
+457:  val stmts_of (e: emit_ir) : array int
+459:  let function svalue_of (e: emit_ir) : emit_ir =
+462:  let function sindex_of (e: emit_ir) : emit_ir =
+465:  let function elt0_of (e: emit_ir) : emit_ir =
+468:  let function elt1_of (e: emit_ir) : emit_ir =
+480:  let rec function irlen (l: irlist) : int
+485:  let rec function irnth (i: int) (l: irlist) : emit_ir
+499:  let function stmt_kind_of (s: stmt_ir) : string =
+509:  let rec function size_stmt (s: stmt_ir) : int
+543:  let rec function sl_len (l: stmt_list) : int
+549:  let rec function seq_to_sl_from (s: seq stmt_ir) (i: int) : stmt_list
+554:  let function seq_to_sl (s: seq stmt_ir) : stmt_list = seq_to_sl_from s 0
+556:  let rec lemma seq_to_sl_from_len (s: seq stmt_ir) (i: int)
+565:  let rec function hl_len (l: handler_list) : int
+571:  let rec function seq_to_hl_from (s: seq except_handler) (i: int) : handler_list
+576:  let function seq_to_hl (s: seq except_handler) : handler_list = seq_to_hl_from s 0
+577:  let rec lemma seq_to_hl_from_len (s: seq except_handler) (i: int)
+585:  let rec function mcl_len (l: match_case_list) : int
+590:  let rec function seq_to_mcl_from (s: seq match_case) (i: int) : match_case_list
+595:  let function seq_to_mcl (s: seq match_case) : match_case_list = seq_to_mcl_from s 0
+596:  let rec lemma seq_to_mcl_from_len (s: seq match_case) (i: int)
+606:  val function match_subject_ast (s: py_match_node) : emit_ir
+607:  val function match_cases_ast (s: py_match_node) : seq ast_match_case
+608:  val function mc_pattern_ir (c: ast_match_case) : emit_ir
+609:  val function mc_guard_ast (c: ast_match_case) : iropt_ir
+610:  val function mc_body_ast (c: ast_match_case) : array int
+614:  val function del_targets_ast (s: py_delete_node) : seq emit_ir
+618:  val function with_body_ast (s: py_with_node) : array int
+619:  val function csl_mutex_ast (s: py_with_node) : iropt_str
+620:  val function mutex_invariant_ir (mutex: string) : emit_ir
+624:  val function compare_left_ast (s: py_compare_node) : emit_ir
+625:  val function compare_op0_ast (s: py_compare_node) : int
+626:  val function compare_comp0_ast (s: py_compare_node) : emit_ir
+630:  val function boolop_is_and (s: py_boolop_node) : bool
+631:  val function boolop_val0_ast (s: py_boolop_node) : emit_ir
+632:  val function boolop_rest_ast (s: py_boolop_node) : irlist
+633:  val function boolop_dispatch (e: emit_ir) : emit_ir
+636:  val function ghost_is_arrayset (g: py_ghost_node) : bool
+637:  val function ghost_target_ast (g: py_ghost_node) : string
+638:  val function ghost_op_ast (g: py_ghost_node) : string
+639:  val function ghost_declared_type_ast (g: py_ghost_node) : string
+640:  val function ghost_index_ast (g: py_ghost_node) : emit_ir
+641:  val function ghost_value_ast (g: py_ghost_node) : emit_ir
+642:  val function csl_to_ir (e: emit_ir) : emit_ir
+645:  val function lambda_args_ast (s: py_lambda_node) : irlist
+646:  val function lambda_body_ast (s: py_lambda_node) : emit_ir
+652:  val function lambda_param_names_prog (l: irlist) : irlist
+655:  val function dict_dispatch (e: emit_ir) : emit_ir
+666:  val function dict_keys_prog (l: irlist) : irlist
+668:  val function dict_values_prog (l: irlist) : irlist
+671:  val function dict_keys_ast (s: py_dict_node) : irlist
+672:  val function dict_values_ast (s: py_dict_node) : irlist
+676:  val function genexp_elt_ast (s: py_genexp_node) : emit_ir
+677:  val function genexp_gens_ir (s: py_genexp_node) : emit_ir
+679:  val function listcomp_elt_ast (s: py_listcomp_node) : emit_ir
+680:  val function listcomp_gens_ir (s: py_listcomp_node) : emit_ir
+682:  val function setcomp_elt_ast (s: py_setcomp_node) : emit_ir
+683:  val function setcomp_gens_ir (s: py_setcomp_node) : emit_ir
+685:  val function dictcomp_key_ast (s: py_dictcomp_node) : emit_ir
+686:  val function dictcomp_value_ast (s: py_dictcomp_node) : emit_ir
+687:  val function dictcomp_gens_ir (s: py_dictcomp_node) : emit_ir
+690:  val function class_bases_ast (n: py_classdef_node) : irlist
+696:  val function bases_has_name_prog (target: string) (l: irlist) : bool
+701:  val function is_final_ann_prog (ann: emit_ir) : bool
+703:  let rec function boolop_fold (op: string) (acc: emit_ir) (rest: irlist) : emit_ir
+712:  val function assign_target0_ast (s: py_assign_node) : emit_ir
+713:  val function assign_value_ast (s: py_assign_node) : emit_ir
+714:  val function symtab_mem (key: string) : bool
+715:  let function sliceN_lower_of (e: emit_ir) : iropt_ir =
+717:  let function sliceN_upper_of (e: emit_ir) : iropt_ir =
+722:  let function is_mktuple (e: emit_ir) : bool =
+724:  let function elts_of (e: emit_ir) : irlist =
+737:  val function pipe_join (l: irlist) : string
+740:  val function var_names_prog (l: irlist) : strlist
+746:  val function try_body_ast (s: py_try_node) : array int
+747:  val function try_handlers_ast (s: py_try_node) : seq ast_excepthandler
+748:  val function try_orelse_ast (s: py_try_node) : array int
+749:  val function try_finalbody_ast (s: py_try_node) : array int
+750:  val function eh_type_ast (h: ast_excepthandler) : iropt_ir
+751:  val function eh_name_ast (h: ast_excepthandler) : iropt_str
+752:  val function eh_body_ast (h: ast_excepthandler) : array int
+758:  let rec _body_has_diverging_construct__get_stmt (d: pydict) : option string
+763:  let function _body_has_diverging_construct__stmt_is (v: pyval) (tag: string) : bool
+767:  let rec _body_has_diverging_construct__get_type (d: pydict) : option string
+772:  let function _body_has_diverging_construct__type_is (v: pyval) (tag: string) : bool
+776:  let rec _body_has_diverging_construct (stmts: list pyval) : bool
+788:  let rec _body_has_raise__get_stmt (d: pydict) : option string
+793:  let function _body_has_raise__stmt_is (v: pyval) (tag: string) : bool
+797:  let rec _body_has_raise (stmts: list pyval) : bool
+809:  let rec function _body_has_return__stmt_has (s: stmt_ir) : bool
+830:  let function _body_has_return (body: stmt_list) : bool
+833:  val _check_acts (func: int) : unit
+837:  let rec _check_assigns_regions__get_K_type (d: pydict) : option string
+844:  let rec _check_assigns_regions__get_dyn_base (d: pydict) : option string
+851:  let function _check_assigns_regions__ok_type (s: string) : bool = pystr_eq s "list" || pystr_eq s "List" || pystr_eq s "Any"
+852:  let rec _check_assigns_regions__fold (xs: list pyval) (symtab: sdict) : unit
+875:  let _check_assigns_regions (func: pyval) : unit
+887:  val _check_callable_params (func: int) : unit
+891:  let rec _contains_result__get_type (d: pydict) : option string
+896:  let function _contains_result__type_is (v: pyval) (tag: string) : bool
+900:  let rec _contains_result (obj: pyval) : bool
+912:  let rec _cp_walk__get_dyn_stmt (d: pydict) : option string
+919:  let rec _cp_walk__get_dyn_test (d: pydict) : option pyval
+926:  let _cp_walk__pre (node: pyval) : unit
+938:  let rec _cp_walk (node: pyval) (where: string) : unit
+956:  val _check_checkpoints__anystr () : string
+957:  let _check_checkpoints (func: pyval) : unit
+963:  val _check_class_invariants (ir: int) : unit
+967:  val _check_concurrency (ir: int) : unit
+971:  val _pb_expr__startswith (s p: string) : bool
+972:  let rec _pb_expr__get_K_type (d: pydict) : option string
+979:  let rec _pb_expr__get_dyn_var (d: pydict) : option string
+986:  let rec _pb_expr__get_dyn_base (d: pydict) : option string
+993:  let rec _pb_expr__get_dyn_base1 (d: pydict) : option string
+1000:  let rec _pb_expr__get_dyn_base2 (d: pydict) : option string
+1007:  let rec _pb_expr__get_dyn_binder_type (d: pydict) : option string
+1014:  let function _pb_expr__lengthless (s: string) : bool = pystr_eq s "dict" || pystr_eq s "Dict" || pystr_eq s "set" || pystr_eq s "Set" || pystr_eq s "frozenset" || pystr_eq s "FrozenSet"
+1015:  let function _pb_expr__array_base (s: string) : bool = pystr_eq s "list" || pystr_eq s "List" || pystr_eq s "bytes" || pystr_eq s "bytearray" || pystr_eq s "Any"
+1016:  let function _pb_expr__present (k: string) (s: sdict) : bool = match slookup k s with Some _ -> true | None -> false end
+1017:  let _pb_expr__pre (node: pyval) (symtab: sdict) (known: sdict) : unit
+1043:  let rec _pb_expr (node: pyval) (ctx: string) (symtab: sdict) (known: sdict) : unit
+1061:  let rec _pb_stmt__get_stmt (d: pydict) : option string
+1067:  let rec _pb_stmt__dget (key: string) (d: pydict) : option pyval
+1077:  let _pb_stmt__val_child (key: string) (d: pydict) : option pyval
+1081:  let _pb_stmt__list_child (key: string) (d: pydict) : list pyval
+1089:  let rec _pb_stmt (s: pyval) (fname: string) (symtab: sdict) (known: sdict) : unit
+1138:  val _check_contract_exprs__anystr () : string
+1139:  let _check_contract_exprs (func: pyval) (known: sdict) : unit
+1158:  val _ir_free_vars__sw (s p: string) : bool
+1159:  val set_remove (m: map string bool) (e: string) : map string bool
+1161:  let rec _ir_free_vars__dget (key: string) (d: pydict) : option pyval
+1170:  let _ir_free_vars__str (key: string) (d: pydict) : option string
+1172:  let _ir_free_vars__addk (key: string) (d: pydict) (acc: map string bool) : map string bool
+1174:  let rec _ir_free_vars (node: pyval) : map string bool
+1235:  val _cs_clause__anystr () : string
+1236:  let _cs_clause (clause: pyval) (ctx: string) (allow_result: bool) (symtab: sdict) (mc: sdict) : unit
+1247:  let rec _cs_clause__list (xs: list pyval) (ctx: string) (symtab: sdict) (mc: sdict) : unit
+1252:  let rec _cs_stmt__get_stmt (d: pydict) : option string
+1258:  let rec _cs_stmt__dget (key: string) (d: pydict) : option pyval
+1268:  let _cs_stmt__val_child (key: string) (d: pydict) : option pyval
+1272:  let _cs_stmt__list_child (key: string) (d: pydict) : list pyval
+1280:  let rec _cs_stmt (s: pyval) (fname: string) (symtab: sdict) (mc: sdict) : unit
+1329:  val _check_contract_scope__anystr () : string
+1330:  let rec _check_contract_scope__ens (xs: list pyval) (ctx: string) (symtab: sdict) (mc: sdict) : unit
+1335:  let _check_contract_scope (func: pyval) (module_constants: sdict) : unit
+1360:  let _check_diverges (func: pyval) : unit
+1373:  val _check_final (ir: int) : unit
+1377:  val _check_fresh_globals (ir: int) (stage: string) : unit
+1381:  let rec _gso_walk__get_dyn_stmt (d: pydict) : option string
+1388:  let rec _gso_walk__get_K_op (d: pydict) : option string
+1395:  let rec _gso_walk__get_K_target (d: pydict) : option string
+1402:  let _gso_walk__pre (node: pyval) (symtab: sdict) : unit
+1417:  let rec _gso_walk (node: pyval) (where: string) (symtab: sdict) : unit
+1435:  val _check_ghost_string_ops__anystr () : string
+1436:  let _check_ghost_string_ops (func: pyval) : unit
+1447:  let rec _hp_collect_written__get_dyn_stmt (d: pydict) : option pyval
+1454:  let rec _hp_collect_written__get_dyn_array (d: pydict) : option pyval
+1461:  let rec _hp_collect_written__get_K_type (d: pydict) : option pyval
+1468:  let rec _hp_collect_written__get_dyn_object (d: pydict) : option pyval
+1475:  let rec _hp_collect_written__get_dyn_field (d: pydict) : option pyval
+1482:  let _hp_collect_written__pre (d: pydict) (written: ref (map string bool)) : unit
+1501:  let rec _hp_collect_written (node: pyval) (written: ref (map string bool)) : unit
+1519:  let rec _check_happy__setof (l: list pyval) : map string bool
+1524:  let rec _check_happy__ffold (fs: list pyval) (written: ref (map string bool)) : unit
+1529:  let rec _check_happy__lmem (s: string) (l: list pyval) : bool
+1534:  let rec _check_happy__exfold (es: list pyval) (mn: map string bool) : unit
+1540:  let rec _check_happy__execf (ms: list pyval) (es: list pyval) : unit
+1546:  let rec _check_happy__pfold (ps: list pyval) (mn: map string bool) (em: list pyval) : unit
+1553:  let _check_happy (ir: pyval) : unit
+1565:  let rec _lemma_calls_trusted__get_type (d: pydict) : option string
+1570:  let _lemma_calls_trusted__is_tag (d: pydict) : bool
+1572:  let rec _lemma_calls_trusted__get_cap (d: pydict) : option string
+1577:  let rec _lemma_calls_trusted__s (stmts: list pyval) (trusted: map string bool) : option string
+1595:  let _lemma_calls_trusted (body: list pyval) (trusted: map string bool) : string
+1598:  let rec _lemma_returns_value__get_stmt (d: pydict) : option string
+1603:  let function _lemma_returns_value__stmt_is (v: pyval) (tag: string) : bool
+1607:  let rec _lemma_returns_value (stmts: list pyval) : bool
+1619:  let rec _check_lemma__get_K_type (d: pydict) : option string
+1626:  let rec _check_lemma__afold (xs: list pyval) : unit
+1638:  let _check_lemma (func: pyval) (trusted_funcs: map string bool) : unit
+1659:  let _check_mutable_defaults (func: pyval) : unit
+1665:  val _check_mutex_invariants (ir: int) : unit
+1669:  val _check_namedtuple_access (func: int) (nt_record_names: map int (option int)) (nt_record_arities: map int (option int)) : unit
+1673:  let rec _check_no_exception__get_dyn_exc_type (d: pydict) : option string
+1680:  let function _check_no_exception__known (s: string) : bool = pystr_eq s "IndexError" || pystr_eq s "KeyError" || pystr_eq s "StopIteration" || pystr_eq s "ValueError" || pystr_eq s "ZeroDivisionError"
+1681:  let rec _check_no_exception__raised_has (nm: string) (rs: list pyval) : bool
+1692:  let rec _check_no_exception__fold (xs: list pyval) (rs: list pyval) : unit
+1706:  let _check_no_exception (func: pyval) : unit
+1721:  val _check_noreturn (func: int) : unit
+1725:  let rec _collect_noreturn_names__get_dyn_is_noreturn (d: pydict) : option pyval
+1732:  let rec _collect_noreturn_names__get_K_name (d: pydict) : option pyval
+1739:  let _collect_noreturn_names__one (v: pyval) : map string bool
+1748:  let rec _collect_noreturn_names__fold (l: list pyval) : map string bool
+1753:  let _collect_noreturn_names (ir: pyval) : map string bool
+1758:  let rec _stmt_is_noreturn_call__get_dyn_stmt (d: pydict) : option pyval
+1765:  let rec _stmt_is_noreturn_call__get_K_value (d: pydict) : option pyval
+1772:  let rec _stmt_is_noreturn_call__get_K_type (d: pydict) : option pyval
+1779:  let rec _stmt_is_noreturn_call__get_K_func (d: pydict) : option pyval
+1786:  let _stmt_is_noreturn_call (s: pyval) (noreturn_names: map string bool) : bool
+1806:  let rec _noreturn_walk_stmts__get_stmt (d: pydict) : option pyval
+1813:  let rec _noreturn_walk_stmts__dget (key: string) (d: pydict) : option pyval
+1822:  let _noreturn_walk_stmts__list_child (key: string) (d: pydict) : list pyval
+1828:  let rec _noreturn_walk_stmts (prev: bool) (stmts: list pyval) (noreturn_names: map string bool) : unit
+1863:  let rec _check_noreturn_successors__ffold (fs: list pyval) (nn: map string bool) : unit
+1872:  let _check_noreturn_successors (ir: pyval) : unit
+1877:  let _check_span (func: pyval) (stage: string) : unit
+1883:  let rec _sa_immutable_walk__get_dyn_stmt (d: pydict) : option string
+1890:  let rec _sa_immutable_walk__get_dyn_array (d: pydict) : option pyval
+1897:  let rec _sa_immutable_walk__get_K_type (d: pydict) : option string
+1904:  let rec _sa_immutable_walk__get_K_name (d: pydict) : option string
+1911:  let _sa_immutable_walk__pre (node: pyval) (symtab: sdict) : unit
+1934:  let rec _sa_immutable_walk (node: pyval) (where: string) (symtab: sdict) : unit
+1952:  let rec _sa_walk__get_dyn_stmt (d: pydict) : option string
+1959:  let rec _sa_walk__get_dyn_array (d: pydict) : option pyval
+1966:  let rec _sa_walk__get_K_type (d: pydict) : option string
+1973:  let rec _sa_walk__get_K_name (d: pydict) : option string
+1980:  let function _sa_walk__ok_type (s: string) : bool = pystr_eq s "list" || pystr_eq s "List" || pystr_eq s "dict" || pystr_eq s "Dict" || pystr_eq s "Any"
+1981:  let _sa_walk__pre (node: pyval) (symtab: sdict) : unit
+2005:  let rec _sa_walk (node: pyval) (where: string) (symtab: sdict) : unit
+2023:  val _check_subscript_assignments__anystr () : string
+2024:  let _check_subscript_assignments (func: pyval) : unit
+2040:  val _check_typeddict_access (func: int) (td_record_names: map int (option int)) : unit
+2044:  let rec _check_union_gt1__list (l: list pyval) : unit
+2047:  let _check_union_gt1 (ir: pyval) : unit
+2052:  val _check_union_narrowing (func: int) : unit
+2056:  let rec _collect_call_targets__get_K_type (d: pydict) : option pyval
+2063:  let rec _collect_call_targets__get_K_func (d: pydict) : option pyval
+2070:  let _collect_call_targets__pre (d: pydict) (acc: ref (map string bool)) : unit
+2080:  let rec _collect_call_targets (node: pyval) (acc: ref (map string bool)) : unit
+2098:  val _conc_check_reads (node: int) (held: int) (fname: int) (shared: int) : unit
+2102:  val _conc_check_shared_access (var_name: int) (held: int) (fname: int) (shared: int) (write: int) : unit
+2106:  val _conc_stmt (s: int) (held: int) (fname: int) (shared: int) (lock_order: int) : unit
+2110:  val _conc_stmts (stmts: int) (held: int) (fname: int) (shared: int) (lock_order: int) : unit
+2114:  val _final_check_stmt (s: int) (fname: int) (module_finals: int) (class_attr_finals: int) : unit
+2118:  let rec _final_walk_body (stmts: list int) (fname: int) (module_finals: int) (class_attr_finals: int) : unit
+2127:  val _namedtuple_check_call (call: map int (option int)) (nt_arities: map int (option int)) (fname: string) : unit
+2131:  val _namedtuple_check_subscript (sub: map int (option int)) (nt_vars: map int (option int)) (fname: string) : unit
+2135:  val _namedtuple_walk_construction (stmts: array int) (nt_arities: map int (option int)) (fname: string) : unit
+2139:  val _namedtuple_walk_subscripts (stmts: array int) (nt_vars: map int (option int)) (fname: string) : unit
+2143:  val _typeddict_check_subscript (sub: map int (option int)) (td_vars: map int (option int)) (fname: string) : unit
+2147:  val _typeddict_walk_subscripts (stmts: array int) (td_vars: map int (option int)) (fname: string) : unit
+2151:  val _union_c11_check_dead_arms (match_stmt: int) (fname: string) : unit
+2155:  val _union_c8_recognized_guard (test: int) : int
+2159:  val _union_c8_test_references_union_var (test: int) (union_vars: map int (option int)) : int
+2163:  val _union_c8_walk (stmts: array int) (union_vars: map int (option int)) (fname: string) : unit
+2167:  val pycslerror__as_dict (self: pycslerror) : map int (option int)
+2169:  val pycslerror__message (self: pycslerror) : string
+2171:  val run_ir_semantic_checks (ir: int) : unit

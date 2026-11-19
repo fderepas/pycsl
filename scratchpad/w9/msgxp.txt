@@ -1,0 +1,48 @@
+GATE-INTEGRITY(#44): the suite reported an expected-FAIL test that PROVED as a PASS — all 241 negative witnesses were unenforceable
+
+`bin/run-reference-tests.sh`'s worker classified in this order:
+
+    if SUCCESS      -> PASS
+    elif expect_fail -> XFAIL
+    ...
+
+So a `# pycsl-expected: FAIL` test that started PROVING was reported as a
+PASS and the suite got GREENER.
+
+WHAT THAT MEANS FOR THIS CAMPAIGN. The corpus holds 241 expected-FAIL
+files, and every route witness in it — the eighteen from routes #1-#21 and
+the eleven this window added (0991-1001) — is one. Their entire purpose is
+to demonstrate that a contract FALSE of its program no longer verifies. If
+an unsoundness came back, the witness would start proving, and the suite
+would have said PASS. **A negative witness that cannot fail is not a test**,
+and this campaign has spent four relaunches on the proposition that a gate
+which cannot distinguish "nothing is wrong" from "I looked at nothing" is
+not a gate. This was that, applied to the campaign's own witnesses.
+
+FIXED: SUCCESS on an expected-FAIL file is now XPASS, printed in red and
+counted as a FAILURE, with the reason spelled out in the line.
+
+MEASURED BEFORE FIXING, because the fix is only safe if nothing is
+currently hiding behind it: scanned all 241 expected-FAIL files for ones
+that prove today. Exactly THREE — `python-reference/0177` (break), `0178`
+(continue), `0211` (generic classes) — and all three are CAPABILITY GAINS
+whose `#@ ensures \result == 0` is TRUE of the program; the constructs
+became supported after the files were written. Re-marked
+`pycsl-expected: PASS` in this increment, each with a comment saying how it
+was found.
+
+SCANNED TWICE, WITH BOTH PROVER SETS, and that turned up its own instrument
+fact: `config/agents-config.json` and `pycsl.py`'s `_DEFAULT_PROVERS` both
+ask for **Alt-Ergo 2.6.2**, which does NOT exist in this opam switch (2.6.3
+is installed), so `why3` reports "No prover ... corresponds to
+Alt-Ergo,2.6.2," and every DEFAULT run — including the whole reference suite
+— silently proceeds with Z3 ALONE. The campaign's own mirror proofs are
+unaffected because they pass `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'`
+explicitly. Re-running the scan with both provers present gives the SAME
+three files, so no soundness witness proves under either configuration.
+
+NEGATIVE-TESTED: marking 0177 back to `FAIL` makes the suite print
+"[XPASS] 0177 (expected FAIL but PROVED — a negative witness that no longer
+fails)" and count it against the total.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

@@ -1,0 +1,6 @@
+line 2026, characters 17-24:	Sub-goal assertion of goal pycsltojsonemitter___const_int_value'vc.	Prover result is: Timeout (30.00s, 45045291 steps).
+line 2061, characters 17-24:	Sub-goal assertion of goal pycsltojsonemitter___collect_final_registry'vc.	Prover result is: Timeout (30.00s, 5869823 steps).
+line 2195, characters 19-26:	Sub-goal assertion of goal pycsltojsonemitter___collect_type_params'vc.	Prover result is: Timeout (30.00s, 24514229 steps).
+line 2250, characters 17-24:	Sub-goal assertion of goal pycsltojsonemitter___collect_typevar_registry'vc.	Prover result is: Timeout (30.00s, 23396186 steps).
+line 3220, characters 29-36:	Sub-goal assertion of goal pycsltojsonemitter___m5_get_type_name_legacy'vc.	Prover result is: Timeout (30.00s, 21981505 steps).
+line 3583, characters 21-28:	Sub-goal assertion of goal pycsltojsonemitter___union_arm_tag'vc.	Prover result is: Timeout (30.00s, 39837184 steps).

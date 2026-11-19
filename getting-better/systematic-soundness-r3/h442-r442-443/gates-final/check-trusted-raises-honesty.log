@@ -1,0 +1,3 @@
+[*] trusted-raises-honesty: 72 `\trusted` stub(s) whose LIVE counterpart contains a `raise`; 19 declare `#@ raises`, 53 are SILENT (the emitted `val` tells Why3 the call CANNOT raise).
+[+] trusted-raises-honesty: silent 53 < ratchet 56 — lower the constant.
+[+] trusted-raises-honesty: OK — measured 19 declared / 53 silent (ratchet 56). NOTE: direct `raise` statements only, so this is a LOWER BOUND on the population.

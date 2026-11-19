@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'q3_loop_elem_store.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] q3_loop_elem_store.py: an element store through a value the model does not represent as a list is out of scope: the store lowers to the abstract `subscript_set` with NO effect (typically an element taken from a tuple, or another container, that holds a list — the container is opaque and its element is an int), so the mutation of the list it aliases would be SILENTLY ABSENT and a claim about that list proved of a state that never changed (route #289; measured: `t: Tuple[List[int], int] = (xs, 0); b = t[0]; b[0] = 5; return xs[0]` proved `\result == \old(xs[0])`). Store through the list's own name.

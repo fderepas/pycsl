@@ -1,0 +1,19 @@
+[*] IR conformance — core corpus (golden IR -> WhyML, no front-end)
+[+] core-only conformance: 38 OK / 0 MISMATCH (38 goldens) — front-end NOT imported
+  [0;32m[OK][0m core-only conformance
+[*] IR conformance — front-end corpus (source -> resolved IR, no prover)
+[*] Imported from 'multi_file_lib.arith': ['double_int'] (trusted stubs)
+[*] Imported from 'multi_file_lib.arith': ['double_int', 'triple_int'] (trusted stubs)
+[*] Imported from 'multi_file_lib.arith': ['double_int'] (trusted stubs, module-qualified)
+[*] Imported from 'multi_file_lib.deep_mid': ['double_plus_one'] (trusted stubs)
+[*] Imported from 'multi_file_lib.circ_a': ['func_a'] (trusted stubs)
+[*] Imported class from 'multi_file_lib.base_counter': Counter (record + 1 method stub(s) + 0 helper(s))
+[*] Imported from 'multi_file_lib.base_counter': ['Counter'] (trusted stubs)
+[*] Imported class from 'multi_file_lib.base_store': Store (record + 1 method stub(s) + 0 helper(s))
+[*] Imported base class from 'multi_file_lib.visitor_base': NodeVisitor (record + 2 method stub(s))
+front-end conformance: 38 OK / 0 MISMATCH (38 goldens; 0 version-skew)
+front-end-only: no core/Module6/prover module in sys.modules (import-based, no subprocess for the conformance check)
+determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
+  [0;32m[OK][0m front-end-only conformance
+[0;32m[+] IR conformance: both corpora pass — front-end<->core contract intact.[0m
+[*] 3236 tests across 2 suite(s); jobs=3 (cores=12)

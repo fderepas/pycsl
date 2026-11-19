@@ -1,0 +1,3 @@
+unbound type symbol 'option'
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
+rc=1

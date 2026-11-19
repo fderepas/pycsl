@@ -1,0 +1,79 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/sertop.py'...
+[*] Memory model: hoare
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_SertopSession_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+[*] Import 'shutil.which': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 47, characters 15-19:
+Sub-goal postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.01s, 815 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 47, characters 15-19:
+Sub-goal postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 822 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 47, characters 15-19:
+Sub-goal postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 818 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 73, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.01s, 1039 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 84, characters 16-33:
+Sub-goal precondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1056 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 73, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1123 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 73, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1130 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 73, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1131 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 73, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1489 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 73, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1240 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 135, characters 15-19:
+Sub-goal postcondition of goal sertop_available'vc.
+Prover result is: Valid (0.00s, 748 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 47, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 67, characters 18-19: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 69, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 73, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 117, characters 19-25: unused variable tokens
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 119, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 121, characters 20-21: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 123, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 125, characters 26-36: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 125, characters 47-56: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 127, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 129, characters 24-34: unused variable load_paths
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 129, characters 42-45: unused variable cwd
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 129, characters 56-70: unused variable require_module
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 129, characters 81-90: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 129, characters 107-116: unused variable timeout_s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 129, characters 125-139: unused variable require_prefix
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 131, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 135, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 141, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 143, characters 36-40: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 143, characters 58-72: unused variable require_module
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 143, characters 83-92: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w48/tmp/.pycsl_i6rqlovk.mlw", line 145, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

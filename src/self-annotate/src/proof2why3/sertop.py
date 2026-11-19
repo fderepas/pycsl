@@ -12,12 +12,12 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def sertop_available() -> bool:
-    return False
+    """True iff sertop is on $PATH (post `opam install coq-serapi`)."""
+    return shutil.which("sertop") is not None
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -26,40 +26,115 @@ def sertop_available() -> bool:
 def sertop_version() -> str:
     return ""
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
+#@ no_exception \all
 def _sexp_tokens(s: str) -> Iterator[str]:
-    return None
+    """Tokenize an s-expression string: emit '(', ')', and atoms.
+
+    Quoted atoms (`"..."`) are returned with the quotes preserved so
+    downstream parsing can distinguish them from bare identifiers.
+    """
+    i = 0
+    n = len(s)
+    #@ loop invariant 0 <= i
+    #@ loop variant n - i
+    while i < n:
+        c = s[i]
+        if s[i].isspace():
+            i += 1
+            continue
+        if c == "(":
+            yield "("
+            i += 1
+            continue
+        if c == ")":
+            yield ")"
+            i += 1
+            continue
+        if c == '"':
+            j = i + 1
+            #@ loop invariant i < j
+            #@ loop variant n - j
+            while j < n and s[j] != '"':
+                if s[j] == "\\":
+                    j += 2
+                    continue
+                j += 1
+            yield s[i:j + 1]
+            i = j + 1
+            continue
+        j = i
+        #@ loop invariant i <= j
+        #@ loop variant n - j
+        while j < n and not s[j].isspace() and s[j] != "(" and s[j] != ")":
+            j += 1
+        yield s[i:j]
+        i = j
+
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ raises ValueError when True
+#@ assigns tokens
 def _sexp_parse(tokens: List[str]) -> object:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def parse_sexp(s: str) -> object:
-    return None
+    """Parse a single top-level s-expression from `s`."""
+    tokens = list(_sexp_tokens(s))
+    return _sexp_parse(tokens)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
-def _process_sertop_line(line: str, payloads_by_tag: int) -> int:
+#@ assigns payloads_by_tag
+def _process_sertop_line(line: str,
+                          payloads_by_tag: Dict[int, object]) -> Optional[int]:
+    """Parse one sertop output line. On `ObjList` capture the payload
+    by tag. Return the tag iff the line is `(Answer <tag> Completed)`,
+    else None."""
+    if not line.startswith("(Answer"):
+        return None
+    try:
+        sexp = parse_sexp(line)
+    except (ValueError, IndexError):
+        return None
+    if not isinstance(sexp, tuple) or len(sexp) < 3:
+        return None
+    if sexp[0] != "Answer":
+        return None
+    try:
+        ans_tag = int(sexp[1])
+    except (ValueError, TypeError):
+        return None
+    body = sexp[2]
+    if body == "Completed":
+        return ans_tag
+    if isinstance(body, tuple) and body and body[0] == "ObjList" and len(body) >= 2:
+        payloads_by_tag[ans_tag] = body[1]
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _extract_stmid(added_payload: object) -> int:
-    return None
+    """Parse the STMID out of an `(Added <stmid> ...)` Answer body.
+
+    sertop's `Add` returns `(Answer N (Added STMID (...))) NewAddTip`
+    style; we want the STMID."""
+    if not isinstance(added_payload, tuple) or len(added_payload) < 2:
+        return None
+    if added_payload[0] != "Added":
+        return None
+    try:
+        return int(added_payload[1])
+    except (ValueError, TypeError):
+        return None
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -76,14 +151,12 @@ class SertopSession:
     cwd: Optional[Path] = None
     proc: Optional[subprocess.Popen] = None
     seq: int = 0
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __enter__(self) -> 'SertopSession':
-        return None
+        return self
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

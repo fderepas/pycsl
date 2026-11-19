@@ -1,0 +1,26 @@
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterator, Sequence, FrozenSet
+from dataclasses import dataclass
+
+class C:
+    def __init__(self, xs: List[int]) -> None:
+        a, b = xs
+        self.k = a
+
+
+class W:
+    def __init__(self, xs: List[int]) -> None:
+        self.c = C(xs)
+
+
+#@ no_exception \all
+def f(xs: List[int]) -> int:
+    w = W(xs)
+    return 1
+
+
+if __name__ == "__main__":
+    try:
+        r = f([1])
+        print("result", r)
+    except Exception as e:
+        print("VIOLATION", type(e).__name__, e)

@@ -11,6 +11,7 @@ stock = 0
 #@ thread_entry
 #@ \diverges
 def worker() -> int:
+    global stock
     #@ acquires lock_stock
     #@ releases lock_stock
     with lock_stock:

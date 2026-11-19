@@ -538,6 +538,28 @@ class IRScanner:
         return False
 
     @staticmethod
+    def uses_str_split_comp(obj: Any) -> bool:
+        """faithful-string-op.md §3.4 (whole-list): True if `obj` contains a comprehension
+        `[<elt> for t in <string>.split(sep)]` — a `ListComp` a generator of which iterates a
+        `.split`/`.rsplit` Call. Such a comprehension lowers to `str_split_op … : array string`
+        (`_split_comp_array_string`), so the preamble must `use array.Array` even when the file
+        has no other array. Mirrors that recognizer's shape; byte-safe (no corpus file has a
+        qualifying string-element split-comp — the lowering byte-diff is 0)."""
+        if isinstance(obj, dict):
+            if obj.get("type") == "ListComp":
+                for g in (obj.get("generators") or []):
+                    it = g.get("iter") if isinstance(g, dict) else None
+                    if (isinstance(it, dict) and it.get("type") == "Call"
+                            and isinstance(it.get("func"), str)
+                            and (it["func"].endswith(".split")
+                                 or it["func"].endswith(".rsplit"))):
+                        return True
+            return any(IRScanner.uses_str_split_comp(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_str_split_comp(item) for item in obj)
+        return False
+
+    @staticmethod
     def uses_minmax(obj: Any) -> bool:
         if isinstance(obj, dict):
             if (obj.get("type") == "Call" and
@@ -635,9 +657,19 @@ class IRScanner:
     # ---- UB-7.1 — mutation during iteration ------------------------
     # Mutating method names (dotted-call receivers that imply mutation
     # of the receiver collection). Reads do not appear here; only writes.
+    # (#43) WIDENED. `sort`, `reverse`, `popitem` and the three set-difference updaters
+    # mutate their receiver in place exactly as the others do, and their absence made
+    # UB-7.1 a FAIL-OPEN for `for x in xs: xs.sort()`. That gap is currently MASKED by
+    # route #14, which refuses those calls at emission before the detector is consulted
+    # (measured: the `.sort()` form dies with the route-#14 diagnostic, the `.append()`
+    # form with UB-7.1) — a hidden coupling between two independent mechanisms. Widened
+    # here so the detector stands on its own, and so that retiring route #14 with the
+    # length-carrying sequence capability does not silently reopen UB-7.1.
     _MUTATING_METHODS: Set[str] = {
         "append", "pop", "clear", "add", "remove", "discard",
         "update", "extend", "insert", "setdefault",
+        "sort", "reverse", "popitem",
+        "intersection_update", "difference_update", "symmetric_difference_update",
     }
 
     @staticmethod
@@ -778,3 +810,59 @@ class IRScanner:
                     if result not in ("int", "unit"):
                         return result
         return "int"
+
+    @staticmethod
+    def has_none_return(stmts: List[Dict[str, Any]]) -> bool:
+        """Optional-tuple value model: True if some `return` in `stmts` (including
+        nested in If/For/While/Try/Match bodies) returns the `None` literal
+        (`return None`). This is the signal that a tuple-returning `Optional[...]`
+        function's WhyML type must be the built-in `option (τ...)` (which can carry
+        the absent case), NOT the raw tuple `(τ...)` (which cannot)."""
+        for stmt in stmts:
+            if stmt.get("stmt") == "Return":
+                v = stmt.get("value")
+                if isinstance(v, dict) and v.get("type") == "None":
+                    return True
+            for key in ("body", "orelse"):
+                if key in stmt and IRScanner.has_none_return(stmt[key]):
+                    return True
+            if stmt.get("stmt") == "Try":
+                for h in stmt.get("handlers", []):
+                    if IRScanner.has_none_return(h.get("body", [])):
+                        return True
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    if IRScanner.has_none_return(c.get("body", [])):
+                        return True
+        return False
+
+    @staticmethod
+    def returns_emit_ir_literal(stmts: List[Dict[str, Any]]) -> bool:
+        """Return_emit_ir infra: True if some `return` in `stmts` (including inside an
+        If/For/While/Try body, matching find_return_type's own traversal) returns a
+        DIRECT inline `{"type": K, ...}` IR-node literal (a Python dict literal — IR
+        shape `DictLit` with a `"type"` string key) — the shape `_csl_field_access` /
+        `_csl_subscript` build (`return {"type": "Attribute", ...}`). Narrower than the
+        Module6 alias-tracking `_returns_emit_ir` (which also follows a `node = {...};
+        return node` local binding through the symbol table AND is gated on
+        `_current_self_type`, which is not yet set at the preamble needs-scan's
+        pre-pass): this static, self-contained check covers ONLY the direct-literal
+        shape, so it needs no per-function state and can run before the per-function
+        symbol table / `_current_self_type` are set up. Extend it if a future
+        conversion needs the indirect (through-local) shape."""
+        for stmt in stmts:
+            if stmt.get("stmt") == "Return":
+                v = stmt.get("value")
+                if isinstance(v, dict) and v.get("type") == "DictLit":
+                    for k in v.get("keys", []):
+                        if (isinstance(k, dict) and k.get("type") == "String"
+                                and k.get("value") == "type"):
+                            return True
+            for key in ("body", "orelse"):
+                if key in stmt and IRScanner.returns_emit_ir_literal(stmt[key]):
+                    return True
+            if stmt.get("stmt") == "Try":
+                for h in stmt.get("handlers", []):
+                    if IRScanner.returns_emit_ir_literal(h.get("body", [])):
+                        return True
+        return False

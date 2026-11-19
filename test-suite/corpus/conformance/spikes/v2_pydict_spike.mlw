@@ -1,0 +1,281 @@
+(* ==========================================================================
+   v2_pydict_spike.mlw — Phase-0 encoding spike for wall-plan v2
+   ("computation, not axiomatization"; plan generic-dict-str-any-2-plan.md).
+
+   This spike tests the THREE design rules that must beat the fmap NO-GO
+   (getting-better/tier3/wall-plan-phase0.md §2 / fb1-feasibility-spike.md):
+
+     R-A  Concrete data + EVALUATION, never abstract theories.  The dict is a
+          strictly-positive first-order datatype; concrete goals are closed by
+          Why3 `compute_in_goal` BEFORE any solver (solver-independent).
+     R-B  CONSTRUCTORS, not strings.  IR keys are interned as a WhyML enum
+          `irkey`; key (dis)equality is datatype-constructor reasoning with
+          ZERO string theory (removes the Z3 sequence load + Alt-Ergo string
+          weakness measured in the fmap spike).
+     R-C  Everything else is a PROVEN lemma pack — never an `axiom`.  The pack
+          is discharged by `let rec lemma` functions (the recursion IS the
+          induction; each arm's VC is trivial arithmetic closed by SMT).
+
+   The two FROZEN benchmark goals (both must go Valid on Alt-Ergo AND Z3):
+     G1  bare-miss lookup   `get d K_z = None`  on a literal 2-elt dict
+         (the fmap analog `r_miss_z_bare` TIMED OUT on both provers).
+     G2  pair-nested program-form termination — a `let rec walk` recursing into
+         both PList elements and PDict values, whose `variant` VC TIMED OUT on
+         both provers in the fmap spike (`walk_pairs'vc`).
+
+   NO `axiom` keyword anywhere in this file.
+   ========================================================================== *)
+
+module V2PyDict
+
+  use int.Int
+  use list.List
+  use list.Mem
+  use option.Option
+  use string.String
+
+  (* ----------------------------------------------------------------------
+     R-B — interned IR keys.  A finite schema-known enum; key equality and
+     disequality are pure constructor reasoning.  The `K_dyn string` arm is
+     the fallback for a genuinely computed key (rare in Module 6); the schema
+     keys used by the benchmark (K_type, K_op, K_z) are nullary constructors,
+     so G1's disequalities involve NO string theory at all.
+     ---------------------------------------------------------------------- *)
+  type irkey =
+    | K_type | K_left | K_right | K_op | K_z
+    | K_value | K_target | K_body | K_orelse | K_func | K_name
+    | K_dyn string
+
+  (* ----------------------------------------------------------------------
+     R-A — the strictly-positive concrete universal value.  No arrow, no map
+     in any constructor (the exact §4c-1 fmap rejection is structurally
+     impossible).  `pydict` is a bespoke inductive assoc-list keyed by irkey.
+     ---------------------------------------------------------------------- *)
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict pydict
+  with pydict =
+    | DNil
+    | DCons irkey pyval pydict
+
+  (* ---- discriminants (constructor tests) ---- *)
+  let function is_pdict (v: pyval) : bool =
+    match v with PDict _ -> true | _ -> false end
+  let function is_plist (v: pyval) : bool =
+    match v with PList _ -> true | _ -> false end
+  let function is_pstr (v: pyval) : bool =
+    match v with PStr _ -> true | _ -> false end
+
+  (* ---- get / mem : logic functions, structural over the dict ----
+     Key test `k = k'` is polymorphic (logic) equality: for the schema keys it
+     is constructor (dis)equality — the R-B payoff. *)
+  function get (d: pydict) (k: irkey) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons k' v rest -> if k = k' then Some v else get rest k
+    end
+
+  predicate mem_key (d: pydict) (k: irkey)
+  = match d with
+    | DNil -> false
+    | DCons k' _ rest -> k = k' \/ mem_key rest k
+    end
+
+  (* the raw value list of a dict (`.values()`) *)
+  function values (d: pydict) : list pyval
+  = match d with
+    | DNil -> Nil
+    | DCons _ v rest -> Cons v (values rest)
+    end
+
+  (* ----------------------------------------------------------------------
+     size — the termination measure.  CRUX FIX over the fmap spike: each cons
+     cell (list AND dict) contributes +1, so the HEAD recursion strictly
+     decreases even for a singleton list.  (The fmap spike used
+     size_list (Cons h t) = size h + size_list t, which makes the head VC
+     `size h < size h + size_list t` require `size_list t > 0` — FALSE for a
+     singleton, the true cause of the `walk_pairs'vc` timeout.)
+     ---------------------------------------------------------------------- *)
+  function size (v: pyval) : int
+  = match v with
+    | PInt  _ -> 1
+    | PStr  _ -> 1
+    | PBool _ -> 1
+    | PNone   -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict d  -> 1 + size_dict d
+    end
+  with size_list (l: list pyval) : int
+  = match l with
+    | Nil      -> 0
+    | Cons h t -> 1 + size h + size_list t
+    end
+  with size_dict (d: pydict) : int
+  = match d with
+    | DNil            -> 0
+    | DCons _ v rest  -> 1 + size v + size_dict rest
+    end
+
+  (* ----------------------------------------------------------------------
+     R-C — the PROVEN lemma pack.  `let rec lemma` functions: the recursion IS
+     the induction (structural `variant`), each arm's VC is trivial arithmetic
+     closed by SMT.  The `ensures` become universally-quantified lemmas
+     available to every later VC.  NO axiom.
+     ---------------------------------------------------------------------- *)
+  let rec lemma size_pos (v: pyval) : unit
+    ensures { size v > 0 }
+    variant { v }
+  = match v with
+    | PList xs -> size_list_nonneg xs
+    | PDict d  -> size_dict_nonneg d
+    | _ -> ()
+    end
+  with lemma size_list_nonneg (l: list pyval) : unit
+    ensures { size_list l >= 0 }
+    variant { l }
+  = match l with
+    | Nil      -> ()
+    | Cons h t -> size_pos h; size_list_nonneg t
+    end
+  with lemma size_dict_nonneg (d: pydict) : unit
+    ensures { size_dict d >= 0 }
+    variant { d }
+  = match d with
+    | DNil           -> ()
+    | DCons _ v rest -> size_pos v; size_dict_nonneg rest
+    end
+
+  (* sub-term size laws (the plan's size_list_mem / size_dict_mem), proven the
+     same way; make each child strictly smaller than its container. *)
+  let rec lemma size_dict_mem (k: irkey) (d: pydict) : unit
+    ensures { mem_key d k -> match get d k with
+                             | Some w -> size w < size (PDict d)
+                             | None   -> true end }
+    variant { d }
+  = match d with
+    | DNil -> ()
+    | DCons _ _ rest -> size_dict_mem k rest
+    end
+
+  (* =====================================================================
+     BENCHMARK G1 — bare-miss lookup on a literal 2-element dict.
+     d = {"type": "BinOp", "op": "add"} with keys K_type, K_op (both <> K_z).
+     The fmap analog `r_miss_z_bare` TIMED OUT on Alt-Ergo AND Z3.
+     Here (R-A) it reduces to `None = None` by evaluation, and (R-B) the key
+     disequalities are constructor facts — no string theory.
+     ===================================================================== *)
+  goal G1_bare_miss :
+    get (DCons K_type (PStr "BinOp") (DCons K_op (PStr "add") DNil)) K_z = None
+
+  (* companion positive reads (R-A/R-B) *)
+  goal G1b_read_hit_first :
+    get (DCons K_type (PStr "BinOp") (DCons K_op (PStr "add") DNil)) K_type
+      = Some (PStr "BinOp")
+  goal G1c_read_hit_second :
+    get (DCons K_type (PStr "BinOp") (DCons K_op (PStr "add") DNil)) K_op
+      = Some (PStr "add")
+  goal G1d_notmem :
+    not (mem_key (DCons K_type (PStr "BinOp") (DCons K_op (PStr "add") DNil)) K_z)
+
+  (* =====================================================================
+     BENCHMARK G2 — pair-nested program-form termination.
+     A `let rec walk` (PROGRAM code, not a logic function) recursing into BOTH
+     PList elements and PDict values, carrying `variant { size v }`.  The fmap
+     spike's `walk_pairs'vc` TIMED OUT on both provers; here the +1-per-cons
+     size + the nonneg pack make every decrease VC trivial LIA.
+     ===================================================================== *)
+  let rec walk (v: pyval) : int
+    variant { size v }
+  = match v with
+    | PList xs -> walk_list xs
+    | PDict d  -> walk_dict d
+    | _ -> 1
+    end
+  with walk_list (xs: list pyval) : int
+    variant { size_list xs }
+  = match xs with
+    | Nil      -> 0
+    | Cons h t -> walk h + walk_list t
+    end
+  with walk_dict (d: pydict) : int
+    variant { size_dict d }
+  = match d with
+    | DNil           -> 0
+    | DCons _ v rest -> walk v + walk_dict rest
+    end
+
+  (* =====================================================================
+     G2-FUEL — the D3 engineered fallback (CakeML/Dafny style).  Kept as an
+     independent witness that termination also discharges via a trivial-LIA
+     `variant { fuel }` with `size v <= fuel` in the precondition, should any
+     real walk shape resist the direct size variant.
+     ===================================================================== *)
+  let rec walk_fuel (v: pyval) (ghost fuel: int) : int
+    requires { size v <= fuel }
+    variant  { fuel }
+  = match v with
+    | PList xs -> walk_fuel_list xs (fuel - 1)
+    | PDict d  -> walk_fuel_dict d  (fuel - 1)
+    | _ -> 1
+    end
+  with walk_fuel_list (xs: list pyval) (ghost fuel: int) : int
+    requires { size_list xs <= fuel }
+    variant  { fuel }
+  = match xs with
+    | Nil      -> 0
+    | Cons h t -> walk_fuel h (fuel - 1) + walk_fuel_list t (fuel - 1)
+    end
+  with walk_fuel_dict (d: pydict) (ghost fuel: int) : int
+    requires { size_dict d <= fuel }
+    variant  { fuel }
+  = match d with
+    | DNil           -> 0
+    | DCons _ v rest -> walk_fuel v (fuel - 1) + walk_fuel_dict rest (fuel - 1)
+    end
+
+  (* =====================================================================
+     D4 COMPUTE-COST PROBE — the largest realistic schema node.  An 11-key
+     dict (every schema key) whose values include nested PList / PDict — the
+     worst-case fan-out an IR node reaches.  A bare-miss on it must still be
+     closed by compute_in_goal cheaply (guardrail: evaluation must not blow up).
+     ===================================================================== *)
+  constant bignode : pydict =
+    DCons K_type   (PStr "BinOp")
+   (DCons K_left   (PDict (DCons K_type (PStr "Num") (DCons K_value (PInt 1) DNil)))
+   (DCons K_right  (PDict (DCons K_type (PStr "Num") (DCons K_value (PInt 2) DNil)))
+   (DCons K_op     (PStr "add")
+   (DCons K_value  (PList (Cons (PInt 1) (Cons (PInt 2) (Cons (PInt 3) Nil))))
+   (DCons K_target (PStr "x")
+   (DCons K_body   (PList Nil)
+   (DCons K_orelse (PList Nil)
+   (DCons K_func   (PStr "f")
+   (DCons K_name   (PStr "g")
+   (DCons K_left   PNone DNil))))))))))
+
+  goal G_probe_large_miss : get bignode (K_dyn "absent") = None
+
+  (* =====================================================================
+     NEGATIVE CONTROLS — the 4 false twins from the original spike, restated
+     over the v2 encoding.  ALL must stay UNPROVEN on both provers (a model
+     that cannot say no is vacuous).  compute_in_goal must NOT close these.
+     ===================================================================== *)
+  (* twin of G1 / g2_false_twin: the miss is NOT Some (PInt 0) *)
+  goal FT1_miss_wrong :
+    get (DCons K_type (PStr "BinOp") (DCons K_op (PStr "add") DNil)) K_z
+      = Some (PInt 0)
+  (* twin of g2_false_twin: wrong value under a present key *)
+  goal FT2_hit_wrong :
+    get (DCons K_type (PStr "BinOp") (DCons K_op (PStr "add") DNil)) K_type
+      = Some (PStr "add")
+  (* twin of g3_false_twin: wrong size arithmetic (drops the +1) *)
+  goal FT3_size_wrong : forall d: pydict.
+    size (PDict d) = size_dict d
+  (* twin of g4_false_twin: a key NOT present is claimed member *)
+  goal FT4_notmem_wrong :
+    mem_key (DCons K_type (PStr "BinOp") (DCons K_op (PStr "add") DNil)) K_z
+
+end

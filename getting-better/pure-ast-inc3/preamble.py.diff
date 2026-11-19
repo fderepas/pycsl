@@ -1,0 +1,28 @@
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -8413,7 +8413,24 @@
+                         elif (f.get("value_type") in ("string", "emit_ir")
+                                 and (getattr(self, "_mutable_state_classes", None)
+                                      or getattr(self, "_uses_ir_node_param", False))):
+-                            ftype = f"array {f.get('value_type')}"
++                            if td.get("name") in getattr(
++                                    self, "_list_element_record_types", set()):
++                                # PURITY IS TRANSITIVE THROUGH A LIST FIELD TOO. The W8/W1
++                                # closure above pins a `List[<record>]` element record and
++                                # every record REACHABLE from it, dropping `mutable` — but
++                                # `array` is itself a MUTABLE type, so a pinned record with
++                                # an `array emit_ir` field is still rejected ("instantiates
++                                # pure type variable 'a with a mutable type"). For a PINNED
++                                # record the faithful pure carrier is `seq` — the same
++                                # element type, the same contents, and the shape the list
++                                # LOCAL that fills it already has (`Seq.snoc`), so the
++                                # binding needs no `Init.init` reconciliation at all. Gated
++                                # on the pin, which is empty unless some function returns
++                                # `List[<record>]` -> byte-inert for the corpus and for
++                                # every mirror without one.
++                                ftype = f"seq {f.get('value_type')}"
++                            else:
++                                ftype = f"array {f.get('value_type')}"
+                         elif (f.get("value_type") in self._record_types
+                                 and (getattr(self, "_mutable_state_classes", None)
+                                      or getattr(self, "_uses_ir_node_param", False))):

@@ -1,0 +1,23 @@
+r"""Test 9958 -- route #602 (expected FAIL: PROVED at base 952bf7891 in the default model, full proof; REFUSED PYCSL-R602-HANDLER-NAME-REBOUND at HEAD): the handler name is a PARAMETER (`Err: Any`) the caller passes `ValueError`; it lowered to a fresh `exception Err`; `f(1, ValueError)` returns 1 under `ensures \result == 0`
+"""
+# pycsl-expected: FAIL
+from __future__ import annotations
+from typing import Any
+
+
+#@ ensures \result == 0
+#@ assigns \nothing
+def f(n: int, Err: Any) -> int:
+    x = 0
+    try:
+        if n > 0:
+            raise ValueError("v")
+        x = 0
+    except Err:
+        x = 1
+    return x
+
+
+if __name__ == "__main__":
+    r = f(1, ValueError)
+    print("VIOLATION contract" if r != 0 else "result", r)

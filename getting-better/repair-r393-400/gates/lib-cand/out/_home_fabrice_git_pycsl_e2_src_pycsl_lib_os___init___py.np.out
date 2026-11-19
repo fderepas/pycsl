@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/os/__init__.py'...
+[*] Memory model: hoare
+[*] Imported class from 'UnixInodeFileSystem': UnixInodeFileSystem (record + 51 method stub(s) + 15 helper(s))
+
+[!] PIPELINE ERROR:
+function 'dirent_is_dir': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `int` parameter `inode_num` of `DirEntry` (body); the `int` parameter `name` of `DirEntry` (body). Python does not enforce the annotation (a user `__sub__`/`__eq__`/... runs), but the model would treat the value as that builtin and re-apply its laws (route #252) -- refused fail-closed. Annotate the source value with the builtin type, or declare the slot `Any`.

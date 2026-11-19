@@ -1,0 +1,2737 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/ir_resolve.py'...
+[*] Memory model: hoare
+[*] Imported class from 'frontend.Module1_Ingestor': Module1_Ingestor (record + 1 method stub(s) + 13 helper(s))
+[*] Imported class from 'frontend.Module3_Weaver': Module3_Weaver (record + 25 method stub(s) + 18 helper(s))
+[*] Imported class from 'frontend.Module5_IREmitter': Module5_IREmitter (record + 1 method stub(s) + 212 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_xdafi7xe.mlw", line 100, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 17247 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 101, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 17166 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 98, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.30s, 629260 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 105, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 105, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5217 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 104, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.02s, 16925 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 108, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4514 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 108, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5578 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 107, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 18160 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 115, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5660 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 111, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 25056 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 142, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 8074 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 142, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30628 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 138, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.74s, 700666 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 183, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8232 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 194, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 204, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8252 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 205, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8524 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 201, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.02s, 30846 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 209, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 28826 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 209, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.19s, 433134 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 209, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.13s, 281686 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 228, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 251, characters 48-70:
+Sub-goal variant decrease of goal get_pput_same'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 250, characters 14-41:
+Sub-goal postcondition of goal get_pput_same'vc.
+Prover result is: Valid (4.73s, 23924 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 256, characters 48-74:
+Sub-goal variant decrease of goal get_pput_other'vc.
+Prover result is: Valid (0.01s, 8542 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 256, characters 48-74:
+Sub-goal precondition of goal get_pput_other'vc.
+Prover result is: Valid (0.01s, 3083 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 255, characters 15-45:
+Sub-goal postcondition of goal get_pput_other'vc.
+Prover result is: Valid (0.03s, 34652 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 265, characters 56-79:
+Sub-goal variant decrease of goal size_dict_pput'vc.
+Prover result is: Valid (0.01s, 8742 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 259, characters 14-67:
+Sub-goal postcondition of goal size_dict_pput'vc.
+Prover result is: Valid (0.05s, 60887 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 260, characters 14-41:
+Sub-goal postcondition of goal size_dict_pput'vc.
+Prover result is: Valid (0.02s, 28254 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 270, characters 48-70:
+Sub-goal variant decrease of goal mem_pput_same'vc.
+Prover result is: Valid (0.01s, 8742 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 269, characters 14-36:
+Sub-goal postcondition of goal mem_pput_same'vc.
+Prover result is: Valid (14.87s, 82150 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 275, characters 41-57:
+Sub-goal variant decrease of goal size_pappend'vc.
+Prover result is: Valid (0.01s, 8573 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 273, characters 14-67:
+Sub-goal postcondition of goal size_pappend'vc.
+Prover result is: Valid (0.02s, 32036 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 450, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30576 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 450, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30598 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 451, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30592 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 451, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30614 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 452, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30564 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 452, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30586 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 453, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30568 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 453, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30590 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 454, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30524 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 455, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30558 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 456, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30604 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 456, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30626 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 456, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30648 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 457, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30594 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 458, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30598 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 459, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30616 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 460, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30634 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 460, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30656 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 461, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30634 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 461, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30656 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 462, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30638 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 462, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30660 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 463, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30642 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 463, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30664 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 464, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30642 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 464, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30664 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 465, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30646 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 465, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30668 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 466, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30654 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 466, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30676 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 467, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30658 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 467, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30680 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 468, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30660 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 469, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30668 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 469, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30690 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 470, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30680 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 470, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30702 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 470, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30724 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 471, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30676 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 471, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30698 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 472, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30680 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 472, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30702 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 473, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30684 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 473, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30706 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 474, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30694 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 474, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30716 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 475, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30698 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 475, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30720 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 476, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30702 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 476, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30724 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 477, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30706 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 477, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30728 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 478, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30710 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 478, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30732 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 479, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30714 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 479, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30736 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 480, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30726 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 480, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30748 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 480, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30770 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 481, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30722 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 481, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30744 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 482, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30726 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 482, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30748 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 483, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30736 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 483, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30758 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 484, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30730 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 485, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30734 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 486, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30738 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 487, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30752 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 487, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30774 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 488, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30756 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 488, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30778 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 489, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30760 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 489, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30782 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 490, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30754 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 491, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30758 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 492, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30782 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 492, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30804 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 493, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30776 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 494, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30798 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 494, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 494, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30842 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 495, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30804 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 495, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30826 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 496, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30804 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 496, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30826 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 497, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30808 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 497, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30830 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 498, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30812 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 498, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30834 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 499, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 500, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30828 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 501, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30858 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 502, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30862 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 503, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30864 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 504, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30898 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 447, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.06s, 131769 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 509, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.03s, 49600 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 510, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.03s, 50417 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 513, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.05s, 51240 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 514, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.03s, 52057 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 517, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.03s, 52953 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 518, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.04s, 53755 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 519, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.03s, 54583 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 562, characters 42-57:
+Sub-goal variant decrease of goal kwl_nth'vc.
+Prover result is: Valid (0.01s, 16718 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 594, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.03s, 55245 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 595, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.03s, 56062 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 596, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.03s, 56810 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 597, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.04s, 68123 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 598, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.03s, 58960 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 599, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.03s, 59777 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 605, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.02s, 18378 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 603, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.04s, 65167 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 609, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.02s, 18414 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 635, characters 24-36:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 19558 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 636, characters 38-50:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.03s, 19572 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 636, characters 23-35:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 19594 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 637, characters 22-34:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.02s, 19566 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 638, characters 76-89:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.02s, 19588 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 638, characters 60-73:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.02s, 19610 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 638, characters 44-57:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18994 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 638, characters 29-41:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.02s, 19654 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 639, characters 25-39:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18974 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 640, characters 38-50:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.02s, 19602 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 632, characters 14-25:
+Sub-goal postcondition of goal size_stmt'vc.
+Prover result is: Valid (0.04s, 62873 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 646, characters 58-70:
+Sub-goal variant decrease of goal size_slist'vc.
+Prover result is: Valid (0.02s, 18378 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 646, characters 44-55:
+Sub-goal variant decrease of goal size_slist'vc.
+Prover result is: Valid (0.02s, 18400 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 644, characters 14-25:
+Sub-goal postcondition of goal size_slist'vc.
+Prover result is: Valid (0.03s, 65258 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 650, characters 61-73:
+Sub-goal variant decrease of goal size_hlist'vc.
+Prover result is: Valid (0.01s, 18378 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 650, characters 44-58:
+Sub-goal variant decrease of goal size_hlist'vc.
+Prover result is: Valid (0.02s, 18400 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 648, characters 14-25:
+Sub-goal postcondition of goal size_hlist'vc.
+Prover result is: Valid (0.06s, 65267 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 654, characters 8-28:
+Sub-goal variant decrease of goal size_handler'vc.
+Prover result is: Valid (0.01s, 7052 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 652, characters 14-25:
+Sub-goal postcondition of goal size_handler'vc.
+Prover result is: Valid (0.04s, 58026 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 658, characters 59-72:
+Sub-goal variant decrease of goal size_mclist'vc.
+Prover result is: Valid (0.02s, 18378 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 658, characters 44-56:
+Sub-goal variant decrease of goal size_mclist'vc.
+Prover result is: Valid (0.02s, 18400 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 656, characters 14-25:
+Sub-goal postcondition of goal size_mclist'vc.
+Prover result is: Valid (0.04s, 65267 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 662, characters 8-28:
+Sub-goal variant decrease of goal size_mcase'vc.
+Prover result is: Valid (0.01s, 7052 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 660, characters 14-25:
+Sub-goal postcondition of goal size_mcase'vc.
+Prover result is: Valid (0.02s, 58026 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 668, characters 48-56:
+Sub-goal variant decrease of goal sl_len'vc.
+Prover result is: Valid (0.01s, 19860 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 666, characters 14-25:
+Sub-goal postcondition of goal sl_len'vc.
+Prover result is: Valid (0.04s, 70437 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 675, characters 30-56:
+Sub-goal variant decrease of goal seq_to_sl_from'vc.
+Prover result is: Valid (0.03s, 33294 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 675, characters 30-56:
+Sub-goal precondition of goal seq_to_sl_from'vc.
+Prover result is: Valid (0.03s, 70500 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 676, characters 56-74:
+Sub-goal precondition of goal seq_to_sl'vc.
+Prover result is: Valid (0.03s, 70100 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 682, characters 38-66:
+Sub-goal variant decrease of goal seq_to_sl_from_len'vc.
+Prover result is: Valid (0.02s, 33294 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 682, characters 38-66:
+Sub-goal precondition of goal seq_to_sl_from_len'vc.
+Prover result is: Valid (0.03s, 70500 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 680, characters 15-61:
+Sub-goal postcondition of goal seq_to_sl_from_len'vc.
+Prover result is: Valid (0.58s, 868 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 683, characters 47-82:
+Sub-goal goal of goal seq_to_sl_len.
+Prover result is: Valid (0.03s, 66701 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 690, characters 48-56:
+Sub-goal variant decrease of goal hl_len'vc.
+Prover result is: Valid (0.02s, 20832 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 688, characters 14-25:
+Sub-goal postcondition of goal hl_len'vc.
+Prover result is: Valid (0.05s, 73900 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 697, characters 30-56:
+Sub-goal variant decrease of goal seq_to_hl_from'vc.
+Prover result is: Valid (0.03s, 34942 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 697, characters 30-56:
+Sub-goal precondition of goal seq_to_hl_from'vc.
+Prover result is: Valid (0.04s, 73952 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 698, characters 66-84:
+Sub-goal precondition of goal seq_to_hl'vc.
+Prover result is: Valid (0.06s, 73552 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 703, characters 38-66:
+Sub-goal variant decrease of goal seq_to_hl_from_len'vc.
+Prover result is: Valid (0.03s, 34942 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 703, characters 38-66:
+Sub-goal precondition of goal seq_to_hl_from_len'vc.
+Prover result is: Valid (0.03s, 73952 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 701, characters 15-61:
+Sub-goal postcondition of goal seq_to_hl_from_len'vc.
+Prover result is: Valid (1.06s, 871 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 704, characters 54-89:
+Sub-goal goal of goal seq_to_hl_len.
+Prover result is: Valid (0.06s, 69708 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 710, characters 48-57:
+Sub-goal variant decrease of goal mcl_len'vc.
+Prover result is: Valid (0.04s, 21760 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 708, characters 14-25:
+Sub-goal postcondition of goal mcl_len'vc.
+Prover result is: Valid (0.05s, 77200 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 716, characters 30-57:
+Sub-goal variant decrease of goal seq_to_mcl_from'vc.
+Prover result is: Valid (0.03s, 36521 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 716, characters 30-57:
+Sub-goal precondition of goal seq_to_mcl_from'vc.
+Prover result is: Valid (0.06s, 77252 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 717, characters 66-85:
+Sub-goal precondition of goal seq_to_mcl'vc.
+Prover result is: Valid (0.07s, 76852 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 722, characters 38-67:
+Sub-goal variant decrease of goal seq_to_mcl_from_len'vc.
+Prover result is: Valid (0.04s, 36521 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 722, characters 38-67:
+Sub-goal precondition of goal seq_to_mcl_from_len'vc.
+Prover result is: Valid (0.08s, 77252 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 720, characters 15-63:
+Sub-goal postcondition of goal seq_to_mcl_from_len'vc.
+Prover result is: Valid (0.55s, 874 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 723, characters 51-88:
+Sub-goal goal of goal seq_to_mcl_len.
+Prover result is: Valid (0.10s, 72704 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 829, characters 21-75:
+Sub-goal variant decrease of goal boolop_fold'vc.
+Prover result is: Valid (0.03s, 22688 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 896, characters 72-102:
+Sub-goal goal of goal is_assign_faithful.
+Prover result is: Valid (0.08s, 75177 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 896, characters 51-67:
+Sub-goal goal of goal is_assign_faithful.
+Prover result is: Valid (0.06s, 76642 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 897, characters 78-111:
+Sub-goal goal of goal is_annassign_faithful.
+Prover result is: Valid (0.06s, 76192 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 897, characters 54-73:
+Sub-goal goal of goal is_annassign_faithful.
+Prover result is: Valid (0.09s, 77394 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 898, characters 76-108:
+Sub-goal goal of goal is_classdef_faithful.
+Prover result is: Valid (0.08s, 77198 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 898, characters 53-71:
+Sub-goal goal of goal is_classdef_faithful.
+Prover result is: Valid (0.07s, 78153 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 899, characters 82-117:
+Sub-goal goal of goal is_functiondef_faithful.
+Prover result is: Valid (0.06s, 78095 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 899, characters 56-77:
+Sub-goal goal of goal is_functiondef_faithful.
+Prover result is: Valid (0.06s, 79037 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 913, characters 74-89:
+Sub-goal variant decrease of goal psl_nth'vc.
+Prover result is: Valid (0.03s, 23420 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 943, characters 67-92:
+Sub-goal goal of goal is_typevar_faithful.
+Prover result is: Valid (0.07s, 79376 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 943, characters 49-62:
+Sub-goal goal of goal is_typevar_faithful.
+Prover result is: Valid (0.10s, 80473 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 944, characters 71-98:
+Sub-goal goal of goal is_paramspec_faithful.
+Prover result is: Valid (0.09s, 80315 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 944, characters 51-66:
+Sub-goal goal of goal is_paramspec_faithful.
+Prover result is: Valid (0.06s, 81278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 945, characters 77-107:
+Sub-goal goal of goal is_typevartuple_faithful.
+Prover result is: Valid (0.09s, 81409 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 945, characters 54-72:
+Sub-goal goal of goal is_typevartuple_faithful.
+Prover result is: Valid (0.08s, 82240 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 950, characters 79-94:
+Sub-goal variant decrease of goal tpl_nth'vc.
+Prover result is: Valid (0.04s, 23916 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 968, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.03s, 23910 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 986, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.04s, 27455 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 993, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.03s, 23880 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1000, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.03s, 23916 steps).
+
+File "/home/fabrice.derepas@canonical.com/.opam/coq-4.14/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.03s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1047, characters 24-55:
+Sub-goal variant decrease of goal _collect_calls__get_K_type'vc.
+Prover result is: Valid (0.04s, 29410 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1054, characters 24-55:
+Sub-goal variant decrease of goal _collect_calls__get_K_func'vc.
+Prover result is: Valid (0.04s, 29410 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1069, characters 51-75:
+Sub-goal variant decrease of goal _collect_calls'vc.
+Prover result is: Valid (0.10s, 110162 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1069, characters 51-75:
+Sub-goal precondition of goal _collect_calls'vc.
+Prover result is: Valid (0.03s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1070, characters 18-41:
+Sub-goal variant decrease of goal _collect_calls'vc.
+Prover result is: Valid (0.10s, 110162 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1070, characters 18-41:
+Sub-goal precondition of goal _collect_calls'vc.
+Prover result is: Valid (0.02s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1066, characters 32-36:
+Sub-goal postcondition of goal _collect_calls'vc.
+Prover result is: Valid (0.03s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1077, characters 53-80:
+Sub-goal variant decrease of goal _collect_calls__dict'vc.
+Prover result is: Valid (0.08s, 119474 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1077, characters 53-80:
+Sub-goal precondition of goal _collect_calls__dict'vc.
+Prover result is: Valid (0.02s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1077, characters 34-52:
+Sub-goal variant decrease of goal _collect_calls__dict'vc.
+Prover result is: Valid (0.10s, 120550 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1077, characters 34-52:
+Sub-goal precondition of goal _collect_calls__dict'vc.
+Prover result is: Valid (0.02s, 10829 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1073, characters 32-36:
+Sub-goal postcondition of goal _collect_calls__dict'vc.
+Prover result is: Valid (0.03s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1083, characters 47-71:
+Sub-goal variant decrease of goal _collect_calls__list'vc.
+Prover result is: Valid (0.10s, 117007 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1083, characters 47-71:
+Sub-goal precondition of goal _collect_calls__list'vc.
+Prover result is: Valid (0.03s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1083, characters 28-46:
+Sub-goal variant decrease of goal _collect_calls__list'vc.
+Prover result is: Valid (0.07s, 118108 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1083, characters 28-46:
+Sub-goal precondition of goal _collect_calls__list'vc.
+Prover result is: Valid (0.04s, 10744 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1080, characters 32-36:
+Sub-goal postcondition of goal _collect_calls__list'vc.
+Prover result is: Valid (0.03s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1089, characters 24-62:
+Sub-goal variant decrease of goal _contract_referenced_names__gtype'vc.
+Prover result is: Valid (0.04s, 29426 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1089, characters 24-62:
+Sub-goal variant decrease of goal _contract_referenced_names__gtype'vc.
+Prover result is: Valid (0.04s, 29278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1096, characters 24-62:
+Sub-goal variant decrease of goal _contract_referenced_names__gfunc'vc.
+Prover result is: Valid (0.05s, 29410 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1102, characters 77-120:
+Sub-goal variant decrease of goal _contract_referenced_names__gcontracts'vc.
+Prover result is: Valid (0.04s, 29126 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1103, characters 24-67:
+Sub-goal variant decrease of goal _contract_referenced_names__gcontracts'vc.
+Prover result is: Valid (0.05s, 29398 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1109, characters 76-118:
+Sub-goal variant decrease of goal _contract_referenced_names__grequires'vc.
+Prover result is: Valid (0.04s, 29126 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1110, characters 24-66:
+Sub-goal variant decrease of goal _contract_referenced_names__grequires'vc.
+Prover result is: Valid (0.04s, 29398 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1116, characters 75-116:
+Sub-goal variant decrease of goal _contract_referenced_names__gensures'vc.
+Prover result is: Valid (0.03s, 29126 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1117, characters 24-65:
+Sub-goal variant decrease of goal _contract_referenced_names__gensures'vc.
+Prover result is: Valid (0.05s, 29398 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1120, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_names__leaf'vc.
+Prover result is: Valid (0.02s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1129, characters 64-101:
+Sub-goal variant decrease of goal _contract_referenced_names__v'vc.
+Prover result is: Valid (0.07s, 110162 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1129, characters 64-101:
+Sub-goal precondition of goal _contract_referenced_names__v'vc.
+Prover result is: Valid (0.04s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1129, characters 27-63:
+Sub-goal precondition of goal _contract_referenced_names__v'vc.
+Prover result is: Valid (0.03s, 10829 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1130, characters 18-54:
+Sub-goal variant decrease of goal _contract_referenced_names__v'vc.
+Prover result is: Valid (0.12s, 110162 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1130, characters 18-54:
+Sub-goal precondition of goal _contract_referenced_names__v'vc.
+Prover result is: Valid (0.03s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1127, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_names__v'vc.
+Prover result is: Valid (0.03s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1138, characters 52-92:
+Sub-goal variant decrease of goal _contract_referenced_names__dfold'vc.
+Prover result is: Valid (0.12s, 118497 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1138, characters 52-92:
+Sub-goal precondition of goal _contract_referenced_names__dfold'vc.
+Prover result is: Valid (0.03s, 10837 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1138, characters 18-51:
+Sub-goal variant decrease of goal _contract_referenced_names__dfold'vc.
+Prover result is: Valid (0.12s, 118759 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1138, characters 18-51:
+Sub-goal precondition of goal _contract_referenced_names__dfold'vc.
+Prover result is: Valid (0.03s, 10846 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1134, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_names__dfold'vc.
+Prover result is: Valid (0.03s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1142, characters 62-99:
+Sub-goal variant decrease of goal _contract_referenced_names__lfold'vc.
+Prover result is: Valid (0.13s, 117007 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1142, characters 62-99:
+Sub-goal precondition of goal _contract_referenced_names__lfold'vc.
+Prover result is: Valid (0.05s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1142, characters 28-61:
+Sub-goal variant decrease of goal _contract_referenced_names__lfold'vc.
+Prover result is: Valid (0.11s, 118108 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1142, characters 28-61:
+Sub-goal precondition of goal _contract_referenced_names__lfold'vc.
+Prover result is: Valid (0.03s, 10744 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1140, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_names__lfold'vc.
+Prover result is: Valid (0.05s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1151, characters 86-122:
+Sub-goal precondition of goal _contract_referenced_names__perfunc'vc.
+Prover result is: Valid (0.05s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1150, characters 87-123:
+Sub-goal precondition of goal _contract_referenced_names__perfunc'vc.
+Prover result is: Valid (0.03s, 11345 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1144, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_names__perfunc'vc.
+Prover result is: Valid (0.03s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1157, characters 68-105:
+Sub-goal variant decrease of goal _contract_referenced_names__ffold'vc.
+Prover result is: Valid (0.12s, 117007 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1157, characters 68-105:
+Sub-goal precondition of goal _contract_referenced_names__ffold'vc.
+Prover result is: Valid (0.05s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1157, characters 28-67:
+Sub-goal precondition of goal _contract_referenced_names__ffold'vc.
+Prover result is: Valid (0.04s, 10744 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1155, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_names__ffold'vc.
+Prover result is: Valid (0.04s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1160, characters 39-75:
+Sub-goal precondition of goal _contract_referenced_names'vc.
+Prover result is: Valid (0.05s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1159, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_names'vc.
+Prover result is: Valid (0.04s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1166, characters 24-66:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gtype'vc.
+Prover result is: Valid (0.05s, 29426 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1166, characters 24-66:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gtype'vc.
+Prover result is: Valid (0.06s, 29278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1173, characters 24-66:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gname'vc.
+Prover result is: Valid (0.05s, 29410 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1179, characters 74-115:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gobj'vc.
+Prover result is: Valid (0.05s, 29126 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1180, characters 24-65:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gobj'vc.
+Prover result is: Valid (0.06s, 29398 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1187, characters 24-67:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gotype'vc.
+Prover result is: Valid (0.04s, 29426 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1187, characters 24-67:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gotype'vc.
+Prover result is: Valid (0.03s, 29278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1194, characters 24-67:
+Sub-goal variant decrease of goal _contract_referenced_var_names__goname'vc.
+Prover result is: Valid (0.04s, 29410 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1200, characters 77-124:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gcontracts'vc.
+Prover result is: Valid (0.04s, 29126 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1201, characters 24-71:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gcontracts'vc.
+Prover result is: Valid (0.05s, 29398 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1207, characters 76-122:
+Sub-goal variant decrease of goal _contract_referenced_var_names__grequires'vc.
+Prover result is: Valid (0.04s, 29126 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1208, characters 24-70:
+Sub-goal variant decrease of goal _contract_referenced_var_names__grequires'vc.
+Prover result is: Valid (0.06s, 29398 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1214, characters 75-120:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gensures'vc.
+Prover result is: Valid (0.06s, 29126 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1215, characters 24-69:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gensures'vc.
+Prover result is: Valid (0.05s, 29398 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1221, characters 75-120:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gassigns'vc.
+Prover result is: Valid (0.05s, 29126 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1222, characters 24-69:
+Sub-goal variant decrease of goal _contract_referenced_var_names__gassigns'vc.
+Prover result is: Valid (0.05s, 29398 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1225, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_var_names__leaf'vc.
+Prover result is: Valid (0.05s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1243, characters 68-109:
+Sub-goal variant decrease of goal _contract_referenced_var_names__v'vc.
+Prover result is: Valid (0.13s, 110162 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1243, characters 68-109:
+Sub-goal precondition of goal _contract_referenced_var_names__v'vc.
+Prover result is: Valid (0.03s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1243, characters 27-67:
+Sub-goal precondition of goal _contract_referenced_var_names__v'vc.
+Prover result is: Valid (0.02s, 10829 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1244, characters 18-58:
+Sub-goal variant decrease of goal _contract_referenced_var_names__v'vc.
+Prover result is: Valid (0.07s, 110162 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1244, characters 18-58:
+Sub-goal precondition of goal _contract_referenced_var_names__v'vc.
+Prover result is: Valid (0.02s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1241, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_var_names__v'vc.
+Prover result is: Valid (0.02s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1252, characters 56-100:
+Sub-goal variant decrease of goal _contract_referenced_var_names__dfold'vc.
+Prover result is: Valid (0.07s, 118497 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1252, characters 56-100:
+Sub-goal precondition of goal _contract_referenced_var_names__dfold'vc.
+Prover result is: Valid (0.04s, 10837 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1252, characters 18-55:
+Sub-goal variant decrease of goal _contract_referenced_var_names__dfold'vc.
+Prover result is: Valid (0.14s, 118759 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1252, characters 18-55:
+Sub-goal precondition of goal _contract_referenced_var_names__dfold'vc.
+Prover result is: Valid (0.03s, 10846 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1248, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_var_names__dfold'vc.
+Prover result is: Valid (0.04s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1256, characters 66-107:
+Sub-goal variant decrease of goal _contract_referenced_var_names__lfold'vc.
+Prover result is: Valid (0.10s, 117007 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1256, characters 66-107:
+Sub-goal precondition of goal _contract_referenced_var_names__lfold'vc.
+Prover result is: Valid (0.04s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1256, characters 28-65:
+Sub-goal variant decrease of goal _contract_referenced_var_names__lfold'vc.
+Prover result is: Valid (0.14s, 118108 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1256, characters 28-65:
+Sub-goal precondition of goal _contract_referenced_var_names__lfold'vc.
+Prover result is: Valid (0.02s, 10744 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1254, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_var_names__lfold'vc.
+Prover result is: Valid (0.02s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1267, characters 91-132:
+Sub-goal precondition of goal _contract_referenced_var_names__perfunc'vc.
+Prover result is: Valid (0.02s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1266, characters 92-132:
+Sub-goal precondition of goal _contract_referenced_var_names__perfunc'vc.
+Prover result is: Valid (0.04s, 11345 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1265, characters 93-133:
+Sub-goal precondition of goal _contract_referenced_var_names__perfunc'vc.
+Prover result is: Valid (0.04s, 11501 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1258, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_var_names__perfunc'vc.
+Prover result is: Valid (0.04s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1273, characters 72-113:
+Sub-goal variant decrease of goal _contract_referenced_var_names__ffold'vc.
+Prover result is: Valid (0.08s, 117007 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1273, characters 72-113:
+Sub-goal precondition of goal _contract_referenced_var_names__ffold'vc.
+Prover result is: Valid (0.04s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1273, characters 28-71:
+Sub-goal precondition of goal _contract_referenced_var_names__ffold'vc.
+Prover result is: Valid (0.04s, 10744 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1271, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_var_names__ffold'vc.
+Prover result is: Valid (0.05s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1276, characters 39-79:
+Sub-goal precondition of goal _contract_referenced_var_names'vc.
+Prover result is: Valid (0.04s, 10820 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1275, characters 32-36:
+Sub-goal postcondition of goal _contract_referenced_var_names'vc.
+Prover result is: Valid (0.04s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1348, characters 17-63:
+Sub-goal variant decrease of goal _rewrite_ir_calls__rw'vc.
+Prover result is: Valid (0.14s, 110162 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1358, characters 24-73:
+Sub-goal variant decrease of goal _rewrite_ir_calls__rw'vc.
+Prover result is: Valid (0.10s, 110162 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1345, characters 36-40:
+Sub-goal postcondition of goal _rewrite_ir_calls__rw'vc.
+Prover result is: Valid (0.02s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1365, characters 76-127:
+Sub-goal variant decrease of goal _rewrite_ir_calls__rw_dict'vc.
+Prover result is: Valid (0.13s, 119474 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1365, characters 32-75:
+Sub-goal variant decrease of goal _rewrite_ir_calls__rw_dict'vc.
+Prover result is: Valid (0.13s, 119432 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1362, characters 38-42:
+Sub-goal postcondition of goal _rewrite_ir_calls__rw_dict'vc.
+Prover result is: Valid (0.04s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1371, characters 67-115:
+Sub-goal variant decrease of goal _rewrite_ir_calls__rw_list'vc.
+Prover result is: Valid (0.13s, 117007 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1371, characters 23-66:
+Sub-goal variant decrease of goal _rewrite_ir_calls__rw_list'vc.
+Prover result is: Valid (0.12s, 116966 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1368, characters 39-43:
+Sub-goal postcondition of goal _rewrite_ir_calls__rw_list'vc.
+Prover result is: Valid (0.02s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1374, characters 29-33:
+Sub-goal postcondition of goal _rewrite_ir_calls'vc.
+Prover result is: Valid (0.03s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1466, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gtype'vc.
+Prover result is: Valid (0.05s, 29426 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1466, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gtype'vc.
+Prover result is: Valid (0.04s, 29278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1470, characters 77-125:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gstmt'vc.
+Prover result is: Valid (0.07s, 29142 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1471, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gstmt'vc.
+Prover result is: Valid (0.06s, 29414 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1471, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gstmt'vc.
+Prover result is: Valid (0.05s, 29278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1476, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gname'vc.
+Prover result is: Valid (0.03s, 29426 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1476, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gname'vc.
+Prover result is: Valid (0.03s, 29278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1482, characters 59-108:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gvalue'vc.
+Prover result is: Valid (0.03s, 29500 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1478, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gvalue'vc.
+Prover result is: Valid (0.16s, 106233 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1487, characters 106-155:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gindex'vc.
+Prover result is: Valid (0.03s, 29216 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1488, characters 59-108:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gindex'vc.
+Prover result is: Valid (0.07s, 29488 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1484, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gindex'vc.
+Prover result is: Valid (0.08s, 115134 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1493, characters 106-155:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__garray'vc.
+Prover result is: Valid (0.07s, 29216 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1494, characters 59-108:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__garray'vc.
+Prover result is: Valid (0.06s, 29488 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1490, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__garray'vc.
+Prover result is: Valid (0.15s, 115134 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1500, characters 59-107:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gleft'vc.
+Prover result is: Valid (0.05s, 29500 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1496, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gleft'vc.
+Prover result is: Valid (0.11s, 106233 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1506, characters 59-108:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gright'vc.
+Prover result is: Valid (0.06s, 29500 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1502, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gright'vc.
+Prover result is: Valid (0.08s, 106233 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1511, characters 105-153:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gexpr'vc.
+Prover result is: Valid (0.05s, 29216 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1512, characters 59-107:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gexpr'vc.
+Prover result is: Valid (0.06s, 29488 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1508, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gexpr'vc.
+Prover result is: Valid (0.07s, 115134 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1517, characters 105-153:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gtest'vc.
+Prover result is: Valid (0.06s, 29216 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1518, characters 59-107:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gtest'vc.
+Prover result is: Valid (0.04s, 29488 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1514, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gtest'vc.
+Prover result is: Valid (0.11s, 115134 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1523, characters 105-155:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__Largs_g'vc.
+Prover result is: Valid (0.03s, 29216 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1524, characters 59-109:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__Largs_g'vc.
+Prover result is: Valid (0.06s, 29488 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1520, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Largs_g'vc.
+Prover result is: Valid (0.17s, 115134 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1526, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Largs'vc.
+Prover result is: Valid (0.15s, 108777 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1526, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Largs'vc.
+Prover result is: Valid (0.53s, 132 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1526, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Largs'vc.
+Prover result is: Valid (0.64s, 132 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1534, characters 59-109:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__Lbody_g'vc.
+Prover result is: Valid (0.06s, 29500 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1530, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lbody_g'vc.
+Prover result is: Valid (0.11s, 106233 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1536, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lbody'vc.
+Prover result is: Valid (0.10s, 108777 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1536, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lbody'vc.
+Prover result is: Valid (0.39s, 132 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1536, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lbody'vc.
+Prover result is: Valid (0.37s, 132 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1544, characters 59-111:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__Lorelse_g'vc.
+Prover result is: Valid (0.06s, 29500 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1540, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lorelse_g'vc.
+Prover result is: Valid (0.15s, 106233 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1546, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lorelse'vc.
+Prover result is: Valid (0.14s, 108777 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1546, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lorelse'vc.
+Prover result is: Valid (0.56s, 132 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1546, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lorelse'vc.
+Prover result is: Valid (0.33s, 132 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.14s, 123978 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 11319 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.11s, 124294 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 11336 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 11336 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 11320 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.10s, 128532 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.05s, 11302 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.10s, 128854 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 11319 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 11319 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 11303 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.08s, 128655 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 11278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.09s, 128983 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 11299 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 11299 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 11279 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.13s, 119278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10894 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.09s, 119606 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 10915 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.05s, 10915 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10895 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.08s, 119306 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10903 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.14s, 119634 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10924 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10924 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 10904 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.09s, 119278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10894 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.13s, 119606 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 10915 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 10915 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10895 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.11s, 119741 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10959 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.14s, 120067 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10980 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10980 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.05s, 10960 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.11s, 118787 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10866 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.08s, 119103 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10887 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10887 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10867 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.09s, 118814 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10874 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.15s, 119130 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10895 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.05s, 10895 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.05s, 10875 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.11s, 118786 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10865 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.13s, 119102 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10886 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.05s, 10886 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10866 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.13s, 119243 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1586, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10930 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.14s, 119563 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10951 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10951 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10931 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.11s, 118669 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1588, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10862 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10862 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10838 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1590, characters 83-128:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.11s, 118696 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1590, characters 83-128:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10870 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1591, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.14s, 119016 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1591, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.05s, 10891 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10891 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10871 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1591, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.14s, 118697 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1591, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.05s, 10871 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10871 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10847 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1593, characters 84-130:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.12s, 118724 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1593, characters 84-130:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.05s, 10879 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.05s, 10879 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10855 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1595, characters 15-110:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.10s, 118872 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1595, characters 15-110:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10888 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10888 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10872 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 10836 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1554, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.04s, 10896 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1600, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.04s, 10731 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1601, characters 52-97:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.11s, 116966 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1601, characters 52-97:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.03s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1601, characters 99-148:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.11s, 117007 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1601, characters 99-148:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.04s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1600, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.03s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.14s, 123978 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 11319 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.12s, 124294 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 11336 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.08s, 124575 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 11353 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 11353 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 11337 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.14s, 124295 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 11337 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 11337 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 11321 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.14s, 128532 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 11302 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 128854 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 11319 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.10s, 129143 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 11336 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 11336 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 11320 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.14s, 128855 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 11320 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 11320 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 11304 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.11s, 128655 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 11278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 128983 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 11299 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 129272 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 11316 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 11316 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 11300 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.14s, 128984 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 11300 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 11300 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 11280 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.09s, 119278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10894 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.10s, 119606 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10915 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.12s, 119887 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 10932 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10932 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10916 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 119607 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10916 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10916 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10896 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.12s, 119306 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10903 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 119634 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10924 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.16s, 119915 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10941 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10941 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10925 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 119635 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10925 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10925 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10905 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.08s, 119278 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10894 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.11s, 119606 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10915 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.11s, 119887 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10932 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10932 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10916 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.10s, 119607 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10916 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10916 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10896 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.10s, 119741 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 10959 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.10s, 120067 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10980 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.10s, 120348 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10997 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10997 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10981 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 120068 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10981 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10981 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10961 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.10s, 118787 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10866 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 119103 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10887 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 119363 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10904 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10904 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10888 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.11s, 119104 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10888 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10888 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10868 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.16s, 118814 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10874 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.07s, 119130 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 10895 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 119390 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 10912 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10912 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10896 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.11s, 119131 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10896 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10896 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10876 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.11s, 118786 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10865 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.10s, 119102 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10886 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.12s, 119362 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10903 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10903 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10887 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.12s, 119103 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10887 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10887 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10867 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.12s, 119243 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1635, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10930 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 119563 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10951 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 119823 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10968 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 10968 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10952 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.08s, 119564 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10952 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 10952 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 10932 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 118669 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1637, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10862 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 118989 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10883 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10883 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10863 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 118670 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1638, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10863 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10863 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10839 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1640, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 118697 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1640, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10871 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10871 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 10847 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1642, characters 85-132:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.09s, 123140 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1642, characters 85-132:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10897 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1643, characters 15-110:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.16s, 123564 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1643, characters 15-110:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10918 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10918 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1643, characters 15-110:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 123261 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1643, characters 15-110:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10898 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10898 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1645, characters 85-132:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.10s, 123211 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1645, characters 85-132:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10916 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1646, characters 15-110:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.16s, 123635 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1646, characters 15-110:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10937 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1647, characters 15-112:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.11s, 123977 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1647, characters 15-112:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10954 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10954 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1646, characters 15-110:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.15s, 123332 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1646, characters 15-110:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.05s, 10917 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1647, characters 15-112:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.11s, 123663 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1647, characters 15-112:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10938 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10938 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 10900 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10836 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1603, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 10896 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1652, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.05s, 10731 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1653, characters 52-97:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.13s, 116966 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1653, characters 52-97:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.05s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1653, characters 99-148:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.09s, 117007 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1653, characters 99-148:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.05s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1652, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.04s, 10735 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1657, characters 4-59:
+Sub-goal precondition of goal pycsltojsonemitter___collect_2d_params'vc.
+Prover result is: Valid (0.03s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1655, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___collect_2d_params'vc.
+Prover result is: Valid (0.04s, 10829 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1846, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___emit_ghost_assign'vc.
+Prover result is: Valid (0.03s, 10816 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1881, characters 24-74:
+Sub-goal variant decrease of goal pycsltojsonemitter___is_decode_call__g_K_type'vc.
+Prover result is: Valid (0.05s, 29410 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1888, characters 24-74:
+Sub-goal variant decrease of goal pycsltojsonemitter___is_decode_call__g_K_func'vc.
+Prover result is: Valid (0.03s, 29410 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1891, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___is_decode_call'vc.
+Prover result is: Valid (0.04s, 10811 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1904, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___is_final_annotation'vc.
+Prover result is: Valid (0.03s, 11016 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1911, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___is_namedtuple_class'vc.
+Prover result is: Valid (0.05s, 11042 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1918, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___is_protocol_class'vc.
+Prover result is: Valid (0.03s, 11042 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1927, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___is_typeddict_class'vc.
+Prover result is: Valid (0.03s, 11042 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1998, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_boolop'vc.
+Prover result is: Valid (0.05s, 10825 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 1998, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_boolop'vc.
+Prover result is: Valid (0.02s, 10829 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2007, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_compare'vc.
+Prover result is: Valid (0.04s, 10816 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2014, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_dict'vc.
+Prover result is: Valid (0.03s, 11036 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2019, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_dictcomp'vc.
+Prover result is: Valid (0.05s, 10816 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2026, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_genexp'vc.
+Prover result is: Valid (0.03s, 10816 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2033, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_lambda'vc.
+Prover result is: Valid (0.05s, 10967 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2040, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_listcomp'vc.
+Prover result is: Valid (0.03s, 10816 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2049, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_setcomp'vc.
+Prover result is: Valid (0.05s, 10816 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2074, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.05s, 11759 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2074, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.03s, 11890 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2074, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.04s, 11954 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2074, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.05s, 11106 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2074, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.05s, 11910 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2074, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.05s, 11772 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2074, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.05s, 11981 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2074, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.05s, 10935 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2118, characters 18-43:
+Sub-goal loop invariant init of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.14s, 109134 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2119, characters 16-35:
+Sub-goal loop variant decrease of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.10s, 72598 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2118, characters 18-43:
+Sub-goal loop invariant preservation of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.17s, 140097 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2119, characters 16-35:
+Sub-goal loop variant decrease of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.06s, 83025 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2118, characters 18-43:
+Sub-goal loop invariant preservation of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.17s, 150402 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2112, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.05s, 10935 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2142, characters 18-43:
+Sub-goal loop invariant init of goal pycsltojsonemitter___py_stmt_match'vc.
+Prover result is: Valid (0.09s, 109134 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2143, characters 16-35:
+Sub-goal loop variant decrease of goal pycsltojsonemitter___py_stmt_match'vc.
+Prover result is: Valid (0.10s, 67821 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2142, characters 18-43:
+Sub-goal loop invariant preservation of goal pycsltojsonemitter___py_stmt_match'vc.
+Prover result is: Valid (0.12s, 135506 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2135, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_match'vc.
+Prover result is: Valid (0.05s, 12156 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2171, characters 18-43:
+Sub-goal loop invariant init of goal pycsltojsonemitter___py_stmt_try'vc.
+Prover result is: Valid (0.12s, 109134 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2172, characters 16-35:
+Sub-goal loop variant decrease of goal pycsltojsonemitter___py_stmt_try'vc.
+Prover result is: Valid (0.05s, 70620 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2171, characters 18-43:
+Sub-goal loop invariant preservation of goal pycsltojsonemitter___py_stmt_try'vc.
+Prover result is: Valid (0.13s, 140364 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2164, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_try'vc.
+Prover result is: Valid (0.03s, 12186 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2195, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_with'vc.
+Prover result is: Valid (0.05s, 11657 steps).
+
+File "/tmp/.pycsl_xdafi7xe.mlw", line 2195, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_with'vc.
+Prover result is: Valid (0.03s, 11817 steps).
+
+Warnings/Errors from Why3:

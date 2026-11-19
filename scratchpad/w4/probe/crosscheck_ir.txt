@@ -1,0 +1,6 @@
+L3TC-FAIL            IRCrossCheckResult.pairwise  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            IRCrossCheckResult.diagnostic  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>._load_axiom_registry  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>._preprocess_whyml  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>.crosscheck_file_ir  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>.main  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]

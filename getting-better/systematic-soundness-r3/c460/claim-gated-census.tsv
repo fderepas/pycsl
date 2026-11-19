@@ -1,0 +1,35 @@
+# Route #460 census of CLAIM-GATED checks (executor c460, driver run #3, 2026-10-29). Line numbers at the c460 candidate.
+# reads_at_base: OWN = the function's own claim (IR contracts / its own `#@ no_exception` lines); REACHED = a claim joined over callers (`_rc444`); SUMMARY = own claim at the CALLER + a transitive callee summary (reaches callees by construction, for a fixed site list only); RELATION = compares two claims (not a gate on one body); PROPAGATE = copies a claim, gates nothing.
+# reads_at_cand: what the site reads after c460 increment 1 (the reached claim `_rx460` written into the IR Module 6 consumes, src/pycsl/pycsl.py `ROUTE #460`).
+id	site	routes	kind	reads_at_base	reads_at_cand	note
+C01	src/pycsl/module6_whyml/functions.py:2127-2128 (_reset_function_state: self._current_no_exception / _all)	#160 #164 #186 #238 #251 #252 #296 #304 #332 #358 #412-#414 #417 #434 #436 #437 #447 #452 (every trigger assert in expressions.py / statements.py / stmt_control_flow.py / Module6_WhyMLTranspiler.py:306,471 reads this state)	OBLIGATION (assert emission)	OWN	REACHED	the clean form: a reached def's trigger asserts are emitted in its own body, discharged by its own requires
+C02	src/pycsl/module6_whyml/functions.py:1017-1019 (_r65_all / _r65_named)	#65 #66 #72 #160 #161 #207	REFUSAL	OWN	REACHED	closes the carrier: `math.factorial` in an un-claimed callee is now refused by #161
+C03	src/pycsl/module6_whyml/functions.py:1576-1720 (#178 / #182 / #430 / #434-#436 callee summary: _act178 from the caller, _decl178 from each callee)	#178 #182 #430 #434 #435 #436	SUMMARY	OWN+SUMMARY	REACHED	a reached callee now DECLARES its reached claim (_decl178), so the summary defers to the callee's own (now checked) sites: precision gain (7055's guarded index no longer refused)
+C04	src/pycsl/module6_whyml/functions.py:717-722 (#171 handler widening of func contracts)	#171	REFUSAL/OBLIGATION (widening)	OWN	REACHED	widening joins onto the reached claim
+C05	src/pycsl/module6_whyml/functions.py:781-782	#71	REFUSAL	OWN	REACHED	`.remove` / `.pop` KeyError
+C06	src/pycsl/module6_whyml/functions.py:973	#64	REFUSAL	OWN	REACHED	
+C07	src/pycsl/module6_whyml/functions.py:10104	#171	OBLIGATION (callee escaping set)	OWN	REACHED	
+C08	src/pycsl/module6_whyml/functions.py:10129-10130	#304	OBLIGATION (wrapper)	OWN	REACHED	
+C09	src/pycsl/Module6_WhyMLTranspiler.py:274-276 (_module_func_no_exception: callee claims seen at a call site)	#171	CALLER-SIDE (callee's declared claim)	OWN	REACHED	a reached callee is judged at its call sites by the claim it is now verified against
+C10	src/pycsl/Module6_WhyMLTranspiler.py:306-331,471-479 (active trigger set)	#171 (+ every trigger emitter)	OBLIGATION	OWN	REACHED	via C01 state
+C11	src/pycsl/module6_whyml/preamble.py:2203	(preamble NoException predicates)	PROPAGATE (theory import)	OWN	REACHED	
+C12	src/pycsl/module6_whyml/generic_fold.py:34634,40168	(fold recognisers bail on a claim)	PROPAGATE	OWN	REACHED	
+C13	src/pycsl/module6_whyml/functions.py:10225,11972	(sub-function / dep contract copies)	PROPAGATE	OWN	REACHED	
+C14	src/pycsl/pycsl.py:15520-15620 (#434 fail-closed site census + PATH values, transpiler.ir)	#434 #435 #436	REFUSAL (post-emission)	OWN	REACHED	reads the rewritten IR
+C15	src/pycsl/pycsl.py:15750 (#459 module definite assignment, transpiler.ir)	#459	REFUSAL	OWN	REACHED	
+C16	src/pycsl/pycsl.py:18610 (#451 default kinds, transpiler.ir)	#451	REFUSAL	OWN	REACHED	
+C17	src/pycsl/pycsl.py:7312-7380 (_rc444 closure)	#444 #445 #446 #453 #457 #458	REFUSAL (opaque fallbacks)	REACHED	REACHED	r1; the set route #460 reuses
+C18	src/pycsl/pycsl.py:11356,12272 (in-function #444-#458 rows read _rc444)	#444-#458	REFUSAL	REACHED	REACHED	r1
+C19	src/pycsl/pycsl.py:10094-10096 (_xf440: #441 builtin-function rows under a caller's claim)	#441	REFUSAL	REACHED	REACHED	r1, builtin-function rows only
+C20	src/pycsl/pycsl.py:9282-9310 (_cx432 -> _ae432 / _te432: #432 ordering, #440 signatures, #443 receivers, #437/#447/#452 front-end rows)	#432 #437 #440 #443 #447 #452	REFUSAL	OWN	REACHED (increment 2; constructors keep own; super() receiver under a reached-only AttributeError claim judged by #450)	r1 measured `_cx432 |= _rc444` refusing 10 accepted corpus files; c460 measured 12 (all in reached constructors but 6982), narrowed by the two rows to 0
+C21	src/pycsl/pycsl.py:9110-9120 (_cl430: is the CALLEE claimed?)	#430	SUMMARY	OWN+SUMMARY	OWN+SUMMARY	hashing callee summary at the caller (fixed site family)
+C22	src/pycsl/pycsl.py:12194 (_nx347 AttributeError on partially-built objects)	#347	REFUSAL	OWN	OWN	residual: _ir342 read before the rewrite point
+C23	src/pycsl/pycsl.py:5392 (#395 / #402 hashing sites call __hash__/__eq__ without precondition)	#395 #402	REFUSAL	OWN	OWN	residual: runs BEFORE the _rc444 closure is computed
+C24	src/pycsl/pycsl.py:1971 (#357 construction through runtime class)	#357	REFUSAL	OWN	OWN	residual (ir_data, early)
+C25	src/pycsl/pycsl.py:12765 (#263 / #269 diverges + no_exception on a recursion)	#263 #269	REFUSAL	OWN	OWN	a claim/diverges relation on the def itself
+C26	src/pycsl/pycsl.py:12979-13140 (#272 hidden raise paths, route #263 call graph)	#272	SUMMARY	OWN+SUMMARY	OWN+SUMMARY	transitive over the call graph by construction
+C27	src/pycsl/pycsl.py:13254,13276 (#278 override refinement)	#278	RELATION	OWN	OWN	compares base/override declared claims: must stay own (a reached claim is not a declared contract)
+C28	src/pycsl/pycsl.py:17562 (#179 / #181 constructor may-raise, transitive _may179)	#179 #181	SUMMARY	OWN+SUMMARY	OWN+SUMMARY	transitive by construction
+C29	src/pycsl/pycsl.py:14577 (#439 imported-module claims)	#439	REFUSAL (cross-file)	OWN	OWN	another file's defs: outside this file's call graph (residual)
+C30	src/pycsl/frontend/ir_inline.py:469-470 (#?? keep calls of a claiming caller un-inlined)	(ir_inline)	PROPAGATE	OWN	OWN	front end, before the rewrite; gates inlining only
+C31	src/pycsl/core_ir_semantic.py:204-205 (_check_no_exception)	(Module 4 contradiction checks)	RELATION	OWN	OWN	declared-contract well-formedness: must stay own

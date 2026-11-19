@@ -1,0 +1,1019 @@
+[
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/python-reference/0091.py",
+  "cls": "Vec",
+  "field": "_d",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0452.py",
+  "cls": "BytesIO",
+  "field": "buf",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0718.py",
+  "cls": "Store",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0423.py",
+  "cls": "Inodes",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0461.py",
+  "cls": "Store",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0719.py",
+  "cls": "Bank",
+  "field": "role",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0426.py",
+  "cls": "SliceRead",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0725.py",
+  "cls": "Bank",
+  "field": "balance",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0725.py",
+  "cls": "Bank",
+  "field": "audit",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0723.py",
+  "cls": "Bank",
+  "field": "balance",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0723.py",
+  "cls": "Bank",
+  "field": "audit",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0720.py",
+  "cls": "Bank",
+  "field": "role",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0993_augassign_subscript_base_refused.py",
+  "cls": "Box",
+  "field": "items",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0425.py",
+  "cls": "Lookup",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0460.py",
+  "cls": "Store",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0644.py",
+  "cls": "Store",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0459.py",
+  "cls": "Store",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0462.py",
+  "cls": "Store",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0427.py",
+  "cls": "Echo",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0717.py",
+  "cls": "Store",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0687.py",
+  "cls": "Store",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0421.py",
+  "cls": "TinyDisk",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0421.py",
+  "cls": "TinyDisk",
+  "field": "aux",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0424.py",
+  "cls": "DirWriter",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0716.py",
+  "cls": "Store",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0724.py",
+  "cls": "Bank",
+  "field": "balance",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0724.py",
+  "cls": "Bank",
+  "field": "audit",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0428.py",
+  "cls": "RoundTrip",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0422.py",
+  "cls": "Blitter",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "test-suite/corpus",
+  "file": "test-suite/corpus/pycsl-reference/0715.py",
+  "cls": "Store",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "ir",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "check_behavioral_subtyping",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "strict_no_exception_propagation",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "strict_hash_eq_consistency",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_module_constants",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_imported_inductive_sigs",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_module_global_classes",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_ambiguous_fields",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_shared_var_names",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_array2d_params",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_current_array1d_params",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_current_params",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_array_locals",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_dict_locals",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_record_locals",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_quant_scalar_binders",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_lambda_locals",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_all_record_fields",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_module_func_names",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/frontend/Module2_Parser.py",
+  "cls": "_ContractParser",
+  "field": "toks",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/frontend/Module1_Ingestor.py",
+  "cls": "_Harvester",
+  "field": "_coms",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/frontend/ConcurrencyChecker.py",
+  "cls": "ConcurrencyChecker",
+  "field": "strict_mode",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/frontend/ConcurrencyChecker.py",
+  "cls": "ConcurrencyChecker",
+  "field": "_thread_entries",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/frontend/ir_inline.py",
+  "cls": "_Inliner",
+  "field": "fmap",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/self-annotate",
+  "file": "src/self-annotate/src/frontend/ir_inline.py",
+  "cls": "_Inliner",
+  "field": "no_inline",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "ir",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "check_behavioral_subtyping",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "strict_no_exception_propagation",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "strict_hash_eq_consistency",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_emitted_logic_funcs",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_module_constants",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_token_kind_constants",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_module_str_list_constants",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_module_const_dicts",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_module_const_pair_dicts",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_module_const_compound_dicts",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_imported_inductive_sigs",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_module_global_classes",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_ambiguous_fields",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_shared_var_names",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_array2d_params",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_current_array1d_params",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_current_params",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_array_locals",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_dict_locals",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_record_locals",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_quant_scalar_binders",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_lambda_locals",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_all_record_fields",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/Module6_WhyMLTranspiler.py",
+  "cls": "Module6_WhyMLTranspiler",
+  "field": "_module_func_names",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/agents/coordinator.py",
+  "cls": "CoordinatorAgent",
+  "field": "agents_dir",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/agents/coordinator.py",
+  "cls": "CoordinatorAgent",
+  "field": "config_dir",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/agents/coordinator.py",
+  "cls": "CoordinatorAgent",
+  "field": "tests_dir",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/agents/coordinator.py",
+  "cls": "CoordinatorAgent",
+  "field": "to_annotate_dir",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/agents/coordinator.py",
+  "cls": "CoordinatorAgent",
+  "field": "annotated_dir",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/agents/coordinator.py",
+  "cls": "CoordinatorAgent",
+  "field": "pycsl_bin",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/agents/coordinator.py",
+  "cls": "CoordinatorAgent",
+  "field": "venv_activate",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/agents/coordinator.py",
+  "cls": "CoordinatorAgent",
+  "field": "metrics_dir",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/frontend/Module2_Parser.py",
+  "cls": "_ContractParser",
+  "field": "toks",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/frontend/Module2_Parser.py",
+  "cls": "_ContractParser",
+  "field": "source",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/frontend/Module5_IREmitter.py",
+  "cls": "PyCSLToJSONEmitter",
+  "field": "program_ir",
+  "ftype": "dict",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/frontend/Module5_IREmitter.py",
+  "cls": "PyCSLToJSONEmitter",
+  "field": "_shared_var_names",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/frontend/Module1_Ingestor.py",
+  "cls": "_Harvester",
+  "field": "_coms",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/frontend/ConcurrencyChecker.py",
+  "cls": "ConcurrencyChecker",
+  "field": "strict_mode",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/frontend/ConcurrencyChecker.py",
+  "cls": "ConcurrencyChecker",
+  "field": "_thread_entries",
+  "ftype": "set",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/frontend/ir_inline.py",
+  "cls": "_Inliner",
+  "field": "fmap",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl",
+  "file": "src/pycsl/frontend/ir_inline.py",
+  "cls": "_Inliner",
+  "field": "no_inline",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/os/UnixInodeFileSystem.py",
+  "cls": "UnixInodeFileSystem",
+  "field": "disk",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/os/UnixInodeFileSystem.py",
+  "cls": "UnixInodeFileSystem",
+  "field": "dir",
+  "ftype": "list",
+  "scalar": false,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/json/decoder.py",
+  "cls": "JSONDecodeError",
+  "field": "lineno",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/json/decoder.py",
+  "cls": "JSONDecodeError",
+  "field": "colno",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/json/decoder.py",
+  "cls": "JSONDecoder",
+  "field": "parse_float",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/json/decoder.py",
+  "cls": "JSONDecoder",
+  "field": "parse_int",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/json/decoder.py",
+  "cls": "JSONDecoder",
+  "field": "parse_constant",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/json/decoder.py",
+  "cls": "JSONDecoder",
+  "field": "parse_object",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/json/decoder.py",
+  "cls": "JSONDecoder",
+  "field": "parse_array",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/json/decoder.py",
+  "cls": "JSONDecoder",
+  "field": "parse_string",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/json/decoder.py",
+  "cls": "JSONDecoder",
+  "field": "scan_once",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/tmpf/__init__.py",
+  "cls": "NamedTemporaryFile",
+  "field": "_fd",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/tmpf/__init__.py",
+  "cls": "NamedTemporaryFile",
+  "field": "_name",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/world/__init__.py",
+  "cls": "World",
+  "field": "clock",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/world/__init__.py",
+  "cls": "World",
+  "field": "fs",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ },
+ {
+  "root": "src/pycsl_lib",
+  "file": "src/pycsl_lib/world/__init__.py",
+  "cls": "World",
+  "field": "proc",
+  "ftype": "int",
+  "scalar": true,
+  "already83": false
+ }
+]

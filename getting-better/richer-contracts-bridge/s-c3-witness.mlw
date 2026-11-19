@@ -1,0 +1,215 @@
+(* s-c3-witness.mlw — S-c3 spike (richer-contracts-bridge-plan.md §2, §3-P3)
+   ============================================================================
+
+   FALSIFIER SPIKE, not a rollout. Answers the load-bearing C3 question:
+
+     Can a REAL straight-line emission be proved at
+        #@ ensures \result = emit_F_assign(x, e)
+     where emit_F_assign is the exported formal emitter (S-ext), so that SMT
+     proves only a STRING-BUILDER EQUALITY (the *meaning* of the string is
+     already proved once by the coherence lemmas)?
+
+   TARGET (honest). The mirror's `_handle_assign_stmt` (statements.py:92) is a
+   COMPLEX dispatcher (arrays/tuples/augassign/ghost/...). Proving
+   `\result = emit_F_assign` on the WHOLE thing is wrong — it does not collapse
+   to the assign string. So this witness is the SCALAR-ASSIGN STRAIGHT-LINE
+   PATH, faithfully modelled: the real emission is the f-string
+      f"{indent}let {safe_target} = ref {val} in\n"   (statements.py:69)
+      f"{indent}let {safe_target} = ref ({val} : int{bits}) in\n" (:57)
+      f"{indent}{safe_target} := {val}"                 (:142/:170, shared/existing)
+   A Python f-string with N interpolations builds its result by SUCCESSIVE
+   LEFT-ASSOCIATED appends. `emit_F_assign` (Phase6L_EmitAssign twin) is a
+   functional RIGHT-ASSOCIATED concat tree. The equality is therefore exactly
+   the named S-c3 risk: concat associativity / unit normalization.
+
+   `emit_handler` below is the purpose-built C3 witness METHOD: a program `let`
+   whose body builds the string by left-associated appends (the f-string shape),
+   carrying `ensures { result = FX.emit_F_assign s x e }`. Proving its `'vc`
+   goal IS the C3 measurement. (This is the honest analog of the S-ext
+   `emit_usable` demo, but on a METHOD with a SYMBOLIC ensures — not a ground
+   reduction. Symbolic x/e is what forces associativity normalization.)
+
+   ATOMIZATION NOTE (faithfulness caveat, for the P3 spec-generator). emit_F
+   abstracts the newline as `constant nl` (the S-ext export choice); a raw
+   f-string fuses "\n" into its preceding literal (") in\n"). For the equality
+   to hold the two sides must AGREE on their literal atoms — Why3 string
+   literals are opaque (concat " in" "\n" is NOT provably " in\n"). So both
+   sides here use the SAME atoms (nl split out); the P3 generator must atomize
+   the mirror f-string to match emit_F's atoms. That is an atomization
+   obligation on the generator, orthogonal to the concat-normalization risk this
+   spike measures.
+
+   Acceptance: the `'vc` goal Valid under Alt-Ergo/Z3, in seconds. No `axiom`
+   keyword introduced here; concat facts are stdlib (string.String) + a proved
+   `lemma` pack. Ledger (Rocq/Lean axioms) untouched.
+*)
+
+(* ==========================================================================
+   (0) ConcatPack — the certified concat lemma pack (mitigation ladder (a)).
+   These are PROVED `lemma`s, discharged from the stdlib String axioms
+   (concat_assoc, concat_empty). NOT new axioms. They give the SMT run a
+   named, stable normalization vocabulary for the literal spine.
+   ========================================================================== *)
+module ConcatPack
+  use string.String
+
+  (* Re-exposed associativity as a proved lemma (follows from the stdlib
+     String.concat_assoc axiom — Why3 discharges the goal immediately). *)
+  lemma concat_assoc_l : forall a b c: string.
+    concat (concat a b) c = concat a (concat b c)
+
+  (* Unit laws as proved lemmas (from stdlib String.concat_empty). *)
+  lemma concat_unit_left  : forall s: string. concat empty s = s
+  lemma concat_unit_right : forall s: string. concat s empty = s
+end
+
+(* ==========================================================================
+   (1) EmitIrAdt — the emitter's emit-IR ADT (faithful copy of the S-ext
+   export module (3); the 9 formal `expr` constructors).
+   ========================================================================== *)
+module EmitIrAdt
+  use int.Int
+  use string.String
+  use list.List
+
+  type binop = OpAdd | OpSub | OpMul | OpDiv | OpMod
+  type cmpop = OpEq | OpNe | OpLt | OpLe | OpGt | OpGe
+
+  type expr =
+    | EInt int
+    | EVar string
+    | ESubscript string expr
+    | ELen string
+    | EBinOp binop expr expr
+    | ENeg expr
+    | ECmp cmpop expr expr
+    | EFieldGet string string
+    | ECall string (list expr)
+end
+
+(* ==========================================================================
+   (2) EmitAssignExport — faithful re-statement of the exported per-arm emitter
+   `emit_F_assign` (identical to pycsl-formal-export.mlw module (1)). Copied so
+   this witness file is self-contained + re-verifiable in one `why3 prove`.
+   ========================================================================== *)
+module EmitAssignExport
+  use int.Int
+  use list.List
+  use option.Option
+  use string.String
+  use EmitIrAdt as EI
+
+  type ident = string
+
+  function z_to_string int : string
+  constant nl : string
+
+  function pretty_binop (op: EI.binop) : string
+  = match op with
+    | EI.OpAdd -> "+" | EI.OpSub -> "-" | EI.OpMul -> "*"
+    | EI.OpDiv -> "/" | EI.OpMod -> "mod" end
+
+  function pretty_cmpop (op: EI.cmpop) : string
+  = match op with
+    | EI.OpEq -> "=" | EI.OpNe -> "<>" | EI.OpLt -> "<"
+    | EI.OpLe -> "<=" | EI.OpGt -> ">" | EI.OpGe -> ">=" end
+
+  function pretty_expr (e: EI.expr) : string
+  = match e with
+    | EI.EInt n          -> z_to_string n
+    | EI.EVar x          -> x
+    | EI.ESubscript a i  -> concat a (concat "[" (concat (pretty_expr i) "]"))
+    | EI.ELen a          -> concat "(length " (concat a ")")
+    | EI.EBinOp op e1 e2 -> concat "(" (concat (pretty_expr e1)
+                              (concat " " (concat (pretty_binop op)
+                              (concat " " (concat (pretty_expr e2) ")")))))
+    | EI.ENeg e1         -> concat "(- " (concat (pretty_expr e1) ")")
+    | EI.ECmp op e1 e2   -> concat "(" (concat (pretty_expr e1)
+                              (concat " " (concat (pretty_cmpop op)
+                              (concat " " (concat (pretty_expr e2) ")")))))
+    | EI.EFieldGet obj f -> concat obj (concat "." f)
+    | EI.ECall f args    -> concat f (concat "(" (concat (pretty_args args) ")"))
+    end
+  with pretty_args (xs: list EI.expr) : string
+  = match xs with
+    | Nil -> ""
+    | Cons x Nil -> pretty_expr x
+    | Cons x rest -> concat (pretty_expr x) (concat ", " (pretty_args rest))
+    end
+
+  type assign_state = {
+    as_shared_vars   : list ident;
+    as_declared_refs : list ident;
+    as_bounded_int   : option string;
+  }
+
+  function ident_in (x: ident) (xs: list ident) : bool
+  = match xs with
+    | Nil -> false
+    | Cons h t -> if x = h then true else ident_in x t
+    end
+
+  (* emit_F_assign — the exported formal emitter (right-associated tree). *)
+  function emit_F_assign (s: assign_state) (x: ident) (e: EI.expr) : string
+  = if ident_in x s.as_shared_vars then
+      concat x (concat " := " (pretty_expr e))
+    else if not (ident_in x s.as_declared_refs) then
+      match s.as_bounded_int with
+      | Some bits ->
+          concat "let " (concat x (concat " = ref (" (concat (pretty_expr e)
+            (concat " : int" (concat bits (concat ") in" nl))))))
+      | None ->
+          concat "let " (concat x (concat " = ref " (concat (pretty_expr e)
+            (concat " in" nl))))
+      end
+    else
+      concat x (concat " := " (pretty_expr e))
+end
+
+(* ==========================================================================
+   (3) C3Witness — THE spike. `emit_handler` is a program METHOD (`let`)
+   modelling the mirror's straight-line scalar-assign emission path by
+   LEFT-ASSOCIATED appends (the f-string shape), carrying the C3 ensures
+   `result = FX.emit_F_assign s x e`. Proving its `'vc` goal is the answer.
+   ========================================================================== *)
+module C3Witness
+  use int.Int
+  use list.List
+  use option.Option
+  use string.String
+  use ConcatPack        (* the proved concat lemma pack, mitigation (a) *)
+  use EmitIrAdt         as EI
+  use EmitAssignExport  as FX
+
+  (* Local aliases mirroring how the Python method reads its state.
+     `pe` is `val = self._expr_to_whyml(...)`; here it is the exact same
+     subterm FX.pretty_expr e (the recursion into the expr emitter is shared,
+     NOT re-proved — that is what the coherence side covers once). *)
+
+  (* emit_handler — the C3 witness METHOD.
+     Body = the mirror's straight-line branch selection, each branch building
+     its string by LEFT-ASSOCIATED appends (successive `concat (... ) atom`,
+     the f-string left-fold). The `#@ ensures \result = emit_F_assign x e`
+     is the WhyML `ensures` below; SMT must prove ONLY the concat equality. *)
+  let ghost function emit_handler (s: FX.assign_state) (x: FX.ident) (e: EI.expr) : string
+    ensures { result = FX.emit_F_assign s x e }
+  = pure {
+      let pe = FX.pretty_expr e in
+      if FX.ident_in x s.FX.as_shared_vars then
+        (* shared var: f"{x} := {val}" — left-assoc *)
+        concat (concat x " := ") pe
+      else if not (FX.ident_in x s.FX.as_declared_refs) then
+        match s.FX.as_bounded_int with
+        | Some bits ->
+            (* f"let {x} = ref ({val} : int{bits}) in\n" — left-assoc spine *)
+            concat (concat (concat (concat (concat (concat
+              (concat "let " x) " = ref (") pe) " : int") bits) ") in") FX.nl
+        | None ->
+            (* f"let {x} = ref {val} in\n" — left-assoc spine (the core case) *)
+            concat (concat (concat (concat (concat "let " x) " = ref ") pe) " in") FX.nl
+        end
+      else
+        (* existing local: f"{x} := {val}" — left-assoc *)
+        concat (concat x " := ") pe
+    }
+end

@@ -111,6 +111,21 @@ def test_typed_field_access():
     assert to_dict(s) == d
 
 
+def test_del_subscript_roundtrip():
+    """wrong-lowering-to-fix.md §WL-05c: the `del d[k]` (DelSubscript) node round-trips
+    and exposes typed array/index fields (Module 6 lowers a local/standalone-param to
+    `map_update_none` and a method param to a rejection)."""
+    from ir_schema import DelSubscriptStmt
+    d = {"stmt": "DelSubscript",
+         "array": {"type": "Var", "name": "d"},
+         "index": {"type": "String", "value": "a"}}
+    s = stmt_from_dict(d)
+    assert isinstance(s, DelSubscriptStmt)
+    assert s.array.kind == "Var" and s.array.name == "d"
+    assert s.index.kind == "String"
+    assert to_dict(s) == d
+
+
 def test_auto_dispatch():
     """`from_dict` auto-detects stmt vs expr by the tag key."""
     s = from_dict({"stmt": "Pass"})

@@ -1,0 +1,3014 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/__init__.py'...
+[*] Memory model: hoare
+[*] Imported class from 'frontend.Module1_Ingestor': Module1_Ingestor (record + 1 method stub(s) + 13 helper(s))
+[*] Imported class from 'frontend.Module3_Weaver': Module3_Weaver (record + 26 method stub(s) + 18 helper(s))
+[*] Imported class from 'frontend.Module5_IREmitter': Module5_IREmitter (record + 1 method stub(s) + 214 helper(s))
+[*] Imported class from 'frontend.ConcurrencyChecker': ConcurrencyChecker (record + 6 method stub(s) + 0 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 41, characters 7-14:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 41, characters 34-41:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 41, characters 51-58:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 40, characters 14-79:
+Sub-goal postcondition of goal pycsl_div'vc.
+Prover result is: Valid (0.02s, 19 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 46, characters 7-14:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 46, characters 34-41:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 46, characters 51-58:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 45, characters 14-79:
+Sub-goal postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.01s, 10848 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 109, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 17247 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 110, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.00s, 17166 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 107, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.06s, 302566 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 114, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 114, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.00s, 5217 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 113, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 16925 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 117, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 4514 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 117, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 5578 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 116, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 18160 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 124, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.00s, 5660 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 120, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 25056 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 151, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.00s, 8074 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 151, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 30628 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 147, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.14s, 425583 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 192, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8232 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 203, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 213, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.00s, 8252 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 214, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8524 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 210, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 30846 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 218, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.01s, 28826 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 218, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.08s, 390253 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 218, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.06s, 284262 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 237, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 396, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29704 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 396, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29726 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 397, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29720 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 397, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29742 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 398, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29692 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 398, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29714 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 399, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29696 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 399, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29718 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 400, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29652 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 401, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29686 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 402, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 402, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29754 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 402, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29776 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 403, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29722 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 404, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29726 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 405, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29744 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 406, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29762 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 406, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29784 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 407, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29762 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 407, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29784 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 408, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29766 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 408, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29788 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 409, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29770 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 409, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29792 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 410, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29770 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 410, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29792 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 411, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29774 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 411, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29796 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 412, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29782 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 412, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29804 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 413, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29786 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 413, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29808 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 414, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29788 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 415, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29796 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 415, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29818 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 416, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29808 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 416, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29830 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 416, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29852 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 417, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29804 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 417, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29826 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 418, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29808 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 418, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29830 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 419, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29812 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 419, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29834 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 420, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29822 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 420, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29844 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 421, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29826 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 421, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29848 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 422, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29830 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 422, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29852 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 423, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29834 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 423, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29856 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 424, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29838 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 424, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29860 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 425, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29842 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 425, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29864 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 426, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29854 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 426, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29876 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 426, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29898 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 427, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29850 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 427, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29872 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 428, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29854 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 428, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29876 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 429, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29864 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 429, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29886 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 430, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29858 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 431, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29862 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 432, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29866 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 433, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29880 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 433, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 434, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29884 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 434, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 435, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 435, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29910 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 436, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29882 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 437, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29886 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 438, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30022 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 439, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29910 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 439, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29932 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 440, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29904 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 441, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29926 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 441, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29948 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 441, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29970 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 442, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29932 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 442, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29954 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 443, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29932 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 443, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29954 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 444, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29936 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 444, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29958 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 445, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29940 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 445, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29962 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 446, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29948 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 447, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29956 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 448, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29986 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 449, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29990 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 450, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29992 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 451, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30030 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 393, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.02s, 147015 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 456, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.01s, 46942 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 457, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.02s, 47759 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 460, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.01s, 48582 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 461, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.01s, 49399 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 464, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.02s, 50295 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 465, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.01s, 51097 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 466, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.02s, 51925 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 509, characters 42-57:
+Sub-goal variant decrease of goal kwl_nth'vc.
+Prover result is: Valid (0.01s, 15886 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 541, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.01s, 52587 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 542, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.01s, 53404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 543, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.01s, 54152 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 544, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.02s, 65593 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 545, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.01s, 56302 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 546, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.01s, 57119 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 552, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.01s, 17546 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 550, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.02s, 62235 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 556, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.01s, 17582 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 616, characters 24-36:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18766 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 617, characters 38-50:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18780 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 617, characters 23-35:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18802 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 618, characters 22-34:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18774 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 619, characters 76-89:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.00s, 18796 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 619, characters 60-73:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18818 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 619, characters 44-57:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18202 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 619, characters 29-41:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18862 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 620, characters 25-39:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18182 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 621, characters 38-50:
+Sub-goal variant decrease of goal size_stmt'vc.
+Prover result is: Valid (0.01s, 18810 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 613, characters 14-25:
+Sub-goal postcondition of goal size_stmt'vc.
+Prover result is: Valid (0.02s, 60234 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 627, characters 58-70:
+Sub-goal variant decrease of goal size_slist'vc.
+Prover result is: Valid (0.01s, 17546 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 627, characters 44-55:
+Sub-goal variant decrease of goal size_slist'vc.
+Prover result is: Valid (0.01s, 17568 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 625, characters 14-25:
+Sub-goal postcondition of goal size_slist'vc.
+Prover result is: Valid (0.01s, 62326 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 631, characters 61-73:
+Sub-goal variant decrease of goal size_hlist'vc.
+Prover result is: Valid (0.01s, 17546 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 631, characters 44-58:
+Sub-goal variant decrease of goal size_hlist'vc.
+Prover result is: Valid (0.01s, 17568 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 629, characters 14-25:
+Sub-goal postcondition of goal size_hlist'vc.
+Prover result is: Valid (0.02s, 62335 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 635, characters 8-28:
+Sub-goal variant decrease of goal size_handler'vc.
+Prover result is: Valid (0.01s, 6764 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 633, characters 14-25:
+Sub-goal postcondition of goal size_handler'vc.
+Prover result is: Valid (0.02s, 55362 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 639, characters 59-72:
+Sub-goal variant decrease of goal size_mclist'vc.
+Prover result is: Valid (0.01s, 17546 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 639, characters 44-56:
+Sub-goal variant decrease of goal size_mclist'vc.
+Prover result is: Valid (0.00s, 17568 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 637, characters 14-25:
+Sub-goal postcondition of goal size_mclist'vc.
+Prover result is: Valid (0.02s, 62335 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 643, characters 8-28:
+Sub-goal variant decrease of goal size_mcase'vc.
+Prover result is: Valid (0.00s, 6764 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 641, characters 14-25:
+Sub-goal postcondition of goal size_mcase'vc.
+Prover result is: Valid (0.02s, 55362 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 649, characters 48-56:
+Sub-goal variant decrease of goal sl_len'vc.
+Prover result is: Valid (0.01s, 19028 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 647, characters 14-25:
+Sub-goal postcondition of goal sl_len'vc.
+Prover result is: Valid (0.02s, 67505 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 656, characters 30-56:
+Sub-goal variant decrease of goal seq_to_sl_from'vc.
+Prover result is: Valid (0.01s, 31928 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 656, characters 30-56:
+Sub-goal precondition of goal seq_to_sl_from'vc.
+Prover result is: Valid (0.02s, 67568 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 657, characters 56-74:
+Sub-goal precondition of goal seq_to_sl'vc.
+Prover result is: Valid (0.02s, 67168 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 663, characters 38-66:
+Sub-goal variant decrease of goal seq_to_sl_from_len'vc.
+Prover result is: Valid (0.01s, 31928 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 663, characters 38-66:
+Sub-goal precondition of goal seq_to_sl_from_len'vc.
+Prover result is: Valid (0.01s, 67568 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 661, characters 15-61:
+Sub-goal postcondition of goal seq_to_sl_from_len'vc.
+Prover result is: Valid (0.15s, 868 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 664, characters 47-82:
+Sub-goal goal of goal seq_to_sl_len.
+Prover result is: Valid (0.02s, 64029 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 671, characters 48-56:
+Sub-goal variant decrease of goal hl_len'vc.
+Prover result is: Valid (0.01s, 20000 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 669, characters 14-25:
+Sub-goal postcondition of goal hl_len'vc.
+Prover result is: Valid (0.02s, 70968 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 678, characters 30-56:
+Sub-goal variant decrease of goal seq_to_hl_from'vc.
+Prover result is: Valid (0.01s, 33576 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 678, characters 30-56:
+Sub-goal precondition of goal seq_to_hl_from'vc.
+Prover result is: Valid (0.02s, 71020 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 679, characters 66-84:
+Sub-goal precondition of goal seq_to_hl'vc.
+Prover result is: Valid (0.02s, 70620 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 684, characters 38-66:
+Sub-goal variant decrease of goal seq_to_hl_from_len'vc.
+Prover result is: Valid (0.01s, 33576 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 684, characters 38-66:
+Sub-goal precondition of goal seq_to_hl_from_len'vc.
+Prover result is: Valid (0.02s, 71020 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 682, characters 15-61:
+Sub-goal postcondition of goal seq_to_hl_from_len'vc.
+Prover result is: Valid (0.17s, 871 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 685, characters 54-89:
+Sub-goal goal of goal seq_to_hl_len.
+Prover result is: Valid (0.02s, 67036 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 691, characters 48-57:
+Sub-goal variant decrease of goal mcl_len'vc.
+Prover result is: Valid (0.01s, 20928 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 689, characters 14-25:
+Sub-goal postcondition of goal mcl_len'vc.
+Prover result is: Valid (0.02s, 74268 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 697, characters 30-57:
+Sub-goal variant decrease of goal seq_to_mcl_from'vc.
+Prover result is: Valid (0.01s, 35155 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 697, characters 30-57:
+Sub-goal precondition of goal seq_to_mcl_from'vc.
+Prover result is: Valid (0.01s, 74320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 698, characters 66-85:
+Sub-goal precondition of goal seq_to_mcl'vc.
+Prover result is: Valid (0.01s, 73920 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 703, characters 38-67:
+Sub-goal variant decrease of goal seq_to_mcl_from_len'vc.
+Prover result is: Valid (0.01s, 35155 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 703, characters 38-67:
+Sub-goal precondition of goal seq_to_mcl_from_len'vc.
+Prover result is: Valid (0.01s, 74320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 701, characters 15-63:
+Sub-goal postcondition of goal seq_to_mcl_from_len'vc.
+Prover result is: Valid (0.16s, 875 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 704, characters 51-88:
+Sub-goal goal of goal seq_to_mcl_len.
+Prover result is: Valid (0.02s, 70032 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 810, characters 21-75:
+Sub-goal variant decrease of goal boolop_fold'vc.
+Prover result is: Valid (0.01s, 21856 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 919, characters 69-109:
+Sub-goal variant decrease of goal synth_overload_clauses_prog'vc.
+Prover result is: Valid (0.01s, 21856 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 951, characters 72-102:
+Sub-goal goal of goal is_assign_faithful.
+Prover result is: Valid (0.02s, 73295 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 951, characters 51-67:
+Sub-goal goal of goal is_assign_faithful.
+Prover result is: Valid (0.02s, 75083 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 952, characters 78-111:
+Sub-goal goal of goal is_annassign_faithful.
+Prover result is: Valid (0.02s, 74386 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 952, characters 54-73:
+Sub-goal goal of goal is_annassign_faithful.
+Prover result is: Valid (0.02s, 75805 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 953, characters 76-108:
+Sub-goal goal of goal is_classdef_faithful.
+Prover result is: Valid (0.02s, 75416 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 953, characters 53-71:
+Sub-goal goal of goal is_classdef_faithful.
+Prover result is: Valid (0.02s, 76575 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 954, characters 82-117:
+Sub-goal goal of goal is_functiondef_faithful.
+Prover result is: Valid (0.02s, 76313 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 954, characters 56-77:
+Sub-goal goal of goal is_functiondef_faithful.
+Prover result is: Valid (0.01s, 77406 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 955, characters 68-96:
+Sub-goal goal of goal is_pass_faithful.
+Prover result is: Valid (0.02s, 76929 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 955, characters 49-63:
+Sub-goal goal of goal is_pass_faithful.
+Prover result is: Valid (0.02s, 78090 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 956, characters 86-122:
+Sub-goal goal of goal is_expr_ellipsis_faithful.
+Prover result is: Valid (0.02s, 77764 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 956, characters 58-81:
+Sub-goal goal of goal is_expr_ellipsis_faithful.
+Prover result is: Valid (0.02s, 78942 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 970, characters 74-89:
+Sub-goal variant decrease of goal psl_nth'vc.
+Prover result is: Valid (0.01s, 22908 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1002, characters 70-96:
+Sub-goal goal of goal is_given_faithful.
+Prover result is: Valid (0.02s, 78625 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1002, characters 50-65:
+Sub-goal goal of goal is_given_faithful.
+Prover result is: Valid (0.02s, 79848 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1003, characters 76-105:
+Sub-goal goal of goal is_requires_faithful.
+Prover result is: Valid (0.03s, 79551 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1003, characters 53-71:
+Sub-goal goal of goal is_requires_faithful.
+Prover result is: Valid (0.02s, 80635 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1004, characters 74-102:
+Sub-goal goal of goal is_ensures_faithful.
+Prover result is: Valid (0.02s, 80476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1004, characters 52-69:
+Sub-goal goal of goal is_ensures_faithful.
+Prover result is: Valid (0.02s, 81365 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1005, characters 74-102:
+Sub-goal goal of goal is_assigns_faithful.
+Prover result is: Valid (0.02s, 81179 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1005, characters 52-69:
+Sub-goal goal of goal is_assigns_faithful.
+Prover result is: Valid (0.02s, 82224 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1012, characters 86-100:
+Sub-goal variant decrease of goal cl_nth'vc.
+Prover result is: Valid (0.01s, 23568 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1022, characters 21-66:
+Sub-goal variant decrease of goal act_guard_fold'vc.
+Prover result is: Valid (0.01s, 23576 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1023, characters 23-86:
+Sub-goal variant decrease of goal act_guard_fold'vc.
+Prover result is: Valid (0.01s, 23595 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1025, characters 13-36:
+Sub-goal variant decrease of goal act_guard_fold'vc.
+Prover result is: Valid (0.01s, 23602 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1047, characters 67-92:
+Sub-goal goal of goal is_typevar_faithful.
+Prover result is: Valid (0.02s, 82726 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1047, characters 49-62:
+Sub-goal goal of goal is_typevar_faithful.
+Prover result is: Valid (0.02s, 83823 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1048, characters 71-98:
+Sub-goal goal of goal is_paramspec_faithful.
+Prover result is: Valid (0.03s, 83665 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1048, characters 51-66:
+Sub-goal goal of goal is_paramspec_faithful.
+Prover result is: Valid (0.02s, 84628 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1049, characters 77-107:
+Sub-goal goal of goal is_typevartuple_faithful.
+Prover result is: Valid (0.02s, 84759 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1049, characters 54-72:
+Sub-goal goal of goal is_typevartuple_faithful.
+Prover result is: Valid (0.02s, 85590 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1054, characters 79-94:
+Sub-goal variant decrease of goal tpl_nth'vc.
+Prover result is: Valid (0.01s, 24064 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1074, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.01s, 24058 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1094, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.01s, 27617 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1101, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.01s, 24028 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1108, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.01s, 24064 steps).
+
+File "/home/fabrice/.opam/framac-coq8/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1225, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__node'vc.
+Prover result is: Valid (0.01s, 11116 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1238, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__cf'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1250, characters 14-72:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1251, characters 14-60:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 11109 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1253, characters 17-76:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.02s, 128797 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1253, characters 17-76:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 11125 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1254, characters 18-77:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.02s, 128797 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1254, characters 18-77:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 11125 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1249, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 11116 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1261, characters 82-141:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.02s, 122681 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1261, characters 82-141:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.01s, 10897 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1261, characters 24-141:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.02s, 128517 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1261, characters 24-141:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.01s, 11118 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1258, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1267, characters 73-132:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.02s, 120887 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1267, characters 73-132:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1267, characters 18-132:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.02s, 126747 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1267, characters 18-132:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.01s, 11061 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1264, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1272, characters 69-125:
+Sub-goal precondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 10897 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1272, characters 17-129:
+Sub-goal precondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 10906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1273, characters 18-83:
+Sub-goal precondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 10897 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1270, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1312, characters 8-78:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__tgts'vc.
+Prover result is: Valid (0.01s, 30917 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1312, characters 8-78:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__tgts'vc.
+Prover result is: Valid (0.01s, 11494 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1286, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__tgts'vc.
+Prover result is: Valid (0.01s, 11112 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1322, characters 13-83:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__node'vc.
+Prover result is: Valid (0.01s, 10916 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1315, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__node'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1328, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__cf'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1340, characters 14-79:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1341, characters 14-68:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 11105 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1343, characters 17-83:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.02s, 127913 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1343, characters 17-83:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 11121 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1344, characters 18-84:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.03s, 127913 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1344, characters 18-84:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 11121 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1339, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 11112 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1351, characters 89-155:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.02s, 122681 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1351, characters 89-155:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.01s, 10897 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1351, characters 24-155:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.03s, 127633 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1351, characters 24-155:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.01s, 11114 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1348, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1357, characters 80-146:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.02s, 120887 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1357, characters 80-146:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1357, characters 18-146:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.02s, 125863 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1357, characters 18-146:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.01s, 11057 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1354, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1362, characters 76-140:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 10897 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1362, characters 17-144:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 10906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1363, characters 18-90:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 10897 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1360, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1377, characters 8-77:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__tgts'vc.
+Prover result is: Valid (0.01s, 31194 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1377, characters 8-77:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__tgts'vc.
+Prover result is: Valid (0.01s, 11498 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1370, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__tgts'vc.
+Prover result is: Valid (0.01s, 11121 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1387, characters 13-82:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__node'vc.
+Prover result is: Valid (0.01s, 10916 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1380, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__node'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1393, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__cf'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1405, characters 14-78:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1406, characters 14-62:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 11105 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1408, characters 17-82:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.02s, 127913 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1408, characters 17-82:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 11121 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1409, characters 18-83:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.02s, 127913 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1409, characters 18-83:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 11121 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1404, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 11112 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1416, characters 88-153:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.02s, 122681 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1416, characters 88-153:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.01s, 10897 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1416, characters 24-153:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.02s, 127633 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1416, characters 24-153:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.01s, 11114 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1413, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1422, characters 79-144:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.02s, 120887 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1422, characters 79-144:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1422, characters 18-144:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.02s, 125863 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1422, characters 18-144:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.01s, 11057 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1419, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1427, characters 75-133:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.01s, 10897 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1427, characters 17-137:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.01s, 10906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1428, characters 18-89:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.00s, 10897 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1425, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1477, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___build_overload_param_guard'vc.
+Prover result is: Valid (0.01s, 11536 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1493, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gtype'vc.
+Prover result is: Valid (0.01s, 29574 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1493, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gtype'vc.
+Prover result is: Valid (0.01s, 29426 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1497, characters 77-125:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gstmt'vc.
+Prover result is: Valid (0.01s, 29290 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1498, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gstmt'vc.
+Prover result is: Valid (0.01s, 29562 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1498, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gstmt'vc.
+Prover result is: Valid (0.01s, 29426 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1503, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gname'vc.
+Prover result is: Valid (0.01s, 29574 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1503, characters 24-72:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gname'vc.
+Prover result is: Valid (0.01s, 29426 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1509, characters 59-108:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gvalue'vc.
+Prover result is: Valid (0.01s, 29648 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1505, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gvalue'vc.
+Prover result is: Valid (0.03s, 108694 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1514, characters 106-155:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gindex'vc.
+Prover result is: Valid (0.01s, 29364 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1515, characters 59-108:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gindex'vc.
+Prover result is: Valid (0.01s, 29636 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1511, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gindex'vc.
+Prover result is: Valid (0.02s, 117631 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1520, characters 106-155:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__garray'vc.
+Prover result is: Valid (0.01s, 29364 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1521, characters 59-108:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__garray'vc.
+Prover result is: Valid (0.01s, 29636 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1517, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__garray'vc.
+Prover result is: Valid (0.02s, 117631 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1527, characters 59-107:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gleft'vc.
+Prover result is: Valid (0.01s, 29648 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1523, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gleft'vc.
+Prover result is: Valid (0.02s, 108694 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1533, characters 59-108:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gright'vc.
+Prover result is: Valid (0.01s, 29648 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1529, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gright'vc.
+Prover result is: Valid (0.02s, 108694 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1538, characters 105-153:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gexpr'vc.
+Prover result is: Valid (0.01s, 29364 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1539, characters 59-107:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gexpr'vc.
+Prover result is: Valid (0.01s, 29636 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1535, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gexpr'vc.
+Prover result is: Valid (0.02s, 117631 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1544, characters 105-153:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gtest'vc.
+Prover result is: Valid (0.01s, 29364 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1545, characters 59-107:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__gtest'vc.
+Prover result is: Valid (0.01s, 29636 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1541, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__gtest'vc.
+Prover result is: Valid (0.04s, 117631 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1550, characters 105-155:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__Largs_g'vc.
+Prover result is: Valid (0.01s, 29364 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1551, characters 59-109:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__Largs_g'vc.
+Prover result is: Valid (0.01s, 29636 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1547, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Largs_g'vc.
+Prover result is: Valid (0.02s, 117631 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1553, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Largs'vc.
+Prover result is: Valid (0.02s, 112155 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1553, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Largs'vc.
+Prover result is: Valid (0.15s, 663959 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1553, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Largs'vc.
+Prover result is: Valid (0.11s, 511523 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1561, characters 59-109:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__Lbody_g'vc.
+Prover result is: Valid (0.01s, 29648 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1557, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lbody_g'vc.
+Prover result is: Valid (0.02s, 108694 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1563, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lbody'vc.
+Prover result is: Valid (0.02s, 112155 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1563, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lbody'vc.
+Prover result is: Valid (0.15s, 663959 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1563, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lbody'vc.
+Prover result is: Valid (0.12s, 511523 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1571, characters 59-111:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__Lorelse_g'vc.
+Prover result is: Valid (0.01s, 29648 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1567, characters 14-88:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lorelse_g'vc.
+Prover result is: Valid (0.02s, 108694 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1573, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lorelse'vc.
+Prover result is: Valid (0.02s, 112155 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1573, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lorelse'vc.
+Prover result is: Valid (0.15s, 663959 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1573, characters 14-48:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__Lorelse'vc.
+Prover result is: Valid (0.11s, 511523 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 127487 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 127803 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11421 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11421 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11405 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 132059 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11387 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 132381 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11388 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 132090 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11355 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 132418 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11376 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11376 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11356 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122699 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10971 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 123027 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10992 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10992 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10972 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122727 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10980 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 123055 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11001 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11001 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10981 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122699 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10971 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 123027 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10992 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10992 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10972 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 123162 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11036 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 123488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11057 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11057 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11037 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122208 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10943 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122524 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10964 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10964 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10944 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122235 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.00s, 10951 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122551 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10972 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10972 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10952 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122207 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.00s, 10942 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122523 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10963 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10963 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10943 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122664 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1613, characters 20-69:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11007 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122984 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11028 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11028 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 11008 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122090 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1615, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10939 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10939 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10915 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1617, characters 83-128:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122117 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1617, characters 83-128:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10947 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1618, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122437 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1618, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10968 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10968 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.00s, 10948 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1618, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122118 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1618, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10948 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.00s, 10948 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10924 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1620, characters 84-130:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.02s, 122145 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1620, characters 84-130:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10956 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.00s, 10956 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.00s, 10932 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1622, characters 15-110:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.03s, 122293 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1622, characters 15-110:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10965 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10965 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10949 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10913 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1581, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr'vc.
+Prover result is: Valid (0.01s, 10973 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1627, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.01s, 10836 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1628, characters 52-97:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.02s, 120887 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1628, characters 52-97:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1628, characters 99-148:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.03s, 120928 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1628, characters 99-148:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1627, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__el'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 127487 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 127803 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11421 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 128084 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11438 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11438 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11422 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 127804 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11422 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11422 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11406 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 132059 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11387 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 132381 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.04s, 132670 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11421 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11421 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11405 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 132382 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11405 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11405 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11389 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 132090 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11355 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 132418 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11376 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 132707 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11393 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11393 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11377 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 132419 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11377 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11377 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11357 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122699 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10971 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123027 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10992 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123308 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11009 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11009 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10993 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123028 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10993 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.00s, 10993 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10973 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122727 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10980 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123055 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11001 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123336 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11018 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11018 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11002 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123056 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11002 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11002 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10982 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122699 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10971 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123027 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10992 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 123308 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11009 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11009 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10993 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123028 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10993 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10993 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10973 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123162 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11036 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11057 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123769 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11074 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11074 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11058 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 123489 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11058 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11058 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11038 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122208 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10943 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122524 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10964 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122784 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10981 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10981 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10965 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122525 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10965 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.00s, 10965 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10945 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 122235 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10951 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122551 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10972 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122811 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10989 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10989 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10973 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122552 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10973 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10973 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10953 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122207 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10942 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122523 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10963 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122783 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10980 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10980 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10964 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122524 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10964 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10964 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10944 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122664 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1662, characters 20-67:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11007 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122984 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11028 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 123244 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11045 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11045 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11029 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122985 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11029 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11029 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11009 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122090 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1664, characters 85-131:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10939 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122410 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10960 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10960 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10940 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122091 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1665, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10940 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10940 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10916 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1667, characters 84-129:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 122118 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1667, characters 84-129:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10948 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10948 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10924 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1669, characters 85-132:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 126575 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1669, characters 85-132:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10974 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1670, characters 15-110:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 126999 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1670, characters 15-110:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10995 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10995 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1670, characters 15-110:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 126696 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1670, characters 15-110:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10975 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10975 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1672, characters 85-132:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 126646 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1672, characters 85-132:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10993 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1673, characters 15-110:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.03s, 127070 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1673, characters 15-110:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11014 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1674, characters 15-112:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 127412 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1674, characters 15-112:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11031 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11031 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1673, characters 15-110:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 126767 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1673, characters 15-110:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.00s, 10994 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1674, characters 15-112:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.02s, 127098 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1674, characters 15-112:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11015 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 11015 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10977 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10913 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1630, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_stmt'vc.
+Prover result is: Valid (0.01s, 10973 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1679, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.01s, 10836 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1680, characters 52-97:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.03s, 120887 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1680, characters 52-97:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1680, characters 99-148:
+Sub-goal variant decrease of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.03s, 120928 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1680, characters 99-148:
+Sub-goal precondition of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1679, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___scan_2d_in_expr__sl'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1684, characters 4-59:
+Sub-goal precondition of goal pycsltojsonemitter___collect_2d_params'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1682, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___collect_2d_params'vc.
+Prover result is: Valid (0.01s, 10906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1875, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___emit_ghost_assign'vc.
+Prover result is: Valid (0.01s, 10893 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1910, characters 24-74:
+Sub-goal variant decrease of goal pycsltojsonemitter___is_decode_call__g_K_type'vc.
+Prover result is: Valid (0.01s, 29558 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1917, characters 24-74:
+Sub-goal variant decrease of goal pycsltojsonemitter___is_decode_call__g_K_func'vc.
+Prover result is: Valid (0.01s, 29558 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1920, characters 32-36:
+Sub-goal postcondition of goal pycsltojsonemitter___is_decode_call'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1933, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___is_final_annotation'vc.
+Prover result is: Valid (0.01s, 11093 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1940, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___is_namedtuple_class'vc.
+Prover result is: Valid (0.01s, 11119 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1945, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___is_overload_stub'vc.
+Prover result is: Valid (0.01s, 11119 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1956, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___is_protocol_class'vc.
+Prover result is: Valid (0.01s, 11119 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1965, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___is_typeddict_class'vc.
+Prover result is: Valid (0.01s, 11119 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2038, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_boolop'vc.
+Prover result is: Valid (0.01s, 10902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2038, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_boolop'vc.
+Prover result is: Valid (0.01s, 10906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2047, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_compare'vc.
+Prover result is: Valid (0.01s, 10893 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2054, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_dict'vc.
+Prover result is: Valid (0.01s, 11113 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2059, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_dictcomp'vc.
+Prover result is: Valid (0.01s, 10893 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2066, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_genexp'vc.
+Prover result is: Valid (0.01s, 10893 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2073, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_lambda'vc.
+Prover result is: Valid (0.00s, 11044 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2080, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_listcomp'vc.
+Prover result is: Valid (0.01s, 10893 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2089, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_expr_setcomp'vc.
+Prover result is: Valid (0.01s, 10893 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2114, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.01s, 11836 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2114, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.01s, 11967 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2114, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.01s, 12031 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2114, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.01s, 12041 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2114, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.01s, 11987 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2114, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.01s, 11849 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2114, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.01s, 12058 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2114, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_assign'vc.
+Prover result is: Valid (0.01s, 11012 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2160, characters 18-43:
+Sub-goal loop invariant init of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.02s, 112512 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2161, characters 16-35:
+Sub-goal loop variant decrease of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.01s, 73590 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2160, characters 18-43:
+Sub-goal loop invariant preservation of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.02s, 143532 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2161, characters 16-35:
+Sub-goal loop variant decrease of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.02s, 84054 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2160, characters 18-43:
+Sub-goal loop invariant preservation of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.04s, 153874 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2154, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_delete'vc.
+Prover result is: Valid (0.01s, 11012 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2184, characters 18-43:
+Sub-goal loop invariant init of goal pycsltojsonemitter___py_stmt_match'vc.
+Prover result is: Valid (0.02s, 112512 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2185, characters 16-35:
+Sub-goal loop variant decrease of goal pycsltojsonemitter___py_stmt_match'vc.
+Prover result is: Valid (0.01s, 68799 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2184, characters 18-43:
+Sub-goal loop invariant preservation of goal pycsltojsonemitter___py_stmt_match'vc.
+Prover result is: Valid (0.04s, 138927 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2177, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_match'vc.
+Prover result is: Valid (0.01s, 12233 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2213, characters 18-43:
+Sub-goal loop invariant init of goal pycsltojsonemitter___py_stmt_try'vc.
+Prover result is: Valid (0.03s, 112512 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2214, characters 16-35:
+Sub-goal loop variant decrease of goal pycsltojsonemitter___py_stmt_try'vc.
+Prover result is: Valid (0.02s, 71598 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2213, characters 18-43:
+Sub-goal loop invariant preservation of goal pycsltojsonemitter___py_stmt_try'vc.
+Prover result is: Valid (0.03s, 143785 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2206, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_try'vc.
+Prover result is: Valid (0.01s, 12263 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2237, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_with'vc.
+Prover result is: Valid (0.01s, 11734 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2237, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___py_stmt_with'vc.
+Prover result is: Valid (0.01s, 11894 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2256, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___should_skip_method'vc.
+Prover result is: Valid (0.01s, 10893 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2265, characters 15-19:
+Sub-goal postcondition of goal pycsltojsonemitter___synthesize_overload_guard'vc.
+Prover result is: Valid (0.00s, 11536 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2298, characters 15-19:
+Sub-goal postcondition of goal pycslweaver___act_guard'vc.
+Prover result is: Valid (0.01s, 10893 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2318, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new__isdoc'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2337, characters 21-58:
+Sub-goal precondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2337, characters 64-100:
+Sub-goal variant decrease of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.02s, 120928 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2337, characters 64-100:
+Sub-goal precondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 10840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2337, characters 113-151:
+Sub-goal variant decrease of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.03s, 120956 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2337, characters 113-151:
+Sub-goal precondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 10849 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2334, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2340, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new__recvok'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2370, characters 20-58:
+Sub-goal precondition of goal pycslweaver___is_trivial_new'vc.
+Prover result is: Valid (0.01s, 10914 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2387, characters 69-110:
+Sub-goal precondition of goal pycslweaver___is_trivial_new'vc.
+Prover result is: Valid (0.01s, 11019 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2365, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new'vc.
+Prover result is: Valid (0.01s, 10888 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1173, characters 21-25: unused variable body
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1178, characters 32-36: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1178, characters 51-60: unused variable raw_lines
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 33-37: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 52-61: unused variable raw_lines
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 78-79: unused variable i
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 87-88: unused variable n
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 96-106: unused variable blk_indent
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 114-122: unused variable py_label
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1198, characters 33-37: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1203, characters 33-37: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 70-74: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 82-91: unused variable protected
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 116-126: unused variable except_set
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 151-159: unused variable cur_func
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 167-174: unused variable hp_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1221, characters 49-54: unused variable child
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1221, characters 64-69: unused variable field
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1222, characters 14-18: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1225, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1238, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1264, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1258, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1249, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1269, characters 44-48: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1270, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1276, characters 57-58: unused variable v
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1277, characters 14-18: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1286, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1315, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1328, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1354, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1348, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1339, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1359, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1360, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1366, characters 51-54: unused variable tgt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1367, characters 14-18: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1370, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1380, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1393, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1419, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1413, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1404, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1424, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1425, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1435, characters 48-52: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1435, characters 71-81: unused variable python_ast
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1435, characters 89-100: unused variable happy_props
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1450, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1457, characters 44-48: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1457, characters 67-77: unused variable python_ast
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1457, characters 85-87: unused variable hp
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1462, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1475, characters 55-59: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1477, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1480, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1480, characters 73-77: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1485, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1485, characters 78-81: unused variable elt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1682, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1764, characters 35-39: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1764, characters 62-66: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1811, characters 37-41: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1811, characters 64-68: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1858, characters 38-42: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1858, characters 65-69: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1873, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1875, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1887, characters 55-59: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1887, characters 82-92: unused variable annotation
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1920, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1931, characters 48-52: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1933, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1938, characters 48-52: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1940, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1943, characters 45-49: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1945, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1954, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1956, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1963, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1965, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2012, characters 57-61: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2012, characters 84-92: unused variable ann_expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2012, characters 100-110: unused variable param_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2023, characters 58-62: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2023, characters 85-89: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2036, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2038, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2042, characters 41-45: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2042, characters 68-72: unused variable expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2045, characters 44-48: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2047, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2052, characters 41-45: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2054, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2057, characters 45-49: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2059, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2064, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2066, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2071, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2073, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2078, characters 45-49: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2080, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2087, characters 44-48: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2089, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2112, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2145, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2145, characters 73-77: unused variable stmt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2145, characters 85-93: unused variable ir_stmts
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2152, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2175, characters 42-46: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2204, characters 40-44: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2235, characters 41-45: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2254, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2256, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2263, characters 54-58: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2265, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2296, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2298, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2303, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2303, characters 51-55: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2303, characters 63-66: unused variable var
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2308, characters 33-37: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2308, characters 53-62: unused variable contracts
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2318, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2334, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2340, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2365, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2407, characters 49-53: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2407, characters 69-73: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2412, characters 35-39: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2412, characters 55-59: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1173, characters 21-25: unused variable body
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1178, characters 32-36: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1178, characters 51-60: unused variable raw_lines
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 33-37: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 52-61: unused variable raw_lines
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 78-79: unused variable i
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 87-88: unused variable n
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 96-106: unused variable blk_indent
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1181, characters 114-122: unused variable py_label
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1198, characters 33-37: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1203, characters 33-37: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 70-74: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 82-91: unused variable protected
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 116-126: unused variable except_set
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 151-159: unused variable cur_func
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1216, characters 167-174: unused variable hp_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1221, characters 49-54: unused variable child
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1221, characters 64-69: unused variable field
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1222, characters 14-18: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1225, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1238, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1264, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1258, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1249, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1269, characters 44-48: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1270, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1276, characters 57-58: unused variable v
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1277, characters 14-18: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1286, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1315, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1328, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1354, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1348, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1339, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1359, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1360, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1366, characters 51-54: unused variable tgt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1367, characters 14-18: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1370, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1380, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1393, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1419, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1413, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1404, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1424, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1425, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1435, characters 48-52: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1435, characters 71-81: unused variable python_ast
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1435, characters 89-100: unused variable happy_props
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1450, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1457, characters 44-48: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1457, characters 67-77: unused variable python_ast
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1457, characters 85-87: unused variable hp
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1462, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1475, characters 55-59: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1477, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1480, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1480, characters 73-77: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1485, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1485, characters 78-81: unused variable elt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1682, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1764, characters 35-39: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1764, characters 62-66: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1811, characters 37-41: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1811, characters 64-68: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1858, characters 38-42: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1858, characters 65-69: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1873, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1875, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1887, characters 55-59: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1887, characters 82-92: unused variable annotation
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1920, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1931, characters 48-52: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1933, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1938, characters 48-52: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1940, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1943, characters 45-49: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1945, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1954, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1956, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1963, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 1965, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2012, characters 57-61: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2012, characters 84-92: unused variable ann_expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2012, characters 100-110: unused variable param_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2023, characters 58-62: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2023, characters 85-89: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2036, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2038, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2042, characters 41-45: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2042, characters 68-72: unused variable expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2045, characters 44-48: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2047, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2052, characters 41-45: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2054, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2057, characters 45-49: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2059, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2064, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2066, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2071, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2073, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2078, characters 45-49: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2080, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2087, characters 44-48: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2089, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2112, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2145, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2145, characters 73-77: unused variable stmt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2145, characters 85-93: unused variable ir_stmts
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2152, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2175, characters 42-46: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2204, characters 40-44: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2235, characters 41-45: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2254, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2256, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2263, characters 54-58: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2265, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2296, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2298, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2303, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2303, characters 51-55: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2303, characters 63-66: unused variable var
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2308, characters 33-37: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2308, characters 53-62: unused variable contracts
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2318, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2334, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2340, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2365, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2407, characters 49-53: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2407, characters 69-73: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2412, characters 35-39: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl__wjoi17l.mlw", line 2412, characters 55-59: unused variable node
+
+[+] Verification SUCCESS! All contracts formally proven.

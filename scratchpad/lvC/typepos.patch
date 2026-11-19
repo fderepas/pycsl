@@ -1,0 +1,74 @@
+--- src/pycsl/pycsl.py	2026-11-05 00:11:24.210856782 +0000
++++ scratchpad/lvC/st/src/pycsl/pycsl.py	2026-11-04 23:57:17.889100495 +0000
+@@ -30629,6 +30629,42 @@
+     #    position — an int operator or ordering, a contract term, an argument of a
+     #    modelled function, a store, a condition — gives the opaque value int theory it
+     #    may not have.
++    # (run #5 lvC) TYPE POSITIONS ARE NOT USES. WhyML keeps types and values in separate
++    # namespaces, so a `val constant list : int` fallback (from a Python `list` reference)
++    # and the `list` TYPE in a binder `(l: list pyval)` / return type `: list (string,
++    # string)` / ascription are different symbols. A `:` (never `:=`, a separate token) is
++    # always followed by a type in WhyML (binder, return type, ascription, quantifier);
++    # the type spans the identifiers / `'a` / balanced `( .. )` groups after it, and ends
++    # at the first other token (`)`, `=`, `.`, `,`, `;`, `->`, `{`, `}`) or at a keyword /
++    # spec keyword. Tokens in that span are never value uses (fail-closed: anything else
++    # still counts).
++    _tyk325 = set()
++    _TYSTOP325 = _KW325 | _SPEC325 | _PROG325 | {
++        "requires", "ensures", "variant", "writes", "reads", "raises", "returns",
++        "diverges", "alias", "invariant", "label", "type", "exception", "use", "clone",
++        "scope", "module", "theory", "meta", "axiom", "goal", "by", "so"}
++    for _k325, _tk325 in enumerate(_toks325):
++        if _tk325 != ":":
++            continue
++        _j325 = _k325 + 1
++        while _j325 < _N325:
++            _tt325 = _toks325[_j325]
++            if _tt325 == "'" and _j325 + 1 < _N325:
++                _tyk325.add(_j325 + 1)
++                _j325 += 2
++            elif _tt325 == "(" and _j325 in _mt325:
++                _tyk325.update(range(_j325, _mt325[_j325] + 1))
++                _j325 = _mt325[_j325] + 1
++            elif (_tt325 == "." and _j325 > _k325 + 1 and _toks325[_j325 - 1][:1].isupper()
++                  and _j325 + 1 < _N325
++                  and _re325.match(r"[A-Za-z_][A-Za-z_0-9']*$", _toks325[_j325 + 1])):
++                _j325 += 1      # a module qualifier `Seq.seq` (never `int. P`: lower-case)
++            elif (_re325.match(r"[A-Za-z_][A-Za-z_0-9']*$", _tt325)
++                  and _tt325 not in _TYSTOP325):
++                _tyk325.add(_j325)
++                _j325 += 1
++            else:
++                break
+     _tl325 = {}     # (decl, local) -> origin
+     _tf325 = {}     # tainted function name -> origin
+     _pos325 = {}
+@@ -30657,15 +30693,9 @@
+         for _k325 in sorted(k for c in _cand325 for k in _pos325.get(c, ())):
+             _tk325 = _toks325[_k325]
+             _nm325 = _tk325.lstrip("!")
+-            if _tk325 == "_":
+-                # (run #5 lvC) THE WILDCARD IS A PATTERN, NEVER A READ. A discarded fallback
+-                # (`warnings.warn(..)` as a statement) is bound `let _ = (<opaque> ..) in ()`,
+-                # which tracked `_` as a tainted local; every later `_` token of the same
+-                # declaration -- the wildcard of `match .. with Some _ -> ..` (a membership
+-                # test), `| _ ->`, `fun _ ->` -- was then reported "used as an integer". In
+-                # WhyML `_` is the reserved wildcard pattern: it can never be referenced, so no
+-                # `_` token is a use of any value. Named bindings are untouched (8901).
+-                continue
++            if _k325 in _tyk325 or _tk325 == "_":
++                continue        # a TYPE name (`(l: list pyval)`) / the wildcard PATTERN `_`
++                #                 (`let _ = e in`, `Some _ ->`): never a value read in WhyML
+             _dd325 = _decl325[_k325]
+             if _toks325[_dstart325[_dd325]] not in _PROG325:
+                 continue
+@@ -31181,6 +31211,9 @@
+     if _cx325 is not None:
+         _viol325.insert(0, ("complex", "`complex` annotation", "complex", "a `complex` "
+                             "annotation is lowered to `int`", _cx325))
++    if _viol325 and os.environ.get("LVC_DBG_MLW"):
++        open(os.environ["LVC_DBG_MLW"], "w").write(_mlw)
++        open(os.environ["LVC_DBG_MLW"] + ".viol", "w").write("\n".join(repr(v) for v in _viol325))
+     if _viol325:
+         from errors import PyCSLSemanticError as _PyCSLSemErr325
+         _v325 = _viol325[0]

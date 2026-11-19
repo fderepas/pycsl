@@ -115,6 +115,35 @@ Each of the four now has a **proved** coherence lemma (✓, Z3-Valid) resting on
 (`vop`); the honest caveats are a *flat* field model (no nested-record aliasing), constant-fill `slice`,
 and identity-`expr` for generic calls.
 
+## 3b. Record-valued `val` (nested aliasing) — certified, adds NO evaluator axiom
+
+The §3a honest caveat "a *flat* field model (no nested-record aliasing)" is now backed by a
+**machine-checked value-layer certificate** for the nested-record shape — the deferred Phase-7
+record-valued `val` (tier-3 plan Phase 3, T3.3.1/T3.3.2). It is delivered CONSERVATIVELY and, crucially
+for this audit, **introduces no new D2 evaluator axiom**:
+
+- **Rocq** `Phase2b_RecordVal.v` (in `_CoqProject`, built by `make`) and **Lean** `PyCSL/RecordVal.lean`
+  (imported by `PyCSL.lean`, built by `lake build`) define a record/ADT-valued value `val7`/`Val7` with
+  nested projection `path_get`/`pathGet` and update `path_set`/`pathSet`, and **prove** read-back
+  (`o.b.c := v ⟹ o.b.c = v`), frame (`o.b.c := v` leaves `o.b.d` unchanged, `c≠d`), and
+  **conservativity** against the REAL Phase-2 `lookup`/`update` (the `SAssign` WP arm is unchanged).
+  This is exactly the value the Phase-1 emitter `ir_node` ADT reads: a `BinOp op left right` node is the
+  record whose `ir.get("right")` read is `path_get node ["right"]`.
+- **Axiom audit:** every lemma is "Closed under the global context" (Rocq) / `[propext,
+  Classical.choice, Quot.sound]` (Lean) — **no axiom** beyond the standard kernel ones. `pycsl_soundness`
+  / `pycslSoundnessVerified` re-prove with their axiom sets **unchanged**, so the 3-axiom trust ledger is
+  intact.
+- **Why no evaluator axiom:** the certificate is a *value-layer* fact about `path_get`/`path_set`; it is
+  not a new emitted statement/expression shape, so it adds nothing to the `eval_whyml_*` boundary of
+  §0–§2. The WhyML-side ADT node-read coupling (discriminant/`match`/projection/structural recursion) is
+  carried by the Phase-0 spike `test-suite/corpus/conformance/spikes/tier3_ir_node_adt_spike.mlw`
+  (positive goals Valid on Alt-Ergo+Z3; the `*_false_twin` negative controls correctly stay UNPROVEN).
+- **Honest boundary (unchanged):** the *emitter* still emits **flat** `obj"."fld` keys; the record-valued
+  `val` certificate exists ahead of any emitter wiring (it does not thread a `VRec` constructor into the
+  core `val`/`wp` — that cascade is the Phase-1/Phase-2 emitter work). So the flat field model in §3a is
+  still what the LINK-3 `pycsl-wp-spec.mlw` mirrors; this note records that the *nested-aliasing value
+  model it defers to is now certified, conservatively and axiom-free*.
+
 ## 4. Expression-level audited facts (used by the composition)
 
 | axiom | statement | justification |

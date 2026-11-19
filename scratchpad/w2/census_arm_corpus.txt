@@ -1,0 +1,12 @@
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0962_crosscheck_selfstate_registry_skipped.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0962_crosscheck_selfstate_registry_skipped.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0962_crosscheck_selfstate_registry_skipped.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0963_crosscheck_selfstate_registry_skipped_twin.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0963_crosscheck_selfstate_registry_skipped_twin.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0963_crosscheck_selfstate_registry_skipped_twin.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0965_crosscheck_term_structural_twin.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0965_crosscheck_term_structural_twin.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0965_crosscheck_term_structural_twin.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0964_crosscheck_term_structural.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0964_crosscheck_term_structural.py	Term
+UNIONARMDECLINE	test-suite/corpus/pycsl-reference/0964_crosscheck_term_structural.py	Term

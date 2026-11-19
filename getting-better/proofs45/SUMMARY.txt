@@ -1,0 +1,23 @@
+# ROUTE #35 re-proof battery — relaunch #45, all 16 mirror files whose emission moved
+# (tails only; the full logs are in scratchpad/w7/proofs/)
+
+FILE                 RC     VALID    BAD   VERDICT
+r35_autotrust        0      280      0     Verification SUCCESS
+r35_crosscheck       0      10       0     Verification SUCCESS
+r35_desugar          0      18       0     Verification SUCCESS
+r35_expressions      0      20125    0     Verification SUCCESS
+r35_functions        0      1199     0     Verification SUCCESS
+r35_m2p              0      820      0     Verification SUCCESS
+r35_m3w              0      284      0     Verification SUCCESS
+r35_m5ir             0      2109     0     Verification SUCCESS
+r35_m6t              0      1387     0     Verification SUCCESS
+r35_preamble         0      216      0     Verification SUCCESS
+r35_pureast          0      3372     0     Verification SUCCESS
+r35_scc              0      50       0     Verification SUCCESS
+r35_scf              0      12294    0     Verification SUCCESS
+r35_sertop           0      11       0     Verification SUCCESS
+r35_statements       0      17109    0     Verification SUCCESS
+r35_types            0      3144     0     Verification SUCCESS
+
+TOTAL Valid goals: 62428
+Wall clock: queue started 13:50 UTC, QUEUE DONE 22:08 UTC (8h18m, two concurrent)

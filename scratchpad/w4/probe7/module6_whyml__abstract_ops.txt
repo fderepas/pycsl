@@ -1,0 +1,4 @@
+L3TC-FAIL            AbstractOpsMixin._add_abstract_op  ["unbound function or predicate symbol 'concat'"]
+L3TC-FAIL            AbstractOpsMixin._find_abstract_val_insert_idx  ['This expression has type array.Array.array string @rho, but is expected to have type int']
+L3TC-FAIL            AbstractOpsMixin._advance_past_referenced_axiom_decls  ['This expression has type int, but is expected to have type array.Array.array']
+L3TC-FAIL            AbstractOpsMixin._insert_abstract_val_block  ['This expression has type array.Array.array string @rho, but is expected to have type array.Array.array int @rho1']

@@ -1,0 +1,21 @@
+[*] soundness-planes: running 19 driver-run lower bound(s)
+    ok       check-self-annotate-mirror-sync.py        
+    ok       count-trusted-directives.py               
+    ok       check-mirror-coverage.py                  
+    ok       check-mirror-field-parity.py              
+    ok       check-mirror-loop-annotations.py          
+    ok       check-mirror-signature-drift.py           
+    ok       check-refusal-reachability.py             
+    ok       check-trigger-rows-live.py                
+    ok       check-trusted-raises-honesty.py           
+    ok       check-type-keyed-constant-answers.py      
+    ok       check-emit-ir-arm-postconditions.py       
+    ok       check-singleton-constant-lowering.py      
+    ok       check-type-keyed-value-sentinels.py       
+    ok       check-collapsed-option-reads.py           
+    ok       check-constant-fallthrough.py             
+    ok       check-dropped-mutation.py                 
+    ok       check-ir-field-coverage.py                
+    ok       check-statement-block-coverage.py         
+    ok       check-vacuous-drivers.py                  
+[+] soundness-planes: OK — all 19 plane(s) green.

@@ -1,0 +1,4 @@
+audit_proof mode=prove rc=0 valid_lines=88 nonvalid_lines=0 secs=147
+proof2why3__canonical mode=prove rc=0 valid_lines=179 nonvalid_lines=0 secs=227
+
+[exited with code 0]

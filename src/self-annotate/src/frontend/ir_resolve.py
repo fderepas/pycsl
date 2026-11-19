@@ -16,20 +16,40 @@ from frontend.Module2_Parser import Module2_Parser
 from frontend.Module3_Weaver import Module3_Weaver
 from frontend.Module5_IREmitter import Module5_IREmitter
 from frontend.ir_inline import apply_inline_globals
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _collect_calls(obj: Any) -> int:
-    return set()
+def _collect_calls(obj: Any) -> Set[str]:
+    """Recursively collect function names from Call nodes in IR."""
+    calls = set()
+    if isinstance(obj, dict):
+        if obj.get("type") == "Call":
+            calls.add(obj["func"])
+        for v in obj.values():
+            calls |= _collect_calls(v)
+    elif isinstance(obj, list):
+        for item in obj:
+            calls |= _collect_calls(item)
+    return calls
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns obj
 def _rewrite_ir_calls(obj: Any, old_name: str, new_name: str) -> None:
-    pass
+    """Recursively rewrite Call nodes: func old_name → new_name."""
+    if isinstance(obj, dict):
+        if obj.get("type") == "Call" and obj.get("func") == old_name:
+            obj["func"] = new_name
+        for v in obj.values():
+            _rewrite_ir_calls(v, old_name, new_name)
+    elif isinstance(obj, list):
+        for item in obj:
+            _rewrite_ir_calls(item, old_name, new_name)
 
+# (#49) ROUTE #326: the live body now REFUSES a local file shadowing a standard-library
+# module name (PYCSL-SEM-IMPORT-SHADOWS-STDLIB), so the stub declares the exit — same
+# reason as `resolve_imports` below (check-trusted-raises-honesty).
+#@ raises PyCSLSemanticError when True
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
@@ -47,7 +67,7 @@ def _get_module_exports(filepath: str) -> int:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns processing_set, cache
 def _process_dependency(filepath: str, needed_names: int, cache: int, deep: bool=False, processing_set: int=None) -> List[int]:
     return []
 
@@ -62,98 +82,150 @@ def _strip_dir_scan_proofs(func: int) -> int:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
-def _contract_referenced_var_names(dep_funcs: List[int]) -> int:
-    return set()
-
-#@ \trusted reviewer: pycsl-self-annotate
-#@ requires True
-#@ ensures True
-#@ assigns \nothing
+#@ assigns cache, processing_set
 def _find_record_type_from_dep_imports(rec_name: str, dep_file: str, cache: int, deep: bool, processing_set: int) -> int:
     return {}
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _contract_referenced_names(dep_funcs: List[int]) -> int:
-    return set()
+def _contract_referenced_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
+    """Collect every callee name applied inside the contracts (`requires`/`ensures`)
+    of the injected dependency stubs. Used by 11-0632-spec-8 Part 1 to scope inductive
+    propagation to predicate names the public contracts actually reference (so unrelated
+    internal predicates do not cross the import boundary)."""
+    referenced: Set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if node.get("type") == "Call" and isinstance(node.get("func"), str):
+                referenced.add(node["func"])
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                _walk(v)
+
+    for func in dep_funcs:
+        contracts = func.get("contracts", {}) or {}
+        _walk(contracts.get("requires", []))
+        _walk(contracts.get("ensures", []))
+    return referenced
+
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def _contract_referenced_var_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
+    """Collect every bare-variable name read inside the contracts
+    (`requires`/`ensures`/`assigns`) of the injected dependency stubs — both
+    plain `Var` references and the `object` of an `Attribute` projection
+    (`_filesystem.disk` → `_filesystem`). Used by 11-1039-spec-10 to scope
+    module-global propagation to ONLY the globals an injected public contract
+    actually references (so unrelated dependency globals do not cross the import
+    boundary, keeping the propagation byte-additive)."""
+    referenced: Set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            ntype = node.get("type")
+            if ntype == "Var" and isinstance(node.get("name"), str):
+                referenced.add(node["name"])
+            elif ntype == "Attribute":
+                obj = node.get("object")
+                if isinstance(obj, dict) and obj.get("type") == "Var" \
+                        and isinstance(obj.get("name"), str):
+                    referenced.add(obj["name"])
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                _walk(v)
+
+    for func in dep_funcs:
+        contracts = func.get("contracts", {}) or {}
+        _walk(contracts.get("requires", []))
+        _walk(contracts.get("ensures", []))
+        _walk(contracts.get("assigns", []))
+    return referenced
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
-def _contract_referenced_var_names(dep_funcs: List[int]) -> int:
-    return set()
-
-#@ \trusted reviewer: pycsl-self-annotate
-#@ requires True
-#@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def _inject_functions(dep_funcs: List[int], ir_data: int) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data, cache, processing_set
 def _resolve_direct_imports(direct_imports: List[Any], all_calls: int, main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns cache, processing_set, ir_data
 def _resolve_wildcard_imports(wildcard_imports: List[Any], all_calls: int, main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns cache, processing_set, ir_data
 def _resolve_module_imports(module_imports: List[Any], all_calls: int, main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data, cache, processing_set
 def _resolve_imported_classes(direct_imports: List[Any], main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data, cache, processing_set
 def _resolve_imported_base_classes(module_imports: List[Any], main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
+# (#49) gen #37, ROUTE #335: the live body now REFUSES a subclass whose actual
+# construction (Python's constructor chain over the C3 MRO) does not store an inherited
+# invariant field with the merged value, or that shadows one with a method / property /
+# class-body binding (PYCSL-R335-INHERITED-INVARIANT-CONSTRUCTION). The marker is
+# declared here, as route #143 did for `resolve_imports`.
+#@ raises PyCSLSemanticError when True
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def apply_inheritance(ir_data: int) -> None:
     pass
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def apply_composition(ir_data: int) -> None:
     pass
 
+# (#49) ROUTE #143: the live body now REFUSES an imported contract whose dependency-bound
+# free name the importer rebinds. A TRUSTED stub carrying no `#@ raises` ASSERTS THAT
+# ITS LIVE COUNTERPART CANNOT RAISE (what `check-trusted-raises-honesty` measures), so the
+# marker is declared here — the route #59 precedent in `module6_whyml/statements.py`.
+#@ raises PyCSLSemanticError when True
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data, cache, processing_set
 def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: int, deep: bool=False, cache: int=None, processing_set: int=None) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
-def resolve(ir_data: int, validated_ast: _ast.AST, main_file: str, deep: bool=False) -> int:
+#@ assigns ir_data
+def resolve(ir_data: int, validated_ast: _ast.AST, main_file: str, deep: bool=False, import_paths: int=None) -> int:
     return set()
 

@@ -17,24 +17,83 @@ _PREC_MUL = 6
 _PREC_APP = 7
 _PREC_ATOM = 8
 _BINOP_PREC = {'->': _PREC_ARROW, '\\/': _PREC_OR, '/\\': _PREC_AND, '=': _PREC_CMP, '>': _PREC_CMP, '>=': _PREC_CMP, '<': _PREC_CMP, '<=': _PREC_CMP, '<>': _PREC_CMP, '!=': _PREC_CMP, '+': _PREC_ADD, '-': _PREC_ADD, '*': _PREC_MUL}
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _pp(t: Term, parent_prec: int) -> str:
-    return ""
+    """Pretty-print `t` inside a context whose minimum-required
+    precedence is `parent_prec`. Wraps with parens if our own
+    precedence is strictly less than the parent's."""
+    if isinstance(t, Var):
+        return t.name
+    if isinstance(t, IntLit):
+        return str(t.value)
+    if isinstance(t, BoolLit):
+        return "true" if t.value else "false"
+    if isinstance(t, Unsupported):
+        return f"<<UNSUPPORTED:{t.reason}>>"
+    if isinstance(t, Forall):
+        binders = " ".join(t.binders)
+        body = _pp(t.body, _PREC_TOP)
+        s = f"forall {binders} : {t.ty}. {body}"
+        return f"({s})" if parent_prec > _PREC_TOP else s
+    if isinstance(t, Exists):
+        binders = " ".join(t.binders)
+        body = _pp(t.body, _PREC_TOP)
+        s = f"exists {binders} : {t.ty}. {body}"
+        return f"({s})" if parent_prec > _PREC_TOP else s
+    if isinstance(t, BinOp):
+        op_prec = _BINOP_PREC.get(t.op, _PREC_CMP)
+        if t.op == "->":
+            lhs = _pp(t.lhs, op_prec + 1)
+            rhs = _pp(t.rhs, op_prec)
+        else:
+            lhs = _pp(t.lhs, op_prec)
+            rhs = _pp(t.rhs, op_prec + 1)
+        s = f"{lhs} {t.op} {rhs}"
+        return f"({s})" if parent_prec > op_prec else s
+    if isinstance(t, UnaryOp):
+        arg = _pp(t.arg, _PREC_ATOM)
+        s = f"{t.op} {arg}"
+        return f"({s})" if parent_prec > _PREC_MUL else s
+    if isinstance(t, App):
+        if not t.args:
+            return t.head
+        args_s = " ".join(_pp(a, _PREC_ATOM) for a in t.args)
+        s = f"{t.head} {args_s}"
+        return f"({s})" if parent_prec > _PREC_APP else s
+    raise TypeError(f"_pp: unknown term type {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def ir_to_whyml_axiom_body(term: Term) -> str:
-    return ""
+    """Serialize a Term back to a WhyML axiom-body string.
 
-#@ \trusted reviewer: pycsl-self-annotate
+    The output is suitable for direct inclusion as a value in
+    `_AXIOM_REGISTRY` (Module 6 preamble). Round-trip through
+    `parse_type_expr` + `canonicalize` produces the same canonical
+    form as the input."""
+    return _pp(term, _PREC_TOP)
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def contains_unsupported(term: Term) -> bool:
-    return False
+    """True if any sub-term is an `Unsupported` leaf. Used by the
+    merge tool to skip non-round-trippable entries rather than
+    overwriting the existing hand-curated body with a sentinel."""
+    if isinstance(term, Unsupported):
+        return True
+    if isinstance(term, (Var, IntLit, BoolLit)):
+        return False
+    if isinstance(term, App):
+        return any(contains_unsupported(a) for a in term.args)
+    if isinstance(term, BinOp):
+        return contains_unsupported(term.lhs) or contains_unsupported(term.rhs)
+    if isinstance(term, UnaryOp):
+        return contains_unsupported(term.arg)
+    if isinstance(term, (Forall, Exists)):
+        return contains_unsupported(term.body)
+    raise TypeError(f"contains_unsupported: unknown {type(term)}")
 

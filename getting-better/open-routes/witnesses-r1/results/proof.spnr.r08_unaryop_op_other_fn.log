@@ -1,0 +1,2 @@
+[module6-whyml]: PYCSL-R567-EMITIR-ATTR-ON-NONIR: `v.op` (in `em__f`) reads a field of a value this function also tests with `isinstance` against a class that is not an IR node class (route #567). The value is typed as an IR node (`emit_ir`), whose `.op` the model reads as the node's constructor tag / name, not the field of the tested class, so the read would be modelled wrongly. Annotate the value with the class it really has (a parameter or local of that record type), or test only IR node classes.
+rc=1

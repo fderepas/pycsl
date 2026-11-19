@@ -1,0 +1,22 @@
+r"""Test 8330 -- route #522 (expected FAIL: PROVED at base 1aaa1dfdd, NOT PROVED on the PyCSL-R521 None obligation; red team 49 probe u1000_field_add): `r.d.get("k") + 1` on a dataclass dict field; CPython TypeError
+"""
+# pycsl-expected: FAIL
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterator, Sequence, FrozenSet
+from dataclasses import dataclass
+
+@dataclass
+class R:
+    d: Dict[str, int]
+
+
+#@ no_exception \all
+def f(r: R) -> int:
+    return r.d.get("k") + 1
+
+
+if __name__ == "__main__":
+    try:
+        r = f(R({}))
+        print("result", repr(r)[:60])
+    except Exception as e:
+        print("VIOLATION", type(e).__name__, e)

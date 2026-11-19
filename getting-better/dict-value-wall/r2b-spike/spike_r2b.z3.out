@@ -1,0 +1,80 @@
+File spike_r2b.mlw:
+Goal pairs_get'vc.
+Prover result is: Valid (0.00s, 857 steps).
+
+File spike_r2b.mlw:
+Goal hval_truthy'vc.
+Prover result is: Valid (0.01s, 815 steps).
+
+File spike_r2b.mlw:
+Goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 1043 steps).
+
+File spike_r2b.mlw:
+Goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 790 steps).
+
+File spike_r2b.mlw:
+Goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 808 steps).
+
+File spike_r2b.mlw:
+Goal fixture'vc.
+Prover result is: Valid (0.00s, 812 steps).
+
+File spike_r2b.mlw:
+Goal find_last'vc.
+Prover result is: Timeout (20.00s, 8179638 steps).
+
+File spike_r2b.mlw:
+Goal find_last_twin'vc.
+Prover result is: Timeout (20.00s, 9549299 steps).
+
+File spike_r2b.mlw:
+Goal count_fns'vc.
+Prover result is: Valid (0.03s, 58914 steps).
+
+File spike_r2b.mlw:
+Goal count_fns_twin'vc.
+Prover result is: Timeout (20.00s, 9051062 steps).
+
+File spike_r2b.mlw:
+Goal has_loc'vc.
+Prover result is: Valid (0.87s, 1138193 steps).
+
+File spike_r2b.mlw:
+Goal has_loc_twin'vc.
+Prover result is: Timeout (20.00s, 7963600 steps).
+
+File spike_r2b.mlw:
+Goal has_x_absent_twin'vc.
+Prover result is: Timeout (20.00s, 7826934 steps).
+
+File spike_r2b.mlw:
+Goal in_list'vc.
+Prover result is: Valid (0.10s, 297184 steps).
+
+File spike_r2b.mlw:
+Goal in_list_twin'vc.
+Prover result is: Timeout (20.00s, 12125618 steps).
+
+File spike_r2b.mlw:
+Goal count_str_opaque'vc.
+Prover result is: Timeout (20.00s, 10668094 steps).
+
+File spike_r2b.mlw:
+Goal count_str_sentinel'vc.
+Prover result is: Timeout (20.00s, 12922123 steps).
+
+File spike_r2b.mlw:
+Goal in_str_false'vc.
+Prover result is: Timeout (20.00s, 13152768 steps).
+
+File spike_r2b.mlw:
+Goal nth_in_range'vc.
+Prover result is: Valid (0.01s, 10277 steps).
+
+File spike_r2b.mlw:
+Goal len_nonneg'vc.
+Prover result is: Valid (0.01s, 8824 steps).
+

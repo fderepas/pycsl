@@ -1,0 +1,103 @@
+# W-IPM census @1de9420d (ch16): rows whose LIVE body calls a listed mutator = 125 (of 432 tsv rows; 24 sibling stubs excluded)
+# first blocker = in-place mutator refusal: 76 rows (NEXT 69, TCOK 4, LOOP 3)
+
+## mutator x receiver (rows in which it occurs)
+  24  pop@local
+  19  extend@local
+  10  setdefault@local
+   9  setdefault@self-field
+   8  update@local
+   6  add@local
+   5  add@self-field
+   4  pop@self-field
+   4  sort@local
+   4  setdefault@param
+   4  clear@self-field
+   4  update@self-field
+   2  insert@local
+   2  pop@param
+   2  discard@local
+   2  reverse@local
+   1  sort@self-field
+   1  insert@param
+   1  extend@param
+   1  extend@self-field
+   1  setdefault@module-global
+
+## per row: status | file | qualname | mutators | next blocker after neutralising
+TCOK | frontend/Module1_Ingestor.py | _Harvester.run | sort@self-field | first=MUT
+TCOK | frontend/ir_resolve.py | _inject_functions | add@local | first=MUT
+TCOK | frontend/pure_ast.py | _Unparser.write | extend@self-field | first=MUT
+TCOK | frontend/pure_ast.py | _Unparser.visit_Module | clear@self-field | first=MUT
+NEXT | Module6_WhyMLTranspiler.py | Module6_WhyMLTranspiler._wrap_call_with_callee_raises_assert | update@local | unbound function or predicate symbol '_abstract_ops'
+NEXT | Module6_WhyMLTranspiler.py | Module6_WhyMLTranspiler._render_callee_condition | extend@local,pop@local | [whyml-emit]: `except Exception` in '_render_callee_condition' is meant to catch the raised `PyCSLSemanticErro
+NEXT | Module6_WhyMLTranspiler.py | Module6_WhyMLTranspiler._maybe_emit_no_exception_assert | update@local | This expression has type int, but is expected to have type 'mu -> 'mu1 /tmp/claude-1000/-home-fabrice-git-pycs
+NEXT | audit_proof.py | _parse_rocq_file | pop@local | This expression has type int, but is expected to have type string
+NEXT | audit_proof.py | _parse_lean_file | extend@local,pop@local | This expression has type int, but is expected to have type string
+NEXT | audit_proof.py | _audit_one_prover | setdefault@local | This expression has type int, but is expected to have type array.Array.array 'mu @rho
+NEXT | audit_proof.py | _index_proofs_dir_by_file | setdefault@local | This expression has type 'mu -> option.Option.option int, but is expected to have type int
+NEXT | audit_proof_reverify.py | _sha256_file | update@local | This expression has type int, but is expected to have type string
+NEXT | exception_model.py | bases_closure | extend@local,pop@local | This expression has type (), but is expected to have type int
+NEXT | frontend/ConcurrencyChecker.py | ConcurrencyChecker.check | add@self-field | This expression has type array.Array.array int @rho, but is expected to have type array.Array.array PyCSL_Prog
+NEXT | frontend/Module3_Weaver.py | PyCSLWeaver.visit_Module | add@self-field | This expression has type int, but is expected to have type seq.Seq.seq int
+NEXT | frontend/Module3_Weaver.py | Module3_Weaver._parse_extracted_contracts | setdefault@local | This expression has type array.Array.array int @rho, but is expected to have type int
+NEXT | frontend/Module3_Weaver.py | Module3_Weaver._consolidate_module_concurrency | add@local | This expression has type int, but is expected to have type array.Array.array int @rho
+NEXT | frontend/Module3_Weaver.py | Module3_Weaver._extract_happy_properties | extend@local | ?
+NEXT | frontend/Module3_Weaver.py | Module3_Weaver._expand_happy_properties | pop@local,sort@local | [whyml-emit]: '_expand_happy_properties' constructs an object whose `__init__` / `__post_init__` can raise `_C
+LOOP | frontend/Module3_Weaver.py | Module3_Weaver.process | extend@local,pop@local,setdefault@local,update@local | 
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._py_expr_call | reverse@local | This expression has type int, but is expected to have type string /tmp/claude-1000/-home-fabrice-git-pycsl/7bd
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._emit_typeddict_record | setdefault@self-field | This expression has type PyCSL_Program.py_classdef_node, but is expected to have type int /tmp/claude-1000/-ho
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._synthesize_typeddict_functional | setdefault@self-field | This expression has type string, but is expected to have type int /tmp/claude-1000/-home-fabrice-git-pycsl/7bd
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._emit_namedtuple_record | setdefault@self-field | This expression has type PyCSL_Program.py_classdef_node, but is expected to have type int /tmp/claude-1000/-ho
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._synthesize_namedtuple_functional | setdefault@self-field | This expression has type string, but is expected to have type int /tmp/claude-1000/-home-fabrice-git-pycsl/7bd
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._emit_protocol_interface | setdefault@self-field | This expression has type PyCSL_Program.py_classdef_node, but is expected to have type int /tmp/claude-1000/-ho
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._populate_protocol_conformance | setdefault@self-field | This expression has type array.Array.array int @rho, but is expected to have type int /tmp/claude-1000/-home-f
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._collect_class_fields | pop@local,append@self-field | This expression has type array.Array.array int @rho, but is expected to have type array.Array.array string (after neutralising field_defaults.pop + 2x self._m5_dc_unknown.append)
+LOOP | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter.visit_ClassDef | add@local,extend@local,pop@local,setdefault@local,setdefault@self-field,sort@local | 
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._collect_union_arms | pop@local,reverse@local | This expression has type int, but is expected to have type array.Array.array 'mu @rho /tmp/claude-1000/-home-f
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._normalize_union_annotation | setdefault@self-field | This expression has type int, but is expected to have type PyCSL_Program. emit_ir /tmp/claude-1000/-home-fabri
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._build_function_symbol_table | setdefault@local | nested function 'pycsltojsonemitter___is_str_key' is lifted to a sibling of its enclosing function, and the li
+LOOP | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._build_function_ir | extend@local,pop@local | 
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._detect_seq_promotion | discard@local | ?
+NEXT | frontend/ir_inline.py | _Inliner._expand | extend@local,pop@local,update@local | This expression has type int, but is expected to have type PyCSL_Program. pyval
+NEXT | frontend/ir_inline.py | _Inliner._hoist_calls_in_expr | extend@param | This expression has type int, but is expected to have type PyCSL_Program. pyval
+NEXT | frontend/ir_inline.py | _Inliner.inline_stmts | extend@local | This expression has type int, but is expected to have type PyCSL_Program. pyval
+NEXT | frontend/ir_inline.py | _inline_calls | update@local | This expression has type int -> option.Option.option int, but is expected to have type int
+NEXT | frontend/ir_inline.py | apply_inline_globals | pop@local | This expression has type int, but is expected to have type array.Array.array int @rho
+NEXT | frontend/ir_resolve.py | _resolve_direct_imports | add@local,setdefault@param | unbound function or predicate symbol 'level'
+NEXT | frontend/ir_resolve.py | _resolve_imported_classes | add@local,setdefault@param | unbound function or predicate symbol 'level'
+NEXT | frontend/ir_resolve.py | _resolve_imported_base_classes | add@local,discard@local,setdefault@param | This expression has type PyCSL_Program.StrSet.set, but is expected to have type int
+NEXT | frontend/ir_resolve.py | resolve_imports | setdefault@local | ?
+NEXT | frontend/monomorphize.py | _emit_specializations | setdefault@local | This expression has type int, but is expected to have type string
+NEXT | frontend/monomorphize.py | _specialize_decl | pop@local | This expression has type string -> option.Option.option int, but is expected to have type int
+NEXT | frontend/monomorphize.py | _specialize_function | pop@local | This expression has type string -> option.Option.option int, but is expected to have type int /tmp/claude-1000
+NEXT | frontend/monomorphize.py | _record_classification | setdefault@param | This expression has type seq.Seq.seq ('mu -> option.Option.option 'mu1), but is expected to have type int
+NEXT | frontend/pure_ast.py | get_source_segment | insert@local | This expression has type int, but is expected to have type string
+NEXT | frontend/pure_ast.py | _Unparser._str_literal_helper | sort@local | nested function '_unparser__escape_char' is lifted to a sibling of its enclosing function, and the lift is not
+NEXT | frontend/pure_ast.py | _self_test | sort@local | ?
+NEXT | module6_whyml/abstract_ops.py | AbstractOpsMixin._add_abstract_op | setdefault@self-field | This expression has type int, but is expected to have type array.Array.array 'mu @rho
+NEXT | module6_whyml/abstract_ops.py | AbstractOpsMixin._insert_abstract_val_block | insert@param | This expression has type array.Array.array string @rho, but is expected to have type array.Array.array int @rh
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._handle_binop | extend@local,pop@local | unbound function or predicate symbol '_r76_okey'
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._handle_struct_call | setdefault@module-global | This expression has type int, but is expected to have type array.Array.array 'mu @rho /tmp/claude-1000/-home-f
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._handle_call_expr | clear@self-field,update@self-field | [whyml-emit]: an IDENTITY test against a `bool` literal (`X is True` / `X is False`) is refused unless the emi
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._call_named_builtins | pop@param | This expression has type string -> option.Option.option int, but is expected to have type ref 'mu @rho /tmp/cl
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._handle_isinstance | clear@self-field,update@self-field | This expression has type int, but is expected to have type PyCSL_Program. _union__handle_isinstance_13 /tmp/cl
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._handle_subscript | extend@local,pop@local,update@local | This expression has type PyCSL_Program.emit_ir, but is expected to have type int /tmp/claude-1000/-home-fabric
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._pop_quant_binder | pop@self-field | /tmp/claude-1000/-home-fabrice-git-pycsl/7bdb4936-b536-4d12-86b7-7ad1b607106c/scratchpad/ch16/tree/src/pycsl/c
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._expr_to_whyml | clear@self-field,pop@local,update@self-field | nested function 'expressionemissionmixin___scan_filter' is lifted to a sibling of its enclosing function, and 
+NEXT | module6_whyml/functions.py | FunctionEmissionMixin._param_type_str | add@self-field | This expression has type string, but is expected to have type int
+NEXT | module6_whyml/functions.py | FunctionEmissionMixin._reset_function_state | extend@local,pop@local | [whyml-emit]: an IDENTITY test against a `bool` literal (`X is True` / `X is False`) is refused unless the emi
+NEXT | module6_whyml/functions.py | FunctionEmissionMixin._emit_contracts | extend@local,pop@local | This expression has type int -> option.Option.option int, but is expected to have type int
+NEXT | module6_whyml/preamble.py | PreambleEmissionMixin._precompute_axiom_logic_funcs | add@self-field | nested function 'preambleemissionmixin___walk' is lifted to a sibling of its enclosing function, and the lift 
+NEXT | module6_whyml/preamble.py | PreambleEmissionMixin._emit_module_globals | pop@self-field | This expression has type int, but is expected to have type string
+NEXT | module6_whyml/preamble.py | PreambleEmissionMixin._emit_type_decls | add@self-field,pop@local,update@local | nested function 'preambleemissionmixin___fmt_variant' is lifted to a sibling of its enclosing function, and th
+NEXT | module6_whyml/statements.py | StatementEmissionMixin._handle_assign_stmt | extend@local,pop@local,pop@self-field | This expression has type string -> option.Option.option int, but is expected to have type int /tmp/claude-1000
+NEXT | module6_whyml/statements.py | StatementEmissionMixin._stmts_to_whyml | extend@local,pop@local | This expression has type int, but is expected to have type string -> option. Option.option int /tmp/claude-100
+NEXT | module6_whyml/statements.py | StatementEmissionMixin._emit_body_code | extend@local,pop@local,setdefault@local,update@self-field | syntax error
+NEXT | module6_whyml/struct_format.py | parse_format | extend@local | ?
+NEXT | module6_whyml/types.py | TypeInferenceMixin._track_collection_metadata | pop@local,pop@self-field | This expression has type int, but is expected to have type string -> option. Option.option int
+NEXT | proof2why3/canonical.py | _flatten_foralls | extend@local | This expression has type PyCSL_Program.term, but is expected to have type int
+NEXT | proof2why3/crosscheck.py | crosscheck_file | setdefault@local | This expression has type int, but is expected to have type array.Array.array int @rho
+NEXT | proof2why3/from_lean_json.py | _linearize_app | insert@local | This expression has type int, but is expected to have type string -> option. Option.option int
+NEXT | proof2why3/sertop.py | _sexp_parse | pop@param | This expression has type seq.Seq.seq int, but is expected to have type int /tmp/claude-1000/-home-fabrice-git-
+NEXT | pycsl.py | _parse_why3_json | extend@local | This expression has type array.Array.array int @rho, but is expected to have type int /tmp/claude-1000/-home-f

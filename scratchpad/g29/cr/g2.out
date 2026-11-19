@@ -1,0 +1,14 @@
+[*] Parsing and Semantic Analysis for 'g2.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "g2.mlw", line 11, characters 15-27:
+Sub-goal postcondition of goal probe'vc.
+Prover result is: Valid (0.00s, 15 steps).
+
+File "g2.mlw", line 11, characters 15-27:
+Sub-goal postcondition of goal probe'vc.
+Prover result is: Valid (0.00s, 23 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

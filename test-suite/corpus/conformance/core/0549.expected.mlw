@@ -16,6 +16,7 @@ module PyCSL_Program
 
   let coreemit__emit (self: coreemit) (x: int) : int
     ensures  { (result >= 0) } (* linear *)
+    ensures  { self.program_ir = old self.program_ir }
   =
     (if (x >= 0) then x else 0)
 

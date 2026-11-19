@@ -1,0 +1,209 @@
+diff --git a/bin/check-type-keyed-constant-answers.py b/bin/check-type-keyed-constant-answers.py
+index 20f358da..ca94b9f3 100755
+--- a/bin/check-type-keyed-constant-answers.py
++++ b/bin/check-type-keyed-constant-answers.py
+@@ -51,14 +51,17 @@ D = os.path.join(ROOT, "src", "pycsl", "module6_whyml")
+ BASELINE = {
+     ("_handle_binop", "_current_self_type+_is_string_expr+_mutable_state_classes",
+      "false|true"):
+-        "OPEN -- ROUTE #51. This is route #50's third answer, the always-present `false` "
+-        "kept for a name the function never binds to `None`, and it is exactly as far as "
+-        "a SYNTACTIC binding fact reaches. It is WRONG for a local bound from a call that "
+-        "returns None while declaring `-> str` (shape (a)) and for a `self.<str-field>` a "
+-        "caller stores None into (shape (b)); both PROVE a contract false of their "
+-        "program. Recorded with its census and a scoped recommendation in "
+-        "getting-better/open-routes/route51-scalar-annotation-lie.md. Kept as an entry "
+-        "rather than removed so this plane stays green about a defect it NAMES.",
++        "CLOSED -- ROUTE #51. The fact is now a BINDING, and only a binding: the "
++        "always-present `false` is answered only for a name the function actually BINDS "
++        "(`_r51_bound_names`, collected by route #46's pre-scan walk). The three shapes "
++        "that reached it with no binding at all -- a `self.<str-field>` a caller stores "
++        "None into, a `str`-declared PARAMETER a caller passes None, and a local bound "
++        "from a call whose `-> str` is contradicted by `return None` -- are respectively "
++        "opaque, opaque, and REFUSED in Module 4 (`PYCSL-SEM-RETANN`). Witnesses "
++        "`1100`/`1101`/`1103` fail closed and `1102` is the precision guard that a bound "
++        "local KEEPS its decided answer. The lie was live in the emitter's own if-handler: "
++        "`_try_union_is_none_match` declared `-> str` and returned None, so its caller's "
++        "`if union_match is not None:` emitted as `if true then begin`.",
+     ("_handle_binop", "_current_emitting_func+_func_return_type+"
+      "_module_method_return_annotations", "false|true"):
+         "route #44's FAITHFUL arm: `\\result` in a function whose PYTHON return annotation "
+@@ -95,13 +98,27 @@ BASELINE = {
+     ("_to_bool", "_emit_ir_local_vars+_is_emit_ir_expr", "true"):
+         "the truthiness twin of the emit_ir always-present arm above, on the same stated "
+         "scope and with the same named follow-up.",
+-    ("_to_bool", "_current_self_type+_current_symbol_table+_mutable_state_classes", "true"):
+-        "`if <dict/set param>:` as a PRESENT-guard before a membership test. The dict/set "
+-        "is modelled as a `map` with no int value, so the default `<> 0` coercion is a TYPE "
+-        "ERROR rather than a wrong answer, and `true` is the over-approximation that lets "
+-        "the real check -- the `in` that follows -- happen. Same stated scope as the "
+-        "emit_ir arms: an EMPTY dict is falsy in Python, so a contract that depends on the "
+-        "else branch would be proved over a subset. @mutable_state-gated.",
++    ("_to_bool", "_r55_subsumed_name", "true"):
++        "ROUTE #55, CLOSED -- and this entry is what the old one SHOULD have said. The "
++        "previous entry keyed on [_current_self_type+_current_symbol_table+"
++        "_mutable_state_classes] justified `true` for EVERY dict/set present-guard with "
++        "the words `the over-approximation that lets the real check -- the `in` that "
++        "follows -- happen`, and NAMED the risk it was taking (`an EMPTY dict is falsy in "
++        "Python, so a contract that depends on the else branch would be proved over a "
++        "subset`). That risk is REAL and this plane's own text is how it was found: with a "
++        "real postcondition instead of `ensures True`, `\\result == 7` PROVED for a body "
++        "returning 0 on the empty-dict path (witnesses `1104` dict, `1105` set; `1106` "
++        "list fails closed because a list carries a length model). The justification was "
++        "RIGHT ABOUT THE SHAPE IT DESCRIBED and the arm fired well OUTSIDE it -- on a BARE "
++        "guard there is no `in` that follows at all. So the guard is now the SHAPE ITSELF: "
++        "`true` is answered only when this truthiness test is the LEFT CONJUNCT of an "
++        "`and` whose other conjunct is a membership test on the SAME name, where an empty "
++        "map makes that test False anyway and `true` is EXACT rather than an "
++        "over-approximation. Everything else gets a per-name opaque. MEASURED: the ONE "
++        "live site in the 53-file mirror (`expressions.py`: `if subst and name in subst:`) "
++        "has exactly this shape, so 0 of 53 mirror emissions and 0 of 905 corpus emissions "
++        "move and NO re-proof is owed; witness `1107` is the precision guard and is "
++        "negative-tested both ways.",
+     ("_to_bool", "_current_self_type+_mutable_state_classes", "true"):
+         "`if sl.get(\"lower\"):` -- a present-guard on an emit_ir SUB-NODE projection "
+         "(`svalue_of`/`object_of`/`sindex_of`/`arg0_of`), i.e. the same always-present "
+diff --git a/docs/pycsl-translational-reference.md b/docs/pycsl-translational-reference.md
+index ac7fc7a6..0fd0c922 100644
+--- a/docs/pycsl-translational-reference.md
++++ b/docs/pycsl-translational-reference.md
+@@ -2218,6 +2218,52 @@ expects `()` where a `string` is supplied) rather than by design.
+ 
+ ---
+ 
++### §T.5.12s  `if <dict>:` was decided TRUE, and the justification described a shape the arm outgrew
++
++A dict/set is modelled as a `map` with no int value, so the usual `<> 0` truthiness coercion
++would be a Why3 TYPE ERROR. $\mathcal{T}$ answered the literal `true` instead, justified — in
++the emitter's own comment and in `bin/check-type-keyed-constant-answers.py`'s baseline — as
++*"the over-approximation that lets the real check, the `in` that follows, happen"*. The same
++baseline NAMED the risk it was taking: *"an EMPTY dict is falsy in Python, so a contract that
++depends on the else branch would be proved over a subset."*
++
++It does. With a real postcondition instead of `ensures True` (route #55, witnesses
++`1104`–`1107`):
++
++```python
++    def probe(self, d: Dict[int, int]) -> int:   #@ ensures \result == 7
++        if d: return 7
++        return 0                    # `o.probe({})` returns 0 in Python. PROVED anyway.
++```
++
++```whyml
++    if true then begin raise (Return 7) end else begin raise (Return 0) end
++```
++
++The arm Python takes for an empty dict is **unreachable**, so the postcondition is proved over
++a STRICT SUBSET of the reachable states. This is §T.5.12r's sentence at a different type and a
++different connective: **decided from a TYPE where only a value fact could justify it.** The
++`set` spelling proves too; a `list` fails closed, because a list carries a length model.
++
++**The justification was right about the shape it described, and the arm had outgrown it.** On
++a BARE guard there is no `in` that follows at all. So the guard is now the shape itself:
++`true` is answered only where this truthiness test is the **left conjunct of an `and` whose
++other conjunct is a membership test on the same name** — there an empty map makes that test
++False anyway, so `true` is EXACT rather than an over-approximation — and every other dict/set
++present-guard gets a per-name opaque `bool`.
++
++**Measured, and the measurement is why the repair has this shape rather than a blunter one.**
++The blunt version (opaque everywhere) was built first and REFUSED after reading its emission
++diff: it moved the one live site in the tree — `module6_whyml/expressions.py`'s
++`if subst and name in subst:` — where `true and (name in subst)` is exactly what Python
++computes, so the blunt fix would have LOST precision to correct nothing and owed a re-proof of
++one of the two slowest mirrors. The shape-sensitive repair leaves that site byte-identical:
++**0 of 53 mirror emissions and 0 of 905 corpus emissions move, and no re-proof is owed.**
++Witness `1107` is the precision guard and is negative-tested both ways — it proves with the
++subsumption exemption and fails without it.
++
++---
++
+ ### §T.5.12j  A chained comparison in a `#@` clause is a CONJUNCTION
+ 
+ `0 <= x <= 3` inside a `requires`, an `ensures`, a `loop invariant` or a class invariant was
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index d179c249..8392b638 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -618,12 +618,48 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         # self-tcb-reduction T1.a: `if subst:` on a dict/set param (an `Optional[Dict]` modeled as
+         # `map` — None ≡ empty) is the present-guard before `name in subst`; a sound over-approx
+         # for the type-safety+frame contract is `true` (the `in` does the real check). @mutable_state.
++        # (#50) ROUTE #55 — `true` WAS NOT AN OVER-APPROXIMATION, IT DELETED A BRANCH.
++        #   The comment above justifies the constant with a claim about the CONTRACTS
++        #   ("sound for the type-safety+frame contract") rather than about the lowering,
++        #   and `bin/check-type-keyed-constant-answers.py` records in as many words that
++        #   NOTHING CHECKS that claim. It does not survive a real postcondition. Measured
++        #   at `e5549ee0` (`scratchpad/w51/frame/f2.py`), with the Python assert run:
++        #
++        #       def probe(self, d: Dict[int, int]) -> int:   #@ ensures \result == 7
++        #           if d: return 7
++        #           return 0                    # `o.probe({})` returns 0. PROVED anyway.
++        #
++        #   emitted as `if true then ... else ...`, so the arm Python takes for an EMPTY
++        #   dict is UNREACHABLE and the postcondition is proved over a STRICT SUBSET of the
++        #   reachable states. Same sentence as routes #50/#51 at a different type and a
++        #   different connective: DECIDED FROM A TYPE where only a value fact could justify
++        #   it. The `set` spelling proves too; a `list` fails closed (it carries a length
++        #   model); and it is `@mutable_state`-gated exactly as #50 and #51 were.
++        #   THE STATED PURPOSE SURVIVES. The constant existed so that "the real check —
++        #   the `in` that follows — happens", and a map has no int value so the default
++        #   `<> 0` coercion would be a TYPE ERROR. An OPAQUE bool keeps both: the `in`
++        #   still emits, the type error is still avoided, and the guard simply stops being
++        #   decided. (The `in` is not even required — measured: the arm fires on the bare
++        #   guard, so the justification did not describe the arm that existed.)
++        #   PER-NAME, which is route #41's device and is what keeps it CONSISTENT: two
++        #   guards on the same name agree, two different names do not have to. Spelled as
++        #   a nullary `val function` rather than a predicate over the map because the map's
++        #   WhyML type varies by site (`map int (option int)`, `map string (option hval)`,
++        #   …) and Why3 has no polymorphic abstract val to key on it.
+         if (t == "Var"
+                 and getattr(self, "_current_self_type", None)
+                 in getattr(self, "_mutable_state_classes", set())
+                 and getattr(self, "_current_symbol_table", {}).get(ir_expr.get("name"))
+                 in ("dict", "set", "frozenset")):
+-            return "true"
++            if ir_expr.get("name") == getattr(self, "_r55_subsumed_name", None):
++                # SUBSUMED: this guard is the left conjunct of an `and` whose other
++                # conjunct is a membership test on the SAME name, so `true` is FAITHFUL —
++                # an empty map makes that test False anyway. Keeping it is what makes this
++                # build byte-inert at the only site in the tree that has the shape.
++                return "true"
++            _n55 = whyml_ident(ir_expr["name"])
++            self._add_abstract_op(f"val function pycsl_nonempty_{_n55} : bool")
++            return f"pycsl_nonempty_{_n55}"
+         # self-tcb-reduction Tier-5 (union/match cluster): truthiness of a nested-map local
+         # (`if not vinfo:` where vinfo : `map string (option hval)`) — a `map` has no int
+         # value, so the default `<> 0` is a type error. Python's `not <empty map>` guards the
+@@ -5715,7 +5751,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                 return (f"(let __and_l = {left} in "
+                         f'if (not (str_eq_op (kind_of __and_l) "")) '
+                         f"then {right} else __and_l)")
++            # (#50) ROUTE #55 — THE SUBSUMPTION MARK. `_to_bool`'s dict/set present-guard
++            #   arm used to answer the literal `true` for EVERY such guard, justified by
++            #   "the `in` that follows does the real check". That justification is exactly
++            #   right for the shape it describes and the arm fired well outside it: on a
++            #   BARE guard there is no `in` that follows, and `ensures \result == 7` then
++            #   proves for a body returning 0 on the empty-dict path (route #55, witnesses
++            #   `1104`-`1106`). So the mark is made HERE, where the parent `and` is
++            #   visible, and the leaf keeps `true` only when it is genuinely subsumed:
++            #   `if subst and name in subst:` — an EMPTY `subst` makes `name in subst`
++            #   False anyway, so the short-circuit changes nothing and `true` is faithful.
++            #   MEASURED: this is the ONE live site in the 53-file mirror
++            #   (`module6_whyml/expressions.py`), so the build is byte-inert there and owes
++            #   NO re-proof — the blunt opaque, which was built first, moved it and would
++            #   have LOST precision to fix nothing.
++            _r55_prev = getattr(self, "_r55_subsumed_name", None)
++            _r55_l, _r55_r = expr.get("left"), expr.get("right")
++            self._r55_subsumed_name = None
++            if (op == "&&" and isinstance(_r55_l, dict) and isinstance(_r55_r, dict)
++                    and _r55_l.get("type") == "Var" and _r55_l.get("name")
++                    and _r55_r.get("type") == "BinOp" and _r55_r.get("op") == "in"
++                    and isinstance(_r55_r.get("right"), dict)
++                    and _r55_r["right"].get("type") == "Var"
++                    and _r55_r["right"].get("name") == _r55_l.get("name")):
++                self._r55_subsumed_name = _r55_l["name"]
+             left_b = self._to_bool(left, expr["left"])
++            self._r55_subsumed_name = _r55_prev
+             right_b = self._to_bool(right, expr["right"])
+             if self._in_spec:
+                 return f"({left_b} {op} {right_b})"

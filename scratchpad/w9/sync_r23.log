@@ -1,0 +1,121 @@
+DIVERGED: frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_stmt_augassign — un-trusted mirror body != live emitter body:
+  --- live
+  +++ mirror
+  @@ -1,4 +1 @@
+  -_aa_refuse = False
+  -_aa_kind = ''
+  -if isinstance(stmt.target, ast.Name):
+    ir_stmts.append({'stmt': 'AugAssign', 'target': stmt.target.id, 'op': self._py_op_to_str(stmt.op), 'value': self._py_expr_to_ir(stmt.value)})
+elif isinstance(stmt.target, ast.Attribute) and isinstance(stmt.target.value, ast.Name) and (stmt.target.value.id == 'self'):
+    ir_stmts.append({'stmt': 'FieldAugAssign', 'object': 'self', 'field': stmt.target.attr, 'op': self._py_op_to_str(stmt.op), 'value': self._py_expr_to_ir(stmt.value)})
+elif isinstance(stmt.target, ast.Attribute) and isinstance(stmt.target.value, ast.Name) and (stmt.target.value.id in self._cur_func_symtab):
+    ir_stmts.append({'stmt': 'FieldAssign', 'object': stmt.target.value.id, 'field': stmt.target.attr, 'value': {'type': 'BinOp', 'op': self._py_op_to_str(stmt.op), 'left': self._py_expr_to_ir(stmt.target), 'right': self._py_expr_to_ir(stmt.value)}})
+elif isinstance(stmt.target, ast.Subscript):
+    slice_ir = self._py_expr_to_ir(stmt.target.slice)
+    if not slice_ir.get('type') == 'Slice':
+        read_ir = self._py_expr_to_ir(stmt.target)
+        ir_stmts.append({'stmt': 'ArraySet', 'array': self._py_expr_to_ir(stmt.target.value), 'index': slice_ir, 'value': {'type': 'BinOp', 'op': self._py_op_to_str(stmt.op), 'left': read_ir, 'right': self._py_expr_to_ir(stmt.value)}})
+    else:
+        _aa_kind = 'a SLICE target `a[lo:hi] op= v`'
+        _aa_refuse = True
+else:
+    _t = stmt.target
+    if isinstance(_t, ast.Attribute) and isinstance(_t.value, ast.Subscript):
+        _aa_kind = f'a field of a SUBSCRIPTED base, `a[i].{_t.attr} op= v`'
+    elif isinstance(_t, ast.Attribute) and isinstance(_t.value, ast.Attribute):
+        _aa_kind = f'a field of a NESTED attribute base, `x.y.{_t.attr} op= v`'
+    elif isinstance(_t, ast.Attribute):
+        _aa_kind = f'a field of a base that is not a local, parameter or `self`, `<global>.{_t.attr} op= v`'
+    else:
+        _aa_kind = f'a {type(_t).__name__} target'
+    _aa_refuse = True
+  -if _aa_refuse:
+    from errors import PyCSLSemanticError
+    raise PyCSLSemanticError(f"augmented assignment to {_aa_kind} is not modelled: this lowering handles `x op= v`, `self.f op= v`, `p.f op= v` (p a local/param) and `a[k] op= v`, and SILENTLY DROPPED everything else — so the mutation vanished from the model while the run still reported 'All contracts formally proven'. Measured: `self.items[0].v += 5` then `ensures \\result == 0` proved, while Python returns 5. Rewrite it as an explicit assignment (`a[i] = Record(...)`, or mutate a local record and store it back), which is the same repair the plain `a[i].f = v` form already asks for.", stage='ir-emit', code='PYCSL-WHYML-AUGASSIGN-UNMODELLED')
+  +if isinstance(stmt.target, ast.Name):
+    ir_stmts.append({'stmt': 'AugAssign', 'target': stmt.target.id, 'op': self._py_op_to_str(stmt.op), 'value': self._py_expr_to_ir(stmt.value)})
+elif isinstance(stmt.target, ast.Attribute) and isinstance(stmt.target.value, ast.Name) and (stmt.target.value.id == 'self'):
+    ir_stmts.append({'stmt': 'FieldAugAssign', 'object': 'self', 'field': stmt.target.attr, 'op': self._py_op_to_str(stmt.op), 'value': self._py_expr_to_ir(stmt.value)})
+elif isinstance(stmt.target, ast.Subscript):
+    slice_ir = self._py_expr_to_ir(stmt.target.slice)
+    if not slice_ir.get('type') == 'Slice':
+        read_ir = self._py_expr_to_ir(stmt.target)
+        ir_stmts.append({'stmt': 'ArraySet', 'array': self._py_expr_to_ir(stmt.target.value), 'index': slice_ir, 'value': {'type': 'BinOp', 'op': self._py_op_to_str(stmt.op), 'left': read_ir, 'right': self._py_expr_to_ir(stmt.value)}})
+  ---
+DIVERGED: module6_whyml/expressions.py::ExpressionEmissionMixin._handle_var_expr — un-trusted mirror body != live emitter body:
+  --- live
+  +++ mirror
+  @@ -7,8 +7,6 @@
+   if name in self._array_locals:
+    return whyml_ident(name)
+   if name in self._lambda_locals:
+    return whyml_ident(name)
+   if name in self._record_locals:
+    return whyml_ident(name)
+  -if name in getattr(self, '_iropt_ir_local_vars', set()):
+    return f'(iropt_val !{whyml_ident(name)})'
+  -if name in getattr(self, '_optional_union_locals', set()):
+    _proj = self._union_local_read_projection(name)
+    if _proj is not None:
+        return _proj
+   if name in getattr(self, '_pyval_locals', set()):
+    return whyml_ident(name)
+   if name in local_refs:
+    return f'!{whyml_ident(name)}'
+   if name in getattr(self, '_mutated_collection_params', set()):
+    return f'!{whyml_ident(name)}'
+  ---
+DIVERGED: module6_whyml/stmt_control_flow.py::ControlFlowStmtMixin._handle_for_stmt — un-trusted mirror body != live emitter body:
+  --- live
+  +++ mirror
+  @@ -6,73 +6,17 @@
+   has_direct_ret = IRScanner.has_direct_return(_body_d)
+   loop_indent = indent + '  ' if has_direct_ret else indent
+   inner_indent = loop_indent + '  '
+  -tuple_targets = getattr(stmt, 'tuple_targets', None)
+  -str_ci = self._string_char_iter(iter_ir, target, tuple_targets, local_refs) if self._value_semantic else None
+  -enum_seq = self._enumerate_seq_recv(iter_ir, tuple_targets)
+  -extra_locals = set()
+  -saved_str_locals = None
+  -if str_ci is not None:
+    _op, _idx_name, _ch_name, _is_tuple = str_ci
+    extra_locals = {n for n in (_idx_name, _ch_name) if n and n != '_'}
+    saved_str_locals = getattr(self, '_string_local_vars', set())
+    self._string_local_vars = set(saved_str_locals) | {_ch_name}
+elif enum_seq is not None:
+    _en_extra = {t for t in tuple_targets or [] if t and t != '_'}
+    extra_locals = _en_extra
+    if enum_seq[1]:
+        saved_str_locals = getattr(self, '_string_local_vars', set())
+        _en_elem = tuple_targets[1] if tuple_targets and len(tuple_targets) == 2 else None
+        self._string_local_vars = set(saved_str_locals) | ({_en_elem} if _en_elem and _en_elem != '_' else set())
+  -body_local = local_refs | {target} | extra_locals
+  -body_declared = declared_refs.copy() | {target} | extra_locals
+  -_saved_symtype = _MISSING = object()
+  -_is_classbody = self._classbody_psl_recv(iter_ir) is not None or self._pyast_walk_recv(iter_ir) is not None
+  -_is_kwbody = self._keyword_iter_recv(iter_ir, local_refs) is not None
+  -_is_tparambody = self._tparam_iter_recv(iter_ir) is not None
+  -_is_splitbody = self._value_semantic and self._split_call_recv_sep(iter_ir) is not None
+  -_is_pyval_keys = self._value_semantic and iter_ir.get('type') == 'Var' and (not tuple_targets) and (iter_ir.get('name') not in getattr(self, '_pyval_coll_locals', set())) and self._expr_is_pyval(iter_ir)
+  -_is_strseqlit = self._value_semantic and (not tuple_targets) and (self._str_lit_seq_elts(iter_ir) is not None)
+  -_is_pyval_values = self._value_semantic and iter_ir.get('type') == 'Call' and isinstance(iter_ir.get('func'), str) and iter_ir.get('func').endswith('.values') and (self._self_field_dict_nu(iter_ir.get('func')[:-len('.values')]) == 'hval')
+  -_is_pyval_items = (self._hval_items_recv(iter_ir) is not None or self._hval_items_local_recv(iter_ir) is not None) and tuple_targets and (len(tuple_targets) == 2)
+  -_items_val_target = tuple_targets[1] if _is_pyval_items else None
+  -_items_val_str = bool(_is_pyval_items and self._emitting_refine_tuple_return_type())
+  -_saved_items_val_symtype = _MISSING
+  -if _is_pyval_items:
+    _items_extra = {t for t in tuple_targets if t and t != '_'}
+    body_local = body_local | _items_extra
+    body_declared = body_declared | _items_extra
+  -_is_zip_irlists = self._zip_irlist_recv(iter_ir) is not None and tuple_targets and (len(tuple_targets) == 2)
+  -_saved_zip_symtypes = {}
+  -if _is_zip_irlists:
+    _zip_extra = {t for t in tuple_targets if t and t != '_'}
+    body_local = body_local | _zip_extra
+    body_declared = body_declared | _zip_extra
+    _st = getattr(self, '_current_symbol_table', None)
+    if _st is not None:
+        for _zt in _zip_extra:
+            _saved_zip_symtypes[_zt] = _st.get(_zt, _MISSING)
+            _st[_zt] = 'ExprIR'
+  ---

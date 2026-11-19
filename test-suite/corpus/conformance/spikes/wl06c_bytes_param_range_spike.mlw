@@ -1,0 +1,82 @@
+(* WL-06c SMT-feasibility spike: implicit byte-RANGE invariant for an UNKNOWN
+   `bytes`/`bytearray` PARAMETER.
+
+   WL-06b gave a bytes LITERAL its real byte content, from which `0<=b[i]<256`
+   is DERIVABLE (concrete construction). For an UNKNOWN param `b : array int`
+   the content is arbitrary — the range is NOT known to the solver unless it is
+   EMITTED. This spike proves the target laws of the implicit-precondition model
+   `requires { forall i. 0 <= i < length b -> 0 <= b[i] < 256 }`:
+
+     (1) RANGE  — under the implicit requires, `0 <= b[k] < 256` PROVES for a
+                  bounds-guarded index k (the T9 faithfulness win).
+     (2) COHERENCE — the read is a deterministic int cell (body b[i] == contract
+                  b[i]); distinct indices are independent (no over-claim).
+     (3) FALSE-TWIN — the range fact does NOT let a SPECIFIC-VALUE claim
+                  (`b[0] = 97`) prove: `range_no_overclaim` has NO postcondition
+                  pinning a byte value, and the dual `false_specific_value` is
+                  left with a `False`-ish goal that must NOT discharge (checked
+                  by a SEPARATE goal below that Why3 reports Unknown/Timeout).
+     (4) USER-REQUIRES — a user `requires b[0] = 65` lets `b[0] = 65` prove
+                  (the user bounds the unknown), ON TOP of the implicit range.
+     (5) WRITE-RANGE — a bytearray element write preserves the range only if the
+                  written value is in [0,256): with `requires 0 <= v < 256` the
+                  post-write cell stays in range (Python ValueError posture).
+
+   Native `array int` — must discharge on Alt-Ergo AND Z3, NO new axiom. *)
+module Wl06cBytesParamRange
+  use int.Int
+  use array.Array
+
+  (* (1) RANGE — implicit requires makes 0<=b[k]<256 provable for a param. *)
+  let range_provable (b: array int) (k: int)
+    requires { forall i. 0 <= i < Array.length b -> 0 <= b[i] < 256 }
+    requires { 0 <= k < Array.length b }
+    ensures  { 0 <= result < 256 }
+  = b[k]
+
+  (* (2a) COHERENCE — the read is the same deterministic cell the contract names. *)
+  let coherent_read (b: array int) (k: int)
+    requires { forall i. 0 <= i < Array.length b -> 0 <= b[i] < 256 }
+    requires { 0 <= k < Array.length b }
+    ensures  { result = b[k] }
+  = b[k]
+
+  (* (2b) NO OVER-CLAIM — distinct indices stay independent even with the range. *)
+  let range_no_overclaim (b: array int)
+    requires { forall i. 0 <= i < Array.length b -> 0 <= b[i] < 256 }
+    requires { Array.length b >= 2 }
+    ensures  { 0 <= result < 256 }        (* range: PROVES *)
+  = assert { 0 <= b[0] < 256 };
+    assert { 0 <= b[1] < 256 };
+    (* the range does NOT force b[0] = b[1] nor any specific value *)
+    b[0]
+
+  (* (4) USER-REQUIRES — a user bound on top of the implicit range pins a value. *)
+  let user_bounded (b: array int)
+    requires { forall i. 0 <= i < Array.length b -> 0 <= b[i] < 256 }
+    requires { Array.length b >= 1 }
+    requires { b[0] = 65 }
+    ensures  { result = 65 }
+  = b[0]
+
+  (* (5) WRITE-RANGE — a bytearray write in [0,256) keeps the written cell in range. *)
+  let write_in_range (b: array int) (k: int) (v: int)
+    requires { 0 <= k < Array.length b }
+    requires { 0 <= v < 256 }
+    ensures  { 0 <= b[k] < 256 }
+  = b[k] <- v
+end
+
+(* (3) FALSE-TWIN as a SEPARATE module whose sole goal MUST NOT discharge:
+   from the range fact alone a SPECIFIC byte value is NOT derivable. If any
+   prover reports this `Valid`, the range model is OVER-CLAIMING (unsound). *)
+module Wl06cFalseTwin
+  use int.Int
+  use array.Array
+
+  goal specific_value_unprovable :
+    forall b: array int.
+      (forall i. 0 <= i < Array.length b -> 0 <= b[i] < 256) ->
+      Array.length b >= 1 ->
+      b[0] = 97      (* MUST be Unknown/Unprovable — range does not pin the value *)
+end

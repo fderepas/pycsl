@@ -13,47 +13,49 @@ from typing import List, Tuple
 class Var:
     'A free or bound variable reference.'
     name: str
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == self.name
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return self.name
 
 
 @dataclass(frozen=True)
 class IntLit:
     value: int
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return str(self.value)
 
 
 @dataclass(frozen=True)
 class BoolLit:
     value: bool
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    # TOTAL over the int-modelled bool: the field is a Why3 `int`, so `== True`/`== False`
+    # (1 and 0) would leave `value = 2` unspecified while the body returns "true".
+    # `!= False` is the body's own test (`<> 0`), so the two clauses partition it.
+    #@ ensures (self.value != False) ==> (\result == "true")
+    #@ ensures (self.value == False) ==> (\result == "false")
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return "true" if self.value else "false"
 
 
 @dataclass(frozen=True)
 class App:
     'N-ary application `head arg0 arg1 …`.'
     head: str
-    args: int
-    #@ \trusted reviewer: pycsl-self-annotate
+    args: Tuple['Term', ...]
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        if not self.args:
+            return self.head
+        return f"({self.head} {' '.join(a.pp() for a in self.args)})"
 
 
 @dataclass(frozen=True)
@@ -62,12 +64,11 @@ class BinOp:
     op: str
     lhs: 'Term'
     rhs: 'Term'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return f"({self.lhs.pp()} {self.op} {self.rhs.pp()})"
 
 
 @dataclass(frozen=True)
@@ -75,39 +76,38 @@ class UnaryOp:
     'Unary operator (currently only logical `not` and arithmetic `-`).'
     op: str
     arg: 'Term'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return f"({self.op} {self.arg.pp()})"
 
 
 @dataclass(frozen=True)
 class Forall:
     'Universal quantifier with a flat binder list `forall x1 x2 … : ty, body`.\n\n    The binder type `ty` is a string token from a small canonical set\n    (`int`, `nat`, `bool`, …); nat/Nat are normalized to int with\n    side conditions in Phase 3b.'
-    binders: int
+    binders: Tuple[str, ...]
     ty: str
     body: 'Term'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        binders = " ".join(self.binders)
+        return f"(forall {binders} : {self.ty}, {self.body.pp()})"
 
 
 @dataclass(frozen=True)
 class Exists:
-    binders: int
+    binders: Tuple[str, ...]
     ty: str
     body: 'Term'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        binders = " ".join(self.binders)
+        return f"(exists {binders} : {self.ty}, {self.body.pp()})"
 
 
 @dataclass(frozen=True)
@@ -115,33 +115,52 @@ class Unsupported:
     "A leaf for constructs the parser can't represent. Carries the\n    raw token slice for diagnostic purposes."
     reason: str
     raw: str
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == "<UNSUPPORTED: " + self.reason + ">"
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return f"<UNSUPPORTED: {self.reason}>"
 
 
 Term = 0  # pycsl: stubbed type alias (string form unsupported)
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def mk_arrow_chain(hyps: List[Term], conclusion: Term) -> Term:
-    return None
+    out: Term = conclusion
+    for h in reversed(hyps):
+        out = BinOp("->", h, out)
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def flatten_arrow_chain(t: Term) -> Tuple[List[Term], Term]:
-    return ([], {})
+    hyps: List[Term] = []
+    cur = t
+    while isinstance(cur, BinOp) and cur.op == "->":
+        hyps.append(cur.lhs)
+        cur = cur.rhs
+    return hyps, cur
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def free_vars(t: Term) -> set:
-    return set()
+    if isinstance(t, Var):
+        return {t.name}
+    if isinstance(t, (IntLit, BoolLit, Unsupported)):
+        return set()
+    if isinstance(t, App):
+        out = set()
+        for a in t.args:
+            out |= free_vars(a)
+        return out
+    if isinstance(t, BinOp):
+        return free_vars(t.lhs) | free_vars(t.rhs)
+    if isinstance(t, UnaryOp):
+        return free_vars(t.arg)
+    if isinstance(t, (Forall, Exists)):
+        return free_vars(t.body) - set(t.binders)
+    raise TypeError(f"free_vars: unknown term type {type(t)}")
 

@@ -8,47 +8,99 @@ the source. The mirror-check gate enforces signature parity.
 from __future__ import annotations
 from typing import Any, List, Optional, Tuple
 from proof2why3.ir import App, BinOp, BoolLit, Forall, IntLit, Term, UnaryOp, Unsupported, Var
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _walk_kername(kn: Any) -> List[str]:
-    return []
+    """Walk a (KerName MPfile/MPdot ... (Id NAME)) tree and return the
+    full dotted-path components as a list of strings."""
+    out: List[str] = []
+    if not isinstance(kn, tuple):
+        return out
+    if kn and kn[0] == "KerName":
+        if len(kn) >= 3:
+            mp = kn[1]
+            iid = kn[2]
+            out.extend(_walk_modpath(mp))
+            if isinstance(iid, tuple) and iid[0] == "Id" and len(iid) >= 2:
+                out.append(iid[1])
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _walk_modpath(mp: Any) -> List[str]:
-    return []
+    """Walk a MPfile / MPdot / MPbound tree to extract module path
+    components in left-to-right order."""
+    out: List[str] = []
+    if not isinstance(mp, tuple):
+        return out
+    if mp and mp[0] == "MPfile":
+        # (MPfile (DirPath ((Id NAME) ...)))
+        if len(mp) >= 2:
+            dp = mp[1]
+            if isinstance(dp, tuple) and dp[0] == "DirPath" and len(dp) >= 2:
+                segments = dp[1]
+                # DirPath stores components in REVERSE order; reverse to
+                # get logical left-to-right.
+                segs_reversed: List[str] = []
+                if isinstance(segments, tuple):
+                    for seg in segments:
+                        if (isinstance(seg, tuple) and seg[0] == "Id"
+                                and len(seg) >= 2):
+                            segs_reversed.append(seg[1])
+                out.extend(reversed(segs_reversed))
+    elif mp and mp[0] == "MPdot":
+        # (MPdot <parent_mp> (Id NAME))
+        if len(mp) >= 3:
+            out.extend(_walk_modpath(mp[1]))
+            iid = mp[2]
+            if isinstance(iid, tuple) and iid[0] == "Id" and len(iid) >= 2:
+                out.append(iid[1])
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _const_name(const_node: Any) -> Optional[str]:
-    return None
+    if not isinstance(const_node, tuple) or len(const_node) < 2:
+        return None
+    payload = const_node[1]
+    parts = _find_kername_components(payload)
+    return parts[-1] if parts else None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _full_const_path(const_node: Any) -> List[str]:
-    return []
+    """Return the full dotted path of a Const node."""
+    if not isinstance(const_node, tuple) or len(const_node) < 2:
+        return []
+    return _find_kername_components(const_node[1])
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _find_kername_components(payload: Any) -> List[str]:
+    """Recursively search the payload for the first KerName subtree
+    and return its components."""
+    if isinstance(payload, tuple):
+        if payload and payload[0] == "KerName":
+            return _walk_kername(payload)
+        for sub in payload:
+            r = _find_kername_components(sub)
+            if r:
+                return r
     return []
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _ind_short_name(ind_node: Any) -> Optional[str]:
-    return None
+    if not isinstance(ind_node, tuple) or len(ind_node) < 2:
+        return None
+    parts = _find_kername_components(ind_node[1])
+    return parts[-1] if parts else None
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -64,18 +116,37 @@ def _construct_indices(construct_node: Any) -> int:
 def _find_construct_idx(payload: Any) -> int:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _flatten_tuples(t: Any) -> List[Any]:
-    return []
+    """Helper: yield all sub-tuples of t at any depth."""
+    out: List[Any] = []
+    if isinstance(t, tuple):
+        out.append(t)
+        for sub in t:
+            out.extend(_flatten_tuples(sub))
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _binder_name(binder_annot: Any) -> Optional[str]:
+    """Extract the variable name from a binder_annot tuple, or None
+    if the binder is Anonymous (arrow hypothesis)."""
+    if not isinstance(binder_annot, tuple):
+        return None
+    for field in binder_annot:
+        if (isinstance(field, tuple) and len(field) >= 2
+                and field[0] == "binder_name"):
+            val = field[1]
+            if val == "Anonymous":
+                return None
+            if isinstance(val, tuple) and val[0] == "Name" and len(val) >= 2:
+                inner = val[1]
+                if (isinstance(inner, tuple) and inner[0] == "Id"
+                        and len(inner) >= 2):
+                    return inner[1]
     return None
 
 _CONST_STRIP_TABLE = {'gcd': 'gcd', 'modulo': 'mod', 'add': 'add', 'mul': 'mul', 'sub': 'sub', 'gt': '>', 'lt': '<', 'ge': '>=', 'le': '<='}

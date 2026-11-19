@@ -1,0 +1,4 @@
+[*] refusal-witness-coverage: 360 raise site(s) in the compiler, 2393 witness(es) censused (1683 refusals); 331 site(s) DEMONSTRATED to fire, 5 not.
+[*]   plus 14 refusal(s) NOT REACHABLE from a `.py` source file, demonstrated executably by bin/check-ir-schema-refusals.py and bin/check-frontend-ir-backstop-refusals.py instead.
+[*]   plus 10 refusal(s) UNMATCHABLE by this instrument: their message has no string literal of 25+ characters, so no witness can ever mark them demonstrated. Closing them is a compiler/census change, not a corpus one.
+[+] refusal-witness-coverage: OK — 331 demonstrated, 5 undemonstrated (floor 208 / ceiling 5); 14 not source-reachable, 10 unmatchable (ceiling 10).

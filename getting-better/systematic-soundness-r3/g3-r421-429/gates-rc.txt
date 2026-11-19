@@ -1,0 +1,16 @@
+FINAL CANDIDATE (commit after 7fb82c770: + str.maketrans row, Enum functional confinement)
+sync rc=0
+mirror-check rc=0
+root byte-diff 2497->2512 0 MOVED/0 GONE/0 APPEARED (15 new sources)
+pyref 2186/2186 0/0/0
+mirror 53/53 0/0/0 (first candidate GONE 2: pure_ast type.__instancecheck__, statements str-row .get -- fixed before landing)
+pycsl_lib screen identical (104, rc0=87)
+planes 61/61 green (chunked: 12+20+24+5)
+refusal-witness-coverage rc=0 (328 demonstrated, ceiling 5)
+refusal-advice-audited rc=0 (156 audited)
+getattr-erasure rc=0 (after registering control 6337: getattr-baseline.diff = exactly that row; first run rc=1 getattr-first.log)
+clause-survival rc=0 (10 deficit / 1472, all ledgered)
+assumed-facts --emit-dir rc=0 (4698 files, 88 facts, all reviewed families)
+open-route-carriers rc=0
+doc-coherency --check rc=0
+trusted count unchanged (no mirror edit)
