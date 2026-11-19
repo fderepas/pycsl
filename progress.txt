@@ -99,3 +99,36 @@ Thu Nov 19 04:17:51 UTC 2026 u55: jobC queued
 Thu Nov 19 04:30:14 UTC 2026 u55: jobC queued
 Thu Nov 19 04:45:41 UTC 2026 u55: jobC queued
 Thu Nov 19 05:01:17 UTC 2026 u55: jobC queued
+Thu Nov 19 05:11:29 UTC 2026 u55: gate job G1 sweeping
+Thu Nov 19 05:23:57 UTC 2026 u55: G1 corpus sweep
+Thu Nov 19 05:36:32 UTC 2026 u55: G1 corpus sweep
+Thu Nov 19 05:48:53 UTC 2026 u55: G1 pyref sweep
+Thu Nov 19 05:56:38 UTC 2026 u55: G1 planes
+Thu Nov 19 06:07:07 UTC 2026 u55: G1 planes
+Thu Nov 19 06:14:29 UTC 2026 u55: G1 planes
+Thu Nov 19 06:27:00 UTC 2026 u55: G1 planes
+Thu Nov 19 06:36:27 UTC 2026 u55: G1 ledger planes
+Thu Nov 19 06:45:53 UTC 2026 u55: G1 ledger planes
+Thu Nov 19 06:58:19 UTC 2026 u55: G1 getattr-erasure
+Thu Nov 19 07:05:11 UTC 2026 u55: G1 stdlib plane
+Thu Nov 19 07:17:36 UTC 2026 u55: G1 stdlib plane
+Thu Nov 19 07:29:45 UTC 2026 u55: G1 stdlib plane
+Thu Nov 19 07:42:31 UTC 2026 u55: G1 stdlib plane
+Thu Nov 19 07:49:25 UTC 2026 u55: G2 queued/running
+Thu Nov 19 08:02:31 UTC 2026 u55: G2 queued
+Thu Nov 19 08:14:54 UTC 2026 u55: G2 queued
+Thu Nov 19 08:27:28 UTC 2026 u55: G2 queued
+Thu Nov 19 08:38:10 UTC 2026 u55: G2 queued
+Thu Nov 19 08:43:08 UTC 2026 u55: G2 planes
+Thu Nov 19 08:56:04 UTC 2026 u55: G2 planes
+Thu Nov 19 09:05:34 UTC 2026 u55: G2 planes
+Thu Nov 19 09:21:18 UTC 2026 u55: G3 queued
+Thu Nov 19 09:33:52 UTC 2026 u55: G3 queued
+Thu Nov 19 09:43:56 UTC 2026 u55: G3 queued
+Thu Nov 19 09:52:59 UTC 2026 u55: G3 queued
+Thu Nov 19 10:00:10 UTC 2026 u55: G3 queued
+Thu Nov 19 10:09:15 UTC 2026 u55: G3 planes
+Thu Nov 19 10:18:25 UTC 2026 u55: G3 planes
+Thu Nov 19 10:27:58 UTC 2026 u55: G3 planes
+Thu Nov 19 10:37:38 UTC 2026 u55: G3 planes
+Thu Nov 19 10:38:21 UTC 2026 u55: all gates done; final report commit
