@@ -11734,8 +11734,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # the `from pathlib import Path` binding (every import binding `Path` is that one,
         # absolute, no star import) and be bound nowhere in this function and not rebound at
         # module level (pycsl.py's source table; absent -> shadowed, fail-closed); otherwise
-        # NO model: the old lowering is kept. No raise, so no registry row; the identical
-        # test is inlined in `_is_string_expr` (keep the two in step).
+        # NO model: the old lowering is kept. No raise, so no registry row.
         # lvZ2 (run #8) RESTRICTED TYPE SEPARATION: the result is the ABSTRACT `py_path`,
         # never a `string` (`val function ext_path_of_str_op (s: string) : py_path`, still
         # deterministic and law-free), so the value cannot meet a `str` except through

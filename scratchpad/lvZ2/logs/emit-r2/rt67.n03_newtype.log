@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt67/n03_newtype.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[whyml]: PYCSL-R614-PATH-STR-CONFLATED: line 10: `p == str(p)` in 'f' compares a Path value (Path vs str, or ordering of Paths). The model represents a pathlib.Path as its string form (a Why3 `string`: #31's annotation erasure, lvX's `Path(<str>)`), so a Path and its str are the same value there, while in CPython a Path never equals a str and Paths order by parts, not by string (route #614; measured: `p == str(p)` proved `\result == True`, CPython False). Compare the strings explicitly (`str(p) == s`, `str(p) < str(q)`), or keep the Path out of the comparison.
+rc=1

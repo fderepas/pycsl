@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt65/f03/real/main_det.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt65/f03/real/main_det.py: `import pathlib` names a standard-library module, but pycsl's import resolution found a LOCAL file for it (/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt65/f03/real/pathlib.py) that is not the interpreter's own 'pathlib' source. CPython does not load such a file in place of a built-in, frozen or startup-loaded module, and for any other standard-library module which one runs depends on sys.path order and interpreter startup, so the local file's contracts may not be believed here (route #326: a local `math.py` made `math.floor(3) == 4` PROVE; CPython 3). FIX: rename the local module so it does not shadow the standard library.
+rc=1

@@ -1,0 +1,8 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt67/n05_cast.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'typing.cast': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt67/n05_cast.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'f', the value 'q' comes from 'cast_2', a call PyCSL has no model of: it is lowered to an OPAQUE INT whatever its Python type (a float, a string, a module...), and it is used here as an integer (`; ( if ( !q = ( str_hash_op (`), where every claim true of all integers (`x % 1 == 0`, `x * 0 == 0`, `x < e or x >= e + 1 or x == e`) would be proved of it. Refused (fail closed). Give it a modelled form: an `int` literal / int expression, or pass it in as a typed parameter with an explicit `requires`.
+rc=1

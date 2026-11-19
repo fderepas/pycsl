@@ -6744,7 +6744,7 @@ Path passed to a `str` / Path parameter of a user, imported or dotted callee, re
 function -- is a Why3 TYPE ERROR (fail-closed). The #31-erased `p: Path` parameter is unchanged (still a
 `string`, covered by R614 above). `_sha256_file` stays verified on `py_path`. Witnesses `10280`-`10285`
 (expected FAIL; helper `multi_file_lib/lvz2_pathlib.py`), controls `10286` (`os.fspath(p) == str(p)`),
-`10287` (`f"{p}" == str(p)`), `10288` (two locals `Path(s)` equal).
+`10287` (`f"{p}" == str(p)`), `10288` (`str(p)` deterministic).
 **Unresolved aliases and unknown callees (run #8, lvZ2).** Red team rt70: a Path behind
 `Fp = TypeAliasType("Fp", Path)` (also `typing.TypeAliasType`, in the unit or in a dependency's
 `-> Fp`) is erased to `string` by route #336 while the alias fixpoint above skips every call-built
