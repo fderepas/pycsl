@@ -1,60 +1,13 @@
-Wed Nov 18 16:45:09 UTC 2026 u54 start: worktree created
-Wed Nov 18 16:46:57 UTC 2026 base sweep (corpus+mirror) of pycsl-u54-base @41fc6f781 launching
-Wed Nov 18 16:53:37 UTC 2026 base sweep running; audit research (journal) in progress
-Wed Nov 18 16:55:37 UTC 2026 repair code drafted; base sweep queued behind PRIO
-Wed Nov 18 16:56:34 UTC 2026 waiting for heavy slot (base sweep queued)
-Wed Nov 18 17:07:58 UTC 2026 still queued (PRIO waiting ahead); drafting audit
-Wed Nov 18 17:17:51 UTC 2026 queued behind PRIO 3992490; audit draft written
-Wed Nov 18 17:27:11 UTC 2026 still queued
-Wed Nov 18 17:33:57 UTC 2026 job1 (rc probes + base witness + base sweeps) queued via heavy.sh
-Wed Nov 18 17:40:58 UTC 2026 job1 queued
-Wed Nov 18 17:48:07 UTC 2026 job1 still queued (slots: snapD2 + lvY batch3; PRIO full.sh ahead)
-Wed Nov 18 17:54:45 UTC 2026 job1 queued; job2 script prepared
-Wed Nov 18 18:06:54 UTC 2026 job1 queued
-Wed Nov 18 18:16:23 UTC 2026 job1 queued (PRIO ahead now running)
-Wed Nov 18 18:25:38 UTC 2026 job1 queued
-Wed Nov 18 18:34:51 UTC 2026 job1 queued
-Wed Nov 18 18:44:15 UTC 2026 job1 queued (driver v68 battery PRIO ahead)
-Wed Nov 18 18:56:27 UTC 2026 job1 queued
-Wed Nov 18 19:08:44 UTC 2026 job1 queued
-Wed Nov 18 19:21:07 UTC 2026 job1 queued
-Wed Nov 18 19:33:30 UTC 2026 job1 queued
-Wed Nov 18 19:45:46 UTC 2026 job1 STARTED (oom_kill 15 at start)
-Wed Nov 18 19:48:34 UTC 2026 job1 running base sweeps; base witness: kill-pf/exit137-pf silently SUCCESS (fail-open confirmed)
-Wed Nov 18 20:00:42 UTC 2026 job1 base corpus sweep running
-Wed Nov 18 20:13:12 UTC 2026 job1 base sweep running; head snapshot pycsl-u54-s1 @706e19e29 ready
-Wed Nov 18 20:25:32 UTC 2026 job1 base pyref sweep
-Wed Nov 18 20:34:40 UTC 2026 job1 base mirror sweep
-Wed Nov 18 20:39:07 UTC 2026 job1 done (base bd 3281/pyref 2185/mir 53, oom 15->15); job2 (head s1) queued
-Wed Nov 18 20:48:09 UTC 2026 job2 queued
-Wed Nov 18 21:00:05 UTC 2026 job2 queued
-Wed Nov 18 21:12:09 UTC 2026 job2 queued
-Wed Nov 18 21:24:25 UTC 2026 job2 queued
-Wed Nov 18 21:29:12 UTC 2026 job2 STARTED
-Wed Nov 18 21:32:48 UTC 2026 job2: head witness OK (kill-pf/exit137/kill-cs -> FAILED could not be checked); sweeps running
-Wed Nov 18 21:41:48 UTC 2026 job2 head corpus sweep
-Wed Nov 18 21:54:01 UTC 2026 job2 head corpus sweep
-Wed Nov 18 22:06:02 UTC 2026 job2 head pyref sweep
-Wed Nov 18 22:17:58 UTC 2026 job2 head mirror sweep
-Wed Nov 18 22:20:22 UTC 2026 job2 fast planes running (emission gates 0/0/0, mirror 0 diff, fidelity rc 0)
-Wed Nov 18 22:29:34 UTC 2026 job2 fast planes running
-Wed Nov 18 22:41:37 UTC 2026 job2 fast planes running
-Wed Nov 18 22:53:44 UTC 2026 job2 fast planes running
-Wed Nov 18 23:02:47 UTC 2026 job2 fast planes running
-Wed Nov 18 23:08:21 UTC 2026 job2 individual planes (check-emitted-vacuity --emit)
-Wed Nov 18 23:10:02 UTC 2026 job2 done (all gates green); job3 (main-kill witness base/head) queued
-Wed Nov 18 23:20:06 UTC 2026 job3 queued
-Wed Nov 18 23:32:22 UTC 2026 job3 queued
-Wed Nov 18 23:44:27 UTC 2026 job3 queued
-Wed Nov 18 23:57:33 UTC 2026 job3 queued; report drafted
-Thu Nov 19 00:13:02 UTC 2026 job3 queued
-Thu Nov 19 00:28:19 UTC 2026 job3 queued
-Thu Nov 19 00:40:37 UTC 2026 job3 queued
-Thu Nov 19 00:52:58 UTC 2026 job3 queued
-Thu Nov 19 01:08:22 UTC 2026 job3 queued
-Thu Nov 19 01:20:50 UTC 2026 job3 queued
-Thu Nov 19 01:33:07 UTC 2026 job3 queued
-Thu Nov 19 01:45:27 UTC 2026 job3 queued
-Thu Nov 19 01:57:44 UTC 2026 job3 queued
-Thu Nov 19 02:09:57 UTC 2026 job3 queued
-Thu Nov 19 02:17:29 UTC 2026 job3 done: base kill-main SUCCESS 1/3 goals, head FAILED; finalizing
+Thu Nov 19 15:41:01 UTC 2026 u56 start: worktree created
+Thu Nov 19 15:42:03 UTC 2026 emitting 8 mirror mlw (QUICK)
+Thu Nov 19 15:48:15 UTC 2026 dumping call-site probe bodies + why3 --type-only
+Thu Nov 19 15:50:57 UTC 2026 rewriter fixed (lexical scanner); re-dumping probes type-only
+Thu Nov 19 15:52:39 UTC 2026 job1: base sweeps (corpus+pyref+mirror) on pycsl-u56-base @57d71f9d3
+Thu Nov 19 16:02:25 UTC 2026 job1 base sweep waiting/running
+Thu Nov 19 16:02:48 UTC 2026 census8 (QUICK type-only) while job1 queued
+Thu Nov 19 16:13:26 UTC 2026 census8c (string-blind brace exclusion kept)
+Thu Nov 19 16:14:26 UTC 2026 killed my own queued (never started) base sweep job 3419210 to serialize into one combined job
+Thu Nov 19 16:14:46 UTC 2026 job1 launched (probes x21, then base sweeps)
+Thu Nov 19 16:23:33 UTC 2026 job1 queued in heavy gate (behind other executors)
+Thu Nov 19 16:26:24 UTC 2026 job1 queued/running
+Thu Nov 19 16:34:42 UTC 2026 job1 still queued

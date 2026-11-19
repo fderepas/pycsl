@@ -40767,10 +40767,46 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                 _end267 += 1
             _body267 = "\n".join(lines[idx:_end267])
             _sites267: "List[Tuple[int, int, str]]" = []
+            # (#49) ROUTE #616 — THE SITE SCANNER MUST BE LEXICAL, NOT CHARACTER-BLIND.
+            # It used to count every `(` `)` `{` `}` it saw, INCLUDING those inside WhyML
+            # string literals and `(* ... *)` comments. MEASURED on the landed mirror
+            # emissions (21 functions in 8 files, e.g. statements `_first_assign_kind`):
+            # a call `(str_startswith_op py_val "(Array.make")` was closed one `)` too
+            # late (the `(` in the string), a `(str_eq_op t ")")` one too early, and a
+            # `"(sorted_1 "` inside a string was taken for a call site, so the rewritten
+            # body was ill-formed and why3 REJECTED it (rc 1, `syntax error` / `illegal
+            # character in string` / `unbound ... '__and_l'`): the call-site probe of every
+            # such function was never run (only a non-failing warning). Now a string
+            # literal (with its `\` escapes) and a nested comment are skipped as ONE token
+            # by both the outer scan and the closing-paren scan. The `{` exclusion of a
+            # site's own text is kept character-blind ON PURPOSE (a `{` inside a string
+            # there still excludes the site, as before): relaxing it would make an
+            # enclosing `pystr_cat "... ensures { ..." ...` call the outermost site and
+            # silently drop the finer probes of the calls nested inside it.
             _depth267 = 0
             _i267 = 0
             while _i267 < len(_body267):
                 _ch267 = _body267[_i267]
+                if _ch267 == '"':
+                    _i267 += 1
+                    while _i267 < len(_body267) and _body267[_i267] != '"':
+                        _i267 += 2 if _body267[_i267] == "\\" else 1
+                    _i267 += 1
+                    continue
+                if _body267.startswith("(*", _i267):
+                    _cd267 = 0
+                    while _i267 < len(_body267):
+                        if _body267.startswith("(*", _i267):
+                            _cd267 += 1
+                            _i267 += 2
+                        elif _body267.startswith("*)", _i267):
+                            _cd267 -= 1
+                            _i267 += 2
+                            if _cd267 == 0:
+                                break
+                        else:
+                            _i267 += 1
+                    continue
                 if _ch267 == "{":
                     _depth267 += 1
                 elif _ch267 == "}":
@@ -40781,9 +40817,30 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                         _lvl267 = 0
                         _j267 = _i267
                         while _j267 < len(_body267):
-                            if _body267[_j267] == "(":
+                            _cj267 = _body267[_j267]
+                            if _cj267 == '"':
+                                _j267 += 1
+                                while _j267 < len(_body267) and _body267[_j267] != '"':
+                                    _j267 += 2 if _body267[_j267] == "\\" else 1
+                                _j267 += 1
+                                continue
+                            if _body267.startswith("(*", _j267):
+                                _cd267 = 0
+                                while _j267 < len(_body267):
+                                    if _body267.startswith("(*", _j267):
+                                        _cd267 += 1
+                                        _j267 += 2
+                                    elif _body267.startswith("*)", _j267):
+                                        _cd267 -= 1
+                                        _j267 += 2
+                                        if _cd267 == 0:
+                                            break
+                                    else:
+                                        _j267 += 1
+                                continue
+                            if _cj267 == "(":
                                 _lvl267 += 1
-                            elif _body267[_j267] == ")":
+                            elif _cj267 == ")":
                                 _lvl267 -= 1
                                 if _lvl267 == 0:
                                     break
