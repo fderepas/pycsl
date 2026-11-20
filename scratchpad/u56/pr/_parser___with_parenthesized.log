@@ -1,0 +1,6 @@
+fns: [('_parser___with_parenthesized', 3433)]
+[run] callsite prover=Alt-Ergo,2.6.3, rc=2 selectors=5 records=5 probe-goals={'vacpost 0': ['Timeout'], 'vacpost 1': ['Timeout'], 'vacpost 2': ['Timeout'], 'vacpost 3': ['Timeout'], 'vacpost 4': ['Timeout']} stderr=''
+[run] callsite prover=Z3,4.13.3, rc=2 selectors=5 records=5 probe-goals={'vacpost 0': ['Unknown\n(unknown)'], 'vacpost 1': ['Unknown\n(unknown)'], 'vacpost 2': ['Unknown\n(unknown)'], 'vacpost 3': ['Timeout'], 'vacpost 4': ['Unknown\n(unknown)']} stderr=''
+[run] perfn prover=Alt-Ergo,2.6.3, SKIPPED (U56_SKIP_PERFN)
+[run] perfn prover=Z3,4.13.3, SKIPPED (U56_SKIP_PERFN)
+RESULT: []

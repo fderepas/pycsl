@@ -1443,7 +1443,40 @@ bytecode cache CPython could load INSTEAD of a resolved module's source — an u
 checked hash-based `__pycache__` pyc, or a timestamp pyc whose header matches, at any
 `.opt-N` level — must be provably the compilation of that source, its code object equal to
 `compile(source)`, or the import is REFUSED, `PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route
-#611 r12): CPython
+#611 r12; and the whole import CLOSURE is judged, not only the program's own imports: an
+entry in any resolution root named like a module the closure may reach — a stdlib / builtin
+name, or any name the interpreter's stdlib source imports — is judged as a direct import of
+it and REFUSED unless admitted, `PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`, route #613: a local
+`re.py` beside a program that imports only `json` is the `re` that `json` runs; the judged
+names also include every module entry of the interpreter's stdlib directories (Lib,
+lib-dynload, the platform stdlib: the stdlib imports `_sysconfigdata_<abi>_<platform>` by a
+COMPUTED name), literal names handed to `__import__` / `import_module` /
+`importlib.resources.files`, and the modules the STARTUP HOOKS reach (`sitecustomize`,
+`usercustomize` and `.pth` import lines in the site directories of the interpreter and its
+base installation, followed module by module: Ubuntu's apport hook imports `apport.report`);
+and EVERY candidate in EVERY root is judged in its own root, not only the first hit in pycsl's
+order (u55, review rt66 g01 / g09 / g10); and (u58, review rt69 G6) the judged names also
+include every top-level module importable from the site directories (the interpreter's, its
+base installation's and the user's, plus `.pth`-added directories) and every top-level name
+imported anywhere by their sources (`program -> lark -> regex`: an installed package's own
+imports resolve from `sys.path[0]` first; a name only third-party code brings in is not judged
+in pycsl's cwd unless the cwd is a CPython root, see G7 below); the roots are
+those of a SCRIPT, the program's own directory first, unless the mode
+`--verification-image ROOT` is DECLARED (never inferred, listed by `--soundness-report`) — the
+file is a verification model CPython never executes (the mirror gates, ROOT =
+`src/self-annotate/src`; the pycsl_lib plane, ROOT = `src`): NO claim about a CPython run, its
+own imports resolve as pycsl resolves them, and only this closure check moves to ROOT
+(VERIFICATION-IMAGE); `--as-package-module` is WITHDRAWN from this release (u58, review rt69:
+rc 2, never a silent script-mode verification). Two more import rules (u58, review rt69,
+PRE-EXISTING gaps): a module found FIRST in pycsl's own working directory, which CPython's
+script mode never searches, is REFUSED unless that directory is the program's, an
+`--import-path` root, or the module is an admitted byte-identical stdlib copy
+(`PYCSL-SEM-IMPORT-CWD-ROOT`, G7); and a dotted import reached through a top-level directory
+with no `__init__.py` (a namespace portion) is REFUSED when any other root CPython searches —
+the program directory, `--import-path`, the stdlib or a site directory — holds that top-level
+name too, since a regular package there wins and portions merge in `sys.path` order
+(`PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`, G5: a local bare `lark/utils.py` lost to the
+installed `lark`)): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or
 startup-loaded module, and for the rest which one runs depends on `sys.path` and startup.
 A program that edits the import system — any reference to `sys.path`, `sys.modules`,
@@ -6679,6 +6712,48 @@ parameter named `os` used as a plain object next to a genuine `os.access` in ano
 `sorted` in the join model keeps its model).
 Measurements: `getting-better/open-routes/route610-ext-module-name-shadowing.md`.
 
+### 7.611 A str value holding a code point above 255 is refused when it enters the model (route #429, run #8, user decision)
+
+A Python `str` is the Why3 `string` of 8-bit `string.Char`s (declared assumption LATIN1-STR), and a
+code point above 255 has no one-character spelling there: `whyml_string_literal` wrote it as its 2..4
+UTF-8 BYTES, so the model's length, indices, slices and comparisons were the bytes'. MEASURED (red
+team rt68, executor u57, CPython-checked): `x == "\U0001F600"` => `len(x) == 4`, `len(x[0:3]) == 3`,
+`len(x[:-1]) == 3`, `x[-1:] != x` PROVED (CPython 1 / 1 / 0 / equal); the same class holds for `"€"`
+(3 bytes), a combining mark (`"e\u0301"`) and every BMP / astral code point; a lone surrogate crashed
+the encoder. RULE (`PYCSL-R429-NONLATIN1-STR-LITERAL`, refusal only, fail closed, decided on what
+ENTERS THE MODEL, inline at the end of `pycsl.py::_run_pipeline`, twin `\trusted`): the UTF-8 arm of
+`whyml_string_literal` now writes its bytes as decimal escapes `\ddd` (the same bytes for Why3, the
+model is unchanged; no other writer uses that form), and route #411's literal pass (§7.90) reads every
+WhyML string literal of the emitted text (comments and attributes are skipped: they are not the model)
+back as the Python value it stands for. A value holding a code point > 255 -- whoever produced it: a
+literal of a body, a contract / assertion / invariant literal (§7.81), a module constant, an implicit
+concatenation, a `\N{..}` / `\u` escape, a constant fold that leaves Latin-1 (`"\xff".upper()` is
+U+0178), an imported constant, a docstring the model reads -- REFUSES the program. ONE narrowing,
+measured necessary (without it 7 of the 53 mirror files are refused -- audit_proof, desugar,
+Module5_IREmitter, expressions, stmt_control_flow, proof2why3/normalize, pycsl -- with it 2: pycsl's
+`_why3_typecheck` message was rewritten in ASCII, and the mirror `normalize_prover_output`, whose
+verified body really does `str.replace` with '∀'-style patterns, is a SOUNDNESS-FORCED RE-TRUST, +1
+marker, `getting-better/trusted-reasons.tsv`) and sound: a value that the source holds ONLY as the
+text of a `raise` constructor argument or of a `print(..)` argument (the constant itself, an f-string
+constant part, an operand of a `+` chain there) is excused -- it reaches the model only as an
+exception payload, which no claim can read (wildcard arms; route #233 refuses reading an `except ..
+as e` binding), or as the hashed argument of `print`, and assembling it raises nothing whatever the
+characters. A value also held anywhere else (a docstring included) or as a string token of a `#@`
+line, or not held verbatim by the source (a fold, an import), is not excused. No excusal at all in a file where
+another str constant (bare-string statements aside) or a `#@` string token holds a code point > 255, and
+never for a value whose code point > 255 was written raw (a fold / an import). A comment is never
+refused; a literal the model never receives (a `__main__` driver argument, a parameter default the
+body does not see, an f-string part the lowering drops) is not refused either. Code points 0..255 were measured faithful (no false claim over len / index /
+positive slices / concatenation / `in` / `find` / equality proves; corpus 0 moved). Witnesses
+`10260`-`10275` (expected FAIL; refused in the default / typed / store models: rt68 p15 / p16 / p17
+/ p19 / p18 / p21 / p22 / p20, a contract-only literal, a fold leaving Latin-1, `\N{..}`, a module
+constant, an imported constant; `10269` / `10270` / `10273` -- an f-string part, a format spec, a
+default -- are not refused because the literal does not reach the model, and they FAIL by proof);
+controls `10276`-`10279` (ASCII and Latin-1 literals still prove; a non-Latin-1 character in a
+comment or a docstring is not refused). Measurements and the over-refusal list:
+`getting-better/open-routes/route429-latin1-upper-closure.md` (u57 section). LATIN1-STR itself stays
+declared for SYMBOLIC str values (`ord(s) < 256`, `s.upper()`).
+
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
 A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /
@@ -8530,6 +8605,19 @@ naming nothing the user wrote. Now refused with the same `PYCSL-TY3-CALLABLE-SCO
 `type_decls` name (records, variants, and IMPORTED classes — import resolution puts them
 there) plus TypeVars (`typevar_registry` and PEP 695 `type_params`), because
 `Callable[[T], int]` over a TypeVar verifies and a narrower set would have forbidden it.
+
+**Application refused (route #612, run #8)**: the arrow parameter is a PURE
+WhyML function, so an application `f(a)` was decided equal to every other
+application to the same arguments, to the same application in a contract, and
+was assumed effect-free, exception-free and terminating; a Python callable is
+none of those (`itertools.count`: `f(s) == f(s)` is False in CPython and PROVED
+True at 0057c8b94). A `Callable`-typed name (a parameter or an annotated local)
+may therefore only be DECLARED: any application (`f(..)`, `f.__call__(..)`) or
+other reference (passed on, stored, aliased, compared, returned), in the body or
+in any contract, assertion or invariant, is refused with
+`PYCSL-R612-CALLABLE-ASSUMED-PURE` (witnesses `10170`-`10176`, controls `10177`
+declared-only and `10178` a verified function called by name). Write the
+callable as a verified function of the program and call it by name.
 
 **Runtime plane** (Shimmed): `Callable[[...], R]` constructs an introspectable
 alias object (R1); `callable(x)` / `isinstance(x, Callable)` is a PRESENCE

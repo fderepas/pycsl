@@ -896,6 +896,8 @@ def _emit_all(out_dir):
             os.remove(mlw)
         subprocess.run([py, os.path.join(root, "src", "pycsl", "pycsl.py"), src,
                         "--import-path", os.path.join(root, "src", "pycsl"),
+                        # route #613: a mirror file is a verification image (declared, no CPython-run claim)
+                        "--verification-image", os.path.join(root, "src", "self-annotate", "src"),
                         "--no-proof", "--keep-mlw"],
                        cwd=root, env=env,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

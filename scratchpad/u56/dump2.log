@@ -1,0 +1,105 @@
+=== module6_whyml__statements statementemissionmixin___array_coerce_arg
+fns: [('statementemissionmixin___array_coerce_arg', 1077)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_70sqqkku.mlw", line 910, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_70sqqkku.mlw", line 910, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_70sqqkku.mlw", line 920, characters 27-30: unused variable sep\nWarning, file "/tmp/.pycsl_vac_70sqqkku.mlw", line 920, characters 41-42: unused variable i\nWarning, file "/tmp/.pycsl_'
+[!] vacuity call-site probe for 'statementemissionmixin___array_coerce_arg' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__statements statementemissionmixin___first_assign_kind
+fns: [('statementemissionmixin___first_assign_kind', 2380)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_svdebufu.mlw", line 910, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_svdebufu.mlw", line 910, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_svdebufu.mlw", line 920, characters 27-30: unused variable sep\nWarning, file "/tmp/.pycsl_vac_svdebufu.mlw", line 920, characters 41-42: unused variable i\nWarning, file "/tmp/.pycsl_'
+[!] vacuity call-site probe for 'statementemissionmixin___first_assign_kind' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__statements statementemissionmixin___wrap_body_with_return_catch
+fns: [('statementemissionmixin___wrap_body_with_return_catch', 3716)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_86lr_lx5.mlw", line 910, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_86lr_lx5.mlw", line 910, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_86lr_lx5.mlw", line 920, characters 27-30: unused variable sep\nWarning, file "/tmp/.pycsl_vac_86lr_lx5.mlw", line 920, characters 41-42: unused variable i\nWarning, file "/tmp/.pycsl_'
+[!] vacuity call-site probe for 'statementemissionmixin___wrap_body_with_return_catch' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__stmt_control_flow controlflowstmtmixin___handle_if_stmt
+fns: [('controlflowstmtmixin___handle_if_stmt', 1328)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_8y36z8s7.mlw", line 834, characters 43-45: unused variable x0\nWarning, file "/tmp/.pycsl_vac_8y36z8s7.mlw", line 871, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_8y36z8s7.mlw", line 871, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_8y36z8s7.mlw", line 880, characters 27-30: unused variable sep\nWarning, file "/tmp/.pycsl'
+[!] vacuity call-site probe for 'controlflowstmtmixin___handle_if_stmt' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__stmt_control_flow controlflowstmtmixin___handle_return_stmt
+fns: [('controlflowstmtmixin___handle_return_stmt', 1626)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_fa_sug47.mlw", line 834, characters 43-45: unused variable x0\nWarning, file "/tmp/.pycsl_vac_fa_sug47.mlw", line 871, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_fa_sug47.mlw", line 871, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_fa_sug47.mlw", line 880, characters 27-30: unused variable sep\nWarning, file "/tmp/.pycsl'
+[!] vacuity call-site probe for 'controlflowstmtmixin___handle_return_stmt' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== frontend__pure_ast _parser___looks_like_match
+fns: [('_parser___looks_like_match', 3183)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_u0w4b078.mlw", line 579, characters 25-27: unused variable x0\nWarning, file "/tmp/.pycsl_vac_u0w4b078.mlw", line 749, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_u0w4b078.mlw", line 749, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_u0w4b078.mlw", line 756, characters 19-20: unused variable s\nWarning, file "/tmp/.pycsl_v'
+[!] vacuity call-site probe for '_parser___looks_like_match' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== frontend__pure_ast _parser___sequence_pattern
+fns: [('_parser___sequence_pattern', 3574)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_xzmjqk1b.mlw", line 579, characters 25-27: unused variable x0\nWarning, file "/tmp/.pycsl_vac_xzmjqk1b.mlw", line 749, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_xzmjqk1b.mlw", line 749, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_xzmjqk1b.mlw", line 756, characters 19-20: unused variable s\nWarning, file "/tmp/.pycsl_v'
+[!] vacuity call-site probe for '_parser___sequence_pattern' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== frontend__pure_ast _parser___with_parenthesized
+fns: [('_parser___with_parenthesized', 3433)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_0wrbr33e.mlw", line 579, characters 25-27: unused variable x0\nWarning, file "/tmp/.pycsl_vac_0wrbr33e.mlw", line 749, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_0wrbr33e.mlw", line 749, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_0wrbr33e.mlw", line 756, characters 19-20: unused variable s\nWarning, file "/tmp/.pycsl_v'
+[!] vacuity call-site probe for '_parser___with_parenthesized' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__expressions expressionemissionmixin___array_coerce_arg
+fns: [('expressionemissionmixin___array_coerce_arg', 1166)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_y7mlfb4y.mlw", line 996, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_y7mlfb4y.mlw", line 996, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_y7mlfb4y.mlw", line 1006, characters 27-30: unused variable sep\nWarning, file "/tmp/.pycsl_vac_y7mlfb4y.mlw", line 1006, characters 41-42: unused variable i\nWarning, file "/tmp/.pycs'
+[!] vacuity call-site probe for 'expressionemissionmixin___array_coerce_arg' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__expressions expressionemissionmixin___coerce_to_int
+fns: [('expressionemissionmixin___coerce_to_int', 1404)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_3tfm5210.mlw", line 996, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_3tfm5210.mlw", line 996, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_3tfm5210.mlw", line 1006, characters 27-30: unused variable sep\nWarning, file "/tmp/.pycsl_vac_3tfm5210.mlw", line 1006, characters 41-42: unused variable i\nWarning, file "/tmp/.pycs'
+[!] vacuity call-site probe for 'expressionemissionmixin___coerce_to_int' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__expressions expressionemissionmixin___dv_missing_default
+fns: [('expressionemissionmixin___dv_missing_default', 1572)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_bmbyewl2.mlw", line 996, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_bmbyewl2.mlw", line 996, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_bmbyewl2.mlw", line 1006, characters 27-30: unused variable sep\nWarning, file "/tmp/.pycsl_vac_bmbyewl2.mlw", line 1006, characters 41-42: unused variable i\nWarning, file "/tmp/.pycs'
+[!] vacuity call-site probe for 'expressionemissionmixin___dv_missing_default' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__expressions expressionemissionmixin___handle_slice_access_expr
+fns: [('expressionemissionmixin___handle_slice_access_expr', 3366)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_9bua0pdu.mlw", line 996, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_9bua0pdu.mlw", line 996, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_9bua0pdu.mlw", line 1006, characters 27-30: unused variable sep\nWarning, file "/tmp/.pycsl_vac_9bua0pdu.mlw", line 1006, characters 41-42: unused variable i\nWarning, file "/tmp/.pycs'
+[!] vacuity call-site probe for 'expressionemissionmixin___handle_slice_access_expr' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__expressions expressionemissionmixin___strip_outer_parens
+fns: [('expressionemissionmixin___strip_outer_parens', 4782)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_x6vbegc8.mlw", line 996, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_x6vbegc8.mlw", line 996, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_vac_x6vbegc8.mlw", line 1006, characters 27-30: unused variable sep\nWarning, file "/tmp/.pycsl_vac_x6vbegc8.mlw", line 1006, characters 41-42: unused variable i\nWarning, file "/tmp/.pycs'
+[!] vacuity call-site probe for 'expressionemissionmixin___strip_outer_parens' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__functions functionemissionmixin___compute_return_type
+fns: [('functionemissionmixin___compute_return_type', 2237)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_uhi57arj.mlw", line 475, characters 42-44: unused variable m0\nWarning, file "/tmp/.pycsl_vac_uhi57arj.mlw", line 475, characters 59-61: unused variable p0\nWarning, file "/tmp/.pycsl_vac_uhi57arj.mlw", line 507, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_uhi57arj.mlw", line 507, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_'
+[!] vacuity call-site probe for 'functionemissionmixin___compute_return_type' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__functions functionemissionmixin___parse_mixin_sig
+fns: [('functionemissionmixin___parse_mixin_sig', 2634)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_lk4wqcir.mlw", line 475, characters 42-44: unused variable m0\nWarning, file "/tmp/.pycsl_vac_lk4wqcir.mlw", line 475, characters 59-61: unused variable p0\nWarning, file "/tmp/.pycsl_vac_lk4wqcir.mlw", line 507, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_lk4wqcir.mlw", line 507, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_'
+[!] vacuity call-site probe for 'functionemissionmixin___parse_mixin_sig' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__functions functionemissionmixin___refine_tuple_return_type
+fns: [('functionemissionmixin___refine_tuple_return_type', 1760)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_huyyekg1.mlw", line 475, characters 42-44: unused variable m0\nWarning, file "/tmp/.pycsl_vac_huyyekg1.mlw", line 475, characters 59-61: unused variable p0\nWarning, file "/tmp/.pycsl_vac_huyyekg1.mlw", line 507, characters 20-23: unused variable sep\nWarning, file "/tmp/.pycsl_vac_huyyekg1.mlw", line 507, characters 34-36: unused variable xs\nWarning, file "/tmp/.pycsl_'
+[!] vacuity call-site probe for 'functionemissionmixin___refine_tuple_return_type' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__types typeinferencemixin___first_assign_kind
+fns: [('typeinferencemixin___first_assign_kind', 1626)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_ye3qernp.mlw", line 715, characters 20-21: unused variable s\nWarning, file "/tmp/.pycsl_vac_ye3qernp.mlw", line 715, characters 32-35: unused variable sep\nWarning, file "/tmp/.pycsl_vac_ye3qernp.mlw", line 742, characters 15-19: unused variable result\nWarning, file "/tmp/.pycsl_vac_ye3qernp.mlw", line 825, characters 10-23: unused variable py_underscore\nWarning, file'
+[!] vacuity call-site probe for 'typeinferencemixin___first_assign_kind' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== module6_whyml__types typeinferencemixin___split_tuple_type
+fns: [('typeinferencemixin___split_tuple_type', 1758)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_644d_kfg.mlw", line 715, characters 20-21: unused variable s\nWarning, file "/tmp/.pycsl_vac_644d_kfg.mlw", line 715, characters 32-35: unused variable sep\nWarning, file "/tmp/.pycsl_vac_644d_kfg.mlw", line 742, characters 15-19: unused variable result\nWarning, file "/tmp/.pycsl_vac_644d_kfg.mlw", line 825, characters 10-23: unused variable py_underscore\nWarning, file'
+[!] vacuity call-site probe for 'typeinferencemixin___split_tuple_type' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== frontend__Module1_Ingestor _match_block_hdr
+fns: [('_match_block_hdr', 378)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_252ngs5o.mlw", line 264, characters 15-19: unused variable result\nWarning, file "/tmp/.pycsl_vac_252ngs5o.mlw", line 273, characters 45-55: unused variable stmt_nodes\nWarning, file "/tmp/.pycsl_vac_252ngs5o.mlw", line 275, characters 15-19: unused variable result\nWarning, file "/tmp/.pycsl_vac_252ngs5o.mlw", line 290, characters 8-21: unused variable self__out_len\nWa'
+[!] vacuity call-site probe for '_match_block_hdr' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== proof2why3__sertop _process_sertop_line
+fns: [('_process_sertop_line', 174)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_pyev7r7_.mlw", line 78, characters 15-19: unused variable result\nWarning, file "/tmp/.pycsl_vac_pyev7r7_.mlw", line 100, characters 15-19: unused variable result\nWarning, file "/tmp/.pycsl_vac_pyev7r7_.mlw", line 106, characters 15-19: unused variable result\nWarning, file "/tmp/.pycsl_vac_pyev7r7_.mlw", line 165, characters 15-19: unused variable result\nWarning, file'
+[!] vacuity call-site probe for '_process_sertop_line' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []
+=== proof2why3__sertop _sexp_tokens
+fns: [('_sexp_tokens', 106)]
+[dump] probe1 prover=Alt-Ergo,2.6.3, type-only rc=0 stderr='Warning, file "/tmp/.pycsl_vac_rpyk90x4.mlw", line 78, characters 15-19: unused variable result\nWarning, file "/tmp/.pycsl_vac_rpyk90x4.mlw", line 100, characters 15-19: unused variable result\nWarning, file "/tmp/.pycsl_vac_rpyk90x4.mlw", line 106, characters 15-19: unused variable result\nWarning, file "/tmp/.pycsl_vac_rpyk90x4.mlw", line 229, characters 15-19: unused variable result\nWarning, file'
+[!] vacuity call-site probe for '_sexp_tokens' could not be checked (no probe goal surfaced; prover Alt-Ergo,2.6.3,).
+result: []

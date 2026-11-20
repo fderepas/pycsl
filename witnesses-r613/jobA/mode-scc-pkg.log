@@ -1,0 +1,4 @@
+[*] Declared run mode: imported as a module of the package rooted at /home/fabrice/git/pycsl-u52-g2/src/self-annotate/src (--as-package-module; not a script)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/scc.py'...
+[*] Memory model: hoare
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

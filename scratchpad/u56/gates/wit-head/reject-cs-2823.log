@@ -1,0 +1,25 @@
+/home/fabrice/git/pycsl-u56/src/pycsl/frontend/Module3_Weaver.py:388: UserWarning: Function 'oracle' (line 9): \trusted has no reviewer — add `reviewer: <name>` to document who is accountable for this trust assumption.
+  self._dispatch_function_contracts(node, self.contracts_map[node.lineno])
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/2823_gen36_r267_trusted_consistent_on_one_branch_control.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_vqw836rf.mlw", line 19, characters 11-21:
+Sub-goal precondition of goal g'vc.
+Prover result is: Valid (0.00s, 20 steps).
+
+File "/tmp/.pycsl_vqw836rf.mlw", line 14, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 219 steps).
+
+File "/tmp/.pycsl_vqw836rf.mlw", line 14, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 24 steps).
+[-] vacuity call-site probe for 'g' could not be checked: why3 REJECTED the rewritten body (prover Alt-Ergo,2.6.3,, exit code 1): File "/tmp/.pycsl_vac_fiqchmf9.mlw", line 1, characters 0-1: | syntax error
+
+[-] NON-VACUITY GATE FAILED: the vacuity probe of the following function(s) COULD NOT BE CHECKED — the why3 run itself failed (killed / crashed / no JSON), so nothing is known about whether their assumed context is consistent (route #615):
+    g [could not be checked: why3 rejected the call-site probe body (prover Alt-Ergo,2.6.3,, exit code 1) — route #616]
+    A killed prover is a RESOURCE failure, not a verdict: re-run with more memory / fewer vacuity workers (PYTHON_CPU_COUNT).
+
+[-] Verification FAILED (vacuity could not be checked). Check the solver output.

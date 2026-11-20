@@ -1525,6 +1525,28 @@ forms.
 
 ---
 
+### 11.3 Command-line declared model (route #613)
+
+`--verification-image ROOT` is not annotation syntax but a DECLARED assumption: the file is a
+VERIFICATION MODEL that CPython never executes, so the proof makes NO claim about a CPython run
+(`--soundness-report` lists VERIFICATION-IMAGE). Its own imports resolve as pycsl resolves them
+(program directory first, then `--import-path`); only the transitive stdlib-shadow check's
+roots (`PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`) move to ROOT, and every other import rule still
+applies. It is opt-in, never inferred, and passed to pycsl's own sub-invocations as
+`PYCSL_VERIFICATION_IMAGE` with `PYCSL_VERIFICATION_IMAGE_TOKEN` (the declaring run's pid): an
+inherited value is honoured only while that pid is the process itself or an ancestor, so a
+variable exported in the user's environment alone never enables the mode (run #8 u58). The mirror gates (`bin/mirror-emit-sweep.sh`, the shared mirror
+emission of `bin/run-soundness-planes.sh`, and the mirror-emitting checks) pass ROOT =
+`src/self-annotate/src`; `bin/check-stdlib-modules-verify.py` passes ROOT = `src` (the
+pycsl_lib stub models, imported as `pycsl_lib.X`).
+
+`--as-package-module ROOT` (a `python -m` run from ROOT) is WITHDRAWN from this release (run #8
+u58, review rt69 found four gaps in its `-m` model and two over-refusals). Passing it, in either
+the `--as-package-module ROOT` or the `--as-package-module=ROOT` spelling,
+exits with rc 2 and the message "not supported in this release" before anything is verified;
+it never falls back to a silent script-mode verification. An inherited `PYCSL_AS_PACKAGE_MODULE`
+is ignored (a mode is never enabled implicitly).
+
 ## Appendix A. AST Node Hierarchy
 
 For reference, the complete hierarchy of CSL AST nodes defined in

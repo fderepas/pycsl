@@ -3107,7 +3107,37 @@ source loader could run instead of the source (an unchecked / checked hash-based
 timestamp pyc whose header matches the source's stat) is refused unless that pyc's code
 object equals `compile(source, path, 'exec', dont_inherit=True, optimize=min(N, 2))`
 attribute by attribute (`PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route #611 r12; a genuine
-CPython-written cache validates). annotations.md §7.16, §T.6.27.
+CPython-written cache validates). The same judgement covers the whole IMPORT CLOSURE, not
+only the program's own imports (route #613): CPython resolves an import made inside an imported
+module from the script's directory first too, and the builtins' C code imports modules no
+source shows, so every entry in any resolution root (the script's realpath directory, its
+directory, cwd, `src/`, `Lib/`, `--import-path`) named like a module the closure may reach -- a
+`sys.stdlib_module_names` / builtin name, or any top-level name the interpreter's stdlib source
+imports anywhere -- is judged as a direct import of that name, and refused unless admitted
+(a byte-identical stdlib copy, or a bare namespace directory that a regular module of that
+name outranks): `PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`, naming the chain (`program -> json -> re
+-> ./re.py`). The judged names also include every module entry of the stdlib directories (Lib,
+lib-dynload, the platform stdlib; sysconfig imports `_sysconfigdata_*` by a computed name), the
+literal names the stdlib hands to `__import__` / `import_module` / `resources.files`, and the
+modules reached from the startup hooks (`sitecustomize` / `usercustomize` / `.pth` import lines
+of the site directories, the interpreter's and its base installation's, followed module by
+module); every candidate in every root is judged in its own root (u55, review rt66 g01 / g09 /
+g10), and (u58, review rt69 G6) so are every top-level module importable from the site
+directories (the interpreter's, its base installation's, the user's, and `.pth`-added ones) and
+every top-level name their sources import anywhere -- an installed package's own imports resolve
+from `sys.path[0]` first (`program -> lark -> regex -> ./regex.py`); such a third-party-only name
+is not judged in pycsl's cwd unless the cwd is a CPython root. Two direct-import rules (u58,
+review rt69, PRE-EXISTING gaps): a module found first in pycsl's own working directory -- a root
+CPython's script mode never searches -- is refused unless the cwd is the program's directory or
+an `--import-path` root, or the module is an admitted byte-identical stdlib copy
+(`PYCSL-SEM-IMPORT-CWD-ROOT`, G7); a dotted import through a top-level directory with no
+`__init__.py` (a namespace portion) is refused when another root CPython searches (program
+directory, `--import-path`, stdlib, site directories) holds that top-level name too
+(`PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`, G5). Under the declared `--verification-image
+ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
+`--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
+roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`
+is WITHDRAWN (u58, review rt69): rc 2 before anything is verified. annotations.md §7.16, §T.6.27.
 
 ### C.1 Declared model assumptions (routes #250, #253, #256, #276, #282, #298)
 

@@ -234,6 +234,13 @@ def whyml_string_literal(value: str) -> str:
             # `string.Char` models Latin-1 (0..255); for codepoints > 255
             # (e.g. emoji) this preserves the byte sequence Why3 would itself
             # produce for an equivalent literal entered in a UTF-8 source.
-            for b in ch.encode("utf-8"):
-                out.append(f"\\x{b:02x}")
+            # (#49) ROUTE #429 -- THOSE BYTES ARE NOT THE PYTHON STRING (`len("\U0001F600")`
+            # is 1, the model's 4). They are written as DECIMAL escapes `\ddd` (Why3's
+            # lexer reads `\240` and `\xf0` as the same byte, so the model is unchanged),
+            # which no other arm of this function writes: `_run_pipeline`'s route-#411
+            # literal pass reads them as the mark of a code point > 255 and refuses the
+            # program when such a literal reaches the model (PYCSL-R429-NONLATIN1-STR-
+            # LITERAL). `surrogatepass`: a lone surrogate used to crash the encoder.
+            for b in ch.encode("utf-8", "surrogatepass"):
+                out.append(f"\\{b:03d}")
     return '"' + ''.join(out) + '"'

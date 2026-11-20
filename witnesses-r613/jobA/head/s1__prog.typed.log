@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u52-g2/witnesses-r613/s1/prog.py'...
+[*] Memory model: typed
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u52-g2/witnesses-r613/s1/prog.py: the program's import closure may load `sitecustomize` from witnesses-r613/s1/sitecustomize.py (program -> json -> _colorize -> collections -> heapq -> doctest -> pdb -> _pyrepl -> site -> sitecustomize -> witnesses-r613/s1/sitecustomize.py): CPython resolves an import made INSIDE an imported module from the script's directory first too (sys.path[0], before the standard library), so this file -- which the program never imports itself -- may be the module the standard library runs, while pycsl's models assume the interpreter's own (route #613: a local `re.py` beside a program that imports only `json` is the `re` that `json` runs). Judged as if imported directly, it is a local module, and the standard library imports a module of that name (none of pycsl's models assumes this file). FIX: rename or remove the local file so it does not shadow a module the standard library imports.

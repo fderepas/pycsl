@@ -1033,6 +1033,24 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
             "strict_mode": "--strict-hval-keys",
             "relied_on_by": sorted(set(_hk_uses)),
         })
+    # (#49) run #8 u55 -- the DECLARED `--verification-image ROOT` (driver decision): listed
+    # FIRST-CLASS, because a file verified under it carries no claim about a CPython run.
+    if os.environ.get("PYCSL_VERIFICATION_IMAGE"):
+        assumptions.append({
+            "name": "VERIFICATION-IMAGE",
+            "statement": "NO CPython-RUN CLAIM: the file is a verification model rooted at "
+                         + os.environ["PYCSL_VERIFICATION_IMAGE"] + " that CPython never "
+                         "executes; its own imports resolve as pycsl resolves them (program "
+                         "directory first, then --import-path), not as any CPython launch "
+                         "would, so the proof says nothing about running this file; route "
+                         "#613's closure check searches that root instead of the program's "
+                         "directory",
+            "counterexample": "a mirror file run as a script: its own `import errors` resolves to "
+                              "the mirror copy, while its subpackage files type the same name "
+                              "against the live src/pycsl copy (run8-u55 report, section 1)",
+            "strict_mode": "script mode (the default)",
+            "relied_on_by": [filename],
+        })
     # (#49) ROUTE #292 — A CITED `#@ proof` LEMMA IS EMITTED AS A Why3 `axiom`: the
     # proof's soundness rests on the Rocq/Lean statement AND on the restatement being
     # applied only where it was proved (`UnixFs.Struct.i2.round_trip` was applied to a
@@ -1376,6 +1394,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _r499_stack.append((_r499_c, _r499_csc, _r499_cfn))
     from frontend.exec_splice import splice_constant_exec
     unified_ast = splice_constant_exec(unified_ast)
+    # (#49) ROUTE #429 -- NO SOURCE-LEVEL REFUSAL HERE, BY MEASUREMENT. A refusal of every
+    # str constant of the file above 255 (docstrings aside) was built and measured first
+    # (u57, run #8): it refused 7 expected-PASS / unheadered corpus files and 14 of the 53
+    # mirror files, all of them over literals that never reach the WhyML text (a `__main__`
+    # driver's arguments, a `raise` / `print` message, an unread bare-string statement).
+    # The rule is decided on what ENTERS THE MODEL instead, before `return _mlw` below.
 
 
     # [Module 4 DROPPED — B-final reorder] The pipeline is now M1-3 → M5 (build IR) →
@@ -18380,6 +18404,85 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     % (args.file, _f498.get("name"), _why498),
                     filename=args.file, line=int(_f498.get("line") or 0),
                     stage="ir-semantic", code="PYCSL-R498-IS-ON-FRESH-VALUE")
+
+    # (run #8) ROUTE #612 -- A `Callable` PARAMETER WAS ASSUMED PURE.
+    #
+    # §T.TY3.8 lowers `f: Callable[[A1, ..., An], R]` to a WhyML function-type parameter
+    # `(f: a1 -> ... -> r)` and a call `f(a)` to the application `(f a)`. A WhyML arrow is a
+    # MATHEMATICAL function, so the model decided four things no Python callable promises:
+    #   * two calls with equal arguments are equal (`f(s) == f(s)` PROVED `\result == True`;
+    #     CPython with `itertools.count` is False -- lvX, evidence/r612);
+    #   * a body call equals the same application in a contract (`ensures \result == f(x)`,
+    #     `requires f(x) >= 0` then `return f(x)`);
+    #   * a call changes nothing (`assigns \nothing` PROVED over a callable that appends to a
+    #     caller-visible list; `len(xs)` read after the call kept its old value);
+    #   * a call returns, and returns normally.
+    # The same pure value reached every spelling of an application: `f.__call__(x)` (an
+    # abstract `val`, still pure), a lambda wrapping `f`, an annotated local alias
+    # `g: Callable[...] = f`.
+    #
+    # THE RULE (refuse rather than approximate): a `Callable`-typed name -- every
+    # `symbol_table` entry tagged `callable:`, parameters and annotated locals -- may be
+    # DECLARED, and may not be REFERENCED at all: no application (`f(..)`, `f.<attr>(..)`)
+    # and no other occurrence (passed on, stored, aliased, compared, returned), in the body
+    # or in any contract / assertion / invariant. A "fresh value per call" model was
+    # measured and not chosen: it would still have to havoc every caller-visible location
+    # at each call and refuse every `no_exception` / termination claim, and the census
+    # says it would serve nobody -- of the 15 corpus files (0 pyref, 0 mirror, 0
+    # `src/pycsl_lib`) that write a `Callable` parameter, exactly ONE emitting file
+    # references it (1878, `requires f(x) >= 0` / `return f(x)`), and that claim is FALSE
+    # in CPython for a stateful callable. Declared-only parameters (1853, 1854, 6641) keep
+    # proving. Placed LAST among the IR-semantic refusals so every existing refusal keeps
+    # its own diagnostic; `_run_pipeline`'s mirror twin is `\trusted` (choke-point rule),
+    # so no marker and no mirror emission moves.
+    for _f612 in (ir_data.get("functions", []) or []):
+        _st612 = _f612.get("symbol_table") or {}
+        if not isinstance(_st612, dict):
+            continue
+        _cn612 = set()
+        for _v612, _t612 in _st612.items():
+            if isinstance(_t612, str) and _t612.startswith("callable:"):
+                _cn612.add(_v612)
+        if not _cn612:
+            continue
+        _hit612 = None
+        _todo612 = [_x for _k, _x in sorted(_f612.items()) if _k != "symbol_table"]
+        while _todo612 and _hit612 is None:
+            _n612 = _todo612.pop()
+            if isinstance(_n612, list):
+                _todo612.extend(_n612)
+                continue
+            if not isinstance(_n612, dict):
+                continue
+            _ty612 = _n612.get("type")
+            _fn612 = _n612.get("func")
+            if _ty612 == "Call" and isinstance(_fn612, str):
+                for _v612 in sorted(_cn612):
+                    if _fn612 == _v612 or _fn612.startswith(_v612 + "."):
+                        _hit612 = (_v612, "APPLIED (`%s(...)`)" % _fn612)
+                        break
+            if (_hit612 is None and _ty612 == "Var"
+                    and _n612.get("name") in _cn612):
+                _hit612 = (_n612.get("name"),
+                           "REFERENCED as a value (passed on, stored, aliased, compared "
+                           "or returned)")
+            _todo612.extend(_n612.values())
+        if _hit612 is not None:
+            from errors import PyCSLSemanticError as _R612Err
+            raise _R612Err(
+                "function '%s': the `Callable` parameter '%s' is %s. A `Callable` "
+                "parameter is lowered to a PURE WhyML function, so the model assumes that "
+                "two calls with the same arguments return the same value, that a call in "
+                "the body equals the same application in a contract, and that a call "
+                "changes nothing, never raises and always returns; a Python callable may "
+                "keep state (`itertools.count`), mutate what the caller sees, raise or not "
+                "return, and CPython's `f(s) == f(s)` is then False while the model "
+                "decides it True (route #612). A `Callable` parameter may be declared but "
+                "not applied or referenced, in the body or in any contract. Make the "
+                "callable a verified function of this program and call it by name."
+                % (_f612.get("name"), _hit612[0], _hit612[1]),
+                filename=args.file, line=int(_f612.get("line") or 0),
+                stage="ir-semantic", code="PYCSL-R612-CALLABLE-ASSUMED-PURE")
 
     from errors import PyCSLError as _PyCSLErr460
 
@@ -35577,6 +35680,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # such literal is byte-identical.
     _o411: List[str] = []
     _i411, _n411, _dep411, _hit411 = 0, len(_mlw), 0, False
+    # (#49) ROUTE #429 -- the Python values (above Latin-1) of the literals that reach the
+    # model, filled below and judged before `return _mlw`.
+    _off429: List[str] = []
+    # ... and those whose code point above 255 was written RAW (not by `whyml_string_literal`:
+    # an emitter fold such as `"\xff".upper()`, an imported constant): never excused below.
+    _raw429: List[str] = []
     while _i411 < _n411:
         if _dep411:
             if _mlw.startswith("(*)", _i411):
@@ -35604,10 +35713,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             continue
         # a string literal: decode it the way `lexlib.mll` rule `string` does
         _j411, _by411, _bad411 = _i411 + 1, [], False
+        # (#49) ROUTE #429 -- alongside the bytes, the PYTHON value the literal stands for:
+        # a `\ddd` decimal escape >= 128 is a UTF-8 byte of a code point > 255 (the only
+        # writer of that form is `whyml_string_literal`'s UTF-8 arm), every other byte /
+        # character is one code point.
+        _cp429: List[str] = []
+        _u429: List[int] = []
         while _j411 < _n411 and _mlw[_j411] != '"':
             _ch411 = _mlw[_j411]
+            if not (_ch411 == "\\" and _mlw[_j411 + 1:_j411 + 4].isdigit()
+                    and len(_mlw[_j411 + 1:_j411 + 4]) == 3
+                    and 128 <= int(_mlw[_j411 + 1:_j411 + 4]) <= 255) and _u429:
+                _cp429.append(bytes(_u429).decode("utf-8", "surrogateescape"))
+                _u429 = []
             if _ch411 != "\\":
                 _by411.append(ord(_ch411)); _j411 += 1
+                _cp429.append(_ch411)
                 continue
             _nx411 = _mlw[_j411 + 1:_j411 + 2]
             if _nx411 == "\n":
@@ -35617,19 +35738,32 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             elif (_mlw[_j411 + 1:_j411 + 4].isdigit() and len(_mlw[_j411 + 1:_j411 + 4]) == 3
                     and int(_mlw[_j411 + 1:_j411 + 4]) <= 255):
                 _by411.append(int(_mlw[_j411 + 1:_j411 + 4])); _j411 += 4
+                if _by411[-1] >= 128:
+                    _u429.append(_by411[-1])
+                else:
+                    _cp429.append(chr(_by411[-1]))
             elif (_nx411 == "x" and len(_mlw[_j411 + 2:_j411 + 4]) == 2
                     and all(_h in "0123456789abcdefABCDEF" for _h in _mlw[_j411 + 2:_j411 + 4])):
                 _by411.append(int(_mlw[_j411 + 2:_j411 + 4], 16)); _j411 += 4
+                _cp429.append(chr(_by411[-1]))
             elif (_nx411 == "o" and len(_mlw[_j411 + 2:_j411 + 5]) == 3
                     and _mlw[_j411 + 2] in "0123"
                     and all(_h in "01234567" for _h in _mlw[_j411 + 2:_j411 + 5])):
                 _by411.append(int(_mlw[_j411 + 2:_j411 + 5], 8)); _j411 += 5
+                _cp429.append(chr(_by411[-1]))
             elif _nx411 in ("\\", "n", "r", "t", "b", "'", '"'):
                 _by411.append(ord({"n": "\n", "r": "\r", "t": "\t",
                                    "b": "\b"}.get(_nx411, _nx411)))
                 _j411 += 2
+                _cp429.append(chr(_by411[-1]))
             else:
                 _bad411 = True; _j411 += 2
+        if _u429:
+            _cp429.append(bytes(_u429).decode("utf-8", "surrogateescape"))
+        if any(ord(_c) > 255 for _c in "".join(_cp429)):
+            _off429.append("".join(_cp429))
+            if any(ord(_c) > 255 for _c in _cp429 if len(_c) == 1 and _c in _mlw[_i411:_j411]):
+                _raw429.append("".join(_cp429))
         _tok411 = _mlw[_i411:_j411 + 1]
         _i411 = _j411 + 1
         if _bad411 or all(32 <= _b411 <= 126 and _b411 not in (34, 92) for _b411 in _by411):
@@ -40369,6 +40503,127 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"read instead (a reverse loop over `range(len(x) - len(sub), -1, -1)` "
                 f"comparing `x[i:i + len(sub)] == sub`), or keep it out of the verified body.",
                 stage="ir-semantic", code="PYCSL-CV14-STR-RFIND-RECEIVER-DROPPED")
+    # (#49) ROUTE #429 (USER DECISION 2026-11-19, refusal only) -- A STR VALUE THE MODEL
+    # CANNOT SPELL ONE CODE POINT PER CHARACTER. A Python `str` is the Why3 `string` of
+    # `string.Char`s (codes 0..255, the declared LATIN1-STR assumption), and a code point
+    # > 255 has no one-Char spelling: `whyml_string_literal` writes it as its 2..4 UTF-8
+    # BYTES, so MEASURED (rt68 / u57) `x == "\U0001F600"` => `len(x) == 4`, `len(x[0:3]) ==
+    # 3`, `x[-1:] != x` PROVED (CPython: 1 / 1 / equal); a raw character an emitter fold
+    # hands the solver (`"\xff".upper()` is U+0178) becomes `(pystr_chr N)` with N > 255,
+    # outside every law of `pystr_chr`. RULE (fail closed, decided on what ENTERS THE MODEL,
+    # whatever produced it -- a literal of the body, a contract / assertion / invariant /
+    # default / module constant, an implicit concatenation, a fold, an f-string part, an
+    # imported constant): every WhyML string literal route #411's pass decoded above
+    # (comments and attributes are not the model and are skipped there) is read back as the
+    # Python value it stands for (`_off429`), and one holding a code point > 255 REFUSES the
+    # program -- with ONE narrowing, measured necessary (u57: 7 of the 53 mirror files refused without it, 1 with it) and
+    # sound by construction: a value that is, in the source, ONLY the text of a `raise`
+    # constructor argument or of a `print(..)` argument (the constant itself, an f-string
+    # constant part, an operand of a `+` chain there). Such text reaches the model only as
+    # an exception payload, which no claim reads (`with E _ ->` / `raises { E _ -> .. }`
+    # wildcards; route #233 refuses every read of an `except .. as e` binding), or as the
+    # hashed argument of `print_1`, whose result is `unit`; concatenation and f-string
+    # assembly raise nothing whatever the characters. A value also found anywhere else in
+    # the source (a docstring included) or as a string token of a `#@` contract line, or
+    # one the source does not hold verbatim (a fold, an imported constant), is not excused.
+    # STRICTER, per file: no excusal at all when any OTHER str constant (docstrings aside)
+    # or `#@` string token holds a code point > 255 (then no fold / concatenation of other
+    # text can rebuild an excused value), and never for a value whose code point > 255 was
+    # written RAW (a fold or an import, not `whyml_string_literal`). WHY AN EXCUSED VALUE
+    # REACHES NO CLAIM: Module 5 lowers `raise N(a0, ..)` to tag N + payload a0 only (later
+    # arguments dropped, route #589), every payload arm is a wildcard and route #233 refuses
+    # reading `except .. as e`; builtin tags carry no payload at all; a statement `print(..)`
+    # lowers to `let _ = print_1 (str_hash_op ..)`; the closure (constant / f-string constant
+    # part / `+` operand) contains no call, subscript or comparison, so no obligation, return
+    # value or branch condition is computed from the text.
+    if _off429:
+        import ast as _ast429
+        import re as _re429
+        _ex429: Set[str] = set()
+        _ne429: Set[str] = set()
+        _nx429 = False
+        try:
+            _t429 = _ast429.parse(source_code)
+        except (SyntaxError, ValueError):
+            _t429 = None
+        if _t429 is not None:
+            _ok429: Set[int] = set()
+            _roots429: List[Any] = []
+            # `print` must be the builtin: a file that binds the name anywhere (def / class /
+            # assignment / import / parameter / any store) gets no `print` excusal.
+            _pb429 = any(
+                (isinstance(_n, (_ast429.FunctionDef, _ast429.AsyncFunctionDef,
+                                 _ast429.ClassDef)) and _n.name == "print")
+                or (isinstance(_n, _ast429.Name) and _n.id == "print"
+                    and not isinstance(_n.ctx, _ast429.Load))
+                or (isinstance(_n, _ast429.alias) and (_n.asname or _n.name) == "print")
+                or (isinstance(_n, _ast429.arg) and _n.arg == "print")
+                or (isinstance(_n, (_ast429.Global, _ast429.Nonlocal)) and "print" in _n.names)
+                for _n in _ast429.walk(_t429))
+            for _n429 in _ast429.walk(_t429):
+                if (isinstance(_n429, _ast429.Raise) and isinstance(_n429.exc, _ast429.Call)
+                        and isinstance(_n429.exc.func, (_ast429.Name, _ast429.Attribute))):
+                    _roots429 += list(_n429.exc.args) + [_k.value for _k in _n429.exc.keywords]
+                elif (isinstance(_n429, _ast429.Expr) and isinstance(_n429.value, _ast429.Call)
+                        and isinstance(_n429.value.func, _ast429.Name)
+                        and _n429.value.func.id == "print" and not _pb429):
+                    _roots429 += (list(_n429.value.args)
+                                  + [_k.value for _k in _n429.value.keywords])
+            while _roots429:
+                _r429 = _roots429.pop()
+                if isinstance(_r429, _ast429.Constant):
+                    _ok429.add(id(_r429))
+                elif isinstance(_r429, _ast429.JoinedStr):
+                    _roots429 += [_v for _v in _r429.values
+                                  if isinstance(_v, _ast429.Constant)]
+                elif (isinstance(_r429, _ast429.BinOp)
+                        and isinstance(_r429.op, _ast429.Add)):
+                    _roots429 += [_r429.left, _r429.right]
+            # A bare str STATEMENT (a docstring, or any `Expr` whose value is the constant) is
+            # no operand of anything, so it cannot feed a fold / concatenation: it does not
+            # cancel the file's excusal (it stays in `_ne429`, so if it is itself rendered --
+            # `f.__doc__` -- it is refused).
+            _ds429: Set[int] = set()
+            for _n429 in _ast429.walk(_t429):
+                if (isinstance(_n429, _ast429.Expr) and isinstance(_n429.value, _ast429.Constant)
+                        and isinstance(_n429.value.value, str)):
+                    _ds429.add(id(_n429.value))
+            for _n429 in _ast429.walk(_t429):
+                if isinstance(_n429, _ast429.Constant) and isinstance(_n429.value, str):
+                    (_ex429 if id(_n429) in _ok429 else _ne429).add(_n429.value)
+                    if (id(_n429) not in _ok429 and id(_n429) not in _ds429
+                            and any(ord(_c) > 255 for _c in _n429.value)):
+                        _nx429 = True
+        for _ln429 in source_code.splitlines():
+            if _ln429.lstrip().startswith("#@"):
+                for _m429 in _re429.finditer(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'', _ln429):
+                    try:
+                        _tk429 = str(_ast429.literal_eval(_m429.group(0)))
+                    except (SyntaxError, ValueError):
+                        _tk429 = _m429.group(0)
+                    _ne429.add(_tk429)
+                    _nx429 = _nx429 or any(ord(_c) > 255 for _c in _tk429)
+        # Excusal is all-or-nothing per file: it applies only when NO other str constant of
+        # the source (and no `#@` string token) holds a code point above 255, so no fold /
+        # concatenation of other text can produce an excused value; a raw-written value is
+        # never excused.
+        _bad429 = [_v for _v in _off429
+                   if _nx429 or _t429 is None or _v in _raw429
+                   or not (_v in _ex429 and _v not in _ne429)]
+        if _bad429:
+            from errors import PyCSLSemanticError as _PyCSLSemErr429
+            raise _PyCSLSemErr429(
+                "PYCSL-R429-NONLATIN1-STR-LITERAL (route #429): the str value %s enters the "
+                "model with the code point %s, which is above 255. PyCSL models a str as "
+                "a Why3 string of 8-bit characters (LATIN1-STR), so such a code point is "
+                "written as its 2..4 UTF-8 bytes and every length, index, slice and "
+                "comparison of the value is decided on the bytes -- measured, `x == "
+                "\"\\U0001F600\"` proved `len(x) == 4` (CPython: 1). Refused (fail closed). "
+                "Keep str values to code points 0..255 (Latin-1); a comment, a docstring the "
+                "model does not read, and the text of a `raise` / `print` message may hold "
+                "any character."
+                % (ascii(_bad429[0])[:60], "U+%04X" % max(ord(_c) for _c in _bad429[0])),
+                stage="whyml-emit", code="PYCSL-R429-NONLATIN1-STR-LITERAL")
     return _mlw
 
 
@@ -40386,7 +40641,7 @@ def _why3_typecheck(mlw_filename: str) -> Tuple[bool, str]:
         r = subprocess.run(["why3", "prove", "--type-only", mlw_filename],
                            capture_output=True, text=True)
     except FileNotFoundError:
-        return False, ("why3 not found on PATH — the type-check could NOT run, so this is "
+        return False, ("why3 not found on PATH -- the type-check could NOT run, so this is "
                        "NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck "
                        "for an explicitly emit-only run.")
     if r.returncode == 0:
@@ -40770,10 +41025,46 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                 _end267 += 1
             _body267 = "\n".join(lines[idx:_end267])
             _sites267: "List[Tuple[int, int, str]]" = []
+            # (#49) ROUTE #616 — THE SITE SCANNER MUST BE LEXICAL, NOT CHARACTER-BLIND.
+            # It used to count every `(` `)` `{` `}` it saw, INCLUDING those inside WhyML
+            # string literals and `(* ... *)` comments. MEASURED on the landed mirror
+            # emissions (21 functions in 8 files, e.g. statements `_first_assign_kind`):
+            # a call `(str_startswith_op py_val "(Array.make")` was closed one `)` too
+            # late (the `(` in the string), a `(str_eq_op t ")")` one too early, and a
+            # `"(sorted_1 "` inside a string was taken for a call site, so the rewritten
+            # body was ill-formed and why3 REJECTED it (rc 1, `syntax error` / `illegal
+            # character in string` / `unbound ... '__and_l'`): the call-site probe of every
+            # such function was never run (only a non-failing warning). Now a string
+            # literal (with its `\` escapes) and a nested comment are skipped as ONE token
+            # by both the outer scan and the closing-paren scan. The `{` exclusion of a
+            # site's own text is kept character-blind ON PURPOSE (a `{` inside a string
+            # there still excludes the site, as before): relaxing it would make an
+            # enclosing `pystr_cat "... ensures { ..." ...` call the outermost site and
+            # silently drop the finer probes of the calls nested inside it.
             _depth267 = 0
             _i267 = 0
             while _i267 < len(_body267):
                 _ch267 = _body267[_i267]
+                if _ch267 == '"':
+                    _i267 += 1
+                    while _i267 < len(_body267) and _body267[_i267] != '"':
+                        _i267 += 2 if _body267[_i267] == "\\" else 1
+                    _i267 += 1
+                    continue
+                if _body267.startswith("(*", _i267):
+                    _cd267 = 0
+                    while _i267 < len(_body267):
+                        if _body267.startswith("(*", _i267):
+                            _cd267 += 1
+                            _i267 += 2
+                        elif _body267.startswith("*)", _i267):
+                            _cd267 -= 1
+                            _i267 += 2
+                            if _cd267 == 0:
+                                break
+                        else:
+                            _i267 += 1
+                    continue
                 if _ch267 == "{":
                     _depth267 += 1
                 elif _ch267 == "}":
@@ -40784,9 +41075,30 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                         _lvl267 = 0
                         _j267 = _i267
                         while _j267 < len(_body267):
-                            if _body267[_j267] == "(":
+                            _cj267 = _body267[_j267]
+                            if _cj267 == '"':
+                                _j267 += 1
+                                while _j267 < len(_body267) and _body267[_j267] != '"':
+                                    _j267 += 2 if _body267[_j267] == "\\" else 1
+                                _j267 += 1
+                                continue
+                            if _body267.startswith("(*", _j267):
+                                _cd267 = 0
+                                while _j267 < len(_body267):
+                                    if _body267.startswith("(*", _j267):
+                                        _cd267 += 1
+                                        _j267 += 2
+                                    elif _body267.startswith("*)", _j267):
+                                        _cd267 -= 1
+                                        _j267 += 2
+                                        if _cd267 == 0:
+                                            break
+                                    else:
+                                        _j267 += 1
+                                continue
+                            if _cj267 == "(":
                                 _lvl267 += 1
-                            elif _body267[_j267] == ")":
+                            elif _cj267 == ")":
                                 _lvl267 -= 1
                                 if _lvl267 == 0:
                                     break
@@ -40832,10 +41144,51 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                             except FileNotFoundError:
                                 return fname, None
                             _recs267 = _json_goal_records(r.stdout)
+                            # (#49) ROUTE #615 — A PROBE THAT NEVER RAN IS NOT A PASS. A why3
+                            # run that died at the PROCESS level (a signal: the kernel OOM
+                            # killer inside a 6 GiB heavy scope, measured 2026-11-18 on the
+                            # snapD expressions proof; a shell-reported 126+ code; or a
+                            # non-zero exit with no JSON on stdout AND nothing on stderr) has said
+                            # nothing about the probe. Before this repair it was folded into
+                            # the warning below and the gate went on as if checked. Now it
+                            # FAILS the gate as 'could not be checked'. The warning below is
+                            # kept ONLY for a why3 that RAN and rejected the rewritten body
+                            # (non-zero exit, a diagnostic on stderr, no signal).
+                            if (r.returncode < 0 or r.returncode >= 126
+                                    or (r.returncode != 0 and not _parse_why3_json(r.stdout)
+                                        and not (r.stderr or "").strip())):
+                                print(f"[-] vacuity call-site probe for '{fname}' could not be "
+                                      f"checked: the why3 run itself FAILED (prover {p}, exit "
+                                      f"code {r.returncode}"
+                                      + (f", signal {-r.returncode}" if r.returncode < 0 else "")
+                                      + f", {len((r.stdout or '').strip())} bytes of stdout).")
+                                return (f"{fname} [could not be checked: the call-site probe's "
+                                        f"why3 run FAILED (prover {p}, exit code "
+                                        f"{r.returncode}) — route #615]"), True
                             if not any(((rec.get("term") or {}).get("loc") or {}).get(
                                     "start-line") in _map267 for rec in _recs267):
-                                # why3 surfaced none of the probe goals (it rejected the
-                                # rewritten body): say so rather than pass silently.
+                                # why3 surfaced none of the probe goals.
+                                # (#49) ROUTE #616 — A REJECTED PROBE BODY NOW FAILS THE GATE.
+                                # A non-zero exit with no probe record is why3 REJECTING the
+                                # rewritten body (rc 1 + a stderr diagnostic): the probe never
+                                # ran. Those rejections were all the site scanner's (fixed
+                                # above): MEASURED, a type-only census of every call-site probe
+                                # body of all 53 mirror files is 0 / 383 rejected (base: 23),
+                                # and the only corpus rejections (18) are in files whose own
+                                # emission is ill-typed (refused before any proof). So a
+                                # rejection is never intrinsic any more: it is 'could not be
+                                # checked', a FAILURE, never a pass. A clean run that merely
+                                # surfaced no probe goal keeps the non-failing warning below.
+                                if r.returncode != 0:
+                                    print(f"[-] vacuity call-site probe for '{fname}' could not "
+                                          f"be checked: why3 REJECTED the rewritten body (prover "
+                                          f"{p}, exit code {r.returncode}): "
+                                          + " | ".join(_l616 for _l616 in (r.stderr or "")
+                                                       .splitlines()
+                                                       if not _l616.startswith("Warning"))[:300])
+                                    return (f"{fname} [could not be checked: why3 rejected the "
+                                            f"call-site probe body (prover {p}, exit code "
+                                            f"{r.returncode}) — route #616]"), True
                                 print(f"[!] vacuity call-site probe for '{fname}' could not "
                                       f"be checked (no probe goal surfaced; prover {p}).")
                                 break
@@ -40869,10 +41222,39 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                     r = _run_why3_prove(base_cmd, p, tl, probe_path, sel)
                 except FileNotFoundError:
                     return fname, None
+                # (#49) ROUTE #615 — FAIL-OPEN ON A DEAD PROVER RUN. Below, "no false-goal
+                # record surfaced" means "no normal exit" (#260 logic), i.e. NOT vacuous. But
+                # a why3 that was KILLED surfaces no record either: measured 2026-11-18, five
+                # vacuity-probe why3 children of the snapD expressions.py whole-file proof
+                # were OOM-killed inside its 6 GiB scope, and every one of them would have
+                # been counted 'not vacuous' — a probe that never ran, counted as passed.
+                # A run is a PROCESS-LEVEL FAILURE when it died on a signal (returncode < 0
+                # from subprocess, or >= 126 from a shell wrapper / exec failure), or it
+                # exited non-zero with no JSON goal record at all on stdout (empty or
+                # unparsable output). A prover that ran and answered (Valid / Invalid /
+                # Unknown / Timeout / OutOfMemory / StepLimitExceeded) is NOT a failure, nor
+                # is a clean run whose selected goal set is empty (no normal exit). A
+                # process failure of ANY configured prover makes the probe 'could not be
+                # checked' (best-of-N lost an instrument: the dead prover might have proved
+                # `false`), and that FAILS the gate: it is never read as non-vacuous.
+                # `HighFailure` (why3's answer when the prover child itself crashed or was
+                # killed) on the injected goal is the same failure one level down.
+                _recs615 = _json_goal_records(r.stdout)
+                _hf615 = [rec for rec in _recs615 if _is_false_goal(rec)
+                          and _record_answer(rec) == "HighFailure"]
+                if (r.returncode < 0 or r.returncode >= 126
+                        or (r.returncode != 0 and not _recs615)
+                        or _hf615):
+                    print(f"[-] vacuity probe for '{fname}' could not be checked: the why3 "
+                          f"run itself FAILED (prover {p}, exit code {r.returncode}"
+                          + (f", signal {-r.returncode}" if r.returncode < 0 else "")
+                          + (", prover answered HighFailure" if _hf615 else "")
+                          + f", {len(_recs615)} goal record(s) on stdout).")
+                    return (f"{fname} [could not be checked: the vacuity probe's why3 run "
+                            f"FAILED (prover {p}, exit code {r.returncode}) — route #615]"), True
                 # #6: read structured --json records, not re-grepped text. Keep ONLY the
                 # injected false-goal(s) — never the sibling real-postcondition goals.
-                per_prover.append([rec for rec in _json_goal_records(r.stdout)
-                                   if _is_false_goal(rec)])
+                per_prover.append([rec for rec in _recs615 if _is_false_goal(rec)])
             # best-of-N: a normal-exit path counts inconsistent if ANY prover proved its
             # false-goal Valid; align the per-path goals by occurrence across provers.
             merged = [rec for rec in _merge_records_best_of_n(per_prover)
@@ -41051,6 +41433,20 @@ def _dispatch_provers(base_cmd: "List[str]", provers: List[str], timelimit: str,
             stderrs.append(r.stderr.strip())
         last_rc = r.returncode
         record_lists.append(_json_goal_records(r.stdout))
+        # (#49) ROUTE #615 (main-goal phase) — A KILLED RUN IS NOT A SHORTER PROOF. why3 died
+        # on a signal (subprocess returncode < 0, e.g. -9 from the kernel OOM killer inside a
+        # heavy.sh scope) or a shell / exec failure (>= 126): whatever records it streamed
+        # before dying are a PREFIX of its goals. Before this guard, an all-Valid prefix
+        # early-exited below with rc 0 — fewer goals, reported as a full green — and the
+        # conservation guard could not see it (it compares against this same truncated
+        # first run). Fail the dispatch instead; never early-exit on a dead run.
+        if r.returncode < 0 or r.returncode >= 126:
+            print(f"[-] why3 run FAILED at the process level (prover {prover}, exit code "
+                  f"{r.returncode}" + (f", signal {-r.returncode}" if r.returncode < 0 else "")
+                  + f"): its {len(record_lists[-1])} goal record(s) are an incomplete prefix, "
+                  f"so this is NOT a verdict (route #615). A killed prover is a resource "
+                  f"failure: re-run with more memory.")
+            return _finalize(_merge_records_best_of_n(record_lists), r.returncode)
         merged = _merge_records_best_of_n(record_lists)
         if merged:
             any_goals = True
@@ -41162,6 +41558,31 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
                 # because here `ir_data` is out of scope (gate runs in `_run_proofs`).
                 _nr_names = getattr(args, "_vacuity_exempt", set())
                 vac = _run_vacuity_gate(mlw_code, provers, args, _nr_names)
+                # (#49) ROUTE #615: a probe whose why3 run FAILED is reported as such, and
+                # fails the gate on its own — it is neither 'vacuous' nor 'not vacuous'.
+                _unc615 = [n for n in (vac or []) if "[could not be checked:" in n]
+                if _unc615:
+                    print("\n[-] NON-VACUITY GATE FAILED: the vacuity probe of the following "
+                          "function(s) COULD NOT BE CHECKED — the why3 run itself failed "
+                          "(killed / crashed / no JSON), so nothing is known about whether "
+                          "their assumed context is consistent (route #615):")
+                    for name in _unc615:
+                        print(f"    {name}")
+                    print("    A killed prover is a RESOURCE failure, not a verdict: re-run "
+                          "with more memory / fewer vacuity workers (PYTHON_CPU_COUNT).")
+                    vac = [n for n in vac if n not in _unc615]
+                    if not vac:
+                        if getattr(args, "diagnostics_json", False):
+                            print(_json.dumps({
+                                "code": "PYCSL-VACUITY-UNCHECKED",
+                                "stage": "vacuity-gate",
+                                "file": getattr(args, "file", ""),
+                                "line": 0,
+                                "message": "vacuity not checked: " + ", ".join(_unc615),
+                            }, sort_keys=True), file=sys.stderr)
+                        print("\n[-] Verification FAILED (vacuity could not be checked). "
+                              "Check the solver output.")
+                        sys.exit(1)
                 if vac:
                     print("\n[-] NON-VACUITY GATE FAILED: the following function(s) verify "
                           "VACUOUSLY — their assumed context is logically inconsistent, so "
@@ -41341,7 +41762,105 @@ def _resolve_runtime_config(args: argparse.Namespace) -> Tuple[str, List[str]]:
 
 
 def main() -> None:
+    # (#49) run #8 u58 (driver decision on review rt69) -- `--as-package-module ROOT` is
+    # WITHDRAWN from this release (route #613). The review found four gaps it introduced
+    # (G1: the parent-package `__init__` chain judged only shallowly; G2: `python -m pkg` with
+    # an unread `__main__.py`; G3: a rule skipped by a magic program FILE name; G4: an ancestor
+    # namespace portion beaten by a regular site-packages package) and two over-refusals (o06 /
+    # o07). Passing the flag exits rc 2 BEFORE anything
+    # is verified; it never silently falls back to script mode. The resolver has no code path
+    # for it any more.
+    #
+    # (#49) run #8 u55 (driver decision on review rt66 g02 / g08) -- `--verification-image
+    # ROOT`, a declared mode (PYCSL_VERIFICATION_IMAGE; opt-in, never inferred): the file is a
+    # VERIFICATION MODEL that CPython never executes (the self-annotation mirror, an image of
+    # src/pycsl rooted at ROOT; the pycsl_lib stub models). It makes NO claim about a CPython
+    # run: its own imports resolve as pycsl resolves them (program directory first, then
+    # --import-path, which deliberately types callees against the LIVE tree); every route
+    # #613 / #611 / r12 check still applies, with ROOT in the program directory's place among
+    # the closure roots. Taken off argv HERE, not in `_parse_args` (whose mirror twin is
+    # body-verified), and handed to the resolver -- and to every pycsl sub-invocation, which
+    # inherit os.environ -- as PYCSL_VERIFICATION_IMAGE. ROOT must contain the program.
+    _a613 = sys.argv[1:]
+    _vi613 = None
+    _k613 = 0
+    _rest613: List[str] = []
+    while _k613 < len(_a613):
+        if (_a613[_k613] == "--as-package-module"
+                or _a613[_k613].startswith("--as-package-module=")):
+            print("[!] Error: --as-package-module is not supported in this release (route #613: "
+                  "withdrawn after review rt69 found gaps in its -m model). Verify the file as a "
+                  "script (the default), or as a verification model with --verification-image "
+                  "ROOT (no CPython-run claim).")
+            sys.exit(2)
+        _fl613 = None
+        if _a613[_k613] == "--verification-image" and _k613 + 1 < len(_a613):
+            _fl613 = (_a613[_k613 + 1], 2)
+        elif _a613[_k613].startswith("--verification-image="):
+            _fl613 = (_a613[_k613].split("=", 1)[1], 1)
+        elif _a613[_k613] == "--verification-image":
+            print("[!] Error: --verification-image needs a ROOT directory.")
+            sys.exit(2)
+        if _fl613 is not None:
+            _vi613 = _fl613[0]
+            _k613 += _fl613[1]
+            continue
+        _rest613.append(_a613[_k613])
+        _k613 += 1
+    # (#49) run #8 u58 (driver, review rt69 final report) -- A DECLARED MODE IS NEVER ENABLED
+    # IMPLICITLY. An inherited PYCSL_VERIFICATION_IMAGE is honoured only when the pycsl run that
+    # declared `--verification-image` handed it down in THIS process tree: it stamps
+    # PYCSL_VERIFICATION_IMAGE_TOKEN with its own pid, and the value counts only while that pid
+    # is this process or one of its ancestors AND that process's own command line carries the
+    # flag (the resolver re-checks the same token). Any other
+    # inherited value -- one exported in the user's shell, a stale token -- is dropped, so the
+    # run is the default script mode. The withdrawn PYCSL_AS_PACKAGE_MODULE is dropped likewise:
+    # an environment variable alone changes no verdict.
+    _tk613 = os.environ.get("PYCSL_VERIFICATION_IMAGE_TOKEN") or ""
+    _anc613: List[str] = []
+    _pp613 = str(os.getpid())
+    while _pp613 not in ("", "0") and len(_anc613) < 256:
+        _anc613.append(_pp613)
+        try:
+            _st613 = open("/proc/" + _pp613 + "/stat").read()
+            _pp613 = _st613.rsplit(")", 1)[1].split()[1]
+        except (OSError, IndexError):
+            break
+    try:
+        # the token's process must itself be a run that DECLARED the flag on its own command
+        # line (/proc/<pid>/cmdline is the original argv): pid 1 or the user's shell never is
+        _cl613 = open("/proc/" + _tk613 + "/cmdline", "rb").read().decode(
+            errors="replace").split("\0") if _tk613.isdigit() else []
+    except OSError:
+        _cl613 = []
+    if _vi613 is not None or not (_tk613 and _tk613 in _anc613
+                                  and any(_c == "--verification-image"
+                                          or _c.startswith("--verification-image=")
+                                          for _c in _cl613)
+                                  and os.environ.get("PYCSL_VERIFICATION_IMAGE")):
+        if os.environ.pop("PYCSL_VERIFICATION_IMAGE", None) and _vi613 is None:
+            print("[*] Ignoring an inherited PYCSL_VERIFICATION_IMAGE that no parent pycsl run "
+                  "declared (a declared mode is never enabled implicitly; pass "
+                  "--verification-image ROOT).")
+        os.environ.pop("PYCSL_VERIFICATION_IMAGE_TOKEN", None)
+    if os.environ.pop("PYCSL_AS_PACKAGE_MODULE", None):
+        print("[*] Ignoring an inherited PYCSL_AS_PACKAGE_MODULE: --as-package-module is not "
+              "supported in this release (route #613), and a mode is never enabled implicitly.")
+    if _vi613 is not None:
+        sys.argv[1:] = _rest613
+        os.environ["PYCSL_VERIFICATION_IMAGE"] = os.path.abspath(_vi613)
+        os.environ["PYCSL_VERIFICATION_IMAGE_TOKEN"] = str(os.getpid())
     args = _parse_args()
+    if os.environ.get("PYCSL_VERIFICATION_IMAGE"):
+        _pr613 = os.environ["PYCSL_VERIFICATION_IMAGE"]
+        if not (os.path.isdir(_pr613) and os.path.commonpath(
+                [_pr613, os.path.abspath(args.file)]) == _pr613):
+            print(f"[!] Error: --verification-image {_pr613}: not a directory containing "
+                  f"'{args.file}'.")
+            sys.exit(2)
+        print(f"[*] Declared VERIFICATION IMAGE rooted at "
+              f"{os.environ['PYCSL_VERIFICATION_IMAGE']} (--verification-image): a model "
+              f"CPython never executes; NO claim about a CPython run")
 
     if not os.path.exists(args.file):
         print(f"[!] Error: File '{args.file}' not found.")

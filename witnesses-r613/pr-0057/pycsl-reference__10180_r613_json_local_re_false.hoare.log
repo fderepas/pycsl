@@ -1,0 +1,19 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u52-b0057/test-suite/corpus/pycsl-reference/10180_r613_json_local_re_false.py'...
+[*] Memory model: hoare
+[*] Imported from 'json': ['dumps'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_pts65gbo.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal same'vc.
+Prover result is: Valid (0.00s, 37 steps).
+
+File "/tmp/.pycsl_pts65gbo.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal same'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.01s, 391 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

@@ -153,6 +153,9 @@ def emit_all(out_dir: str) -> None:
         subprocess.run(
             [py, os.path.join(ROOT, "src", "pycsl", "pycsl.py"), src,
              "--import-path", os.path.join(ROOT, "src", "pycsl"),
+             *(["--verification-image", os.path.join(ROOT, "src", "self-annotate", "src")]
+               if os.path.abspath(src).startswith(os.path.join(ROOT, "src", "self-annotate", "src") + os.sep)
+               else []),  # route #613: a mirror file is a verification image (declared, no CPython-run claim)
              "--no-proof", "--keep-mlw"],
             cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if os.path.exists(mlw):
