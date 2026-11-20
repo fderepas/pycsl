@@ -130,16 +130,20 @@ binds `print`.
    `—`, normalize `_UNICODE_OPS = {'∀': ..}` used by `out.replace(u, a)`, pycsl `_why3_typecheck`'s returned message
    `"why3 not found on PATH — ..."`). Corpus 0. Log `scratchpad/u57/orf/nonarrow-mir.tsv`.
 3. NARROWING 2 (sound, see the rule): raise / print message text excused -> mirror 2 (normalize, pycsl).
-4. pycsl: the `—` of `_why3_typecheck`'s message rewritten `--` in the live file and its mirror twin (text only; the
-   mirror emission moves on that literal; whole-file re-proof below). normalize: NOT narrowed -- the verified
-   `normalize_prover_output` really does `str.replace` with a 3-byte pattern over a Latin-1-modelled string (a Latin-1
-   input `"\xe2\x88\x80"` would be rewritten in the model, not by CPython). It is a TRUE refusal: GONE from the mirror
-   emission; decision for the driver / user (accept the GONE, or `\trusted` the function as a soundness-forced re-trust
-   if its module constant then stops reaching the model -- not measured).
-Final: corpus root 3291 / 3298 0 MOVED / 0 GONE / 0 APPEARED (7 new emitted sources), pyref 2185 / 2185 0/0/0,
-mirror 53 -> 52: GONE proof2why3__normalize, MOVED pycsl (the message) and frontend__Module3_Weaver (the stable hash
-of a `warnings.warn` literal holding `—` changed with its rendering: `_coerce_to_int` hashes the escaped text; the
-value is an opaque int, nothing reads it).
+4. pycsl: the `—` of `_why3_typecheck`'s message rewritten `--` in the live file and its mirror twin (text only).
+   normalize: NOT narrowed -- the verified `normalize_prover_output` really does `str.replace` with 3-byte patterns
+   over a Latin-1-modelled string (a Latin-1 input "\xe2\x88\x80" is rewritten in the model, not by CPython): a TRUE
+   refusal. Per the driver's instruction (01:30Z) it is a SOUNDNESS-FORCED RE-TRUST (+1 marker, NOT progress;
+   trusted-reasons `cost-scale:codepoint-str-model`, backlog heading "NAMED CAPABILITY -- route #429 soundness-forced
+   re-trust"); the rest of the file emits unchanged and re-proves (4 / 4 Valid).
+5. Stricter narrowing 2 (red-team hardening): no excusal for a value whose code point > 255 was written RAW (a fold, an
+   import), and none at all in a file where any other non-statement str constant or `#@` token is above Latin-1.
+   Re-measured: still 0 corpus / 0 pyref / 0 mirror refusals.
+Final (candidate 50ffa6804, sweeps `scratchpad/u57/sw2/`): corpus root 3291 / 3298 0 MOVED / 0 GONE / 0 APPEARED (7 new
+emitted sources), pyref 2185 / 2185 0/0/0 (each compared twice); mirror 53 / 53, 0 GONE, 3 MOVED: pycsl (the message),
+frontend__Module3_Weaver (the stable hash of a `warnings.warn` literal holding `—` changed with its rendering;
+`_coerce_to_int` hashes the escaped text; an opaque int nothing reads), proof2why3__normalize (the re-trust). All three
+re-proved whole-file: pycsl 820 / 820, Module3_Weaver 331 / 331, normalize 4 / 4 (oom_kill 15 -> 15).
 
 ### Witnesses 10260-10279 (expected FAIL unless noted)
 REFUSED in default / typed / store: 10260 (p15), 10261 (p16), 10262 (p17), 10263 (p19), 10264 (p18 "€"), 10265 (p21
