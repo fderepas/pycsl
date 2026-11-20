@@ -1490,3 +1490,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-20T13:53Z | 1216 | STATUS (run hour 73.5; 22 h left). Main = L16 (\trusted 366), ledger 3, oom_kill 15. v72 F (int73) progressing; lvZ2 whole-file pycsl 821 / 821 on 55539d7ad; u59 / u60 / rt73 working. |
 2026-11-20T14:50Z | 1217 | STATUS (run hour 74.5; 21 h left). Main = L16 (\trusted 366), ledger 3, oom_kill 15. v72 F progressing; u59 / u60 / lvZ2 / rt73 working. |
 2026-11-20T15:47Z | 1218 | STATUS (run hour 75.5; 20 h left). Main = L16 (\trusted 366), ledger 3, oom_kill 15. v72 F near the end; u60 witnesses 10330-10333 (a5e94e022); u59, lvZ2, rt73 working. |
+2026-11-20T16:45Z | 1219 | STATUS (run hour 76.5; 19 h left). Main = L16 (\trusted 366), ledger 3, oom_kill 15. v72 F at 77 / 85 (slow planes); u59 narrowing-2 fix f11922e05 gating; u60, lvZ2, rt73 working. |
