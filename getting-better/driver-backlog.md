@@ -9158,3 +9158,14 @@ COST/SCALE, not correctness.
   `_collect_final_registry` and `_union_arm_tag` CONVERTED again (verbatim live bodies, lvL's 2c7ec1846 state):
   `--fun` both 0 non-Valid, leaf-reachability 15/15 leaf blocks NOT proved (the two formerly dead arms live),
   whole-file Module5_IREmitter proof rc 0 (2636 Valid, route doc). `#@ \trusted` markers in the mirror 368 -> 366 (lvL's count 401 -> 399).
+
+### NAMED CAPABILITY — route #429 soundness-forced re-trust (run #8 u57, 2026-11-20): a code-point str model — **not yet built**
+
+`proof2why3/normalize.py::normalize_prover_output` (mirror) was VERIFIED over the 8-bit str model while its unrolled
+`_UNICODE_OPS` loop does `out.replace(u, a)` with patterns above Latin-1 ('∀', '→', '≥', '≤', '∨', '∧', '≠', '≡').
+Those patterns are their UTF-8 bytes in the model, so the model's `replace` also rewrites a Latin-1 input such as
+"\xe2\x88\x80", which CPython leaves alone: a proof about a different function. `PYCSL-R429-NONLATIN1-STR-LITERAL`
+(route #429, user decision 2026-11-19) refuses that emission, so the def is re-trusted (+1 marker, NOT progress) with
+its body kept verbatim. Re-convertible once a str value carries code points (one model character per code point
+for every code point, or a refusal-free encoding the solver decides correctly). Measurement:
+`getting-better/open-routes/route429-latin1-upper-closure.md` (u57 section).

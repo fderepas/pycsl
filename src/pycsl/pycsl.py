@@ -35586,6 +35586,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # (#49) ROUTE #429 -- the Python values (above Latin-1) of the literals that reach the
     # model, filled below and judged before `return _mlw`.
     _off429: List[str] = []
+    # ... and those whose code point above 255 was written RAW (not by `whyml_string_literal`:
+    # an emitter fold such as `"\xff".upper()`, an imported constant): never excused below.
+    _raw429: List[str] = []
     while _i411 < _n411:
         if _dep411:
             if _mlw.startswith("(*)", _i411):
@@ -35662,6 +35665,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _cp429.append(bytes(_u429).decode("utf-8", "surrogateescape"))
         if any(ord(_c) > 255 for _c in "".join(_cp429)):
             _off429.append("".join(_cp429))
+            if any(ord(_c) > 255 for _c in _cp429 if len(_c) == 1 and _c in _mlw[_i411:_j411]):
+                _raw429.append("".join(_cp429))
         _tok411 = _mlw[_i411:_j411 + 1]
         _i411 = _j411 + 1
         if _bad411 or all(32 <= _b411 <= 126 and _b411 not in (34, 92) for _b411 in _by411):
@@ -40424,11 +40429,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # assembly raise nothing whatever the characters. A value also found anywhere else in
     # the source (a docstring included) or as a string token of a `#@` contract line, or
     # one the source does not hold verbatim (a fold, an imported constant), is not excused.
+    # STRICTER, per file: no excusal at all when any OTHER str constant (docstrings aside)
+    # or `#@` string token holds a code point > 255 (then no fold / concatenation of other
+    # text can rebuild an excused value), and never for a value whose code point > 255 was
+    # written RAW (a fold or an import, not `whyml_string_literal`). WHY AN EXCUSED VALUE
+    # REACHES NO CLAIM: Module 5 lowers `raise N(a0, ..)` to tag N + payload a0 only (later
+    # arguments dropped, route #589), every payload arm is a wildcard and route #233 refuses
+    # reading `except .. as e`; builtin tags carry no payload at all; a statement `print(..)`
+    # lowers to `let _ = print_1 (str_hash_op ..)`; the closure (constant / f-string constant
+    # part / `+` operand) contains no call, subscript or comparison, so no obligation, return
+    # value or branch condition is computed from the text.
     if _off429:
         import ast as _ast429
         import re as _re429
         _ex429: Set[str] = set()
         _ne429: Set[str] = set()
+        _nx429 = False
         try:
             _t429 = _ast429.parse(source_code)
         except (SyntaxError, ValueError):
@@ -40466,17 +40482,37 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 elif (isinstance(_r429, _ast429.BinOp)
                         and isinstance(_r429.op, _ast429.Add)):
                     _roots429 += [_r429.left, _r429.right]
+            # A bare str STATEMENT (a docstring, or any `Expr` whose value is the constant) is
+            # no operand of anything, so it cannot feed a fold / concatenation: it does not
+            # cancel the file's excusal (it stays in `_ne429`, so if it is itself rendered --
+            # `f.__doc__` -- it is refused).
+            _ds429: Set[int] = set()
+            for _n429 in _ast429.walk(_t429):
+                if (isinstance(_n429, _ast429.Expr) and isinstance(_n429.value, _ast429.Constant)
+                        and isinstance(_n429.value.value, str)):
+                    _ds429.add(id(_n429.value))
             for _n429 in _ast429.walk(_t429):
                 if isinstance(_n429, _ast429.Constant) and isinstance(_n429.value, str):
                     (_ex429 if id(_n429) in _ok429 else _ne429).add(_n429.value)
+                    if (id(_n429) not in _ok429 and id(_n429) not in _ds429
+                            and any(ord(_c) > 255 for _c in _n429.value)):
+                        _nx429 = True
         for _ln429 in source_code.splitlines():
             if _ln429.lstrip().startswith("#@"):
                 for _m429 in _re429.finditer(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'', _ln429):
                     try:
-                        _ne429.add(str(_ast429.literal_eval(_m429.group(0))))
+                        _tk429 = str(_ast429.literal_eval(_m429.group(0)))
                     except (SyntaxError, ValueError):
-                        _ne429.add(_m429.group(0))
-        _bad429 = [_v for _v in _off429 if not (_v in _ex429 and _v not in _ne429)]
+                        _tk429 = _m429.group(0)
+                    _ne429.add(_tk429)
+                    _nx429 = _nx429 or any(ord(_c) > 255 for _c in _tk429)
+        # Excusal is all-or-nothing per file: it applies only when NO other str constant of
+        # the source (and no `#@` string token) holds a code point above 255, so no fold /
+        # concatenation of other text can produce an excused value; a raw-written value is
+        # never excused.
+        _bad429 = [_v for _v in _off429
+                   if _nx429 or _t429 is None or _v in _raw429
+                   or not (_v in _ex429 and _v not in _ne429)]
         if _bad429:
             from errors import PyCSLSemanticError as _PyCSLSemErr429
             raise _PyCSLSemErr429(

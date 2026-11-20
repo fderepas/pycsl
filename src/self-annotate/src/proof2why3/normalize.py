@@ -15,6 +15,13 @@ _PREFIX_STRIPS: List[int] = [('PeanoNat.Nat.gcd', 'gcd'), ('PeanoNat.Nat.modulo'
 # `re.sub(..., count=1)` / callable-`lambda` repl calls lower to the law-free
 # `re_sub_count_op` / `re_sub_callable_op` (lvA capabilities); the callees in this file are
 # called through their own contracts..
+# (#49) ROUTE #429 (run #8, u57) -- SOUNDNESS-FORCED RE-TRUST. The unrolled `_UNICODE_OPS`
+# loop replaces the non-Latin-1 patterns ('∀', '→', '≥', ...) in a str the model spells as
+# 8-bit characters: each pattern is its 2..3 UTF-8 BYTES there, so `out.replace(u, a)` also
+# rewrites a Latin-1 input such as "\xe2\x88\x80" (CPython leaves it alone). PYCSL-R429-
+# NONLATIN1-STR-LITERAL refuses that emission; the body is kept verbatim for a later
+# re-conversion once str values carry code points.
+#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
