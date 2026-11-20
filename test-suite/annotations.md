@@ -6750,17 +6750,28 @@ function -- is a Why3 TYPE ERROR (fail-closed). The #31-erased `p: Path` paramet
 `-> Fp`) is erased to `string` by route #336 while the alias fixpoint above skips every call-built
 binding (t01 / t03 / t04 / m07 PROVED, CPython False / True); a unit method named like an imported
 function hid the import from the signature check (m19), and a two-dot callee (`pkg.h.keep`) was never
-keyed (m20). FAIL-CLOSED RULE: every name (or dotted tail) mentioned by an annotation of the unit is
-RESOLVED only when it is an unrebound builtin, a class / def of the unit, bound only by type expressions,
-imported from a standard-library module, or imported from a local dependency that binds it at top level
-by a class / def / type expression; ANY other name (bound by a call -- `TypeAliasType`, `NewType`,
-`TypeVar`, a helper --, a PEP 695 type parameter, any other binding, an unreadable / non-local /
-re-exporting import, an unbound name) is a Path alias; a dependency's signatures get the same rule one
-level deep. Imported callees are no longer hidden by unit defs of the same name; every top-level def of a
-local dependency is keyed under its local and its dotted module spelling, and a dotted callee rooted at a
-local module import that is neither keyed nor a constructor of one of its top-level classes has an
-UNKNOWN signature (its result is path-ish, a path-ish argument to it is refused). Witnesses `10289`-`10295`
-(expected FAIL, refused; helper `multi_file_lib/lvz2r_tat.py`), control `10296`.
+keyed (m20). RULE: every name (or dotted tail) mentioned by an annotation of the unit that the pass cannot
+show to be no Path alias is a Path alias (path-ish in every annotation test): a name bound by a CALL whose
+arguments mention a Path class, a name the unit binds by a type expression or a call, a Path-class import,
+or a nested call / lambda / starred value (`TypeAliasType("Fp", Path)`, `typing.TypeAliasType`,
+`NewType("P", Path)`, `TypeVar("T", bound=Path)`); a PEP 695 type parameter whose bound / default does; any
+binding other than a class / def / type expression / such a call (a parameter, a loop target, ...); a name
+imported from a local dependency that binds it otherwise (also a re-export), or whose source cannot be
+parsed; a dotted tail a local module binds so; an unbound name when the unit star-imports a
+non-standard-library module. A dependency's signatures get the same test one level deep. NOT aliases (the
+front end cannot resolve them to a Path either, so they stay opaque, never the #31 `string`): an unbound
+name without such a star import (the emitter's `ExprIR`), a name imported from a module the shared
+resolver (`frontend.ir_resolve._resolve_module_path`, Module 5's own) cannot find, a call binding with
+innocuous arguments (`TypeVar("T")`, `_N("Assign")`). Measured before that narrowing (every call-built,
+unbound, non-local name an alias): corpus root 46 units refused that emitted at int70 (17 expected PASS),
+pyref 0, mirror 15 / 53 refused; after it: 0 / 0 / 0 (corpus byte-diff vs int70: GONE only the new
+witnesses' shapes). Imported callees are no longer hidden by unit defs of the same name; every top-level
+def of a local dependency and every method of its top-level classes is keyed under its local, its dotted
+module and its `Class.method` spelling (`from pkg import mod` binds the submodule), and a dotted callee
+rooted at a local module import that is not keyed but may still reach a typed stub (an unreadable module,
+a star import, a re-export of the head, a method a class of the module lacks) has an UNKNOWN signature
+(its result is path-ish, a path-ish argument to it is refused). Witnesses `10289`-`10295` (expected FAIL,
+refused; helper `multi_file_lib/lvz2r_tat.py`), control `10296`.
 
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
