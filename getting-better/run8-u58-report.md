@@ -114,8 +114,15 @@ G1 (snapshot `pycsl-u58-g1` @ 74033e710, PRIO, `L/G1/summary.txt`):
   (DECLARED 0, ABSENT 27, UNKNOWN 75).
 - frontend-only 10/10 determinism rc 0; core-only 38 / 38 rc 0.
 - count-trusted rc 0, grep 366. Ledger: `git diff fa1f72ca1 -- proof_axiom_allowlist.py` empty (3).
-- stdlib-modules-verify: STDLIB_RESULT
-- G2: G2_RESULT
+- stdlib-modules-verify (now `--verification-image src`): rc 0, 104 modules, 83 VERIFY, 21 do not
+  (FAILS 3, REFUSED 17, TIMEOUT 1), "the non-verifying set is the known one (21)" = u55's 83 / 21
+  (`L/G1/P-stdlib.log`).
+- G2 (snapshot `pycsl-u58-g2` @ a9e77eff7; vs 74033e710 only the 10307 header / flag differs in
+  src / bin / test-suite; `L/G2/summary.txt`): 10307 emission byte-identical to G1's (cmp rc 0);
+  check-corpus-executes rc 0; fast planes **62 / 62 green**, rc 0; refusal-witness-coverage rc 0
+  (483 demonstrated, 5 undemonstrated = ceiling, 10 unmatchable = ceiling); doc-coherency rc 0.
+  (P1 proved 10307 in hoare at both trees before it became `--no-proof`.)
+- `--slow` was not run (brief).
 
 ## 6. The driver's added item: an inherited mode variable never enables a mode
 
@@ -140,7 +147,24 @@ CPython (`L/cpython-witnesses.txt`, `tools/cpy-w.sh`: cwd = tree root, PYTHONPAT
 
 | id | shape | CPython | base int72 h / t / s | head h / t / s |
 |---|---|---|---|---|
-PROOF_TABLE
+| 10300 FAIL | `--as-package-module test-suite/corpus` (rt69 n13 / rt66 g02 shape) | -m: root/r613x_g02.py, 2 | REFUSED x3 (PACKAGE-MODE-ORDER) | rc 2 x3 (withdrawn) |
+| 10301 FAIL | `--as-package-module=test-suite/corpus` (n10b shape) | — | PROVED / VF / VF | rc 2 x3 |
+| 10302 FAIL | G5 = n09: bare `lark/utils.py` in the --import-path root | venv: site-packages lark.utils, "result True" (system python3, no lark: local, False) | PROVED / VF / VF (claim `\result == False` FALSE) | REFUSED x3 NAMESPACE-PORTION-SHADOWED |
+| 10303 FAIL | G6 = n23d: `import lark`, `regex.py` in the --import-path root | venv: "LOCAL regex.py loaded" x2, "result 7" | PROVED / VF / VF (claim `== 3` FALSE) | REFUSED x3 TRANSITIVE-SHADOW (`program -> lark -> regex`) |
+| 10304 FAIL | G7 = n24: `r613y_cwd_helperq` in the cwd (tree root) and in --import-path | both: the --import-path copy, "result 2" | PROVED / VF / VF (claim `== 1` FALSE) | REFUSED x3 CWD-ROOT |
+| 10305 PASS | cwd's admitted `./json/` | Lib/json, "result 1" | PROVED / VF / VF | identical |
+| 10306 PASS | bare `multi_file_lib/` portion, unique name | the local file, "result 1" | PROVED / VF / VF | identical |
+| 10307 PASS | `import lark`, no shadow | venv "result 3" | PROVED / VF / VF | identical |
+| 10221 PASS | (flag dropped) script mode, json | — | PROVED / VF / VF (with the flag) | PROVED / VF / VF |
+
+Typed / store VERIFY-FAIL is unrelated to the route: every json / import control fails the same
+way at base (u52 §2). Logs: `L/P1/pr-pycsl-u58-base/`, `L/P1/pr-pycsl-u58-g1/`, summary
+`L/P1/summary.txt` (oom_kill 15 at every start and end). The rt69 probes themselves (`L/P1/q-*`,
+typecheck mode): at base n01 n02 n03b n05 n08 n09 n10b n13 n23 n23b n23c n23d n24 all EMIT; at head
+every `--as-package-module` probe is rc 2, n09 REFUSED (G5), n23 / n23b / n23c / n23d REFUSED (G6,
+chain `program -> lark -> regex`), n24 REFUSED (G7, cwd = n24/C); n06 / n07 script controls refused
+as at base, o06 in script mode emits as at base. Census rows (via `_census_row`, `L/census-rows2.tsv`):
+10302 / 10303 / 10304 REFUSAL; 10300 / 10301 / 10220 / 10222 VERIFY-FAIL (rc 2, no PIPELINE ERROR).
 
 ## 8. Residuals
 
@@ -165,7 +189,16 @@ PROOF_TABLE
 
 ## 9. Commits (branch run8-u58, not pushed)
 
-COMMITS
+- 1d09b14a7 WIP: withdrawal, G7, G5, G6 (pre-narrowing; the M0 measurement tree)
+- 9d9c0e888 G6 narrowing; inherited-env token; witnesses 10300-10307; 10220-10222; docs
+- ddebc59ce, 3b07a2e44 G5 / G7 messages relative to cwd (tree-independent census rows)
+- 74033e710 census rows (the G1-gated tree)
+- 624b4ded3 10307 `--no-proof`
+- a9e77eff7 report draft + route613 section (the G2-gated tree)
+- the final report commit (this file; docs only)
+
+Snapshot trees left for the driver: `/home/fabrice/git/pycsl-u58-m0`, `-g1`, `-g2`, `-base`
+(int72 + the witnesses copied in).
 
 ## 10. Exact commands
 
