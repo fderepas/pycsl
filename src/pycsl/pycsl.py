@@ -40517,7 +40517,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             from errors import PyCSLSemanticError as _PyCSLSemErr429
             raise _PyCSLSemErr429(
                 "PYCSL-R429-NONLATIN1-STR-LITERAL (route #429): the str value %s enters the "
-                "model with the code point U+%04X, which is above 255. PyCSL models a str as "
+                "model with the code point %s, which is above 255. PyCSL models a str as "
                 "a Why3 string of 8-bit characters (LATIN1-STR), so such a code point is "
                 "written as its 2..4 UTF-8 bytes and every length, index, slice and "
                 "comparison of the value is decided on the bytes -- measured, `x == "
@@ -40525,7 +40525,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 "Keep str values to code points 0..255 (Latin-1); a comment, a docstring the "
                 "model does not read, and the text of a `raise` / `print` message may hold "
                 "any character."
-                % (ascii(_bad429[0])[:60], max(ord(_c) for _c in _bad429[0])),
+                % (ascii(_bad429[0])[:60], "U+%04X" % max(ord(_c) for _c in _bad429[0])),
                 stage="whyml-emit", code="PYCSL-R429-NONLATIN1-STR-LITERAL")
     return _mlw
 
