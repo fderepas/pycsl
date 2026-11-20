@@ -355,9 +355,9 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                             break
                     if _hit658 is not None:
                         # shown relative to cwd when under it (the census stays tree-independent)
-                        _hd658, _bd658 = [(os.path.relpath(_q) if os.path.abspath(_q).startswith(
-                            os.getcwd() + os.sep) else _q) for _q in (
-                                hit, os.path.join(base, *parts[:_ns658]))]
+                        _hd658, _bd658, _hit658 = [(os.path.relpath(_q) if os.path.abspath(
+                            _q).startswith(os.getcwd() + os.sep) else _q) for _q in (
+                                hit, os.path.join(base, *parts[:_ns658]), _hit658)]
                         from errors import PyCSLSemanticError
                         raise PyCSLSemanticError(
                             f"`import {module_dotted}`: pycsl's resolution took {_hd658} through "
