@@ -1476,7 +1476,18 @@ with no `__init__.py` (a namespace portion) is REFUSED when any other root CPyth
 the program directory, `--import-path`, the stdlib or a site directory — holds that top-level
 name too, since a regular package there wins and portions merge in `sys.path` order
 (`PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`, G5: a local bare `lark/utils.py` lost to the
-installed `lark`)): CPython
+installed `lark`); and (u60, review rt72 A1, PRE-EXISTING) every ABSOLUTE import of every local
+module the program reaches (transitively, package `__init__` chains included) is resolved both from
+that module's own directory — how its contracts are verified — and through the PROGRAM's search
+order, which is what CPython uses (`sys.path[0]` is the program's directory, then PYTHONPATH /
+`--import-path`); when the module's own directory gives a file (or, for a stdlib name, pycsl's
+model) and the program's order gives anything else (another file, nothing, a refusal), the
+program is REFUSED (`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`: `lib/dep.py`'s `from zqh72
+import one` took `lib/zqh72.py` in pycsl and the program directory's `zqh72.py` in CPython); a
+non-stdlib name that resolves to nothing from the module's directory was an unconstrained
+external there (no contract), so it is admitted. Relative imports stay package-relative; the
+check is skipped under the declared `--verification-image`, which makes no CPython-run
+claim): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or
 startup-loaded module, and for the rest which one runs depends on `sys.path` and startup.
 A program that edits the import system — any reference to `sys.path`, `sys.modules`,

@@ -4398,8 +4398,15 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
         # program reaches through local files (the program, every local module or package
         # `__init__` it imports, transitively, every import statement anywhere in it) has each
         # ABSOLUTE import resolved twice -- from its own directory (how its contracts were
-        # verified) and from the program's (how CPython loads it) -- and any difference (another
-        # file, a file on one side only, a refusal on one side only) REFUSES the program.
+        # verified) and from the program's (how CPython loads it). When the module's own
+        # directory gives a FILE (whose contracts its verification believed), or gives nothing
+        # for a stdlib / builtin name (pycsl's own model of it), and the program's order gives
+        # anything else (another file, nothing, a refusal), the program is REFUSED. A non-stdlib
+        # name that resolves to NOTHING (or is refused) from the module's own directory had no
+        # contract there: pycsl models such an import as an unconstrained external (`val f () :
+        # int`, no postcondition; measured), so what that verification proved holds of whatever
+        # CPython loads -- admitted (the package-qualified `from multi_file_lib.circ_b import
+        # func_b` inside multi_file_lib/circ_a.py), and the file CPython loads is followed.
         # Relative imports (`from . import x`) are package-relative in both views and are only
         # followed. pycsl's own stdlib model root `Lib/` is not followed (CPython runs the
         # interpreter's stdlib there, whose imports the closure check above judges). Under the
@@ -4442,7 +4449,11 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                           else ("none", ""))
                         except _E613 as _x660:
                             _vw660.append(("refused", str(_x660.code or "refused")))
-                    if len(_vw660) == 2 and _vw660[0] != _vw660[1]:
+                    if len(_vw660) == 2 and _vw660[0] != _vw660[1] and (
+                            _vw660[0][0] == "file" or (
+                                _vw660[0][0] == "none"
+                                and (_d660.split(".")[0] in sys.stdlib_module_names
+                                     or _d660.split(".")[0] in sys.builtin_module_names))):
                         _bad660 = (_m660, _d660, *[
                             ((os.path.relpath(_v[1]) if _v[1].startswith(os.getcwd() + os.sep)
                               else _v[1]) if _v[0] == "file"
