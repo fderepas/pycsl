@@ -264,7 +264,7 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                 from errors import PyCSLSemanticError
                 raise PyCSLSemanticError(
                     f"`import {module_dotted}` resolves only through pycsl's own working "
-                    f"directory ({hit}), and CPython never searches the working directory when "
+                    f"directory ({os.path.relpath(hit)}), and CPython never searches the working directory when "
                     f"it runs a script: sys.path[0] is the script's directory, then PYTHONPATH "
                     f"(--import-path), the standard library and the site directories, so CPython "
                     f"loads another `{parts[0]}` (or none) than the file pycsl would verify "
@@ -354,10 +354,14 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
                             _hit658 = os.path.join(_pd658, _hm658[0])
                             break
                     if _hit658 is not None:
+                        # shown relative to cwd when under it (the census stays tree-independent)
+                        _hd658, _bd658 = [(os.path.relpath(_q) if os.path.abspath(_q).startswith(
+                            os.getcwd() + os.sep) else _q) for _q in (
+                                hit, os.path.join(base, *parts[:_ns658]))]
                         from errors import PyCSLSemanticError
                         raise PyCSLSemanticError(
-                            f"`import {module_dotted}`: pycsl's resolution took {hit} through "
-                            f"the directory {os.path.join(base, *parts[:_ns658])}, which has no "
+                            f"`import {module_dotted}`: pycsl's resolution took {_hd658} through "
+                            f"the directory {_bd658}, which has no "
                             f"`__init__.py` -- only a namespace portion -- while another root "
                             f"CPython searches holds `{'.'.join(parts[:_ns658])}` too "
                             f"({_hit658}). CPython's PathFinder takes any regular package or "
