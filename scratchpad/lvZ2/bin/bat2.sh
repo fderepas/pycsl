@@ -25,7 +25,7 @@ if [[ $STEPS == *2* ]]; then
 fi
 if [[ $STEPS == *3* ]]; then
   : > $O/wit.tsv
-  WP="$W $(ls $R/1014[0-5]_lvx_*.py $R/1025[12]_r617_*.py)"
+  WP="$W $(ls $R/1014[0-5]_lvx_*.py $R/1025[12]_r617_*.py $R/10205_r614_*.py)"
   for mm in hoare typed store; do for f in $WP; do b=$(basename $f .py); lg=$O/wit.$b.$mm.log; o0=$(oom)
     timeout 1200 .venv/bin/python3 src/pycsl/pycsl.py "$f" --import-path src/pycsl --memory-model $mm > $lg 2>&1; rc=$?
     echo -e "$b\t$mm\trc=$rc\toom=$o0->$(oom)\t$(grep -m1 '^# pycsl-expected:' $f | sed 's/.*: *//')\t$(grep -oE 'Verification SUCCESS|Verification FAILED|PYCSL-R[0-9]+[A-Z0-9-]*|L3-tc ✗|PIPELINE ERROR' $lg | head -1)\tvalid=$(grep -c 'Prover result is: Valid' $lg)/$(grep -c 'Prover result is:' $lg)" >> $O/wit.tsv
