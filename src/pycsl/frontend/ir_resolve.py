@@ -4384,6 +4384,107 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 f"rename or remove the local file so it does not shadow a module the standard "
                 f"library imports.",
                 filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW")
+        # (#49) run #8 u60 -- review rt72 A1 (PRE-EXISTING since the first multi-file resolver).
+        # A DEPENDENCY'S ABSOLUTE IMPORTS RESOLVE FROM THE PROGRAM'S sys.path, NOT FROM THE
+        # DEPENDENCY'S DIRECTORY. pycsl believes a local dependency's contracts as they were
+        # verified with the dependency as its own script, i.e. with the DEPENDENCY's directory as
+        # the first root; CPython runs the program with sys.path[0] = the PROGRAM's (realpath)
+        # directory, then PYTHONPATH (--import-path), so Python 3 (no implicit relative import)
+        # resolves the dependency's `from zqh72 import one` from the program's directory first
+        # (measured: prog.py -> lib/dep.py -> `from zqh72 import one`; lib/zqh72.py returns 1,
+        # P/zqh72.py returns 2; pycsl PROVED `g() == 1` for prog.py and dep.py, CPython loaded
+        # P/zqh72.py and printed 2; likewise an --import-path dependency X/depx.py whose
+        # `zqh72x` sits in X and in P). RULE (refusal-only, fail-closed): every module the
+        # program reaches through local files (the program, every local module or package
+        # `__init__` it imports, transitively, every import statement anywhere in it) has each
+        # ABSOLUTE import resolved twice -- from its own directory (how its contracts were
+        # verified) and from the program's (how CPython loads it) -- and any difference (another
+        # file, a file on one side only, a refusal on one side only) REFUSES the program.
+        # Relative imports (`from . import x`) are package-relative in both views and are only
+        # followed. pycsl's own stdlib model root `Lib/` is not followed (CPython runs the
+        # interpreter's stdlib there, whose imports the closure check above judges). Under the
+        # DECLARED `--verification-image` (no CPython-run claim; the mirror's dependencies
+        # resolve to the LIVE src/pycsl on purpose) today's resolution is kept.
+        if not _pm613:
+            _mf660 = os.path.abspath(main_file)
+            _lib660 = os.path.join(_sd613, "Lib")
+            _seen660: Set[str] = {_mf660}
+            _wl660: List[str] = [_mf660]
+            _bad660: Optional[Tuple[str, str, str, str]] = None
+            while _wl660 and _bad660 is None:
+                _m660 = _wl660.pop(0)
+                try:
+                    _tr660 = _a613.parse(__import__("pathlib").Path(_m660).read_bytes())
+                except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
+                    continue
+                _ent660: List[Tuple[str, int]] = []
+                for _n660 in _a613.walk(_tr660):
+                    if isinstance(_n660, _a613.Import):
+                        _ent660 += [(_al.name, 0) for _al in _n660.names]
+                    elif isinstance(_n660, _a613.ImportFrom):
+                        _lv660 = _n660.level or 0
+                        if _n660.module:
+                            _ent660.append((_n660.module, _lv660))
+                        _ent660 += [((_n660.module + "." if _n660.module else "") + _al.name,
+                                     _lv660) for _al in _n660.names if _al.name != "*"]
+                for _d660, _lv660 in _ent660:
+                    if _bad660 is not None:
+                        break
+                    if not _d660 or not all(_q.isidentifier() for _q in _d660.split(".")):
+                        continue
+                    # (outcome, path): ("file", abspath) / ("none", "") / ("refused", code)
+                    _vw660: List[Tuple[str, str]] = []
+                    for _fr660 in ([_m660] if _lv660 or _m660 == _mf660 or os.path.dirname(
+                            _m660) == os.path.dirname(_mf660) else [_m660, _mf660]):
+                        try:
+                            _h660 = _resolve_module_path(_d660, _lv660, _fr660)
+                            _vw660.append(("file", os.path.abspath(_h660)) if _h660 is not None
+                                          else ("none", ""))
+                        except _E613 as _x660:
+                            _vw660.append(("refused", str(_x660.code or "refused")))
+                    if len(_vw660) == 2 and _vw660[0] != _vw660[1]:
+                        _bad660 = (_m660, _d660, *[
+                            ((os.path.relpath(_v[1]) if _v[1].startswith(os.getcwd() + os.sep)
+                              else _v[1]) if _v[0] == "file"
+                             else "no module" if _v[0] == "none"
+                             else "a refused resolution (" + _v[1] + ")") for _v in _vw660])
+                        break
+                    if _vw660[-1][0] != "file":
+                        continue
+                    _hf660 = _vw660[-1][1]
+                    _fol660 = [_hf660]
+                    # the package `__init__` chain CPython runs before the module itself
+                    _pt660 = _d660.split(".")
+                    _rt660 = _hf660
+                    for _ in range(len(_pt660) + (1 if os.path.basename(_hf660) == "__init__.py"
+                                                  else 0)):
+                        _rt660 = os.path.dirname(_rt660)
+                    for _k660 in range(1, len(_pt660)):
+                        _pi660 = os.path.join(_rt660, *_pt660[:_k660], "__init__.py")
+                        if os.path.isfile(_pi660):
+                            _fol660.append(_pi660)
+                    for _f660 in _fol660:
+                        if (_f660 not in _seen660 and _f660.endswith(".py")
+                                and os.path.commonpath([_f660, _lib660]) != _lib660):
+                            _seen660.add(_f660)
+                            _wl660.append(_f660)
+            if _bad660 is not None:
+                _dm660 = (os.path.relpath(_bad660[0]) if _bad660[0].startswith(os.getcwd() + os.sep)
+                          else _bad660[0])
+                raise _E613(
+                    f"the local module {_dm660}, which the program reaches, does `import "
+                    f"{_bad660[1]}`: resolved from its own directory (how its contracts are "
+                    f"verified) that is {_bad660[2]}, but CPython resolves it through the "
+                    f"PROGRAM's sys.path (the program's directory first, then PYTHONPATH / "
+                    f"--import-path), where it is {_bad660[3]}, so the contracts pycsl would "
+                    f"believe describe another module than the one the program runs (review rt72 "
+                    f"A1: prog.py -> lib/dep.py -> `from zqh72 import one`; pycsl PROVED "
+                    f"`\\result == 1` with lib/zqh72.py, CPython loaded the program directory's "
+                    f"zqh72.py and printed 2). FIX: import the module package-relatively (`from . "
+                    f"import ...`) or by its full package path, or rename one of the two files so "
+                    f"that both resolutions agree.",
+                    filename=main_file, stage="imports",
+                    code="PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER")
     if not imports:
         return set()
 
