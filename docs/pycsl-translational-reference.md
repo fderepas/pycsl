@@ -5389,13 +5389,14 @@ emits byte-identical WhyML.
 
 R614 unresolved aliases (run #8 lvZ2, `annotations.md` §7.614): before the alias fixpoint, the pass
 collects every name and dotted tail of the unit's parameter / return / annotated-assignment annotations
-(string annotations parsed) and adds to the aliases each one it cannot resolve (not an unrebound
-builtin, not a unit class / def, not bound only by call-free type expressions, not imported from a
-standard-library module or from a local dependency's top-level class / def / call-free type
-expression); each dependency's signature names get the same test one level deep. The imported-callee
-table no longer subtracts the unit's defs, keys every top-level def of a local dependency under the local
-and the dotted module spelling, and treats a dotted callee rooted at a local module import that is
-neither keyed nor a top-level class constructor as an unknown signature. Still refusal-only.
+(string annotations parsed) and adds to the aliases each one it cannot show innocuous (the exact rule and
+its measured narrowing are in §7.614: a call binding with a suspicious argument, a suspicious PEP 695
+bound, a non-type binding, a dependency binding of either kind or unparsable, an unbound name under a
+non-stdlib star import); each dependency's signature names get the same test one level deep. The
+imported-callee table no longer subtracts the unit's defs, keys every top-level def and every top-level
+class method of a local dependency (local, dotted-module and `Class.method` spellings; `from pkg import
+mod` as the submodule), and treats an unkeyed dotted callee rooted at a local module import as an unknown
+signature when a typed stub may still reach it. Still refusal-only.
 
 ### §T.6.148  Unbound builtin descriptors (route #435, run #3)
 
