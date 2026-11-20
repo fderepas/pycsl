@@ -22455,7 +22455,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if _dot:
                 _bks = _bk614.get(_bnm) or [] if _bnm is not None else []
                 _ok = False
-                if len(_bks) == 1 and isinstance(_bks[0], tuple):
+                if len(_bks) == 1 and isinstance(_bks[0], tuple) and _bks[0][0] == "imp":
                     _inn, _ia = _bks[0][1], _bks[0][2]
                     _imod = (_ia.name if isinstance(_inn, _ast614.Import)
                              else f"{_inn.module or ''}.{_ia.name}".strip("."))
@@ -22517,7 +22517,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     else _k for _k in _bks]
             if all(_k in ("decl", "texpr") for _k in _bks):
                 continue
-            if len(_bks) == 1 and isinstance(_bks[0], tuple):
+            if len(_bks) == 1 and isinstance(_bks[0], tuple) and _bks[0][0] == "imp":
                 _inn, _ia = _bks[0][1], _bks[0][2]
                 if isinstance(_inn, _ast614.Import):
                     continue  # a module object (its attributes are checked as dotted tails)
