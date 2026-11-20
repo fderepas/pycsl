@@ -1,0 +1,6 @@
+fns: [('expressionemissionmixin___coerce_to_int', 1404)]
+[run] callsite prover=Alt-Ergo,2.6.3, rc=2 selectors=11 records=17 probe-goals={'vacpost 0': ['Timeout'], 'vacpost 1': ['Timeout'], 'vacpost 10': ['Timeout', 'Timeout'], 'vacpost 2': ['Timeout'], 'vacpost 3': ['Timeout'], 'vacpost 4': ['Timeout'], 'vacpost 5': ['Timeout', 'Timeout'], 'vacpost 6': ['Timeout', 'Timeout'], 'vacpost 7': ['Timeout', 'Timeout'], 'vacpost 8': ['Timeout', 'Timeout'], 'vacpost 9': ['Timeout', 'Timeout']} stderr=''
+[run] callsite prover=Z3,4.13.3, rc=2 selectors=11 records=17 probe-goals={'vacpost 0': ['Timeout'], 'vacpost 1': ['Timeout'], 'vacpost 10': ['Timeout', 'Timeout'], 'vacpost 2': ['Timeout'], 'vacpost 3': ['Timeout'], 'vacpost 4': ['Timeout'], 'vacpost 5': ['Timeout', 'Timeout'], 'vacpost 6': ['Timeout', 'Out of\nmemory'], 'vacpost 7': ['Timeout', 'Timeout'], 'vacpost 8': ['Out of\nmemory', 'Timeout'], 'vacpost 9': ['Timeout', 'Timeout']} stderr=''
+[run] perfn prover=Alt-Ergo,2.6.3, SKIPPED (U56_SKIP_PERFN)
+[run] perfn prover=Z3,4.13.3, SKIPPED (U56_SKIP_PERFN)
+RESULT: []

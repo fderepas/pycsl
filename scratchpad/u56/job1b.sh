@@ -15,7 +15,7 @@ while read f fn; do
   rc=$?; o2=$(oom)
   printf '%s\t%s\trc=%s\t%ss\toom %s->%s\t%s\n' "$f" "$fn" $rc $((SECONDS-t0)) $o1 $o2 "$(grep -E '^RESULT|could not be checked' $O/$fn.log | tr '\n' ' ' | cut -c1-300)" >> $O/summary.tsv
 done < $U/scratchpad/u56/fnlist-b.txt
-[ -n "$NOSWEEP" ] && exit 0
+exit 0
 echo "$(date -u) base sweeps" >> $U/progress.txt
 $U/scratchpad/u56/sweep.sh /home/fabrice/git/pycsl-u56-base $U/scratchpad/u56/sw/base
 echo "$(date -u) job1 done" >> $U/progress.txt
