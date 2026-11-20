@@ -5302,7 +5302,8 @@ excused position (an argument / keyword value of a `raise <Name|Attribute>(..)` 
 expression-statement `print(..)` call, closed under f-string constant parts and `+` operands) and $N$
 every other str `Constant` value plus the `ast.literal_eval` of every string token on a `#@` line,
 the run is REFUSED (`PYCSL-R429-NONLATIN1-STR-LITERAL`) iff some $v \in O$ has $v \notin E$ or
-$v \in N$. Excused values reach the model only as an exception payload (bound by wildcard arms,
+$v \in N$, or $v$'s code point above 255 was written raw, or $N$ minus bare-string statements holds any
+value with a code point above 255 (then nothing is excused). Excused values reach the model only as an exception payload (bound by wildcard arms,
 never read) or under `print_1 (str_hash_op ..)` (result `unit`). A literal of code points $\le 255$
 is translated exactly as in §T.6.101. All of it is inline in `_run_pipeline` (mirror twin
 `\trusted`); `whyml_string_literal` has no mirror twin.

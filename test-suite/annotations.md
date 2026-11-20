@@ -6697,13 +6697,18 @@ literal of a body, a contract / assertion / invariant literal (§7.81), a module
 concatenation, a `\N{..}` / `\u` escape, a constant fold that leaves Latin-1 (`"\xff".upper()` is
 U+0178), an imported constant, a docstring the model reads -- REFUSES the program. ONE narrowing,
 measured necessary (without it 7 of the 53 mirror files are refused -- audit_proof, desugar,
-Module5_IREmitter, expressions, stmt_control_flow, proof2why3/normalize, pycsl -- with it 1) and sound: a value that the source holds ONLY as the
+Module5_IREmitter, expressions, stmt_control_flow, proof2why3/normalize, pycsl -- with it 2: pycsl's
+`_why3_typecheck` message was rewritten in ASCII, and the mirror `normalize_prover_output`, whose
+verified body really does `str.replace` with '∀'-style patterns, is a SOUNDNESS-FORCED RE-TRUST, +1
+marker, `getting-better/trusted-reasons.tsv`) and sound: a value that the source holds ONLY as the
 text of a `raise` constructor argument or of a `print(..)` argument (the constant itself, an f-string
 constant part, an operand of a `+` chain there) is excused -- it reaches the model only as an
 exception payload, which no claim can read (wildcard arms; route #233 refuses reading an `except ..
 as e` binding), or as the hashed argument of `print`, and assembling it raises nothing whatever the
 characters. A value also held anywhere else (a docstring included) or as a string token of a `#@`
-line, or not held verbatim by the source (a fold, an import), is not excused. A comment is never
+line, or not held verbatim by the source (a fold, an import), is not excused. No excusal at all in a file where
+another str constant (bare-string statements aside) or a `#@` string token holds a code point > 255, and
+never for a value whose code point > 255 was written raw (a fold / an import). A comment is never
 refused; a literal the model never receives (a `__main__` driver argument, a parameter default the
 body does not see, an f-string part the lowering drops) is not refused either. Code points 0..255 were measured faithful (no false claim over len / index /
 positive slices / concatenation / `in` / `find` / equality proves; corpus 0 moved). Witnesses
