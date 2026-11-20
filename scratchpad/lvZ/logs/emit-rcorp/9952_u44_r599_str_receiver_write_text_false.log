@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/9952_u44_r599_str_receiver_write_text_false.py'...
+[*] Memory model: hoare
+[*] Import 'argparse.ArgumentParser': external module, no local source found — skipping
+
+[!] PIPELINE ERROR:
+[module6-call]: PYCSL-R7Q-EXT-PATH-RECEIVER (route #599): the source does not show that the receiver of `s.write_text(..)` is a `pathlib.Path`, and the call is modelled as `pathlib.Path.write_text` (the file imports `Path` from `pathlib`): a `str` receiver (the path model represents both as one string) makes CPython raise AttributeError there, which the model does not raise (measured: a `str` parameter's `.mkdir()` under an `except AttributeError` handler proved the other path's value). Annotate the receiver as `Path`, or bind it only from `Path(..)` / `<Path> / <str>`.
+rc=1

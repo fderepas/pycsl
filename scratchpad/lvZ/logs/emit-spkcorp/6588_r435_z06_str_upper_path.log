@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ/test-suite/corpus/pycsl-reference/6588_r435_z06_str_upper_path.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'f' line 9: the call `str.upper(p)` does not match the signature row of `str.upper`: the unbound `str.upper` needs a first argument derived of class exactly `str`. CPython raises TypeError there, while this function claims `#@ no_exception` covering TypeError and the call lowers to an opaque value with no `raises` (route #441; measured: `n: int; len(n)`, `len(s, s)` and `int(n, 10)` under `#@ no_exception \all` proved). Admitted: a builtin call whose arity, keywords and argument classes match its row in the signature table, each constrained argument DERIVED (a parameter, field or element annotated with that class, a literal, an operator result). Pass arguments declared with the accepted class, or drop the claim.
+rc=1

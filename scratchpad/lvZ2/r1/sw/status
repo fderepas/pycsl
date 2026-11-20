@@ -1,0 +1,7 @@
+start 2026-11-20T10:29:45Z oom=15 head=04c14cbaeb97ff1308dff62f7605f29176003ade cwd=/home/fabrice/git/pycsl-lvZ2rs
+bd rc=0 2026-11-20T11:31:31Z oom=15
+cmp-root rc=0
+cmp-pyref rc=0
+mir rc=0 2026-11-20T11:39:16Z oom=15
+mir-diffq lines=0 n=53
+end 2026-11-20T11:39:16Z oom=15

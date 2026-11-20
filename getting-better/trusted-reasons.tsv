@@ -344,7 +344,6 @@ proof2why3/sertop.py	run_sertop_batch	unclassified	-
 proof2why3/sertop.py	SertopSession.type_of_batch	unclassified	-
 proof2why3/sertop.py	extract_via_sertop	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_generate_rocq_obligations	unclassified	-
-pycsl.py	_sha256_file	cost-scale:context-manager-model	A `with ... as` BINDING
 pycsl.py	_check_rocq_proofs	cost-scale:heterogeneous-list-model	A HETEROGENEOUS LIST LITERAL
 pycsl.py	_build_soundness_report	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_print_soundness_report	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL

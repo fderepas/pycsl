@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt67/n11_const_recv_exc.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+
+[!] PIPELINE ERROR:
+`except Exception` can be reached by an exception the model does not raise (AttributeError, TypeError, OverflowError, UnicodeError, ...), so the handler is dead in the proof while Python can run it, and this function makes a claim that depends on it (route #174; measured: `except AttributeError` around a None `Optional` attribute read proved the other path's value). Catch the specific modelled or explicitly raised exception, or test the condition before the operation.
+rc=1

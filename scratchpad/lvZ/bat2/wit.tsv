@@ -1,0 +1,5 @@
+head=b5c1d5555
+10251	hoare	rc=0	oom=15->15	Verification SUCCESS	valid=2/2
+10251	typed	rc=0	oom=15->15	Verification SUCCESS	valid=2/2
+10251	store	rc=0	oom=15->15	Verification SUCCESS	valid=2/2
+DONE

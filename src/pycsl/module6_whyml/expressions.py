@@ -4015,7 +4015,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(f"val {op} ({params}: string) : string")
         else:
             self._add_abstract_op(f"val {op} ({params}: string) : int")
-        return "(" + op + " " + " ".join(args[:n]) + ")"
+        # lvZ2 (run #8): `os.path` accepts a PathLike and `os.fspath`s it first, so an
+        # argument holding a MODELLED `Path(<str>)` (a `py_path`; the test inlined as at the
+        # constructor in `_handle_call_expr`) is passed as `path_str_op p`, its `str`.
+        _i8z = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+        _t8z = getattr(self, "shadow_r610", None)
+        _m8z = getattr(self, "shadow_mod_r610", None)
+        _q8z = getattr(self, "_current_sig_func_name", None)
+        _ok8z = (any(_i[0] == "Path" for _i in _i8z)
+                 and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                         for _i in _i8z if _i[0] == "Path")
+                 and all(_i[0] != "*" for _i in _i8z)
+                 and isinstance(_t8z, dict) and _q8z in _t8z and "Path" not in _t8z[_q8z]
+                 and isinstance(_m8z, set) and "Path" not in _m8z
+                 and "Path" not in {_f.get("name") for _f in (
+                     (getattr(self, "ir", None) or {}).get("functions") or [])
+                     if isinstance(_f, dict)}
+                 and "Path" not in {_t.get("name") for _t in (
+                     (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                     if isinstance(_t, dict)})
+        _pp8z = lambda _e: bool(_ok8z and isinstance(_e, dict) and (
+            (_e.get("type") == "Var" and _e.get("name") in (
+                (getattr(self, "ppath_locals_lvz2", None) or {}).get(_q8z) or ()))
+            or (_e.get("type") == "Call" and _e.get("func") == "Path"
+                and _e.get("receiver") is None and not _e.get("keywords")
+                and len(_e.get("args") or []) == 1 and isinstance(_e["args"][0], dict)
+                and self._is_string_expr(_e["args"][0]))))
+        _oa8z = list(args[:n])
+        for _oi8z, _oe8z in enumerate((expr.get("args") or [])[:n]):
+            if _pp8z(_oe8z):
+                self._add_abstract_op("val function path_str_op (p: py_path) : string")
+                _oa8z[_oi8z] = f"(path_str_op {_oa8z[_oi8z]})"
+        return "(" + op + " " + " ".join(_oa8z) + ")"
 
     def _handle_re_str_call(self, expr, args, local_refs=None):
         """Lower a recognized `re` string function to a faithful `string`-typed op.
@@ -5181,6 +5213,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and (((getattr(self, "_module_func_raises", {}) or {}).get(ir.get("func"))
                       or [{}])[0].get("ext") in ("Path.cwd", "json.dumps"))):
             return True
+        # lvZ2 (run #8): a modelled `Path(<str>)` is NOT a `string` any more (lvX's rule is
+        # withdrawn): it is the abstract `py_path` (`_handle_call_expr`), so neither it nor a
+        # local holding it is string-typed, and `p == str(p)` cannot become `str_eq_op p p`.
         # lvV (run #7): a modelled `hashlib.sha256(..).hexdigest()` is a `string`
         # (`ext_sha256_hexdigest_op`), as its lowering is.
         if (t == "Call" and ir.get("func") == "hexdigest" and not ir.get("args")
@@ -5423,6 +5458,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # string-value method rather than falling to the opaque scalar op.
             if _fn == "str":
                 return True
+            # lvZ2 (run #8): `os.fspath(p)` of a MODELLED `Path(<str>)` is `path_str_op p`
+            # (`_handle_call_expr`): a string. The modelled-Path test is inlined.
+            if _fn == "os.fspath" and len(ir.get("args") or []) == 1:
+                _i8z = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                        if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+                _t8z = getattr(self, "shadow_r610", None)
+                _m8z = getattr(self, "shadow_mod_r610", None)
+                _q8z = getattr(self, "_current_sig_func_name", None)
+                _ok8z = (any(_i[0] == "Path" for _i in _i8z)
+                         and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                                 for _i in _i8z if _i[0] == "Path")
+                         and all(_i[0] != "*" for _i in _i8z)
+                         and isinstance(_t8z, dict) and _q8z in _t8z and "Path" not in _t8z[_q8z]
+                         and isinstance(_m8z, set) and "Path" not in _m8z
+                         and "Path" not in {_f.get("name") for _f in (
+                             (getattr(self, "ir", None) or {}).get("functions") or [])
+                             if isinstance(_f, dict)}
+                         and "Path" not in {_t.get("name") for _t in (
+                             (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                             if isinstance(_t, dict)})
+                _pp8z = lambda _e: bool(_ok8z and isinstance(_e, dict) and (
+                    (_e.get("type") == "Var" and _e.get("name") in (
+                        (getattr(self, "ppath_locals_lvz2", None) or {}).get(_q8z) or ()))
+                    or (_e.get("type") == "Call" and _e.get("func") == "Path"
+                        and _e.get("receiver") is None and not _e.get("keywords")
+                        and len(_e.get("args") or []) == 1 and isinstance(_e["args"][0], dict)
+                        and self._is_string_expr(_e["args"][0]))))
+                if (_pp8z(ir["args"][0]) and any(_i[0] == "os" for _i in _i8z)
+                        and all(_i[1] == "os" and _i[2] == "os" and _i[4]
+                                for _i in _i8z if _i[0] == "os")
+                        and "os" not in _t8z[_q8z] and "os" not in _m8z):
+                    return True
             # (#49) gen #31 — `<x>.__str__()` RETURNS A PYTHON `str`, always: it is the
             # protocol, and CPython raises TypeError on any other return. The emitter has
             # always LOWERED it as one (`val str_dunder_op () : string`, and route #220's
@@ -5751,6 +5818,36 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _fparts = ir.get("parts") or []
             if _fparts and all(self._is_string_expr(_fp) for _fp in _fparts):
                 return True
+            # lvZ2 (run #8): a part holding a MODELLED `Path` (`f"{p}"`) is `str(p)`, the
+            # law-free `path_str_op` (`_handle_fstring_expr` rewrites it so): a string.
+            # The modelled-Path test is inlined (the same in `_handle_call_expr`,
+            # `_handle_binop`, `_handle_fstring_expr`; keep them in step).
+            _i8z = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                    if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+            _t8z = getattr(self, "shadow_r610", None)
+            _m8z = getattr(self, "shadow_mod_r610", None)
+            _q8z = getattr(self, "_current_sig_func_name", None)
+            _ok8z = (any(_i[0] == "Path" for _i in _i8z)
+                     and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                             for _i in _i8z if _i[0] == "Path")
+                     and all(_i[0] != "*" for _i in _i8z)
+                     and isinstance(_t8z, dict) and _q8z in _t8z and "Path" not in _t8z[_q8z]
+                     and isinstance(_m8z, set) and "Path" not in _m8z
+                     and "Path" not in {_f.get("name") for _f in (
+                         (getattr(self, "ir", None) or {}).get("functions") or [])
+                         if isinstance(_f, dict)}
+                     and "Path" not in {_t.get("name") for _t in (
+                         (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                         if isinstance(_t, dict)})
+            _pp8z = lambda _e: bool(_ok8z and isinstance(_e, dict) and (
+                (_e.get("type") == "Var" and _e.get("name") in (
+                    (getattr(self, "ppath_locals_lvz2", None) or {}).get(_q8z) or ()))
+                or (_e.get("type") == "Call" and _e.get("func") == "Path"
+                    and _e.get("receiver") is None and not _e.get("keywords")
+                    and len(_e.get("args") or []) == 1 and isinstance(_e["args"][0], dict)
+                    and self._is_string_expr(_e["args"][0]))))
+            if _fparts and all(self._is_string_expr(_fp) or _pp8z(_fp) for _fp in _fparts):
+                return True
             # lvS (run #7, cv13 O19): the typing half of `_handle_fstring_expr`'s hval-segment
             # gate -- the SAME condition on the same parts (at least one PyVal segment, every
             # segment string-typed or PyVal), so classifier and lowering agree.
@@ -5884,6 +5981,48 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to_dict() is faithful for its purposes.
         expr = node.to_dict()
         raw_op = expr["op"]
+        # lvZ2 (run #8): `==` / `!=` of two MODELLED `Path(<str>)` values (`py_path`, the
+        # test inlined as at the constructor in `_handle_call_expr`) is CPython's Path
+        # equality, modelled as the equality of the abstract `py_path` values (`path_eq_op`:
+        # no law relates it to `str` equality or to `path_str_op`; `Path(s) == Path(s)` holds
+        # by congruence of the deterministic constructor, as in CPython). A Path compared with
+        # a `str` -- or ordered -- reaches no such op: a Why3 type error (fail-closed).
+        if (raw_op in ("==", "!=") and not expr.get("py_is")
+                and isinstance(expr.get("left"), dict) and isinstance(expr.get("right"), dict)):
+            _i8z = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                    if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+            _t8z = getattr(self, "shadow_r610", None)
+            _m8z = getattr(self, "shadow_mod_r610", None)
+            _q8z = getattr(self, "_current_sig_func_name", None)
+            _ok8z = (any(_i[0] == "Path" for _i in _i8z)
+                     and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                             for _i in _i8z if _i[0] == "Path")
+                     and all(_i[0] != "*" for _i in _i8z)
+                     and isinstance(_t8z, dict) and _q8z in _t8z and "Path" not in _t8z[_q8z]
+                     and isinstance(_m8z, set) and "Path" not in _m8z
+                     and "Path" not in {_f.get("name") for _f in (
+                         (getattr(self, "ir", None) or {}).get("functions") or [])
+                         if isinstance(_f, dict)}
+                     and "Path" not in {_t.get("name") for _t in (
+                         (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                         if isinstance(_t, dict)})
+            _pp8z = lambda _e: bool(_ok8z and isinstance(_e, dict) and (
+                (_e.get("type") == "Var" and _e.get("name") in (
+                    (getattr(self, "ppath_locals_lvz2", None) or {}).get(_q8z) or ()))
+                or (_e.get("type") == "Call" and _e.get("func") == "Path"
+                    and _e.get("receiver") is None and not _e.get("keywords")
+                    and len(_e.get("args") or []) == 1 and isinstance(_e["args"][0], dict)
+                    and self._is_string_expr(_e["args"][0]))))
+            if _pp8z(expr["left"]) and _pp8z(expr["right"]):
+                _pel = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
+                _per = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
+                if self._in_spec or invariant_ctx:
+                    return (f"({_pel} = {_per})" if raw_op == "=="
+                            else f"({_pel} <> {_per})")
+                self._add_abstract_op("val path_eq_op (a b: py_path) : bool\n"
+                                      "    ensures { result <-> (a = b) }")
+                return (f"(path_eq_op {_pel} {_per})" if raw_op == "=="
+                        else f"(not (path_eq_op {_pel} {_per}))")
         # dict-value-model-r4 (impl F5): `==` / `!=` with a PyVal operand against a bool /
         # float literal or another PyVal is the CERTIFIED `hval_eq` (numeric tower: `True ==
         # 1`, `1 == 1.0`; `(1,) != [1]`). Taken FIRST, before the generic float / bool
@@ -11490,6 +11629,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             stage="module6-call", code="PYCSL-R7V-SHA-RECEIVER")
                     _pw7v = self._expr_to_whyml({"type": "Var", "name": _p7v},
                                                 local_refs, invariant_ctx, subst)
+                    # lvZ2 (run #8): a receiver holding a MODELLED `Path(<str>)` is a
+                    # `py_path` (`ppath_locals_lvz2` + lvX's test, inlined as at the
+                    # constructor): its read is the `py_path` twin of the same impure world
+                    # read, same raises; a #31-erased `p: Path` receiver keeps `string`.
+                    _i8z = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                            if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+                    _t8z = getattr(self, "shadow_r610", None)
+                    _m8z = getattr(self, "shadow_mod_r610", None)
+                    _q8z = getattr(self, "_current_sig_func_name", None)
+                    _ok8z = (any(_i[0] == "Path" for _i in _i8z)
+                             and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                                     for _i in _i8z if _i[0] == "Path")
+                             and all(_i[0] != "*" for _i in _i8z)
+                             and isinstance(_t8z, dict) and _q8z in _t8z and "Path" not in _t8z[_q8z]
+                             and isinstance(_m8z, set) and "Path" not in _m8z
+                             and "Path" not in {_f.get("name") for _f in (
+                                 (getattr(self, "ir", None) or {}).get("functions") or [])
+                                 if isinstance(_f, dict)}
+                             and "Path" not in {_t.get("name") for _t in (
+                                 (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                                 if isinstance(_t, dict)})
+                    _pp8z = lambda _e: bool(_ok8z and isinstance(_e, dict) and (
+                        (_e.get("type") == "Var" and _e.get("name") in (
+                            (getattr(self, "ppath_locals_lvz2", None) or {}).get(_q8z) or ()))
+                        or (_e.get("type") == "Call" and _e.get("func") == "Path"
+                            and _e.get("receiver") is None and not _e.get("keywords")
+                            and len(_e.get("args") or []) == 1 and isinstance(_e["args"][0], dict)
+                            and self._is_string_expr(_e["args"][0]))))
+                    if _pp8z({"type": "Var", "name": _p7v}):
+                        self._add_abstract_op(
+                            f"val ext_ppath_read_bytes_op (p: py_path) : array int "
+                            f"raises {{ {_x7vr} }}")
+                        return f"(ext_sha256_hexdigest_op (ext_ppath_read_bytes_op {_pw7v}))"
                     self._add_abstract_op(
                         f"val ext_path_read_bytes_op (p: string) : array int "
                         f"raises {{ {_x7vr} }}")
@@ -11548,6 +11720,75 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     f"val ext_str_encode_check_op (s: string) : unit raises {{ {_x7vr} }}")
                 return (f"(let _x7v_e = {_sw7v} in ext_str_encode_check_op _x7v_e; "
                         f"ext_sha256_hexdigest_op (ext_str_enc_bytes _x7v_e))")
+        # lvX (run #8) THE `Path(<str>)` CONSTRUCTOR, on lvQ's open-world path frame (#31: a
+        # `pathlib.Path` is a Why3 `string`). It used to fall to the generic fallback
+        # `path_1 (str_hash_op s) : int`, an int FACADE that hashed the string, so a Path
+        # built from a str could reach no path op (`.read_bytes()`, `.mkdir()`, `/`). It is
+        # now `val function ext_path_of_str_op (s: string) : string`: DETERMINISTIC (pathlib's
+        # parsing is lexical: no filesystem, cwd or environment read) and LAW-FREE -- NOT the
+        # identity (CPython normalises `Path("a//b")` to `a/b`, `Path("")` to `.`, drops a
+        # trailing `/`), no length / prefix / injectivity law. CPython raises nothing for a
+        # `str` argument; the TypeError of a non-str argument is not modelled, so the shape is
+        # admitted only for an argument the emitter positively types as a string (a str or,
+        # by the #31 erasure, a Path, which `Path` also accepts). ROUTE #610: `Path` must be
+        # the `from pathlib import Path` binding (every import binding `Path` is that one,
+        # absolute, no star import) and be bound nowhere in this function and not rebound at
+        # module level (pycsl.py's source table; absent -> shadowed, fail-closed); otherwise
+        # NO model: the old lowering is kept. No raise, so no registry row.
+        # lvZ2 (run #8) RESTRICTED TYPE SEPARATION: the result is the ABSTRACT `py_path`,
+        # never a `string` (`val function ext_path_of_str_op (s: string) : py_path`, still
+        # deterministic and law-free), so the value cannot meet a `str` except through
+        # `str(p)` / `os.fspath(p)` / `f"{p}"`, the law-free `val function path_str_op (p:
+        # py_path) : string` (no inverse, no injectivity, no relation to `s`). Every other
+        # mix -- `p == str(p)`, `p < s`, a Path passed to a `str` parameter of an imported or
+        # dotted callee, an imported identity -- is a Why3 TYPE ERROR (fail-closed; rt65 a01,
+        # rt67 m02 / m05, rt70 m19 / m20 / m24). A LOCAL holds a modelled Path when pycsl.py's
+        # source table `ppath_locals_lvz2` says every binding of it is `Path(..)` and lvX's
+        # test holds (the same inlined test in `_is_string_expr`, `_handle_binop`,
+        # `_handle_fstring_expr`; keep them in step). The #31-erased `p: Path` parameter stays
+        # a `string` (out of scope; route #614 covers it).
+        if func_name in ("Path", "str", "os.fspath") and expr.get("receiver") is None:
+            _i8z = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                    if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+            _t8z = getattr(self, "shadow_r610", None)
+            _m8z = getattr(self, "shadow_mod_r610", None)
+            _q8z = getattr(self, "_current_sig_func_name", None)
+            _ok8z = (any(_i[0] == "Path" for _i in _i8z)
+                     and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                             for _i in _i8z if _i[0] == "Path")
+                     and all(_i[0] != "*" for _i in _i8z)
+                     and isinstance(_t8z, dict) and _q8z in _t8z and "Path" not in _t8z[_q8z]
+                     and isinstance(_m8z, set) and "Path" not in _m8z
+                     and "Path" not in {_f.get("name") for _f in (
+                         (getattr(self, "ir", None) or {}).get("functions") or [])
+                         if isinstance(_f, dict)}
+                     and "Path" not in {_t.get("name") for _t in (
+                         (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                         if isinstance(_t, dict)})
+            _pp8z = lambda _e: bool(_ok8z and isinstance(_e, dict) and (
+                (_e.get("type") == "Var" and _e.get("name") in (
+                    (getattr(self, "ppath_locals_lvz2", None) or {}).get(_q8z) or ()))
+                or (_e.get("type") == "Call" and _e.get("func") == "Path"
+                    and _e.get("receiver") is None and not _e.get("keywords")
+                    and len(_e.get("args") or []) == 1 and isinstance(_e["args"][0], dict)
+                    and self._is_string_expr(_e["args"][0]))))
+            if func_name == "Path" and _pp8z(expr):
+                _s8x = self._expr_to_whyml(expr["args"][0], local_refs, invariant_ctx, subst)
+                self._add_abstract_op("val function ext_path_of_str_op (s: string) : py_path")
+                return f"(ext_path_of_str_op {_s8x})"
+            if (func_name in ("str", "os.fspath") and not expr.get("keywords")
+                    and len(expr.get("args") or []) == 1 and _pp8z(expr["args"][0])
+                    and func_name not in {_f.get("name") for _f in (
+                        (getattr(self, "ir", None) or {}).get("functions") or [])
+                        if isinstance(_f, dict)}
+                    and (func_name == "str"
+                         or (any(_i[0] == "os" for _i in _i8z)
+                             and all(_i[1] == "os" and _i[2] == "os" and _i[4]
+                                     for _i in _i8z if _i[0] == "os")
+                             and "os" not in _t8z[_q8z] and "os" not in _m8z))):
+                _s8x = self._expr_to_whyml(expr["args"][0], local_refs, invariant_ctx, subst)
+                self._add_abstract_op("val function path_str_op (p: py_path) : string")
+                return f"(path_str_op {_s8x})"
         # (#49) ROUTES #435 / #436 -- two call sites whose CPython TypeError / OverflowError had
         # no obligation, under `\all` only (TypeError and OverflowError are not Phase 1;
         # route #332's rule, as #417 / #426). MEASURED PROVED at 78b519f63 (red team 34):
@@ -12393,6 +12634,40 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # the program, so NO law is claimed -- not truth, not `is_file -> exists`, not
             # agreement between two calls. Fail-closed on any argument (`follow_symlinks=`),
             # any keyword, and any receiver not already string-typed.
+            # lvZ2 (run #8): the same three predicates on a receiver holding a MODELLED
+            # `Path(<str>)` (a `py_path`, the test inlined as at the constructor): the
+            # `py_path` twins of the same impure, law-free ops.
+            if _prt in ("is_file", "is_dir", "exists") and _prr is not None:
+                _i8z = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                        if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+                _t8z = getattr(self, "shadow_r610", None)
+                _m8z = getattr(self, "shadow_mod_r610", None)
+                _q8z = getattr(self, "_current_sig_func_name", None)
+                _ok8z = (any(_i[0] == "Path" for _i in _i8z)
+                         and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                                 for _i in _i8z if _i[0] == "Path")
+                         and all(_i[0] != "*" for _i in _i8z)
+                         and isinstance(_t8z, dict) and _q8z in _t8z and "Path" not in _t8z[_q8z]
+                         and isinstance(_m8z, set) and "Path" not in _m8z
+                         and "Path" not in {_f.get("name") for _f in (
+                             (getattr(self, "ir", None) or {}).get("functions") or [])
+                             if isinstance(_f, dict)}
+                         and "Path" not in {_t.get("name") for _t in (
+                             (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                             if isinstance(_t, dict)})
+                _pp8z = lambda _e: bool(_ok8z and isinstance(_e, dict) and (
+                    (_e.get("type") == "Var" and _e.get("name") in (
+                        (getattr(self, "ppath_locals_lvz2", None) or {}).get(_q8z) or ()))
+                    or (_e.get("type") == "Call" and _e.get("func") == "Path"
+                        and _e.get("receiver") is None and not _e.get("keywords")
+                        and len(_e.get("args") or []) == 1 and isinstance(_e["args"][0], dict)
+                        and self._is_string_expr(_e["args"][0]))))
+                if _pp8z(_prr):
+                    _pop = {"is_file": "ppath_isfile_op", "is_dir": "ppath_isdir_op",
+                            "exists": "ppath_exists_op"}[_prt]
+                    _prs = self._expr_to_whyml(_prr, local_refs, invariant_ctx, subst)
+                    self._add_abstract_op(f"val {_pop} (p: py_path) : int")
+                    return f"({_pop} {_prs})"
             if (_prt in ("is_file", "is_dir", "exists") and _prr is not None
                     and self._is_string_expr(_prr)):
                 _pop = {"is_file": "path_isfile_op", "is_dir": "path_isdir_op",
@@ -21672,6 +21947,36 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # — instead of collapsing each segment to an int hash. A mixed f-string (any
         # int/opaque interpolation) keeps the legacy int-hash model below, so the
         # corpus that interpolates non-string values stays byte-identical.
+        # lvZ2 (run #8): a part holding a MODELLED `Path(<str>)` (a `py_path`; the test
+        # inlined as at the constructor in `_handle_call_expr`) is `format(p, "")`, i.e.
+        # `str(p)`: rewritten to that call, which lowers to the law-free `path_str_op`.
+        _i8z = [_i for _i in ((getattr(self, "ir", None) or {}).get("imports") or [])
+                if isinstance(_i, (list, tuple)) and len(_i) >= 5]
+        _t8z = getattr(self, "shadow_r610", None)
+        _m8z = getattr(self, "shadow_mod_r610", None)
+        _q8z = getattr(self, "_current_sig_func_name", None)
+        _ok8z = (any(_i[0] == "Path" for _i in _i8z)
+                 and all(_i[1] == "Path" and _i[2] == "pathlib" and not _i[3] and not _i[4]
+                         for _i in _i8z if _i[0] == "Path")
+                 and all(_i[0] != "*" for _i in _i8z)
+                 and isinstance(_t8z, dict) and _q8z in _t8z and "Path" not in _t8z[_q8z]
+                 and isinstance(_m8z, set) and "Path" not in _m8z
+                 and "Path" not in {_f.get("name") for _f in (
+                     (getattr(self, "ir", None) or {}).get("functions") or [])
+                     if isinstance(_f, dict)}
+                 and "Path" not in {_t.get("name") for _t in (
+                     (getattr(self, "ir", None) or {}).get("type_decls") or [])
+                     if isinstance(_t, dict)})
+        _pp8z = lambda _e: bool(_ok8z and isinstance(_e, dict) and (
+            (_e.get("type") == "Var" and _e.get("name") in (
+                (getattr(self, "ppath_locals_lvz2", None) or {}).get(_q8z) or ()))
+            or (_e.get("type") == "Call" and _e.get("func") == "Path"
+                and _e.get("receiver") is None and not _e.get("keywords")
+                and len(_e.get("args") or []) == 1 and isinstance(_e["args"][0], dict)
+                and self._is_string_expr(_e["args"][0]))))
+        if _ok8z:
+            parts = [({"type": "Call", "func": "str", "args": [_lp]} if _pp8z(_lp) else _lp)
+                     for _lp in parts]
         if all(self._is_string_expr(p) for p in parts):
             acc = self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst)
             # 07-03-refactor R2 (finish): a `for` over `parts[1:]` (array-emit_ir slice, R7) gets the

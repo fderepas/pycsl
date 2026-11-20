@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10089_lvv_encode_path_receiver_refused.py'...
+[*] Memory model: hoare
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+
+[!] PIPELINE ERROR:
+[module6-call]: PYCSL-R7V-SHA-RECEIVER: the receiver of `.encode(..)` inside `hashlib.sha256(..).hexdigest()` is not positively a `str` here (a `Path` / `bytes` receiver raises AttributeError in CPython, which the model does not raise). Admitted: a `str`-annotated parameter that is never rebound, or `<str literal>.join(..)`.
+rc=1

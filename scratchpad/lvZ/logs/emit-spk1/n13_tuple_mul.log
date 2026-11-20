@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt67/n13_tuple_mul.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+
+[!] PIPELINE ERROR:
+[whyml]: sequence repetition is modelled only for a ONE-element list display on the left, `[x] * n` (an n-element list of x). A list display of another length, or a tuple display on either side of `*`, has no model here: measured, `[1, 2] * 3` lowered to a list of length 3 (CPython 6) and `(0,) * 3` to the int 0 (CPython `(0, 0, 0)`, truthy), and both PROVED false claims. Build the sequence with a loop, or as `[x] * n` per element.
+rc=1

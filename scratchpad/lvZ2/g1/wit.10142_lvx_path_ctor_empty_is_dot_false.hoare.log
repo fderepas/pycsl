@@ -1,0 +1,19 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10142_lvx_path_ctor_empty_is_dot_false.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_1hjvk4yu.mlw", line 15, characters 15-27:
+Sub-goal postcondition of goal empty_kept'vc.
+Prover result is: Valid (0.00s, 36 steps).
+
+File "/tmp/.pycsl_1hjvk4yu.mlw", line 15, characters 15-27:
+Sub-goal postcondition of goal empty_kept'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 557 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

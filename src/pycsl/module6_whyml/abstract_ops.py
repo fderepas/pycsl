@@ -347,6 +347,14 @@ class AbstractOpsMixin:
         declared twice — Why3 rejects with "Symbol X already defined".
         """
         self._register_referenced_self_dispatch_vals(out)
+        # lvZ2 (run #8): a MODELLED `Path(<str>)` value is the ABSTRACT type `py_path`
+        # (`expressions._handle_call_expr`), not a `string`. Declared once, here, when an
+        # abstract op mentions it: no law, no constructor, no ordering, no conversion from a
+        # `string` other than the law-free `ext_path_of_str_op` -- a Path / str mix is a Why3
+        # type error (fail-closed). Byte-inert for every unit without the modelled shape.
+        if ("  type py_path" not in out
+                and any("py_path" in _d for _d in self._abstract_ops.values())):
+            out.insert(self._find_abstract_val_insert_idx(out), "  type py_path")
         if not self._abstract_ops:
             return
 

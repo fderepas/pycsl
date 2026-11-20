@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2r/test-suite/corpus/pycsl-reference/10296_lvz2_r614_imported_keep_str_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'multi_file_lib.lvz2r_tat': ['keep'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+rc=0

@@ -1,0 +1,9 @@
+9700_lvq_ext_mkdir_honest	Verification SUCCESS
+9706_lvq_ext_write_then_isfile	Verification SUCCESS
+9961_u44_r599_ctl_path_receiver_under_handler	Verification SUCCESS
+9962_u44_r599_ctl_two_ext_mkdir_body	Verification SUCCESS
+9966_u44_r599_ctl_advice_annotate_path	Verification SUCCESS
+6587_r434_k07_path_convert_ctl	Verification SUCCESS
+10207_r614_str_of_path_compare_ctl	Verification SUCCESS
+n02_typealias	L3-tc ✗
+DONE

@@ -6753,6 +6753,99 @@ controls `10276`-`10279` (ASCII and Latin-1 literals still prove; a non-Latin-1 
 comment or a docstring is not refused). Measurements and the over-refusal list:
 `getting-better/open-routes/route429-latin1-upper-closure.md` (u57 section). LATIN1-STR itself stays
 declared for SYMBOLIC str values (`ord(s) < 256`, `s.upper()`).
+### 7.614 A pathlib Path value never meets a str in a comparison (route #614, run #8)
+
+The value model represents a `pathlib.Path` as its string form (a Why3 `string`): #31 erases a `Path`
+annotation to `str`, lvX lowers `Path(<str>)` to the law-free `ext_path_of_str_op s : string`, and `str(x)` /
+`f"{x}"` of a string is the identity. So a Path and its str were the SAME value: `p = Path(s); p == str(p)`
+PROVED `\result == True` (CPython `PosixPath('a') == 'a'` is False), likewise `!=`, `p in [str(p)]`,
+`f"{p}" == p`, branches on them, a `p: Path` parameter (PRE-EXISTING), and `p < q` was decided as string
+ordering (CPython orders by parts: `Path("a/b") < Path("a-b")` is True, `"a/b" < "a-b"` False) (red team rt65).
+RULE (`PYCSL-R614-PATH-STR-CONFLATED`, every non-`\trusted` function; `pycsl.py::_run_pipeline`, read on the
+SOURCE): a value is path-ish when it is a name annotated `Path` / `PurePath` / `PosixPath` / `WindowsPath` /
+`Pure*Path` / `PathLike` (also inside `List[..]` / `Optional[..]`), a name / field / container bound from a
+path-ish value (to a fixpoint: assignment, walrus, `for` / comprehension targets, a default, `append` /
+item store into a fresh local container), a Path class call, a Path-only method call, a call of a unit
+function returning a Path, `x.parent`, a `/` with a path-ish operand, or a subscript / conditional / boolean /
+container / comprehension / lambda of one. REFUSED: a comparison (`==` `!=` `<` `<=` `>` `>=` `in` `not in`
+`is` `is not`) with a path-ish operand, except `is None` / `is not None` and `Path(a) == Path(b)` / `!=` with
+both operands a direct one-argument `Path(..)` call (deterministic, never decided different: `Path("a//b") ==
+Path("a/b")` with `\result == False` does not prove, `10205`); sort / min / max / hash / set / dict /
+membership / equality methods, `isinstance` / `type` / `repr` / `id` of one; a path-ish set element, dict
+key or subscript key; `!r` / `!a`, `%` or `.format` with `!r`; `match` on one; returning one from a function
+not annotated to return a Path; passing one to a unit-function parameter (or dataclass field) not annotated
+`Path`, to a parameter / lambda / local callable, to `map` / `filter` / `partial` / `setattr`, or to a method
+of a non-module, non-Path receiver; storing one into a container that is not a fresh local one. The same
+comparisons and calls are refused in the CONTRACTS (requires / ensures / `#@ assert` / loop invariants, read on
+the IR). `str(p)` stays admitted: it IS a `str`. Advice: compare the strings (`str(p) == s`,
+`str(p) < str(q)`). Witnesses `10200`-`10206` (expected FAIL; `10205` fails by proof, the others are refused
+in the default / typed / store models); control `10207`.
+
+**Route #617 (run #8, lvZ): aliases and imported callees.** Red team rt67 found two channels the
+annotation test above missed, both still lowered as strings: (B) a parameter / return annotated through a
+TYPE ALIAS of a Path type (`Fp: TypeAlias = Path`, PEP 695 `type Fp = Path`, `Fp = pathlib.Path`, an alias
+of `Optional[Path]`, an alias chain), which #31 resolves and erases to `string` (`p == str(p)`, `p != t`,
+`p < q`, `p in [str(p)]` PROVED; CPython False / True); (A) a Path that comes back from an IMPORTED
+function (`resolve_imports` injects it as a `\trusted` stub whose `-> Path` was erased to `string`:
+`q = ident(Path(s)); q == str(q)` PROVED), or that is passed to an imported `str` parameter. The pass now
+(a) resolves aliases to a fixpoint: a name bound anywhere by a TYPE EXPRESSION (a name, attribute, string,
+subscript or `|` union, never a call) that mentions a Path class or an alias, an import binding of a Path
+class (`Path as Fp`), and a name imported from a local dependency where it is such an alias, counts as a
+Path name in every annotation test and as a Path class at a call; (b) reads the DECLARED signature of every
+function imported from a local dependency (`from m import f`, `import m` + `m.f`, `from m import *`) from
+that dependency's source (its own aliases resolved): a call of one declared to return a Path (or with an
+unannotated return and a path-ish argument, or whose `def` cannot be found, e.g. a re-export) is
+path-ish, so are calls of any dependency function or METHOD declared to return a Path (by name), and a
+path-ish argument to an imported parameter not annotated Path (or of an unreadable signature) is REFUSED,
+in the body and in the contracts. The pass also runs on every unit that imports a name (an imported Path
+need not spell `Path` in the importer). Witnesses `10240`-`10250`, `10253`, `10254` (expected FAIL, refused;
+helper `multi_file_lib/r617_pathlib.py`); controls `10251` (a Path to an imported `Path` parameter, `str`
+result) and `10252` (alias-annotated, strings compared).
+
+**Restricted type separation (run #8, lvZ2).** Red team rt70 found further channels R614 did not
+follow (an imported `ident(p: Path) -> Fp` with `Fp = TypeAliasType(..)`, a local method named like an
+imported `keep(x: str)`, a dotted `pkg.h.keep(Path(s))`): each let a modelled `Path(<str>)` meet a `str`.
+The class is now closed by TYPING instead of by one more refusal: the modelled constructor's result is the
+abstract WhyML type `py_path` (`type py_path`; `val function ext_path_of_str_op (s: string) : py_path`,
+still deterministic and law-free), and a local holds one when every binding of it in the function is a
+single-target `n = Path(..)` (pycsl.py's source table `ppath_locals_lvz2`). `str(p)` / `os.fspath(p)` /
+`f"{p}"` / an `os.path` argument of such a value is the law-free `val function path_str_op (p: py_path) :
+string` (no inverse, no injectivity, no relation to `s`); `==` / `!=` of two such values is `path_eq_op`, the
+equality of the abstract values (no law relates it to `str` equality); `.read_bytes()` inside the sha
+model and `.exists()` / `.is_file()` / `.is_dir()` take the `py_path` twins `ext_ppath_read_bytes_op` /
+`ppath_*_op` of the same impure, law-free reads. Every other mix -- `p == str(p)`, ordering, a modelled
+Path passed to a `str` / Path parameter of a user, imported or dotted callee, returned from a `-> Path`
+function -- is a Why3 TYPE ERROR (fail-closed). The #31-erased `p: Path` parameter is unchanged (still a
+`string`, covered by R614 above). `_sha256_file` stays verified on `py_path`. Witnesses `10280`-`10285`
+(expected FAIL; helper `multi_file_lib/lvz2_pathlib.py`), controls `10286` (`os.fspath(p) == str(p)`),
+`10287` (`f"{p}" == str(p)`), `10288` (`str(p)` deterministic).
+**Unresolved aliases and unknown callees (run #8, lvZ2).** Red team rt70: a Path behind
+`Fp = TypeAliasType("Fp", Path)` (also `typing.TypeAliasType`, in the unit or in a dependency's
+`-> Fp`) is erased to `string` by route #336 while the alias fixpoint above skips every call-built
+binding (t01 / t03 / t04 / m07 PROVED, CPython False / True); a unit method named like an imported
+function hid the import from the signature check (m19), and a two-dot callee (`pkg.h.keep`) was never
+keyed (m20). RULE: every name (or dotted tail) mentioned by an annotation of the unit that the pass cannot
+show to be no Path alias is a Path alias (path-ish in every annotation test): a name bound by a CALL whose
+arguments mention a Path class, a name the unit binds by a type expression or a call, a Path-class import,
+or a nested call / lambda / starred value (`TypeAliasType("Fp", Path)`, `typing.TypeAliasType`,
+`NewType("P", Path)`, `TypeVar("T", bound=Path)`); a PEP 695 type parameter whose bound / default does; any
+binding other than a class / def / type expression / such a call (a parameter, a loop target, ...); a name
+imported from a local dependency that binds it otherwise (also a re-export), or whose source cannot be
+parsed; a dotted tail a local module binds so; an unbound name when the unit star-imports a
+non-standard-library module. A dependency's signatures get the same test one level deep. NOT aliases (the
+front end cannot resolve them to a Path either, so they stay opaque, never the #31 `string`): an unbound
+name without such a star import (the emitter's `ExprIR`), a name imported from a module the shared
+resolver (`frontend.ir_resolve._resolve_module_path`, Module 5's own) cannot find, a call binding with
+innocuous arguments (`TypeVar("T")`, `_N("Assign")`). Measured before that narrowing (every call-built,
+unbound, non-local name an alias): corpus root 46 units refused that emitted at int70 (17 expected PASS),
+pyref 0, mirror 15 / 53 refused; after it: 0 / 0 / 0 (corpus byte-diff vs int70: GONE only the new
+witnesses' shapes). Imported callees are no longer hidden by unit defs of the same name; every top-level
+def of a local dependency and every method of its top-level classes is keyed under its local, its dotted
+module and its `Class.method` spelling (`from pkg import mod` binds the submodule), and a dotted callee
+rooted at a local module import that is not keyed but may still reach a typed stub (an unreadable module,
+a star import, a re-export of the head, a method a class of the module lacks) has an UNKNOWN signature
+(its result is path-ish, a path-ish argument to it is refused). Witnesses `10289`-`10295` (expected FAIL,
+refused; helper `multi_file_lib/lvz2r_tat.py`), control `10296`.
 
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
