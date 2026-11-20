@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u56/getting-better/open-routes/witnesses-r616/w616_paren_string.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+line 10: a `Ensures` directive is attached to a SimpleStatement anchor ('<statement>'), which does not consume it — the clause would be SILENTLY DISCARDED while the run still reported 'All contracts formally proven'. A `#@` block binds to the node that FOLLOWS it: move it directly above the `def`/`class`/loop it describes.

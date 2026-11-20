@@ -1,0 +1,12 @@
+#!/bin/bash
+# route #616 witness: a PATH-prepended why3 wrapper.
+#   R616_MODE=reject-cs : for a CALL-SITE probe file ([@expl:vacpost), behave exactly as why3 does
+#                         when it REJECTS a file (one diagnostic line on stderr, empty stdout, rc 1)
+#                         without running the real why3. It never writes a verdict.
+#   R616_MODE=off/unset : pass-through.
+REAL=${R616_REAL_WHY3:-$HOME/.opam/framac-coq8/bin/why3}
+f="${@: -1}"
+if [ "$R616_MODE" = reject-cs ] && [[ "$f" == *.pycsl_vac_*.mlw ]] && grep -q '\[@expl:vacpost' "$f"; then
+  echo "File \"$f\", line 1, characters 0-1:" >&2; echo "syntax error" >&2; exit 1
+fi
+exec "$REAL" "$@"

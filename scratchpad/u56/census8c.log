@@ -1,0 +1,20 @@
+== head (/home/fabrice/git/pycsl-u56) Thu Nov 19 16:10:21 UTC 2026
+frontend__Module1_Ingestor.mlw: 8 fns, 6 with sites, 0 rejected
+frontend__pure_ast.mlw: 166 fns, 54 with sites, 0 rejected
+module6_whyml__expressions.mlw: 88 fns, 57 with sites, 0 rejected
+module6_whyml__functions.mlw: 200 fns, 14 with sites, 0 rejected
+module6_whyml__statements.mlw: 56 fns, 25 with sites, 0 rejected
+module6_whyml__stmt_control_flow.mlw: 50 fns, 14 with sites, 0 rejected
+module6_whyml__types.mlw: 70 fns, 10 with sites, 0 rejected
+proof2why3__sertop.mlw: 7 fns, 2 with sites, 0 rejected
+TOTAL with-sites 182 rejected 0
+== base (/home/fabrice/git/pycsl-u56-base) Thu Nov 19 16:12:03 UTC 2026
+frontend__Module1_Ingestor.mlw: 8 fns, 6 with sites, 1 rejected
+frontend__pure_ast.mlw: 166 fns, 54 with sites, 3 rejected
+module6_whyml__expressions.mlw: 88 fns, 57 with sites, 5 rejected
+module6_whyml__functions.mlw: 200 fns, 14 with sites, 3 rejected
+module6_whyml__statements.mlw: 56 fns, 25 with sites, 3 rejected
+module6_whyml__stmt_control_flow.mlw: 50 fns, 14 with sites, 2 rejected
+module6_whyml__types.mlw: 70 fns, 10 with sites, 2 rejected
+proof2why3__sertop.mlw: 7 fns, 2 with sites, 2 rejected
+TOTAL with-sites 182 rejected 21

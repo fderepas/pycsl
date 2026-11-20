@@ -1,0 +1,6 @@
+fns: [('_process_sertop_line', 174)]
+[run] callsite prover=Alt-Ergo,2.6.3, rc=2 selectors=1 records=1 probe-goals={'vacpost 0': ['Timeout']} stderr=''
+[run] callsite prover=Z3,4.13.3, rc=2 selectors=1 records=1 probe-goals={'vacpost 0': ['Timeout']} stderr=''
+[run] perfn prover=Alt-Ergo,2.6.3, rc=2 selectors=1 records=7 probe-goals={'vacprobe': ['Timeout', 'Timeout', 'Timeout', 'Timeout', 'Timeout', 'Timeout', 'Timeout']} stderr=''
+[run] perfn prover=Z3,4.13.3, rc=2 selectors=1 records=7 probe-goals={'vacprobe': ['Timeout', 'Timeout', 'Timeout', 'Timeout', 'Timeout', 'Timeout', 'Timeout']} stderr=''
+RESULT: []

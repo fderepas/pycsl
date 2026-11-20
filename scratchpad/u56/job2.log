@@ -1,0 +1,112 @@
+Fri Nov 20 03:38:05 UTC 2026 start corpus
+bd rc=0
+Fri Nov 20 04:35:15 UTC 2026 start mirror
+mir rc=0
+Fri Nov 20 04:40:45 UTC 2026 done
+  3281 /home/fabrice/git/pycsl-u56/scratchpad/u56/census/bd.list
+    53 /home/fabrice/git/pycsl-u56/scratchpad/u56/census/mir.list
+  2185 /home/fabrice/git/pycsl-u56/scratchpad/u56/census/pyref.list
+  5519 total
+== head mir Fri Nov 20 04:40:45 UTC 2026
+frontend__exec_splice.mlw: 15 fns, 0 with sites, 0 rejected
+frontend__import_classifier.mlw: 18 fns, 0 with sites, 0 rejected
+frontend__ir_inline.mlw: 44 fns, 2 with sites, 0 rejected
+frontend__ir_resolve.mlw: 126 fns, 6 with sites, 0 rejected
+frontend__module_collect.mlw: 1 fns, 0 with sites, 0 rejected
+frontend__monomorphize.mlw: 42 fns, 3 with sites, 0 rejected
+frontend__pure_ast.mlw: 166 fns, 54 with sites, 0 rejected
+ir_schema.mlw: 0 fns, 0 with sites, 0 rejected
+module6_whyml____init__.mlw: 0 fns, 0 with sites, 0 rejected
+module6_whyml__abstract_ops.mlw: 1 fns, 1 with sites, 0 rejected
+module6_whyml__auto_trust.mlw: 61 fns, 2 with sites, 0 rejected
+module6_whyml__expr_ghost_collections.mlw: 29 fns, 22 with sites, 0 rejected
+module6_whyml__expr_ghost_spec_ops.mlw: 14 fns, 10 with sites, 0 rejected
+module6_whyml__expressions.mlw: 88 fns, 57 with sites, 0 rejected
+module6_whyml__functions.mlw: 200 fns, 14 with sites, 0 rejected
+module6_whyml__identifiers.mlw: 7 fns, 5 with sites, 0 rejected
+module6_whyml__ir_scanner.mlw: 206 fns, 2 with sites, 0 rejected
+module6_whyml__irx.mlw: 10 fns, 0 with sites, 0 rejected
+module6_whyml__preamble.mlw: 50 fns, 5 with sites, 0 rejected
+module6_whyml__scc.mlw: 13 fns, 1 with sites, 0 rejected
+module6_whyml__statements.mlw: 56 fns, 25 with sites, 0 rejected
+module6_whyml__stmt_control_flow.mlw: 50 fns, 14 with sites, 0 rejected
+module6_whyml__struct_format.mlw: 4 fns, 3 with sites, 0 rejected
+module6_whyml__types.mlw: 70 fns, 10 with sites, 0 rejected
+proof2why3____init__.mlw: 0 fns, 0 with sites, 0 rejected
+proof2why3__canonical.mlw: 45 fns, 3 with sites, 0 rejected
+proof2why3__crosscheck.mlw: 4 fns, 2 with sites, 0 rejected
+proof2why3__crosscheck_ir.mlw: 14 fns, 1 with sites, 0 rejected
+proof2why3__emit_why3.mlw: 11 fns, 2 with sites, 0 rejected
+proof2why3__extract.mlw: 3 fns, 1 with sites, 0 rejected
+proof2why3__extract_lean_meta.mlw: 3 fns, 0 with sites, 0 rejected
+proof2why3__from_lean_json.mlw: 14 fns, 0 with sites, 0 rejected
+proof2why3__from_sexp.mlw: 59 fns, 0 with sites, 0 rejected
+proof2why3__ir.mlw: 18 fns, 3 with sites, 0 rejected
+proof2why3__normalize.mlw: 3 fns, 3 with sites, 0 rejected
+proof2why3__parser.mlw: 17 fns, 5 with sites, 0 rejected
+proof2why3__sertop.mlw: 7 fns, 2 with sites, 0 rejected
+proof_axiom_allowlist.mlw: 4 fns, 4 with sites, 0 rejected
+pycsl.mlw: 118 fns, 14 with sites, 0 rejected
+TOTAL with-sites 383 rejected 0
+== head bd Fri Nov 20 04:41:47 UTC 2026
+0793.mlw: 1 fns, 1 with sites, 1 rejected
+0794.mlw: 1 fns, 1 with sites, 1 rejected
+10062_lvu_list_of_gen_as_seq_fresh_false.mlw: 2 fns, 2 with sites, 2 rejected
+1133_route60_dup_literal_key.mlw: 1 fns, 1 with sites, 1 rejected
+1135_route60_bool_int_store_key.mlw: 1 fns, 1 with sites, 1 rejected
+1136_route60_symbolic_store_key.mlw: 1 fns, 1 with sites, 1 rejected
+1138_route60_conditional_store.mlw: 1 fns, 1 with sites, 1 rejected
+1143_route61_nonconst_dup_keys.mlw: 1 fns, 1 with sites, 1 rejected
+3224_gen37_ch28_emit_ir_or_empty_node_false_claim.mlw: 5 fns, 1 with sites, 1 rejected
+3437_gen37_r294_str_call_result.mlw: 2 fns, 1 with sites, 1 rejected
+5923_r420_pyval_list_search_drops_ensures.mlw: 13 fns, 1 with sites, 1 rejected
+5925_r420_pyval_list_walker_drops_no_exception.mlw: 2 fns, 1 with sites, 1 rejected
+5926_r420_pyval_list_search_drops_callee_requires.mlw: 2 fns, 1 with sites, 1 rejected
+5933_r420_crosscheck_selfstate_drops_ensures.mlw: 1 fns, 1 with sites, 1 rejected
+7204_r464_sub_private_contracted_field.mlw: 3 fns, 1 with sites, 1 rejected
+9846_r4_key_canon_int_bool_keys_refused.mlw: 1 fns, 1 with sites, 1 rejected
+TOTAL with-sites 1013 rejected 17
+== head pyref Fri Nov 20 04:43:21 UTC 2026
+pyref__0095.mlw: 1 fns, 1 with sites, 1 rejected
+TOTAL with-sites 33 rejected 1
+== base mir Fri Nov 20 04:43:24 UTC 2026
+frontend__exec_splice.mlw: 15 fns, 0 with sites, 0 rejected
+frontend__import_classifier.mlw: 18 fns, 0 with sites, 0 rejected
+frontend__ir_inline.mlw: 44 fns, 2 with sites, 0 rejected
+frontend__ir_resolve.mlw: 126 fns, 6 with sites, 0 rejected
+frontend__module_collect.mlw: 1 fns, 0 with sites, 0 rejected
+frontend__monomorphize.mlw: 42 fns, 3 with sites, 0 rejected
+frontend__pure_ast.mlw: 166 fns, 54 with sites, 3 rejected
+ir_schema.mlw: 0 fns, 0 with sites, 0 rejected
+module6_whyml____init__.mlw: 0 fns, 0 with sites, 0 rejected
+module6_whyml__abstract_ops.mlw: 1 fns, 1 with sites, 0 rejected
+module6_whyml__auto_trust.mlw: 61 fns, 2 with sites, 0 rejected
+module6_whyml__expr_ghost_collections.mlw: 29 fns, 22 with sites, 0 rejected
+module6_whyml__expr_ghost_spec_ops.mlw: 14 fns, 10 with sites, 0 rejected
+module6_whyml__expressions.mlw: 88 fns, 57 with sites, 5 rejected
+module6_whyml__functions.mlw: 200 fns, 14 with sites, 3 rejected
+module6_whyml__identifiers.mlw: 7 fns, 5 with sites, 0 rejected
+module6_whyml__ir_scanner.mlw: 206 fns, 2 with sites, 0 rejected
+module6_whyml__irx.mlw: 10 fns, 0 with sites, 0 rejected
+module6_whyml__preamble.mlw: 50 fns, 5 with sites, 0 rejected
+module6_whyml__scc.mlw: 13 fns, 1 with sites, 0 rejected
+module6_whyml__statements.mlw: 56 fns, 25 with sites, 3 rejected
+module6_whyml__stmt_control_flow.mlw: 50 fns, 14 with sites, 2 rejected
+module6_whyml__struct_format.mlw: 4 fns, 3 with sites, 0 rejected
+module6_whyml__types.mlw: 70 fns, 10 with sites, 2 rejected
+proof2why3____init__.mlw: 0 fns, 0 with sites, 0 rejected
+proof2why3__canonical.mlw: 45 fns, 3 with sites, 0 rejected
+proof2why3__crosscheck.mlw: 4 fns, 2 with sites, 0 rejected
+proof2why3__crosscheck_ir.mlw: 14 fns, 1 with sites, 0 rejected
+proof2why3__emit_why3.mlw: 11 fns, 2 with sites, 0 rejected
+proof2why3__extract.mlw: 3 fns, 1 with sites, 0 rejected
+proof2why3__extract_lean_meta.mlw: 3 fns, 0 with sites, 0 rejected
+proof2why3__from_lean_json.mlw: 14 fns, 0 with sites, 0 rejected
+proof2why3__from_sexp.mlw: 59 fns, 0 with sites, 0 rejected
+proof2why3__ir.mlw: 18 fns, 3 with sites, 0 rejected
+proof2why3__normalize.mlw: 3 fns, 3 with sites, 0 rejected
+proof2why3__parser.mlw: 17 fns, 5 with sites, 1 rejected
+proof2why3__sertop.mlw: 7 fns, 2 with sites, 2 rejected
+proof_axiom_allowlist.mlw: 4 fns, 4 with sites, 0 rejected
+pycsl.mlw: 118 fns, 14 with sites, 0 rejected
+TOTAL with-sites 383 rejected 23
