@@ -105,3 +105,23 @@ Fri Nov 20 02:23:57 UTC 2026 job1b probe handle_return_stmt
 Fri Nov 20 02:32:41 UTC 2026 job1b probe handle_return_stmt
 Fri Nov 20 02:41:12 UTC 2026 job1b probe handle_return_stmt
 Fri Nov 20 02:49:41 UTC 2026 job1b probe handle_return_stmt (pre)
+Fri Nov 20 02:51:15 UTC 2026 job2 (base sweeps + census) launching
+Fri Nov 20 02:57:31 UTC 2026 job2 queued
+Fri Nov 20 03:08:03 UTC 2026 job2 waiting slot
+Fri Nov 20 03:19:07 UTC 2026 job2 waiting slot
+Fri Nov 20 03:27:20 UTC 2026 job2 waiting slot
+Fri Nov 20 03:35:37 UTC 2026 job2 waiting slot
+Fri Nov 20 03:38:05 UTC 2026 job2 base sweeps
+Fri Nov 20 03:43:52 UTC 2026 job2 base sweep running
+Fri Nov 20 03:52:07 UTC 2026 job2 base sweep running
+Fri Nov 20 04:00:22 UTC 2026 job2 base sweep running
+Fri Nov 20 04:08:45 UTC 2026 job2 base sweep running
+Fri Nov 20 04:17:15 UTC 2026 job2 base sweep running
+Fri Nov 20 04:25:50 UTC 2026 job2 base sweep (pyref)
+Fri Nov 20 04:34:03 UTC 2026 job2 base sweep (pyref)
+Fri Nov 20 04:40:45 UTC 2026 job2 census head mir
+Fri Nov 20 04:41:47 UTC 2026 job2 census head bd
+Fri Nov 20 04:42:21 UTC 2026 job2 mirror sweep
+Fri Nov 20 04:43:21 UTC 2026 job2 census head pyref
+Fri Nov 20 04:43:24 UTC 2026 job2 census base mir
+Fri Nov 20 04:44:24 UTC 2026 job2 done

@@ -40909,8 +40909,28 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                                         f"{r.returncode}) — route #615]"), True
                             if not any(((rec.get("term") or {}).get("loc") or {}).get(
                                     "start-line") in _map267 for rec in _recs267):
-                                # why3 surfaced none of the probe goals (it rejected the
-                                # rewritten body): say so rather than pass silently.
+                                # why3 surfaced none of the probe goals.
+                                # (#49) ROUTE #616 — A REJECTED PROBE BODY NOW FAILS THE GATE.
+                                # A non-zero exit with no probe record is why3 REJECTING the
+                                # rewritten body (rc 1 + a stderr diagnostic): the probe never
+                                # ran. Those rejections were all the site scanner's (fixed
+                                # above): MEASURED, a type-only census of every call-site probe
+                                # body of all 53 mirror files is 0 / 383 rejected (base: 23),
+                                # and the only corpus rejections (18) are in files whose own
+                                # emission is ill-typed (refused before any proof). So a
+                                # rejection is never intrinsic any more: it is 'could not be
+                                # checked', a FAILURE, never a pass. A clean run that merely
+                                # surfaced no probe goal keeps the non-failing warning below.
+                                if r.returncode != 0:
+                                    print(f"[-] vacuity call-site probe for '{fname}' could not "
+                                          f"be checked: why3 REJECTED the rewritten body (prover "
+                                          f"{p}, exit code {r.returncode}): "
+                                          + " | ".join(_l616 for _l616 in (r.stderr or "")
+                                                       .splitlines()
+                                                       if not _l616.startswith("Warning"))[:300])
+                                    return (f"{fname} [could not be checked: why3 rejected the "
+                                            f"call-site probe body (prover {p}, exit code "
+                                            f"{r.returncode}) — route #616]"), True
                                 print(f"[!] vacuity call-site probe for '{fname}' could not "
                                       f"be checked (no probe goal surfaced; prover {p}).")
                                 break
