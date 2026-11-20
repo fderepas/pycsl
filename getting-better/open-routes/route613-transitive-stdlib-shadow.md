@@ -172,3 +172,31 @@ editable install's `.pth`), which is the faithful user-facing mode.
   including dead branches (`_distutils_hack` -> `setuptools`, ...).
 - **Over-refusal.** A `test/` package or `test.py` beside a program stays refused. `test` is a
   stdlib directory, and g01 requires every such name. Over-refusal numbers are in the report.
+
+
+## u58 round 3 (review rt69: G1-G7; refusal-only)
+
+Review rt69 (`scratchpad/rt69/FINDINGS.txt`) found seven layouts where pycsl PROVED a program whose
+CPython run executes code pycsl never read. Report: `getting-better/run8-u58-report.md`.
+
+| gap | origin | resolution |
+|---|---|---|
+| G1 shallow parent `__init__` check, G2 `python -m pkg` with an unread `__main__.py`, G4 ancestor namespace portion vs site-packages; over-refusals o06 / o07 | `--as-package-module` | the mode is WITHDRAWN: the flag (both spellings) exits rc 2 before anything is verified; its code paths (PACKAGE-MODE-ORDER, PACKAGE-MODE-PARENT), docs and soundness-report entry are removed; an inherited `PYCSL_AS_PACKAGE_MODULE` is ignored |
+| G3 rule skipped for a program FILE named `__pycsl_r613_entry__.py` | the g02 rule | removed with the mode; no rule tests a file name (a script of that name is judged like any other) |
+| G5 local namespace portion vs a regular installed package | pre-existing | `PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`: a dotted import through a top-level directory without `__init__.py` refuses when another CPython root (program dir, `--import-path`, stdlib, site dirs, `.pth` dirs) holds that name |
+| G6 a third-party package's own imports load local files | pre-existing | the closure's judged names add every top-level name importable from the site dirs and every name their sources import (cache `r613-site-imports-<key40>.json`); not judged in a cwd that is no CPython root |
+| G7 pycsl's cwd as a resolution root | pre-existing | `PYCSL-SEM-IMPORT-CWD-ROOT`: a module found first in the cwd refuses, unless the cwd is the program dir / an `--import-path` root, or the module is an admitted byte-identical stdlib copy (`./json/`) |
+
+`--verification-image ROOT` stays (mirror gates); `check-stdlib-modules-verify` now declares it
+(`--verification-image src`) instead of the withdrawn mode. A declared mode is never enabled by an
+inherited environment variable: `PYCSL_VERIFICATION_IMAGE` counts only with the token of an
+ancestor pycsl process whose own command line carries the flag.
+
+Over-refusal before the one narrowing (G6 names in a non-CPython cwd): every corpus (3299), pyref
+(2185) and mirror (53) emission GONE, all through the repo root's bare `foobar/` directory. After:
+0 MOVED / 0 GONE / 0 APPEARED in all three. Witnesses 10300-10307 (`multi_file_lib/r613y/`).
+
+Residuals (u58): flow-insensitive site-source names; the site table is pycsl's interpreter's;
+`src/` / `Lib/` model roots are exempt from G7 by design; PYTHONPATH containing the cwd; the
+`/proc`-based token (fail-closed without `/proc`); #612 d19 auto-frame (`self.n = old self.n` over
+an incrementing `__call__`, fails, recorded only).
