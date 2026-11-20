@@ -5303,7 +5303,13 @@ expression-statement `print(..)` call, closed under f-string constant parts and 
 every other str `Constant` value plus the `ast.literal_eval` of every string token on a `#@` line,
 the run is REFUSED (`PYCSL-R429-NONLATIN1-STR-LITERAL`) iff some $v \in O$ has $v \notin E$ or
 $v \in N$, or $v$'s code point above 255 was written raw, or $N$ minus bare-string statements holds any
-value with a code point above 255 (then nothing is excused). Excused values reach the model only as an exception payload (bound by wildcard arms,
+value with a code point above 255 (then nothing is excused). (4) (run #8 u59, review rt71) Let $M$ be
+the import closure of the program (every `import` / `from .. import` of every reached module,
+transitively, resolved by `_resolve_module_path`, package prefixes and `from X import Y` submodules
+included). Every str `Constant` value and `#@` string token of a module in $M$ other than the main
+file joins $N$; with $X$ the code points $> 255$ of those constants (bare-string statements aside)
+and tokens, the run is also REFUSED iff some $v \in O$ holds a code point of $X$; an import the
+resolver refuses, or a module of $M$ that cannot be read or parsed, empties $E$. Excused values reach the model only as an exception payload (bound by wildcard arms,
 never read) or under `print_1 (str_hash_op ..)` (result `unit`). A literal of code points $\le 255$
 is translated exactly as in §T.6.101. All of it is inline in `_run_pipeline` (mirror twin
 `\trusted`); `whyml_string_literal` has no mirror twin.

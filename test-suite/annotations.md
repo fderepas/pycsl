@@ -6750,8 +6750,21 @@ positive slices / concatenation / `in` / `find` / equality proves; corpus 0 move
 constant, an imported constant; `10269` / `10270` / `10273` -- an f-string part, a format spec, a
 default -- are not refused because the literal does not reach the model, and they FAIL by proof);
 controls `10276`-`10279` (ASCII and Latin-1 literals still prove; a non-Latin-1 character in a
-comment or a docstring is not refused). Measurements and the over-refusal list:
-`getting-better/open-routes/route429-latin1-upper-closure.md` (u57 section). LATIN1-STR itself stays
+comment or a docstring is not refused). THE IMPORT CLOSURE (run #8 u59, review rt71, PRE-EXISTING
+false proofs: an imported function's parameter DEFAULT `"€"` or its contract literal `ensures \result
+== "€"` entered the model while the MAIN file held `"€"` only as a `raise` / `print` text, and
+`len(h()) == 3` PROVED, CPython 1): "held elsewhere" is decided over every module the program
+imports, transitively (each `import` / `from .. import` of each reached module, resolved as the import
+resolver resolves it, package prefixes and `from X import Y` submodules included). Every str constant
+of a NON-main module (its raise / print text and docstrings too) and every `#@` string token there is
+"held elsewhere", so a value any other module holds is never excused; every code point above 255 such
+a constant (docstrings aside) or token holds bars the excusal of any value containing that code point
+(no fold / concatenation of a dependency's text can rebuild an excused value); an import the resolver
+refuses, or a module that cannot be read or parsed, bars every excusal. Witnesses `10320`-`10323`
+(expected FAIL, refused in the three models: rt71 k05 default, h01 contract + raise, h02 contract +
+print, k01 `import pkg.mod` attribute call); control `10324` (an ASCII-only dependency keeps the
+excusal; proves). Measurements and the over-refusal list:
+`getting-better/open-routes/route429-latin1-upper-closure.md` (u57 and u59 sections). LATIN1-STR itself stays
 declared for SYMBOLIC str values (`ord(s) < 256`, `s.upper()`).
 
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)

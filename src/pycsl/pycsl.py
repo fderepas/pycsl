@@ -40603,12 +40603,105 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _tk429 = _m429.group(0)
                     _ne429.add(_tk429)
                     _nx429 = _nx429 or any(ord(_c) > 255 for _c in _tk429)
+        # (#49) run #8 u59 -- review rt71 (PRE-EXISTING; MEASURED PROVED at u57's tip: `from m
+        # import h3` with `def h3(s: str = "€")` -- or a `#@ ensures \result == "€"` stub -- and a
+        # main-file `raise ValueError("€")` made `len(h3()) == 3` PROVE, CPython 1). The model
+        # also takes str values from IMPORTED modules (a parameter default, a contract literal),
+        # and the excusal above was decided on the MAIN file only. RULE (fail closed): the import
+        # closure -- every `import` / `from .. import` of every module reached, at any depth,
+        # resolved as the import resolver resolves it (package prefixes and `from X import Y`
+        # submodules included) -- is read, and in each NON-main module EVERY str constant
+        # (raise / print text and docstrings included) and every `#@` string token joins the
+        # "held elsewhere" set, so a value any other module holds is never excused; and every
+        # code point above 255 of such a constant (docstrings aside) or token joins `_cx429`:
+        # a value holding ANY of those code points is never excused, so no fold /
+        # concatenation of a dependency's text (whose result carries that text's code points)
+        # can rebuild an excused value -- per code point, not per file as in the main file,
+        # because a dependency's own message text (audit_proof_reverify's "<unknown — ..>")
+        # shares no code point with the main file's (audit_proof's "  ✓ "). A code point no
+        # constant holds can only come from a fold, which is written RAW and never excused.
+        # An import the resolver refuses, or a module that cannot be read or parsed, cancels
+        # the excusal of the whole program. Inline (the mirror twin is `\trusted`).
+        _cx429: Set[str] = set()
+        if _t429 is not None and not _nx429 and getattr(args, "file", None):
+            from frontend.ir_resolve import _resolve_module_path as _rmp429
+            _mn429 = os.path.abspath(str(args.file))
+            _fq429: List[Any] = [(_t429, _mn429)]
+            _sn429: Set[str] = {_mn429}
+            while _fq429 and not _nx429:
+                _tq429, _pq429 = _fq429.pop()
+                _mq429: List[Any] = []
+                for _n429 in _ast429.walk(_tq429):
+                    if isinstance(_n429, _ast429.Import):
+                        for _a429 in _n429.names:
+                            _pp429 = _a429.name.split(".")
+                            _mq429 += [(".".join(_pp429[:_i429]), 0, True)
+                                       for _i429 in range(1, len(_pp429) + 1)]
+                    elif isinstance(_n429, _ast429.ImportFrom):
+                        _lv429 = _n429.level or 0
+                        _md429 = _n429.module or ""
+                        if _md429:
+                            _pp429 = _md429.split(".")
+                            _mq429 += [(".".join(_pp429[:_i429]), _lv429, True)
+                                       for _i429 in range(1, len(_pp429) + 1)]
+                        elif _lv429:
+                            _bq429 = os.path.dirname(_pq429)
+                            for _i429 in range(_lv429 - 1):
+                                _bq429 = os.path.dirname(_bq429)
+                            if os.path.isfile(os.path.join(_bq429, "__init__.py")):
+                                _mq429.append((os.path.join(_bq429, "__init__.py"), -1, True))
+                        _mq429 += [((_md429 + "." + _a429.name) if _md429 else _a429.name,
+                                    _lv429, False) for _a429 in _n429.names if _a429.name != "*"]
+                for _mm429, _lv429, _must429 in _mq429:
+                    if _lv429 == -1:
+                        _rq429 = _mm429
+                    else:
+                        try:
+                            _rq429 = _rmp429(_mm429, _lv429, _pq429)
+                        except Exception:
+                            _nx429 = _nx429 or _must429
+                            continue
+                    if not _rq429:
+                        continue
+                    _rq429 = os.path.abspath(_rq429)
+                    if _rq429 in _sn429:
+                        continue
+                    _sn429.add(_rq429)
+                    try:
+                        _sq429 = __import__("pathlib").Path(_rq429).read_text(encoding="utf-8")
+                        _tr429 = _ast429.parse(_sq429)
+                    except Exception:
+                        _nx429 = True
+                        continue
+                    _dq429: Set[int] = set()
+                    for _n429 in _ast429.walk(_tr429):
+                        if (isinstance(_n429, _ast429.Expr)
+                                and isinstance(_n429.value, _ast429.Constant)
+                                and isinstance(_n429.value.value, str)):
+                            _dq429.add(id(_n429.value))
+                    for _n429 in _ast429.walk(_tr429):
+                        if isinstance(_n429, _ast429.Constant) and isinstance(_n429.value, str):
+                            _ne429.add(_n429.value)
+                            if id(_n429) not in _dq429:
+                                _cx429 |= {_c for _c in _n429.value if ord(_c) > 255}
+                    for _ln429 in _sq429.splitlines():
+                        if _ln429.lstrip().startswith("#@"):
+                            for _m429 in _re429.finditer(
+                                    r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'', _ln429):
+                                try:
+                                    _tk429 = str(_ast429.literal_eval(_m429.group(0)))
+                                except (SyntaxError, ValueError):
+                                    _tk429 = _m429.group(0)
+                                _ne429.add(_tk429)
+                                _cx429 |= {_c for _c in _tk429 if ord(_c) > 255}
+                    _fq429.append((_tr429, _rq429))
         # Excusal is all-or-nothing per file: it applies only when NO other str constant of
         # the source (and no `#@` string token) holds a code point above 255, so no fold /
         # concatenation of other text can produce an excused value; a raw-written value is
         # never excused.
         _bad429 = [_v for _v in _off429
                    if _nx429 or _t429 is None or _v in _raw429
+                   or any(_c in _cx429 for _c in _v)
                    or not (_v in _ex429 and _v not in _ne429)]
         if _bad429:
             from errors import PyCSLSemanticError as _PyCSLSemErr429
