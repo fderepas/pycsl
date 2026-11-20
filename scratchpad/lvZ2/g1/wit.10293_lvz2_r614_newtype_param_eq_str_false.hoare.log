@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10293_lvz2_r614_newtype_param_eq_str_false.py'...
+[*] Memory model: hoare
+
+[!] UNEXPECTED PIPELINE ERROR:
+tuple index out of range

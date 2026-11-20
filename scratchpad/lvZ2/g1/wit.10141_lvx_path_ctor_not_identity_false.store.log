@@ -1,0 +1,13 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10141_lvx_path_ctor_not_identity_false.py'...
+[*] Memory model: store
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_bq6ts1bk.mlw", line 20, characters 19-20: unused variable m
+File "/tmp/.pycsl_bq6ts1bk.mlw", line 27, characters 15-20:
+This function depends on external variables, it cannot be used as pure
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

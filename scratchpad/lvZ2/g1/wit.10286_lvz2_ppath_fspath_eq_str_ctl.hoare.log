@@ -1,0 +1,16 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10286_lvz2_ppath_fspath_eq_str_ctl.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'os.fspath': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_w6fb4d_a.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 489 steps).
+
+File "/tmp/.pycsl_w6fb4d_a.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 252 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

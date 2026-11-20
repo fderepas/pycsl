@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10288_lvz2_ppath_str_deterministic_ctl.py'...
+[*] Memory model: store
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_il_k5z6q.mlw", line 28, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 488 steps).
+
+File "/tmp/.pycsl_il_k5z6q.mlw", line 29, characters 15-34:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 489 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_il_k5z6q.mlw", line 20, characters 19-20: unused variable m
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10281_lvz2_ppath_imported_keep_shadowed_by_method_false.py'...
+[*] Memory model: typed
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Imported from 'multi_file_lib.lvz2_pathlib': ['keep'] (trusted stubs)
+
+[!] PIPELINE ERROR:
+[whyml]: PYCSL-R614-PATH-STR-CONFLATED: line 22: `keep(Path(s))` in 'f' passes a Path value to the imported `keep`, whose parameter is not annotated `Path`. The model represents a pathlib.Path as its string form (a Why3 `string`: #31's annotation erasure, lvX's `Path(<str>)`), so a Path and its str are the same value there, while in CPython a Path never equals a str and Paths order by parts, not by string (route #614; measured: `p == str(p)` proved `\result == True`, CPython False). Compare the strings explicitly (`str(p) == s`, `str(p) < str(q)`), or keep the Path out of the comparison.

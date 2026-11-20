@@ -1,0 +1,15 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10251_r617_imported_name_of_str_ctl.py'...
+[*] Memory model: typed
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Imported from 'multi_file_lib.r617_pathlib': ['name_of'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_qp6az9r5.mlw", line 19, characters 19-20: unused variable m
+File "/tmp/.pycsl_qp6az9r5.mlw", line 33, characters 25-47:
+This expression has type PyCSL_Program.py_path,
+but is expected to have type string
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
