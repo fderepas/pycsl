@@ -69,3 +69,84 @@ Executor g3, driver run #3, 2026-10-27, off ac28806be. Gates (final candidate): 
 ## RESIDUALS (honest)
 
 OPEN: the LATIN1-STR statement should name str case-mapping results explicitly.
+
+## RUN #8, EXECUTOR u57 (2026-11-19/20) -- USER DECISION: refusal-only fix for non-Latin-1 str values
+
+**Status: REPAIRED for str VALUES above Latin-1 that enter the model (`PYCSL-R429-NONLATIN1-STR-LITERAL`); the
+LATIN1-STR assumption for SYMBOLIC str values (`ord(s) < 256`, `s.upper()` of a Latin-1 input, p03 / p04) stays
+DECLARED (unchanged by this decision).** Branch `run8-u57`, base 97a4551d8 (main after L16).
+
+### The bug (pre-existing, red team rt68)
+`whyml_string_literal` wrote a code point > 255 as its 2..4 UTF-8 bytes, so the model's length / index / slice /
+comparisons were the bytes': `x == "😀"` => `len(x) == 4` (p17) and `len(x[0:3]) == 3` (p19) PROVED at base
+(CPython 1 / 1). rt68's p15 / p16 (negative bounds) prove only with batch D's R3; at base they are unconstrained.
+
+### Measurement (base 97a4551d8, default model, every probe CPython-checked; logs `scratchpad/u57/meas{,2}/logs/`)
+Probe shape: `if x == "a"+c+"b": if CLAIM: return 0 / return 1`, `ensures \result == 0`; a TRUE claim that proves is
+faithful, a FALSE claim that proves is a false proof.
+
+| claim on x == 'a'+c+'b' | ASCII 'z' | Latin-1 U+00E9 | Latin-1 U+0080 | Latin-1 U+00FF | BMP U+20AC | astral U+1F600 |
+|---|---|---|---|---|---|---|
+| `len(x)==3` | true:proves | true:proves / false:not proved | false:not proved | true:proves / false:not proved | false:**PROVES (unsound)** | false:**PROVES (unsound)** |
+| `x[1]==c` | true:proves | true:proves / false:not proved | false:not proved | true:proves / false:not proved | false:**PROVES (unsound)** | false:**PROVES (unsound)** |
+| `x[2]=='b'` | true:proves | true:proves / false:not proved | false:not proved | true:proves / false:not proved | false:**PROVES (unsound)** | false:**PROVES (unsound)** |
+| `x[1:2]==c` | true:proves | true:proves / false:not proved | false:not proved | true:proves / false:not proved | false:**PROVES (unsound)** | false:**PROVES (unsound)** |
+| `x[-1:]=='b'` | true:not proved | true:not proved / false:not proved | false:not proved | true:not proved / false:not proved | false:not proved | false:not proved |
+| `x[0:2]=='a'+c` | true:proves | true:not proved / false:not proved | false:not proved | true:not proved / false:not proved | false:**PROVES (unsound)** | false:**PROVES (unsound)** |
+| `c in x` | true:proves | true:proves / false:not proved | false:not proved | true:proves / false:not proved | false:not proved | false:not proved |
+| `x.find('b')==2` | true:not proved | true:not proved / false:not proved | false:not proved | true:not proved / false:not proved | false:**PROVES (unsound)** | false:**PROVES (unsound)** |
+| `x!='a'+alt+'b'` | true:proves | true:proves / false:not proved | false:not proved | true:proves / false:not proved | false:not proved | false:not proved |
+| `len(x+c)==4` | true:proves | true:proves / false:not proved | false:not proved | true:proves / false:not proved | false:**PROVES (unsound)** | false:**PROVES (unsound)** |
+| `len(x[:-1])==2` | true:not proved | true:not proved / false:not proved | false:not proved | true:not proved / false:not proved | false:not proved | false:not proved |
+| `x[-2]==c` | true:not proved | true:not proved / false:not proved | false:not proved | true:not proved / false:not proved | false:not proved | false:not proved |
+
+Reading: code points 0..255 (ASCII, Latin-1 incl. 0x80 and 0xFF) -- NO false claim proves for any operation (len,
+index, positive / negative slices, concatenation, `in`, `find`, equality, `ord`); the true claims prove exactly where
+ASCII's do (negative bounds / `find` / `ord` are incomplete for ASCII too). So Latin-1 is FAITHFUL and is NOT refused.
+BMP (U+20AC, the combining U+0301) and astral (U+1F600): false claims PROVE for len, index, positive slices,
+concatenation length and `find` (7 of the 12 claims per character), and `ord(x[1]) != cp`. Lone surrogate: the encoder crashed (refused by
+accident). `chr(300)`: `len(chr(300)) != 1` and `chr(300) == chr(301)` do NOT prove (one length unit; its code is the
+declared LATIN1-STR counterexample, corpus 3021, unchanged). `bytes.decode`: no model (both claims unproved).
+`"\xff".upper()` (U+0178): not provable either way (raw `(pystr_chr 376)`, no law), refused by the emission rule.
+
+### The rule (as landed)
+Decided on what ENTERS THE MODEL (end of `_run_pipeline`, twin `\trusted`): `whyml_string_literal`'s UTF-8 arm writes
+decimal escapes `\ddd` (same bytes for Why3; the mark of a code point > 255), route #411's literal pass reads each
+WhyML string literal (comments / attributes skipped) back as its Python value; a value with a code point > 255 refuses
+the program, except a value the source holds ONLY as `raise` / `print(..)` message text (payloads are never read:
+wildcard arms + route #233; `print_1 (str_hash_op ..)` returns nothing; assembling the text raises nothing). Not
+excused: any other occurrence of the value (docstrings included), a `#@` string token, a fold, an import, a file that
+binds `print`.
+
+### Over-refusal, measured BEFORE narrowing
+1. First version = SOURCE refusal of every non-docstring str constant > 255 + the emission check: corpus root 14
+   files refused (7 expected-PASS / unheadered: 1031, 3020, 3022, 3023, 3028, 3029, 8030 -- all literals in a
+   `__main__` driver or an unread bare string; 7 expected-FAIL), pyref 0, mirror 14 / 53 (audit_proof,
+   audit_proof_reverify, core_ir_semantic, Module3_Weaver, Module5_IREmitter, desugar, ir_inline, monomorphize,
+   expressions, statements, stmt_control_flow, proof2why3/normalize, proof2why3/parser, pycsl -- messages of
+   raise / print / return). Logs `scratchpad/u57/orf/broad-cand.tsv`, `broad-base.tsv`.
+2. NARROWING 1 (sound: only what reaches the WhyML text can be decided on): emission-only. Mirror still refused: 7
+   (audit_proof `"  ✓ "` print, desugar / Module5_IREmitter / expressions / stmt_control_flow `raise` messages with
+   `—`, normalize `_UNICODE_OPS = {'∀': ..}` used by `out.replace(u, a)`, pycsl `_why3_typecheck`'s returned message
+   `"why3 not found on PATH — ..."`). Corpus 0. Log `scratchpad/u57/orf/nonarrow-mir.tsv`.
+3. NARROWING 2 (sound, see the rule): raise / print message text excused -> mirror 2 (normalize, pycsl).
+4. pycsl: the `—` of `_why3_typecheck`'s message rewritten `--` in the live file and its mirror twin (text only; the
+   mirror emission moves on that literal; whole-file re-proof below). normalize: NOT narrowed -- the verified
+   `normalize_prover_output` really does `str.replace` with a 3-byte pattern over a Latin-1-modelled string (a Latin-1
+   input `"\xe2\x88\x80"` would be rewritten in the model, not by CPython). It is a TRUE refusal: GONE from the mirror
+   emission; decision for the driver / user (accept the GONE, or `\trusted` the function as a soundness-forced re-trust
+   if its module constant then stops reaching the model -- not measured).
+Final: corpus root 3291 / 3298 0 MOVED / 0 GONE / 0 APPEARED (7 new emitted sources), pyref 2185 / 2185 0/0/0,
+mirror 53 -> 52: GONE proof2why3__normalize, MOVED pycsl (the message) and frontend__Module3_Weaver (the stable hash
+of a `warnings.warn` literal holding `—` changed with its rendering: `_coerce_to_int` hashes the escaped text; the
+value is an opaque int, nothing reads it).
+
+### Witnesses 10260-10279 (expected FAIL unless noted)
+REFUSED in default / typed / store: 10260 (p15), 10261 (p16), 10262 (p17), 10263 (p19), 10264 (p18 "€"), 10265 (p21
+combining), 10266 (p22), 10267 (contract-only literal), 10268 (fold "\xff".upper()), 10271 (`\N{GRINNING FACE}`), 10272
+(module constant), 10274 (imported constant, multi_file_lib/consts429.py), 10275 (lone surrogate, p20). NOT refused,
+FAIL by proof x3 (the literal never reaches the model): 10269 (f-string part), 10270 (format spec), 10273 (default).
+Controls (expected PASS, default model): 10276 ASCII, 10277 Latin-1, 10278 comment emoji, 10279 docstring emoji.
+(In typed / store, 10276-10279 fail Why3 typing -- "This function depends on external variables" -- a pre-existing
+str-parameter limitation of those models; their emission is byte-identical to base.)
+At base (hoare): 10262 / 10263 PROVED (the false proofs), 10260 / 10261 / 10264-10266 not proved.
