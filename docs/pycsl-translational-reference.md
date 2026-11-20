@@ -6264,7 +6264,15 @@ for $m$ is in its own working directory and that directory is neither $R_0$ nor 
 the interpreter's identical module); and $\rho(a.b\ldots) = \bot$
 (`PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`) when the hit's top-level directory $a$ has no
 `__init__.py` and another root CPython searches (program directory, `--import-path`, stdlib,
-site directories) holds an entry for $a$: a regular package there wins over the portion. $\rho$ is a function of the
+site directories) holds an entry for $a$: a regular package there wins over the portion. A
+dependency's contracts are believed as verified with ITS directory as $R_0$; CPython resolves the
+dependency's absolute imports with the PROGRAM's $R_0$ (u60, review rt72 A1, PRE-EXISTING), so
+the program has no image (`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`) when, for some local module
+$d$ it reaches and some absolute import $m$ in $d$, $\rho_{R_0(d)}(m) \ne \rho_{R_0(P)}(m)$
+while $\rho_{R_0(d)}(m)$ is a file, or is $\bot$ for a stdlib name (pycsl's model); a non-stdlib
+$m$ with $\rho_{R_0(d)}(m) = \bot$ lowered to an unconstrained `val` in $d$'s verification and is
+admitted; relative imports are package-relative in both and not compared; not applied under
+`--verification-image`. $\rho$ is a function of the
 source tree only, so a program that can change CPython's binding has no image
 (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
 path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a

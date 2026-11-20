@@ -5,7 +5,9 @@ of review rt66's five gaps (g01 / g02 / g08 / g09 / g10) on branch run8-u55 by e
 section "u55 follow-up" at the end, and `getting-better/run8-u55-report.md`); ROUND 3 on branch
 run8-u58 by executor u58 after review rt69 (section "u58 round 3" at the end,
 `getting-better/run8-u58-report.md`): `--as-package-module` WITHDRAWN (rc 2), and the
-pre-existing gaps G5 / G6 / G7 closed. USER DECISION of
+pre-existing gaps G5 / G6 / G7 closed; ROUND 4 on branch run8-u60 by executor u60 after review rt72
+(section "u60 round 4" at the end, `getting-better/run8-u60-report.md`): A1 (a dependency's absolute
+imports) closed, O1 (u58's G6 over-refusal) measured and NOT narrowed. USER DECISION of
 2026-11-18: "really bad, recursively check imported modules". Recorded first as u50's residual (log
 1071), then opened as a route (log 1090).
 
@@ -200,3 +202,26 @@ Residuals (u58): flow-insensitive site-source names; the site table is pycsl's i
 `src/` / `Lib/` model roots are exempt from G7 by design; PYTHONPATH containing the cwd; the
 `/proc`-based token (fail-closed without `/proc`); #612 d19 auto-frame (`self.n = old self.n` over
 an incrementing `__call__`, fails, recorded only).
+
+
+## u60 round 4 (review rt72: A1 and O1; refusal-only)
+
+Review rt72 (`scratchpad/rt72/FINDINGS.txt`) found one gap (A1, PRE-EXISTING, a false claim PROVED at
+the u58 head and at 899b6869d) and one over-refusal introduced by u58's G6 (O1). Report:
+`getting-better/run8-u60-report.md`.
+
+| item | origin | resolution |
+|---|---|---|
+| A1 a local dependency's absolute imports resolved from the DEPENDENCY's directory (CPython: the program's `sys.path`) | pre-existing | `PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER` (`resolve_imports`, top-level call, script mode only): every local module the program reaches (transitively, package `__init__` chains included, every import statement) has each absolute import resolved from its own directory and through the program's order; refused when the own-directory view is a file (or pycsl's model of a stdlib name) and the program's view differs. A non-stdlib name with no module from the dependency's directory was an unconstrained `val` there and is admitted. Relative imports are only followed. Skipped under `--verification-image` |
+| O1 ~370 site-only names judged for every program (`validate`, `checks`, `testing`, `path`, `parent` refused beside a program that imports no third-party code) | u58 G6 | NOT narrowed: no sound narrowing exists on this host. The builtins' C imports are unbounded below "all stdlib", and from the stdlib (top-level table, and even a module-level graph with `__main__` blocks pruned) the closure always reaches `pip` (`ensurepip`) and `setuptools` (`test.support` <- `multiprocessing.util`), whose entry-point / computed imports can load any installed distribution |
+
+Measured over-refusal of A1 (snapshot 0f0868f35, before the witnesses): corpus root 3309 / 3309, pyref
+2185 / 2185, mirror 53 / 53 emitted, byte-identical to int73 (0 MOVED / 0 GONE / 0 APPEARED). Witnesses
+10330 / 10331 (FAIL, `multi_file_lib/r613z/`, corpus-root helpers `r613z_one.py` / `r613z_two.py`), 10332
+(PASS control, package-relative import).
+
+Residuals (u60): A1 compares pycsl's two resolutions, so pycsl's model roots (`src/`, `Lib/`, the cwd)
+sit in both views between the program's directory and `--import-path`, unlike CPython (u58's G7
+residual); a dependency imported only through a computed name is not followed; the PYTHONPATH /
+interpreter environment residuals stand. O1's over-refusal stands as documented by u58 (a local module
+named like any of ~370 installed / imported names is refused).

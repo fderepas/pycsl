@@ -3133,7 +3133,15 @@ an `--import-path` root, or the module is an admitted byte-identical stdlib copy
 (`PYCSL-SEM-IMPORT-CWD-ROOT`, G7); a dotted import through a top-level directory with no
 `__init__.py` (a namespace portion) is refused when another root CPython searches (program
 directory, `--import-path`, stdlib, site directories) holds that top-level name too
-(`PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`, G5). Under the declared `--verification-image
+(`PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`, G5). A dependency rule (u60, review rt72 A1,
+PRE-EXISTING): every absolute import of every local module the program reaches (transitively,
+with the package `__init__` chains) that resolves from that module's own directory (how its
+contracts are verified) to a file -- or, for a stdlib name, to pycsl's model -- must resolve to
+the same outcome through the program's search order (how CPython loads it: `sys.path[0]` = the
+program's directory, then `--import-path`); otherwise refused
+(`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`); a non-stdlib name with no module from the
+dependency's directory was an unconstrained external there and is admitted; relative imports
+are package-relative in both views; not applied under `--verification-image`. Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
 roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`
