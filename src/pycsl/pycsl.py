@@ -35686,6 +35686,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # ... and those whose code point above 255 was written RAW (not by `whyml_string_literal`:
     # an emitter fold such as `"\xff".upper()`, an imported constant): never excused below.
     _raw429: List[str] = []
+    # (#49) run #8 u59 (review rt71) -- ... and those with an occurrence OUTSIDE an exception
+    # payload / `print` argument position of the emitted text (`_np429`): never excused below.
+    # `_st429` is the stack of the open parentheses (comments, attributes and literals
+    # skipped exactly as this pass skips them) at the scan position.
+    _np429: List[str] = []
+    _st429: List[int] = []
+    import re as _rx429
     while _i411 < _n411:
         if _dep411:
             if _mlw.startswith("(*)", _i411):
@@ -35698,6 +35705,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _o411.append(_mlw[_i411]); _i411 += 1
             continue
         if _mlw.startswith("(*)", _i411):
+            _st429.append(_i411)
             _o411.append("("); _i411 += 1
             continue
         if _mlw.startswith("(*", _i411):
@@ -35709,6 +35717,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _o411.append(_mlw[_i411:_j411 + 1]); _i411 = _j411 + 1
             continue
         if _mlw[_i411] != '"':
+            if _mlw[_i411] == "(":
+                _st429.append(_i411)
+            elif _mlw[_i411] == ")" and _st429:
+                _st429.pop()
             _o411.append(_mlw[_i411]); _i411 += 1
             continue
         # a string literal: decode it the way `lexlib.mll` rule `string` does
@@ -35762,6 +35774,44 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _cp429.append(bytes(_u429).decode("utf-8", "surrogateescape"))
         if any(ord(_c) > 255 for _c in "".join(_cp429)):
             _off429.append("".join(_cp429))
+            # (#49) run #8 u59 -- PAYLOAD POSITION. Walking the enclosing parentheses outward,
+            # the literal is an exception payload iff it reaches a group `(E ..)` whose `(`
+            # follows the keyword `raise` (E a constructor), and a `print` argument iff it
+            # reaches `(str_hash_op ..)` directly inside `(print_1 ..)`, or a discarded
+            # `let _ = (..)` (the message of a builtin raise), passing on the way
+            # only through `(str_concat_op ..)` groups (any argument), a group the literal
+            # itself opens (`("..")`), or a group whose FIRST element is the inner group
+            # (`((..))`). Any other group (a call, a constructor, a binder, a comparison
+            # operand inside an application) ends the walk: the occurrence is not a payload.
+            _pk429 = False
+            _in429 = _i411
+            for _k429 in range(len(_st429) - 1, -1, -1):
+                _g429 = _st429[_k429]
+                _hm429 = _rx429.match(r"\s*([A-Za-z_][A-Za-z0-9_']*|\(|\")", _mlw[_g429 + 1:_g429 + 160])
+                _h429 = _hm429.group(1) if _hm429 else ""
+                _hs429 = _g429 + 1 + (_hm429.start(1) if _hm429 else 0)
+                if (_h429[:1].isupper() and _rx429.search(
+                        r"(?<![A-Za-z0-9_'.])raise\s*$", _mlw[max(0, _g429 - 16):_g429])):
+                    _pk429 = True
+                    break
+                if ((_h429 == "str_concat_op" or (_h429 in ("(", '"') and _hs429 == _in429))
+                        and _rx429.search(r"(?<![A-Za-z0-9_'.])let\s+_\s*=\s*$",
+                                          _mlw[max(0, _g429 - 16):_g429])):
+                    # `let _ = (..) in raise E` -- a builtin raise's message, computed and
+                    # discarded (builtin tags carry no payload)
+                    _pk429 = True
+                    break
+                if _h429 == "str_hash_op" and _k429 >= 1:
+                    _hm429 = _rx429.match(r"\s*([A-Za-z_][A-Za-z0-9_']*)",
+                                          _mlw[_st429[_k429 - 1] + 1:_st429[_k429 - 1] + 80])
+                    _pk429 = bool(_hm429) and _hm429.group(1) == "print_1"
+                    break
+                if _h429 == "str_concat_op" or (_h429 in ("(", '"') and _hs429 == _in429):
+                    _in429 = _g429
+                    continue
+                break
+            if not _pk429:
+                _np429.append("".join(_cp429))
             if any(ord(_c) > 255 for _c in _cp429 if len(_c) == 1 and _c in _mlw[_i411:_j411]):
                 _raw429.append("".join(_cp429))
         _tok411 = _mlw[_i411:_j411 + 1]
@@ -40607,22 +40657,26 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # import h3` with `def h3(s: str = "€")` -- or a `#@ ensures \result == "€"` stub -- and a
         # main-file `raise ValueError("€")` made `len(h3()) == 3` PROVE, CPython 1). The model
         # also takes str values from IMPORTED modules (a parameter default, a contract literal),
-        # and the excusal above was decided on the MAIN file only. RULE (fail closed): the import
-        # closure -- every `import` / `from .. import` of every module reached, at any depth,
-        # resolved as the import resolver resolves it (package prefixes and `from X import Y`
-        # submodules included) -- is read, and in each NON-main module EVERY str constant
-        # (raise / print text and docstrings included) and every `#@` string token joins the
-        # "held elsewhere" set, so a value any other module holds is never excused; and every
-        # code point above 255 of such a constant (docstrings aside) or token joins `_cx429`:
-        # a value holding ANY of those code points is never excused, so no fold /
-        # concatenation of a dependency's text (whose result carries that text's code points)
-        # can rebuild an excused value -- per code point, not per file as in the main file,
-        # because a dependency's own message text (audit_proof_reverify's "<unknown — ..>")
-        # shares no code point with the main file's (audit_proof's "  ✓ "). A code point no
-        # constant holds can only come from a fold, which is written RAW and never excused.
-        # An import the resolver refuses, or a module that cannot be read or parsed, cancels
-        # the excusal of the whole program. Inline (the mirror twin is `\trusted`).
-        _cx429: Set[str] = set()
+        # and the excusal above was decided on the MAIN file's source only. RULE (fail closed),
+        # two independent conditions, both required for an excusal:
+        # (1) EMITTED POSITION: every occurrence of the value in the emitted WhyML is an
+        #     exception payload or a `print` argument (`_np429`, decided by route #411's scan
+        #     above on the parenthesis structure: only `str_concat_op` groups between the
+        #     literal and `raise (E ..)` / `print_1 (str_hash_op ..)`). A default or contract
+        #     literal of an imported stub, a fold of a dependency's text placed anywhere else,
+        #     or a literal passed to any call, is not excused, wherever it came from.
+        # (2) IMPORT CLOSURE: every `import` / `from .. import` of every module reached, at any
+        #     depth, resolved as the import resolver resolves it (package prefixes and `from X
+        #     import Y` submodules included), is read; in each NON-main module every str
+        #     constant outside that module's own raise / print text (docstrings included) and
+        #     every `#@` string token joins the "held elsewhere" set. An import the resolver
+        #     refuses, or a module that cannot be read or parsed, cancels every excusal.
+        # A payload is never read (wildcard arms; route #233) and `print_1` returns `unit`, so
+        # a value meeting (1) decides no claim whatever module produced it; (2) keeps the
+        # source-side guarantee (no other module holds the value as data). A dependency's own
+        # message text (the live `frontend` package that the mirror's desugar / Module5_IREmitter
+        # import holds the same `—` messages) is not data and does not cancel. Inline (the
+        # mirror twin is `\trusted`).
         if _t429 is not None and not _nx429 and getattr(args, "file", None):
             from frontend.ir_resolve import _resolve_module_path as _rmp429
             _mn429 = os.path.abspath(str(args.file))
@@ -40673,17 +40727,45 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     except Exception:
                         _nx429 = True
                         continue
-                    _dq429: Set[int] = set()
+                    # the dependency's own raise / print text (same closure as the main file's,
+                    # `print` excused only when the module does not bind the name)
+                    _pd429 = any(
+                        (isinstance(_n, (_ast429.FunctionDef, _ast429.AsyncFunctionDef,
+                                         _ast429.ClassDef)) and _n.name == "print")
+                        or (isinstance(_n, _ast429.Name) and _n.id == "print"
+                            and not isinstance(_n.ctx, _ast429.Load))
+                        or (isinstance(_n, _ast429.alias) and (_n.asname or _n.name) == "print")
+                        or (isinstance(_n, _ast429.arg) and _n.arg == "print")
+                        or (isinstance(_n, (_ast429.Global, _ast429.Nonlocal))
+                            and "print" in _n.names)
+                        for _n in _ast429.walk(_tr429))
+                    _dk429: Set[int] = set()
+                    _dr429: List[Any] = []
                     for _n429 in _ast429.walk(_tr429):
-                        if (isinstance(_n429, _ast429.Expr)
-                                and isinstance(_n429.value, _ast429.Constant)
-                                and isinstance(_n429.value.value, str)):
-                            _dq429.add(id(_n429.value))
+                        if (isinstance(_n429, _ast429.Raise) and isinstance(_n429.exc, _ast429.Call)
+                                and isinstance(_n429.exc.func, (_ast429.Name, _ast429.Attribute))):
+                            _dr429 += (list(_n429.exc.args)
+                                       + [_k.value for _k in _n429.exc.keywords])
+                        elif (isinstance(_n429, _ast429.Expr)
+                                and isinstance(_n429.value, _ast429.Call)
+                                and isinstance(_n429.value.func, _ast429.Name)
+                                and _n429.value.func.id == "print" and not _pd429):
+                            _dr429 += (list(_n429.value.args)
+                                       + [_k.value for _k in _n429.value.keywords])
+                    while _dr429:
+                        _r429 = _dr429.pop()
+                        if isinstance(_r429, _ast429.Constant):
+                            _dk429.add(id(_r429))
+                        elif isinstance(_r429, _ast429.JoinedStr):
+                            _dr429 += [_v for _v in _r429.values
+                                       if isinstance(_v, _ast429.Constant)]
+                        elif (isinstance(_r429, _ast429.BinOp)
+                                and isinstance(_r429.op, _ast429.Add)):
+                            _dr429 += [_r429.left, _r429.right]
                     for _n429 in _ast429.walk(_tr429):
-                        if isinstance(_n429, _ast429.Constant) and isinstance(_n429.value, str):
+                        if (isinstance(_n429, _ast429.Constant) and isinstance(_n429.value, str)
+                                and id(_n429) not in _dk429):
                             _ne429.add(_n429.value)
-                            if id(_n429) not in _dq429:
-                                _cx429 |= {_c for _c in _n429.value if ord(_c) > 255}
                     for _ln429 in _sq429.splitlines():
                         if _ln429.lstrip().startswith("#@"):
                             for _m429 in _re429.finditer(
@@ -40693,7 +40775,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 except (SyntaxError, ValueError):
                                     _tk429 = _m429.group(0)
                                 _ne429.add(_tk429)
-                                _cx429 |= {_c for _c in _tk429 if ord(_c) > 255}
                     _fq429.append((_tr429, _rq429))
         # Excusal is all-or-nothing per file: it applies only when NO other str constant of
         # the source (and no `#@` string token) holds a code point above 255, so no fold /
@@ -40701,7 +40782,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # never excused.
         _bad429 = [_v for _v in _off429
                    if _nx429 or _t429 is None or _v in _raw429
-                   or any(_c in _cx429 for _c in _v)
+                   or _v in _np429
                    or not (_v in _ex429 and _v not in _ne429)]
         if _bad429:
             from errors import PyCSLSemanticError as _PyCSLSemErr429
