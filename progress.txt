@@ -125,3 +125,52 @@ Fri Nov 20 04:42:21 UTC 2026 job2 mirror sweep
 Fri Nov 20 04:43:21 UTC 2026 job2 census head pyref
 Fri Nov 20 04:43:24 UTC 2026 job2 census base mir
 Fri Nov 20 04:44:24 UTC 2026 job2 done
+Fri Nov 20 04:46:43 UTC 2026 job3 (head gates @ d44c99acd) launching
+Fri Nov 20 04:52:23 UTC 2026 job3 queued
+Fri Nov 20 05:00:50 UTC 2026 job3 queued
+Fri Nov 20 05:09:19 UTC 2026 job3 queued
+Fri Nov 20 05:17:50 UTC 2026 job3 queued
+Fri Nov 20 05:26:22 UTC 2026 job3 queued
+Fri Nov 20 05:34:44 UTC 2026 job3 queued
+Fri Nov 20 05:43:24 UTC 2026 job3 queued
+Fri Nov 20 05:49:18 UTC 2026 job3 queued
+Fri Nov 20 05:57:49 UTC 2026 job3 queued
+Fri Nov 20 06:06:18 UTC 2026 job3 waiting slot
+Fri Nov 20 06:14:42 UTC 2026 job3 waiting slot
+Fri Nov 20 06:23:49 UTC 2026 job3 waiting slot
+Fri Nov 20 06:32:15 UTC 2026 job3 waiting slot
+Fri Nov 20 06:40:42 UTC 2026 job3 waiting slot
+Fri Nov 20 06:49:08 UTC 2026 job3 waiting slot
+Fri Nov 20 06:57:44 UTC 2026 job3 waiting slot
+Fri Nov 20 07:06:22 UTC 2026 job3 waiting slot
+Fri Nov 20 07:14:49 UTC 2026 job3 waiting slot
+Fri Nov 20 07:23:17 UTC 2026 job3 waiting slot
+Fri Nov 20 07:32:00 UTC 2026 job3 waiting slot
+Fri Nov 20 07:40:28 UTC 2026 job3 waiting slot
+Fri Nov 20 07:46:51 UTC 2026 job3 wit-base rc=0
+Fri Nov 20 07:46:58 UTC 2026 job3 wit-head rc=0
+Fri Nov 20 07:49:11 UTC 2026 job3 waiting slot
+Fri Nov 20 07:54:34 UTC 2026 job3 head sweep
+Fri Nov 20 08:03:06 UTC 2026 job3 head sweep
+Fri Nov 20 08:11:35 UTC 2026 job3 head sweep
+Fri Nov 20 08:20:10 UTC 2026 job3 head sweep
+Fri Nov 20 08:28:43 UTC 2026 job3 head sweep
+Fri Nov 20 08:34:12 UTC 2026 job3 sweep-head rc=0
+Fri Nov 20 08:34:22 UTC 2026 job3 C-root rc=0
+Fri Nov 20 08:34:23 UTC 2026 job3 C-pyref rc=0
+Fri Nov 20 08:34:23 UTC 2026 job3 D-mir rc=0
+Fri Nov 20 08:34:23 UTC 2026 job3 D-mir-diff rc=0
+Fri Nov 20 08:34:31 UTC 2026 job3 E-check-self-annotate-sync rc=0
+Fri Nov 20 08:34:37 UTC 2026 job3 E-self-annotate-mirror-check rc=0
+Fri Nov 20 08:34:37 UTC 2026 job3 E-doc-coherency rc=0
+Fri Nov 20 08:37:25 UTC 2026 job3 fidelity/planes
+Fri Nov 20 08:46:00 UTC 2026 job3 planes
+Fri Nov 20 08:54:22 UTC 2026 job3 planes
+Fri Nov 20 09:02:50 UTC 2026 job3 planes
+Fri Nov 20 09:08:19 UTC 2026 job3 P-planes rc=0
+Fri Nov 20 09:08:20 UTC 2026 job3 I-check-vacuous-drivers rc=0
+Fri Nov 20 09:12:10 UTC 2026 job3 I-check-emitted-vacuity rc=0
+Fri Nov 20 09:12:11 UTC 2026 job3 I-count-trusted rc=0
+Fri Nov 20 09:12:11 UTC 2026 job3 L-ledger-diff-lines-0 rc=0
+Fri Nov 20 09:12:11 UTC 2026 job3 done
+Fri Nov 20 09:12:14 UTC 2026 job3 check-emitted-vacuity

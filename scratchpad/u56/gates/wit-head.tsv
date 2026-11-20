@@ -1,0 +1,4 @@
+off	w616	rc=1		cs-cnbc=0
+off	2823	rc=0	Verification SUCCESS! All contracts formally proven	cs-cnbc=0
+reject-cs	w616	rc=1		cs-cnbc=0
+reject-cs	2823	rc=1	Verification FAILED (vacuity could not be checked)	cs-cnbc=1
