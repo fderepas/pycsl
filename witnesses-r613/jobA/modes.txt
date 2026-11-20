@@ -1,0 +1,9 @@
+src/self-annotate/src/module6_whyml/scc.py script rc=1 [imports] src/self-annotate/src/module6_whyml/scc.py: the program's import closure may load `types` from src/self-annotate/src/module6_whyml/types.py (program - 
+src/self-annotate/src/module6_whyml/scc.py pkg rc=0  [*] Declared run mode: imported as a module of the package rooted at /home/fabrice/git/pycsl-u52-g2/
+src/self-annotate/src/module6_whyml/types.py script rc=1 [imports] src/self-annotate/src/module6_whyml/types.py: the program's import closure may load `types` from src/self-annotate/src/module6_whyml/types.py (program 
+src/self-annotate/src/module6_whyml/types.py pkg rc=0  [*] Declared run mode: imported as a module of the package rooted at /home/fabrice/git/pycsl-u52-g2/
+src/self-annotate/src/module6_whyml/expressions.py script rc=1 [imports] src/self-annotate/src/module6_whyml/expressions.py: the program's import closure may load `types` from src/self-annotate/src/module6_whyml/types.py (p 
+src/self-annotate/src/module6_whyml/expressions.py pkg rc=0  [*] Declared run mode: imported as a module of the package rooted at /home/fabrice/git/pycsl-u52-g2/
+sreport pkg rc=0
+bad root rc=2 [!] Error: --as-package-module /home/fabrice/git/pycsl-u52-g2/src/pycsl: not a directory containing 'src/self-annotate/src/module6_whyml/scc.py'.
+pk (re.py under ROOT) rc=1 [imports] /home/fabrice/git/pycsl-u52/scratchpad/u52/A/pk/pkg/prog.py: the program's import closure may load `re` from /home/fabrice/git/pycsl-u52/scratchpad/u52/A/pk/re.py (program -> json -> re -> /

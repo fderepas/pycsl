@@ -1,0 +1,34 @@
+#!/bin/bash
+# route #615 witness: a PATH-prepended why3 wrapper that makes the VACUITY-PROBE why3 run fail
+# deterministically at the process level, and passes every other call to the real why3.
+#   R615_MODE=kill-pf    : SIGKILL itself when the .mlw is a per-function probe ([@expl:vacprobe])
+#   R615_MODE=kill-cs    : SIGKILL itself when the .mlw is a call-site probe ([@expl:vacpost)
+#   R615_MODE=exit137-pf : exit 137 (no output) for a per-function probe
+#   R615_MODE=ulimit-pf  : run the real why3 under `ulimit -v 60000` (60 MB) for a per-function probe
+#   R615_MODE=kill-main  : for the MAIN proof file (a /tmp/.pycsl_*.mlw that is not a probe), run the
+#                          real why3, relay exactly what it has written to stdout by the time its
+#                          FIRST goal record appears, then SIGKILL it and itself (a mid-run kill)
+#   R615_MODE=off / unset: pass-through
+# The kill is a real signal death of the why3 process, exactly what the kernel OOM killer does to
+# a vacuity-probe why3 inside a 6 GiB heavy.sh scope (2026-11-18 snapD). Nothing is forged: the
+# wrapper never writes a verdict, it only makes the run die.
+REAL=${R615_REAL_WHY3:-$HOME/.opam/framac-coq8/bin/why3}
+f="${@: -1}"
+case "$f" in
+  *.pycsl_vac_*.mlw)
+    if [ "$R615_MODE" = kill-pf ] && grep -q '\[@expl:vacprobe\]' "$f"; then kill -9 $$; fi
+    if [ "$R615_MODE" = kill-cs ] && grep -q '\[@expl:vacpost' "$f"; then kill -9 $$; fi
+    if [ "$R615_MODE" = exit137-pf ] && grep -q '\[@expl:vacprobe\]' "$f"; then exit 137; fi
+    if [ "$R615_MODE" = ulimit-pf ] && grep -q '\[@expl:vacprobe\]' "$f"; then ulimit -v 60000; exec "$REAL" "$@"; fi
+    ;;
+  */.pycsl_*.mlw)
+    if [ "$R615_MODE" = kill-main ] && [ "$1" = prove ] && [[ " $* " != *" --type-only "* ]]; then
+      T=$(mktemp -d); "$REAL" "$@" > "$T/out" 2> "$T/err" & P=$!
+      while kill -0 $P 2>/dev/null && ! grep -q '"prover-result"' "$T/out"; do sleep 0.2; done
+      kill -9 $P 2>/dev/null; wait $P 2>/dev/null
+      cat "$T/out"; cat "$T/err" >&2; rm -rf "${T:?}"
+      kill -9 $$
+    fi
+    ;;
+esac
+exec "$REAL" "$@"

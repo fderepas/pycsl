@@ -1,0 +1,119 @@
+#### interpreter /usr/bin/python3 (3.14.4)
+== j0 (script dir)
+result True
+  -c in dir: {'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== j1 (script dir)
+LOCAL re.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/j1/re.py
+result True
+LOCAL re.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/j1/re.py
+  -c in dir: {'re': '/home/fabrice/git/pycsl-u52/witnesses-r613/j1/re.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== h0 (script dir)
+result True
+  -c in dir: {'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== h1 (script dir)
+LOCAL _hashlib.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/h1/_hashlib.py
+result True
+LOCAL _hashlib.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/h1/_hashlib.py
+  -c in dir: {'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/home/fabrice/git/pycsl-u52/witnesses-r613/h1/_hashlib.py', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== n1 (script dir)
+LOCAL re.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/n1/re.py
+encoded b'a'
+result 1
+LOCAL re.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/n1/re.py
+  -c in dir: {'re': '/home/fabrice/git/pycsl-u52/witnesses-r613/n1/re.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== s1 (script dir)
+result True
+  -c in dir: {'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10180_r613_json_local_re_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/re
+result True
+{'re': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/re/re.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10181_r613_hashlib_local_underscore_hashlib_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/hl
+result True
+{'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/hl/_hashlib.py', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10182_r613_no_import_local_re_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/re
+encoded b'a'
+result 1
+{'re': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/re/re.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10183_r613_json_local_nonstdlib_name_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/nonstd
+result True
+LOCAL sitecustomize.py loaded: /home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/nonstd/sitecustomize.py
+{'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/nonstd/sitecustomize.py'}
+== 10184_r613_json_sourceless_re_pyc_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/pyc
+result True
+{'re': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/pyc/re.pyc', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10185_r613_dependency_json_local_re_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/dep
+result 1
+{'re': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/dep/re.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10186_r613_json_namespace_dir_re_ctl.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/ns
+result True
+{'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10187_r613_json_identical_codecs_copy_ctl.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/same
+result True
+{'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10188_r613_json_no_shadow_ctl.py PYTHONPATH=<none>
+result True
+{'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+#### interpreter /home/fabrice/git/pycsl-u52/.venv/bin/python3 (3.14.4)
+== j0 (script dir)
+result True
+  -c in dir: {'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== j1 (script dir)
+LOCAL re.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/j1/re.py
+result True
+LOCAL re.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/j1/re.py
+  -c in dir: {'re': '/home/fabrice/git/pycsl-u52/witnesses-r613/j1/re.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== h0 (script dir)
+result True
+  -c in dir: {'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== h1 (script dir)
+LOCAL _hashlib.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/h1/_hashlib.py
+result True
+LOCAL _hashlib.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/h1/_hashlib.py
+  -c in dir: {'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/home/fabrice/git/pycsl-u52/witnesses-r613/h1/_hashlib.py', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== n1 (script dir)
+LOCAL re.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/n1/re.py
+encoded b'a'
+result 1
+LOCAL re.py loaded: /home/fabrice/git/pycsl-u52/witnesses-r613/n1/re.py
+  -c in dir: {'re': '/home/fabrice/git/pycsl-u52/witnesses-r613/n1/re.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== s1 (script dir)
+result True
+  -c in dir: {'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10180_r613_json_local_re_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/re
+result True
+{'re': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/re/re.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10181_r613_hashlib_local_underscore_hashlib_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/hl
+result True
+{'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/hl/_hashlib.py', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10182_r613_no_import_local_re_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/re
+encoded b'a'
+result 1
+{'re': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/re/re.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10183_r613_json_local_nonstdlib_name_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/nonstd
+result True
+LOCAL sitecustomize.py loaded: /home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/nonstd/sitecustomize.py
+{'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/nonstd/sitecustomize.py'}
+== 10184_r613_json_sourceless_re_pyc_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/pyc
+result True
+{'re': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/pyc/re.pyc', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10185_r613_dependency_json_local_re_false.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/dep
+result 1
+{'re': '/home/fabrice/git/pycsl-u52/test-suite/corpus/pycsl-reference/multi_file_lib/r613/dep/re.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10186_r613_json_namespace_dir_re_ctl.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/ns
+result True
+{'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10187_r613_json_identical_codecs_copy_ctl.py PYTHONPATH=test-suite/corpus/pycsl-reference/multi_file_lib/r613/same
+result True
+{'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== 10188_r613_json_no_shadow_ctl.py PYTHONPATH=<none>
+result True
+{'re': '/usr/lib/python3.14/re/__init__.py', '_hashlib': '/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so', 'codecs': '/usr/lib/python3.14/codecs.py', 'r613_helper': None, 'sitecustomize': '/usr/lib/python3.14/sitecustomize.py'}
+== evidence: module6_whyml/types.py as sys.path[0] (cwd = the package dir, -c): typing's `import types`
+-- cd src/self-annotate/src/module6_whyml; /usr/bin/python3 -B -c 'import typing; print(sys.modules["types"].__file__)'
+/usr/lib/python3.14/types.py
+-- cd src/self-annotate/src/module6_whyml; /home/fabrice/git/pycsl-u52/.venv/bin/python3 -B -c 'import typing; print(sys.modules["types"].__file__)'
+ImportError: cannot import name 'Any' from partially initialized module 'typing' (most likely due to a circular import) (/usr/lib/python3.14/typing.py)
+-- cd src/pycsl/module6_whyml; /usr/bin/python3 -B -c 'import typing; print(sys.modules["types"].__file__)'
+/usr/lib/python3.14/types.py
+-- cd src/pycsl/module6_whyml; /home/fabrice/git/pycsl-u52/.venv/bin/python3 -B -c 'import typing; print(sys.modules["types"].__file__)'
+ImportError: cannot import name 'Any' from partially initialized module 'typing' (most likely due to a circular import) (/usr/lib/python3.14/typing.py)

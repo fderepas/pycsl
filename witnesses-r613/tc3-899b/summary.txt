@@ -1,0 +1,15 @@
+j0__prog hoare rc=1 ::  
+j0__prog typed rc=1 ::  
+j0__prog store rc=1 ::  
+j1__prog hoare rc=1 ::  
+j1__prog typed rc=1 ::  
+j1__prog store rc=1 ::  
+h0__prog hoare rc=0 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). 
+h0__prog typed rc=0 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). 
+h0__prog store rc=0 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). 
+h1__prog hoare rc=0 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). 
+h1__prog typed rc=0 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). 
+h1__prog store rc=0 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). 
+n1__prog hoare rc=0 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). 
+n1__prog typed rc=1 ::  
+n1__prog store rc=1 ::  

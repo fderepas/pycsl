@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u52/witnesses-r613/h0/prog.py'...
+[*] Memory model: store
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

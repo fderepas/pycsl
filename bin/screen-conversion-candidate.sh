@@ -94,7 +94,7 @@ cd "$T" || exit 2
 # cannot tell a well-typed emission from an ill-typed one is worse than no screen, because its
 # green is spent as permission.
 tc=$(timeout 3000 python3 src/pycsl/pycsl.py "src/self-annotate/src/$REL" \
-        --import-path "$T/src/pycsl" --no-proof 2>&1)
+        --import-path "$T/src/pycsl" --verification-image src/self-annotate/src --no-proof 2>&1)
 if ! printf '%s' "$tc" | grep -q 'Verification SUCCESS'; then
     if printf '%s' "$tc" | grep -q 'PIPELINE ERROR'; then
         printf '    %s %-32s %s\n' "RED " "REFUSED (emitter guard)" \

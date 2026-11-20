@@ -6158,7 +6158,31 @@ no image (`PYCSL-SEM-IMPORT-SHADOWS-STDLIB`): CPython's built-in/frozen finders 
 startup-populated `sys.modules` precede every path entry. A hit also has no image when a
 bytecode cache the source loader may take in its place (`__pycache__/<m>.<tag>[.opt-N].pyc`,
 hash-based, or timestamp-matching) is not the compilation of the hit's source, compared as
-code objects (`PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route #611 r12). $\rho$ is a function of the
+code objects (`PYCSL-SEM-IMPORT-PYCACHE-UNVERIFIED`, route #611 r12). The program also has no
+image when ANY resolution root holds an entry for a name its import closure may reach (a
+stdlib / builtin name, or a top-level name the stdlib source imports; the closure always
+includes the builtins, whose C-level imports are invisible) that would have no image as a
+direct import, or that is a non-stdlib local module (`PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`,
+route #613): an import inside the stdlib resolves from `sys.path[0]` first. The roots of that
+check are the program's directory (and its realpath) first -- SCRIPT mode, the default. The
+mirror gates and the pycsl_lib plane declare instead `--verification-image ROOT` (ROOT =
+`src/self-annotate/src`, resp. `src`): a verification model that CPython never executes, with no
+CPython-run claim (the `--soundness-report` model assumption VERIFICATION-IMAGE); only this
+check's roots move, the program's own imports resolve as before, and the emitted WhyML does not
+depend on the mode. `--as-package-module` (a `-m` binding) is WITHDRAWN (u58, review rt69): it
+exits rc 2 before $\rho$ is computed. The judged names include every module entry of the stdlib
+directories, literal `__import__` / `import_module` / `resources.files` names, and the
+startup-hook closure; each candidate is judged in its own root (u55, review rt66 g01 / g09 /
+g10); and (u58, review rt69 G6) every top-level module importable from the site directories and
+every top-level name their sources import (a third-party-only name is not judged in a cwd that
+is no CPython root). $\rho$ itself follows CPython's script-mode search order (u58, review rt69,
+PRE-EXISTING): $\rho(m) = \bot$ (no image, `PYCSL-SEM-IMPORT-CWD-ROOT`) when pycsl's first hit
+for $m$ is in its own working directory and that directory is neither $R_0$ nor an
+`--import-path` root, unless $m$ is an admitted byte-identical stdlib copy (CPython then runs
+the interpreter's identical module); and $\rho(a.b\ldots) = \bot$
+(`PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`) when the hit's top-level directory $a$ has no
+`__init__.py` and another root CPython searches (program directory, `--import-path`, stdlib,
+site directories) holds an entry for $a$: a regular package there wins over the portion. $\rho$ is a function of the
 source tree only, so a program that can change CPython's binding has no image
 (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
 path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a
@@ -8798,10 +8822,30 @@ int-encodes bool), `str`→`string`, `float`→`real`, a record/variant name→i
 WhyML name; an unknown bare name falls back to `int` (Why3 then rejects a
 mismatched application — sound, never weaker than S1).
 
-**Call site.** Unchanged — the existing Call lowering already emits `(f a1 ...
-an)` as WhyML application; with `f` now function-typed, the application
-type-checks. C4: a value postcondition on a bare callable is correctly
-unprovable (`f` is opaque); refused, NOT shortcut.
+**Call site — REFUSED (route #612, run #8).** The arrow `(f: a1 -> ... -> r)` is
+a MATHEMATICAL function, so the application `(f a1 ... an)` carried four
+assumptions no Python callable makes: two applications to equal arguments are
+equal (`f(s) == f(s)` decided True), a body call equals the same application in
+a contract (`ensures \result == f(x)`, `requires f(x) >= 0` then `return f(x)`),
+the call changes nothing (an `assigns \nothing` / `len(xs)`-after-the-call claim
+proved over a callable that appends to the caller's list), and the call returns
+normally. A Python callable may keep state (`itertools.count`), mutate
+caller-visible state, raise or not return: each of those four PROVED at
+0057c8b94 with a CPython counterexample (witnesses `10170`-`10176`). The rule,
+in `_run_pipeline` (whose mirror twin is `\trusted`; placed after every other
+IR-semantic refusal): a name whose `symbol_table` tag starts with `callable:`
+(a parameter, or an annotated local) may be DECLARED and may not be REFERENCED —
+no `Call` whose `func` is the name or `<name>.<attr>` (`f.__call__`), and no
+`Var` of the name anywhere in the function's IR (body, nested lambdas, every
+contract, assertion and invariant). Refused with
+`PYCSL-R612-CALLABLE-ASSUMED-PURE`. A per-call fresh (`any`) result was
+measured and not chosen: it would also have to havoc every caller-visible
+location and refuse every `no_exception` / termination claim at each call, and
+of the 15 corpus files that write a `Callable` parameter (0 in
+`python-reference`, 0 in the mirror) one emitting file applied it (1878), with a
+claim CPython falsifies. Declared-only `Callable` parameters (`1853`, `1854`,
+`6641`, control `10177`) are unaffected. C4 (a value postcondition on a bare
+callable) is subsumed: the contract cannot name `f` at all.
 
 **Validation (core_ir_semantic).** `_check_callable_params` is a
 belt-and-suspenders well-formedness guard on the `"callable:"` encoding
