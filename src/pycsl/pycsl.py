@@ -1394,6 +1394,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _r499_stack.append((_r499_c, _r499_csc, _r499_cfn))
     from frontend.exec_splice import splice_constant_exec
     unified_ast = splice_constant_exec(unified_ast)
+    # (#49) ROUTE #429 -- NO SOURCE-LEVEL REFUSAL HERE, BY MEASUREMENT. A refusal of every
+    # str constant of the file above 255 (docstrings aside) was built and measured first
+    # (u57, run #8): it refused 7 expected-PASS / unheadered corpus files and 14 of the 53
+    # mirror files, all of them over literals that never reach the WhyML text (a `__main__`
+    # driver's arguments, a `raise` / `print` message, an unread bare-string statement).
+    # The rule is decided on what ENTERS THE MODEL instead, before `return _mlw` below.
 
 
     # [Module 4 DROPPED — B-final reorder] The pipeline is now M1-3 → M5 (build IR) →
@@ -35674,6 +35680,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # such literal is byte-identical.
     _o411: List[str] = []
     _i411, _n411, _dep411, _hit411 = 0, len(_mlw), 0, False
+    # (#49) ROUTE #429 -- the Python values (above Latin-1) of the literals that reach the
+    # model, filled below and judged before `return _mlw`.
+    _off429: List[str] = []
+    # ... and those whose code point above 255 was written RAW (not by `whyml_string_literal`:
+    # an emitter fold such as `"\xff".upper()`, an imported constant): never excused below.
+    _raw429: List[str] = []
     while _i411 < _n411:
         if _dep411:
             if _mlw.startswith("(*)", _i411):
@@ -35701,10 +35713,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             continue
         # a string literal: decode it the way `lexlib.mll` rule `string` does
         _j411, _by411, _bad411 = _i411 + 1, [], False
+        # (#49) ROUTE #429 -- alongside the bytes, the PYTHON value the literal stands for:
+        # a `\ddd` decimal escape >= 128 is a UTF-8 byte of a code point > 255 (the only
+        # writer of that form is `whyml_string_literal`'s UTF-8 arm), every other byte /
+        # character is one code point.
+        _cp429: List[str] = []
+        _u429: List[int] = []
         while _j411 < _n411 and _mlw[_j411] != '"':
             _ch411 = _mlw[_j411]
+            if not (_ch411 == "\\" and _mlw[_j411 + 1:_j411 + 4].isdigit()
+                    and len(_mlw[_j411 + 1:_j411 + 4]) == 3
+                    and 128 <= int(_mlw[_j411 + 1:_j411 + 4]) <= 255) and _u429:
+                _cp429.append(bytes(_u429).decode("utf-8", "surrogateescape"))
+                _u429 = []
             if _ch411 != "\\":
                 _by411.append(ord(_ch411)); _j411 += 1
+                _cp429.append(_ch411)
                 continue
             _nx411 = _mlw[_j411 + 1:_j411 + 2]
             if _nx411 == "\n":
@@ -35714,19 +35738,32 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             elif (_mlw[_j411 + 1:_j411 + 4].isdigit() and len(_mlw[_j411 + 1:_j411 + 4]) == 3
                     and int(_mlw[_j411 + 1:_j411 + 4]) <= 255):
                 _by411.append(int(_mlw[_j411 + 1:_j411 + 4])); _j411 += 4
+                if _by411[-1] >= 128:
+                    _u429.append(_by411[-1])
+                else:
+                    _cp429.append(chr(_by411[-1]))
             elif (_nx411 == "x" and len(_mlw[_j411 + 2:_j411 + 4]) == 2
                     and all(_h in "0123456789abcdefABCDEF" for _h in _mlw[_j411 + 2:_j411 + 4])):
                 _by411.append(int(_mlw[_j411 + 2:_j411 + 4], 16)); _j411 += 4
+                _cp429.append(chr(_by411[-1]))
             elif (_nx411 == "o" and len(_mlw[_j411 + 2:_j411 + 5]) == 3
                     and _mlw[_j411 + 2] in "0123"
                     and all(_h in "01234567" for _h in _mlw[_j411 + 2:_j411 + 5])):
                 _by411.append(int(_mlw[_j411 + 2:_j411 + 5], 8)); _j411 += 5
+                _cp429.append(chr(_by411[-1]))
             elif _nx411 in ("\\", "n", "r", "t", "b", "'", '"'):
                 _by411.append(ord({"n": "\n", "r": "\r", "t": "\t",
                                    "b": "\b"}.get(_nx411, _nx411)))
                 _j411 += 2
+                _cp429.append(chr(_by411[-1]))
             else:
                 _bad411 = True; _j411 += 2
+        if _u429:
+            _cp429.append(bytes(_u429).decode("utf-8", "surrogateescape"))
+        if any(ord(_c) > 255 for _c in "".join(_cp429)):
+            _off429.append("".join(_cp429))
+            if any(ord(_c) > 255 for _c in _cp429 if len(_c) == 1 and _c in _mlw[_i411:_j411]):
+                _raw429.append("".join(_cp429))
         _tok411 = _mlw[_i411:_j411 + 1]
         _i411 = _j411 + 1
         if _bad411 or all(32 <= _b411 <= 126 and _b411 not in (34, 92) for _b411 in _by411):
@@ -40466,6 +40503,127 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"read instead (a reverse loop over `range(len(x) - len(sub), -1, -1)` "
                 f"comparing `x[i:i + len(sub)] == sub`), or keep it out of the verified body.",
                 stage="ir-semantic", code="PYCSL-CV14-STR-RFIND-RECEIVER-DROPPED")
+    # (#49) ROUTE #429 (USER DECISION 2026-11-19, refusal only) -- A STR VALUE THE MODEL
+    # CANNOT SPELL ONE CODE POINT PER CHARACTER. A Python `str` is the Why3 `string` of
+    # `string.Char`s (codes 0..255, the declared LATIN1-STR assumption), and a code point
+    # > 255 has no one-Char spelling: `whyml_string_literal` writes it as its 2..4 UTF-8
+    # BYTES, so MEASURED (rt68 / u57) `x == "\U0001F600"` => `len(x) == 4`, `len(x[0:3]) ==
+    # 3`, `x[-1:] != x` PROVED (CPython: 1 / 1 / equal); a raw character an emitter fold
+    # hands the solver (`"\xff".upper()` is U+0178) becomes `(pystr_chr N)` with N > 255,
+    # outside every law of `pystr_chr`. RULE (fail closed, decided on what ENTERS THE MODEL,
+    # whatever produced it -- a literal of the body, a contract / assertion / invariant /
+    # default / module constant, an implicit concatenation, a fold, an f-string part, an
+    # imported constant): every WhyML string literal route #411's pass decoded above
+    # (comments and attributes are not the model and are skipped there) is read back as the
+    # Python value it stands for (`_off429`), and one holding a code point > 255 REFUSES the
+    # program -- with ONE narrowing, measured necessary (u57: 7 of the 53 mirror files refused without it, 1 with it) and
+    # sound by construction: a value that is, in the source, ONLY the text of a `raise`
+    # constructor argument or of a `print(..)` argument (the constant itself, an f-string
+    # constant part, an operand of a `+` chain there). Such text reaches the model only as
+    # an exception payload, which no claim reads (`with E _ ->` / `raises { E _ -> .. }`
+    # wildcards; route #233 refuses every read of an `except .. as e` binding), or as the
+    # hashed argument of `print_1`, whose result is `unit`; concatenation and f-string
+    # assembly raise nothing whatever the characters. A value also found anywhere else in
+    # the source (a docstring included) or as a string token of a `#@` contract line, or
+    # one the source does not hold verbatim (a fold, an imported constant), is not excused.
+    # STRICTER, per file: no excusal at all when any OTHER str constant (docstrings aside)
+    # or `#@` string token holds a code point > 255 (then no fold / concatenation of other
+    # text can rebuild an excused value), and never for a value whose code point > 255 was
+    # written RAW (a fold or an import, not `whyml_string_literal`). WHY AN EXCUSED VALUE
+    # REACHES NO CLAIM: Module 5 lowers `raise N(a0, ..)` to tag N + payload a0 only (later
+    # arguments dropped, route #589), every payload arm is a wildcard and route #233 refuses
+    # reading `except .. as e`; builtin tags carry no payload at all; a statement `print(..)`
+    # lowers to `let _ = print_1 (str_hash_op ..)`; the closure (constant / f-string constant
+    # part / `+` operand) contains no call, subscript or comparison, so no obligation, return
+    # value or branch condition is computed from the text.
+    if _off429:
+        import ast as _ast429
+        import re as _re429
+        _ex429: Set[str] = set()
+        _ne429: Set[str] = set()
+        _nx429 = False
+        try:
+            _t429 = _ast429.parse(source_code)
+        except (SyntaxError, ValueError):
+            _t429 = None
+        if _t429 is not None:
+            _ok429: Set[int] = set()
+            _roots429: List[Any] = []
+            # `print` must be the builtin: a file that binds the name anywhere (def / class /
+            # assignment / import / parameter / any store) gets no `print` excusal.
+            _pb429 = any(
+                (isinstance(_n, (_ast429.FunctionDef, _ast429.AsyncFunctionDef,
+                                 _ast429.ClassDef)) and _n.name == "print")
+                or (isinstance(_n, _ast429.Name) and _n.id == "print"
+                    and not isinstance(_n.ctx, _ast429.Load))
+                or (isinstance(_n, _ast429.alias) and (_n.asname or _n.name) == "print")
+                or (isinstance(_n, _ast429.arg) and _n.arg == "print")
+                or (isinstance(_n, (_ast429.Global, _ast429.Nonlocal)) and "print" in _n.names)
+                for _n in _ast429.walk(_t429))
+            for _n429 in _ast429.walk(_t429):
+                if (isinstance(_n429, _ast429.Raise) and isinstance(_n429.exc, _ast429.Call)
+                        and isinstance(_n429.exc.func, (_ast429.Name, _ast429.Attribute))):
+                    _roots429 += list(_n429.exc.args) + [_k.value for _k in _n429.exc.keywords]
+                elif (isinstance(_n429, _ast429.Expr) and isinstance(_n429.value, _ast429.Call)
+                        and isinstance(_n429.value.func, _ast429.Name)
+                        and _n429.value.func.id == "print" and not _pb429):
+                    _roots429 += (list(_n429.value.args)
+                                  + [_k.value for _k in _n429.value.keywords])
+            while _roots429:
+                _r429 = _roots429.pop()
+                if isinstance(_r429, _ast429.Constant):
+                    _ok429.add(id(_r429))
+                elif isinstance(_r429, _ast429.JoinedStr):
+                    _roots429 += [_v for _v in _r429.values
+                                  if isinstance(_v, _ast429.Constant)]
+                elif (isinstance(_r429, _ast429.BinOp)
+                        and isinstance(_r429.op, _ast429.Add)):
+                    _roots429 += [_r429.left, _r429.right]
+            # A bare str STATEMENT (a docstring, or any `Expr` whose value is the constant) is
+            # no operand of anything, so it cannot feed a fold / concatenation: it does not
+            # cancel the file's excusal (it stays in `_ne429`, so if it is itself rendered --
+            # `f.__doc__` -- it is refused).
+            _ds429: Set[int] = set()
+            for _n429 in _ast429.walk(_t429):
+                if (isinstance(_n429, _ast429.Expr) and isinstance(_n429.value, _ast429.Constant)
+                        and isinstance(_n429.value.value, str)):
+                    _ds429.add(id(_n429.value))
+            for _n429 in _ast429.walk(_t429):
+                if isinstance(_n429, _ast429.Constant) and isinstance(_n429.value, str):
+                    (_ex429 if id(_n429) in _ok429 else _ne429).add(_n429.value)
+                    if (id(_n429) not in _ok429 and id(_n429) not in _ds429
+                            and any(ord(_c) > 255 for _c in _n429.value)):
+                        _nx429 = True
+        for _ln429 in source_code.splitlines():
+            if _ln429.lstrip().startswith("#@"):
+                for _m429 in _re429.finditer(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'', _ln429):
+                    try:
+                        _tk429 = str(_ast429.literal_eval(_m429.group(0)))
+                    except (SyntaxError, ValueError):
+                        _tk429 = _m429.group(0)
+                    _ne429.add(_tk429)
+                    _nx429 = _nx429 or any(ord(_c) > 255 for _c in _tk429)
+        # Excusal is all-or-nothing per file: it applies only when NO other str constant of
+        # the source (and no `#@` string token) holds a code point above 255, so no fold /
+        # concatenation of other text can produce an excused value; a raw-written value is
+        # never excused.
+        _bad429 = [_v for _v in _off429
+                   if _nx429 or _t429 is None or _v in _raw429
+                   or not (_v in _ex429 and _v not in _ne429)]
+        if _bad429:
+            from errors import PyCSLSemanticError as _PyCSLSemErr429
+            raise _PyCSLSemErr429(
+                "PYCSL-R429-NONLATIN1-STR-LITERAL (route #429): the str value %s enters the "
+                "model with the code point %s, which is above 255. PyCSL models a str as "
+                "a Why3 string of 8-bit characters (LATIN1-STR), so such a code point is "
+                "written as its 2..4 UTF-8 bytes and every length, index, slice and "
+                "comparison of the value is decided on the bytes -- measured, `x == "
+                "\"\\U0001F600\"` proved `len(x) == 4` (CPython: 1). Refused (fail closed). "
+                "Keep str values to code points 0..255 (Latin-1); a comment, a docstring the "
+                "model does not read, and the text of a `raise` / `print` message may hold "
+                "any character."
+                % (ascii(_bad429[0])[:60], "U+%04X" % max(ord(_c) for _c in _bad429[0])),
+                stage="whyml-emit", code="PYCSL-R429-NONLATIN1-STR-LITERAL")
     return _mlw
 
 
@@ -40483,7 +40641,7 @@ def _why3_typecheck(mlw_filename: str) -> Tuple[bool, str]:
         r = subprocess.run(["why3", "prove", "--type-only", mlw_filename],
                            capture_output=True, text=True)
     except FileNotFoundError:
-        return False, ("why3 not found on PATH — the type-check could NOT run, so this is "
+        return False, ("why3 not found on PATH -- the type-check could NOT run, so this is "
                        "NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck "
                        "for an explicitly emit-only run.")
     if r.returncode == 0:

@@ -6712,6 +6712,48 @@ parameter named `os` used as a plain object next to a genuine `os.access` in ano
 `sorted` in the join model keeps its model).
 Measurements: `getting-better/open-routes/route610-ext-module-name-shadowing.md`.
 
+### 7.611 A str value holding a code point above 255 is refused when it enters the model (route #429, run #8, user decision)
+
+A Python `str` is the Why3 `string` of 8-bit `string.Char`s (declared assumption LATIN1-STR), and a
+code point above 255 has no one-character spelling there: `whyml_string_literal` wrote it as its 2..4
+UTF-8 BYTES, so the model's length, indices, slices and comparisons were the bytes'. MEASURED (red
+team rt68, executor u57, CPython-checked): `x == "\U0001F600"` => `len(x) == 4`, `len(x[0:3]) == 3`,
+`len(x[:-1]) == 3`, `x[-1:] != x` PROVED (CPython 1 / 1 / 0 / equal); the same class holds for `"€"`
+(3 bytes), a combining mark (`"e\u0301"`) and every BMP / astral code point; a lone surrogate crashed
+the encoder. RULE (`PYCSL-R429-NONLATIN1-STR-LITERAL`, refusal only, fail closed, decided on what
+ENTERS THE MODEL, inline at the end of `pycsl.py::_run_pipeline`, twin `\trusted`): the UTF-8 arm of
+`whyml_string_literal` now writes its bytes as decimal escapes `\ddd` (the same bytes for Why3, the
+model is unchanged; no other writer uses that form), and route #411's literal pass (§7.90) reads every
+WhyML string literal of the emitted text (comments and attributes are skipped: they are not the model)
+back as the Python value it stands for. A value holding a code point > 255 -- whoever produced it: a
+literal of a body, a contract / assertion / invariant literal (§7.81), a module constant, an implicit
+concatenation, a `\N{..}` / `\u` escape, a constant fold that leaves Latin-1 (`"\xff".upper()` is
+U+0178), an imported constant, a docstring the model reads -- REFUSES the program. ONE narrowing,
+measured necessary (without it 7 of the 53 mirror files are refused -- audit_proof, desugar,
+Module5_IREmitter, expressions, stmt_control_flow, proof2why3/normalize, pycsl -- with it 2: pycsl's
+`_why3_typecheck` message was rewritten in ASCII, and the mirror `normalize_prover_output`, whose
+verified body really does `str.replace` with '∀'-style patterns, is a SOUNDNESS-FORCED RE-TRUST, +1
+marker, `getting-better/trusted-reasons.tsv`) and sound: a value that the source holds ONLY as the
+text of a `raise` constructor argument or of a `print(..)` argument (the constant itself, an f-string
+constant part, an operand of a `+` chain there) is excused -- it reaches the model only as an
+exception payload, which no claim can read (wildcard arms; route #233 refuses reading an `except ..
+as e` binding), or as the hashed argument of `print`, and assembling it raises nothing whatever the
+characters. A value also held anywhere else (a docstring included) or as a string token of a `#@`
+line, or not held verbatim by the source (a fold, an import), is not excused. No excusal at all in a file where
+another str constant (bare-string statements aside) or a `#@` string token holds a code point > 255, and
+never for a value whose code point > 255 was written raw (a fold / an import). A comment is never
+refused; a literal the model never receives (a `__main__` driver argument, a parameter default the
+body does not see, an f-string part the lowering drops) is not refused either. Code points 0..255 were measured faithful (no false claim over len / index /
+positive slices / concatenation / `in` / `find` / equality proves; corpus 0 moved). Witnesses
+`10260`-`10275` (expected FAIL; refused in the default / typed / store models: rt68 p15 / p16 / p17
+/ p19 / p18 / p21 / p22 / p20, a contract-only literal, a fold leaving Latin-1, `\N{..}`, a module
+constant, an imported constant; `10269` / `10270` / `10273` -- an f-string part, a format spec, a
+default -- are not refused because the literal does not reach the model, and they FAIL by proof);
+controls `10276`-`10279` (ASCII and Latin-1 literals still prove; a non-Latin-1 character in a
+comment or a docstring is not refused). Measurements and the over-refusal list:
+`getting-better/open-routes/route429-latin1-upper-closure.md` (u57 section). LATIN1-STR itself stays
+declared for SYMBOLIC str values (`ord(s) < 256`, `s.upper()`).
+
 ### 7.600 PyVal values are the frozen certified 9-tag type; wrong-tag uses are TypeError sites (wall dict-value-model-r4, run #7)
 
 A `PyVal` value (`Dict[str, PyVal]` entries, a bare `PyVal` parameter, a `-> Tuple[..PyVal..]` /
