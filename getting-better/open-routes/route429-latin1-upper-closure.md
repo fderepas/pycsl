@@ -154,3 +154,69 @@ Controls (expected PASS, default model): 10276 ASCII, 10277 Latin-1, 10278 comme
 (In typed / store, 10276-10279 fail Why3 typing -- "This function depends on external variables" -- a pre-existing
 str-parameter limitation of those models; their emission is byte-identical to base.)
 At base (hoare): 10262 / 10263 PROVED (the false proofs), 10260 / 10261 / 10264-10266 not proved.
+
+## RUN #8, EXECUTOR u59 (2026-11-20) -- review rt71: narrowing 2 decided over the import closure
+
+### The gap (rt71, PRE-EXISTING; confirmed by full proofs at u57's tip and its base)
+Narrowing 2 excused a value > 255 that the MAIN file holds only as `raise` / statement-`print` text, deciding
+"held elsewhere" (`_ne429` / `_nx429`) on the main file's AST and `#@` lines only. The model also takes str values from
+IMPORTED modules: a parameter DEFAULT of an imported stub (`from m import h3`, `def h3(s: str = "€")`, called as
+`h3()`) and a CONTRACT literal of an imported stub (`#@ ensures \result == "€"`). With `raise ValueError("€")` (or
+`print("€")`) in the main file, `len(h3()) == 3` PROVED (CPython 1): rt71 k05 / h01 SUCCESS 2/2, h02 / k01 emitted.
+
+### The rule (as landed, f11922e05; `pycsl.py::_run_pipeline`, twin `\trusted`)
+Two more conditions, BOTH required for an excusal (on top of u57's source-side ones, unchanged):
+1. EMITTED POSITION (`_np429`, computed in route #411's literal scan on the pre-rewrite text, with a stack of open
+   parentheses -- comments / attributes / literals skipped as the scan skips them): from the literal, walk the
+   enclosing groups outward; only `(str_concat_op ..)` groups (any argument), a group the literal itself opens, or a
+   group whose first element is the inner group may be crossed; the walk must reach `(E ..)` right after `raise` (E a
+   constructor), `(str_hash_op ..)` directly in `(print_1 ..)`, or a transparent group right after `let _ =` (the
+   discarded message of a builtin raise, `let _ = (..) in raise ValueError`). A default argument, a contract term,
+   any call argument, a comparison operand is NOT a payload: not excused, whatever module produced the value.
+2. IMPORT CLOSURE: every `import` / `from .. import` (any depth, function-local ones included) of every module reached,
+   transitively, resolved with `_resolve_module_path` (package prefixes; `from X import Y` also tried as submodule
+   `X.Y`; `from . import y` takes the package `__init__.py`). In each NON-main module, every str constant OUTSIDE that
+   module's own raise / print text (same closure as the main file's; `print` only when the module does not bind it;
+   docstrings included) and every `#@` string token joins `_ne429`. An import the resolver refuses (exception on a
+   module path), or a module that cannot be read / parsed, sets `_nx429` (no excusal at all).
+Why sound: a payload is never read (Module 6 handler arms are wildcards, route #233 refuses `except .. as e` reads,
+builtin tags carry no payload), `print_1 (str_hash_op ..)` and `let _ =` discard the value, and `str_concat_op` has no
+precondition; the crossed groups contain no call taking the literal, so no obligation, branch, return value or contract
+depends on it. (2) keeps u57's source-side guarantee across modules (no other module holds the value as data).
+Choice: the brief's three options were measured. "Never excuse a value any non-main module holds, and let any
+non-main >255 constant cancel" (the first WIP, f57b98601, per code point) refused the mirror desugar and
+Module5_IREmitter: their closure reaches the LIVE `frontend` package (via `--import-path src/pycsl`), whose message
+constants (and two non-message ones, ir_resolve.py:3287, monomorphize.py:711) carry the same U+2014 -- not a hole (no
+such text enters those emissions). The emitted-position condition is what closes rt71's class directly (the
+dependency value lands as `h3 ("\226\130\172")` / in a `ensures { result = .. }`), and makes the per-file / per-code-
+point cancellation for dependencies unnecessary: any fold of dependency text placed outside a payload is refused.
+
+### Probes (cwd = tree root, `--import-path src/pycsl`, logs `scratchpad/u59/e4/`; before = rt71 logs)
+| probe | before (u57 tip / int73) | after f11922e05 (hoare / typed / store) |
+|---|---|---|
+| rt71 k05_import_default_clean (+ m429d) | PROVED 2/2 (rt71 ph2) | REFUSED R429 x3 |
+| rt71 h01_import_func_exc (+ m429f) | PROVED 2/2 (rt71 ph2) | REFUSED R429 x3 |
+| rt71 h02_import_func_print | emitted rc 0 (rt71 e7h) | REFUSED R429 x3 |
+| rt71 k01_import_attr | emitted rc 0 (rt71 e9h) | REFUSED R429 x3 |
+| controls k05b / h01b (no raise) | REFUSED | REFUSED R429 x3 |
+| u57 n1 | R506 | R506 x3 |
+| u57 n2 n3 n7 n8 n9 n10 | R429 | R429 x3 |
+| u57 n4 (raise "— .." + str(n)), n5 (print f"✓ ..") | emit / PROVE | emit x3 (proofs: see w2) |
+| u57 n6 (docstring read) | not refused, FAIL | not refused (rc 1, L3-tc), unchanged |
+| t1 re-export (main -> mid -> default) / t2 `from pkg import mod` | - | not refused: the import is opaque (`val h3_0 () : int`), no literal enters; FAIL by proof |
+
+### Witnesses 10320-10324 (census rows via `_census_row`, commit 578c57342)
+10320 (rt71 k05: imported DEFAULT + main raise), 10321 (h01: imported CONTRACT literal + raise), 10322 (h02: contract
++ statement print), 10323 (k01: `import multi_file_lib.r429x_contract` attribute call): expected FAIL, REFUSED R429 in
+hoare / typed / store (full pipeline, `scratchpad/u59/w2/`); CPython: VIOLATION (len 1). Dependencies:
+`multi_file_lib/r429x_default.py`, `r429x_contract.py`. Control 10324 (expected PASS; ASCII-only dependency
+`r429x_ascii.py`, main raise "€"): PROVED in hoare (2/2); typed / store fail Why3 typing ("variable int_mem does not
+occur"), a pre-existing typed-model limitation of the import (the emission is untouched by the rule: corpus byte-diff 0).
+u57's 10260-10279 re-run x3 at f11922e05: same verdicts as u57 (13 x 3 REFUSED; 10269 / 10270 / 10273 FAIL by proof;
+10276 / 10277 PROVE x3; 10278 / 10279 PROVE in hoare, typed / store Why3-typing FAIL as before).
+
+### Over-refusal (final rule, f11922e05; sweeps `scratchpad/u59/{bd2,mir2}`)
+corpus root 3309 / 3310 vs `run8/v72/bd-int`: 0 MOVED / 0 GONE / 0 APPEARED (1 new source = 10324; 10320-10323 refused);
+pyref 2185 / 2185 0/0/0; mirror 53 / 53 vs `v72/mir-int`, 0 MOVED / 0 GONE (audit_proof, desugar, Module5_IREmitter,
+expressions, stmt_control_flow still emit, byte-identical). The first variant (f57b98601, closure-only, per-code-point
+cancellation) had mirror 51 / 53: desugar and Module5_IREmitter GONE (`scratchpad/u59/D-mir.txt`), replaced.

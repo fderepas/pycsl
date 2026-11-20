@@ -6750,8 +6750,23 @@ positive slices / concatenation / `in` / `find` / equality proves; corpus 0 move
 constant, an imported constant; `10269` / `10270` / `10273` -- an f-string part, a format spec, a
 default -- are not refused because the literal does not reach the model, and they FAIL by proof);
 controls `10276`-`10279` (ASCII and Latin-1 literals still prove; a non-Latin-1 character in a
-comment or a docstring is not refused). Measurements and the over-refusal list:
-`getting-better/open-routes/route429-latin1-upper-closure.md` (u57 section). LATIN1-STR itself stays
+comment or a docstring is not refused). THE IMPORT CLOSURE AND THE EMITTED POSITION (run #8 u59, review rt71, PRE-EXISTING false proofs:
+an imported function's parameter DEFAULT `"€"` or its contract literal `ensures \result == "€"`
+entered the model while the MAIN file held `"€"` only as a `raise` / `print` text, and `len(h()) ==
+3` PROVED, CPython 1). Two more conditions, both required for an excusal. (1) Every occurrence of the
+value in the EMITTED WhyML is a payload: route #411's scan follows the parentheses outward from the
+literal through `str_concat_op` groups only, and must reach `raise (E ..)`, `print_1 (str_hash_op
+..)` or a discarded `let _ = (..)` (a builtin raise's message); a literal that is a call argument,
+a default, a contract term or anything else is not excused, whichever module it came from. (2) Every
+module the program imports, transitively (each `import` / `from .. import` of each reached module,
+resolved as the import resolver resolves it, package prefixes and `from X import Y` submodules
+included), is read: each str constant of a NON-main module outside that module's own raise / print
+text (docstrings included), and each `#@` string token there, is "held elsewhere", so a value any
+other module holds as data is never excused; an import the resolver refuses, or a module that cannot
+be read or parsed, bars every excusal. Witnesses `10320`-`10323` (expected FAIL, refused in the three
+models: rt71 k05 default + raise, h01 contract + raise, h02 contract + print, k01 `import pkg.mod`
+attribute call); control `10324` (an ASCII-only dependency keeps the excusal; proves). Measurements and the over-refusal list:
+`getting-better/open-routes/route429-latin1-upper-closure.md` (u57 and u59 sections). LATIN1-STR itself stays
 declared for SYMBOLIC str values (`ord(s) < 256`, `s.upper()`).
 ### 7.614 A pathlib Path value never meets a str in a comparison (route #614, run #8)
 

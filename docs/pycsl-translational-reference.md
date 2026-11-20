@@ -5303,7 +5303,17 @@ expression-statement `print(..)` call, closed under f-string constant parts and 
 every other str `Constant` value plus the `ast.literal_eval` of every string token on a `#@` line,
 the run is REFUSED (`PYCSL-R429-NONLATIN1-STR-LITERAL`) iff some $v \in O$ has $v \notin E$ or
 $v \in N$, or $v$'s code point above 255 was written raw, or $N$ minus bare-string statements holds any
-value with a code point above 255 (then nothing is excused). Excused values reach the model only as an exception payload (bound by wildcard arms,
+value with a code point above 255 (then nothing is excused). (4) (run #8 u59, review rt71) Let $P$ be the values with an
+occurrence that is not a PAYLOAD of the emitted text: walking the enclosing parentheses outward from
+the literal through `(str_concat_op ..)` groups, a group the literal opens, or a group whose first
+element is the inner group, the walk must reach a group `(E ..)` right after `raise` ($E$ a
+constructor), a `(str_hash_op ..)` directly in `(print_1 ..)`, or such a group right after `let _
+=`. Let $M$ be the import closure (every `import` / `from .. import` of every reached module,
+transitively, resolved by `_resolve_module_path`, package prefixes and `from X import Y` submodules
+included). Every str `Constant` of a module in $M$ other than the main file, outside that module's
+own raise / print text, and every `#@` string token there, joins $N$. The run is also REFUSED iff
+some $v \in O \cap P$; an import the resolver refuses, or a module of $M$ that cannot be read or
+parsed, empties $E$. Excused values reach the model only as an exception payload (bound by wildcard arms,
 never read) or under `print_1 (str_hash_op ..)` (result `unit`). A literal of code points $\le 255$
 is translated exactly as in §T.6.101. All of it is inline in `_run_pipeline` (mirror twin
 `\trusted`); `whyml_string_literal` has no mirror twin.
