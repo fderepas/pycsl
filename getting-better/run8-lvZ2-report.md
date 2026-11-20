@@ -31,7 +31,7 @@ One sound control is over-refused: 10251, see section 7.
 - 1792fe03a: g1 gate evidence; census rows 10280-10285.
 - 55539d7ad: merge of the R614 census rows. This is the FINAL merged gate commit (the snapshot
   `/home/fabrice/git/pycsl-lvZ2f`).
-- cf6e6ed79 / f4c5553b3 / REPORT_COMMIT: evidence and this report.
+- cf6e6ed79 / f4c5553b3 / f7b0c954a: evidence and this report.
 
 Separable R614 part, branch run8-lvZ2-r614. It is refusal-only and lands without (T):
 - 2281b58da: unresolved annotation aliases are Path-ish; imported callees are no longer hidden by unit
