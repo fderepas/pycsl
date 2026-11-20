@@ -4483,8 +4483,8 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 _dm660 = (os.path.relpath(_bad660[0]) if _bad660[0].startswith(os.getcwd() + os.sep)
                           else _bad660[0])
                 raise _E613(
-                    f"the local module {_dm660}, which the program reaches, does `import "
-                    f"{_bad660[1]}`: resolved from its own directory (how its contracts are "
+                    f"the local module {_dm660}, which the program reaches, imports "
+                    f"`{_bad660[1]}` absolutely: resolved from its own directory (how its contracts are "
                     f"verified) that is {_bad660[2]}, but CPython resolves it through the "
                     f"PROGRAM's sys.path (the program's directory first, then PYTHONPATH / "
                     f"--import-path), where it is {_bad660[3]}, so the contracts pycsl would "
