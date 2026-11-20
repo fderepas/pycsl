@@ -3122,17 +3122,22 @@ literal names the stdlib hands to `__import__` / `import_module` / `resources.fi
 modules reached from the startup hooks (`sitecustomize` / `usercustomize` / `.pth` import lines
 of the site directories, the interpreter's and its base installation's, followed module by
 module); every candidate in every root is judged in its own root (u55, review rt66 g01 / g09 /
-g10). Under the declared run mode `--as-package-module ROOT` (a `python -m` run from ROOT; never
-inferred, a `--soundness-report` model assumption) ROOT replaces the program's directory among
-those roots, every absolute import (the program's and its dependencies') must resolve with ROOT
-first to the file pycsl took (`PYCSL-SEM-IMPORT-PACKAGE-MODE-ORDER`), and every parent package
-between ROOT and the program, and the program itself, must resolve from ROOT to that
-`__init__.py` / file, each parent `__init__.py` judged as a dependency (the import-system rule,
-no dynamic import machinery; `PYCSL-SEM-IMPORT-PACKAGE-MODE-PARENT`). Under the declared
-`--verification-image ROOT` (a verification model CPython never executes, the mirror gates; the
+g10), and (u58, review rt69 G6) so are every top-level module importable from the site
+directories (the interpreter's, its base installation's, the user's, and `.pth`-added ones) and
+every top-level name their sources import anywhere -- an installed package's own imports resolve
+from `sys.path[0]` first (`program -> lark -> regex -> ./regex.py`); such a third-party-only name
+is not judged in pycsl's cwd unless the cwd is a CPython root. Two direct-import rules (u58,
+review rt69, PRE-EXISTING gaps): a module found first in pycsl's own working directory -- a root
+CPython's script mode never searches -- is refused unless the cwd is the program's directory or
+an `--import-path` root, or the module is an admitted byte-identical stdlib copy
+(`PYCSL-SEM-IMPORT-CWD-ROOT`, G7); a dotted import through a top-level directory with no
+`__init__.py` (a namespace portion) is refused when another root CPython searches (program
+directory, `--import-path`, stdlib, site directories) holds that top-level name too
+(`PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`, G5). Under the declared `--verification-image
+ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
-roots move to ROOT; the program's imports resolve as pycsl resolves them. The two modes exclude
-each other. annotations.md §7.16, §T.6.27.
+roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`
+is WITHDRAWN (u58, review rt69): rc 2 before anything is verified. annotations.md §7.16, §T.6.27.
 
 ### C.1 Declared model assumptions (routes #250, #253, #256, #276, #282, #298)
 

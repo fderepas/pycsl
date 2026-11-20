@@ -4089,7 +4089,9 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                             _s613 = os.stat(os.path.join(_dp613, _f613))
                         except OSError:
                             continue
-                        _sfl613.append((_p613, os.path.relpath(os.path.join(_dp613, _f613), _p613),
+                        # (string slice, not os.path.relpath: ~7000 files on every run)
+                        _sfl613.append((_p613, (_dp613[len(_p613) + 1:] + os.sep + _f613)
+                                        if _dp613 != _p613 else _f613,
                                         _s613.st_size, _s613.st_mtime_ns))
         _sk613 = _hl613.sha256(repr(("r613-site-v1", _key613, _sw613, _stl613, _sfl613)).encode()
                                ).hexdigest()
@@ -4182,9 +4184,10 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 elif _e613.endswith((".py", ".pyc", *__import__("importlib.machinery")
                                      .machinery.EXTENSION_SUFFIXES)):
                     _dirn613.add(_e613.split(".", 1)[0])
-        _names613 = (set(sys.stdlib_module_names) | set(sys.builtin_module_names)
-                     | set(_graph613) | {_x for _v in _graph613.values() for _x in _v}
-                     | set(_hooks613) | _dirn613 | _site_names613) - {"__main__"}
+        _old613 = (set(sys.stdlib_module_names) | set(sys.builtin_module_names)
+                   | set(_graph613) | {_x for _v in _graph613.values() for _x in _v}
+                   | set(_hooks613) | _dirn613) - {"__main__"}
+        _names613 = _old613 | (_site_names613 - {"__main__"})
         _sd613 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # …/src/pycsl
         # (u55) The DECLARED `--verification-image ROOT` (PYCSL_VERIFICATION_IMAGE, the mirror
         # gates' and the pycsl_lib plane's declared model: never run by CPython, no CPython-run
@@ -4198,6 +4201,28 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
         # resolver has no code path for it.
         _chk613 = main_file
         _pm613 = os.environ.get("PYCSL_VERIFICATION_IMAGE") or ""
+        # (u58, driver on rt69) honoured only with the token of a pycsl run in THIS process
+        # tree that declared `--verification-image` (pycsl.py `main`); an inherited value
+        # alone never enables the mode, here either (a caller that skips `main`).
+        _tk658 = os.environ.get("PYCSL_VERIFICATION_IMAGE_TOKEN") or ""
+        _an658: List[str] = []
+        _pq658 = str(os.getpid())
+        while _pq658 not in ("", "0") and len(_an658) < 256:
+            _an658.append(_pq658)
+            try:
+                _pq658 = __import__("pathlib").Path("/proc/" + _pq658 + "/stat").read_text(
+                    ).rsplit(")", 1)[1].split()[1]
+            except (OSError, IndexError):
+                break
+        try:
+            _cl658 = (__import__("pathlib").Path("/proc/" + _tk658 + "/cmdline").read_bytes()
+                      .decode(errors="replace").split("\0") if _tk658.isdigit() else [])
+        except OSError:
+            _cl658 = []
+        if not (_tk658 and _tk658 in _an658
+                and any(_c == "--verification-image" or _c.startswith("--verification-image=")
+                        for _c in _cl658)):
+            _pm613 = ""
         if not (_pm613 and os.path.isdir(_pm613) and os.path.commonpath(
                 [os.path.abspath(_pm613), os.path.abspath(main_file)]) == os.path.abspath(_pm613)):
             _pm613 = ""
@@ -4212,6 +4237,17 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 _roots613.append(_r613)
         _cand613: Dict[str, List[str]] = {}
         _bad613: Optional[Tuple[str, str, str]] = None
+        # (u58, measured narrowing of the G6 names ONLY) A name that ONLY installed
+        # third-party code brings in is not judged in pycsl's own working directory when that
+        # directory is no root CPython searches (not the program's directory or its realpath,
+        # not an --import-path root): CPython's script mode never searches the cwd (G7), so no
+        # site-directory module can load a cwd file. Measured before this narrowing: the
+        # repo root's bare `foobar/` (named in setuptools / pip / numpy sources) refused EVERY
+        # corpus, pyref and mirror file. Every name judged before u58 (stdlib, stdlib-graph,
+        # startup-hook, stdlib-directory names) is still judged in the cwd exactly as before.
+        _cpr613 = {os.path.realpath(_q) for _q in (
+            os.path.dirname(os.path.realpath(_chk613)), os.path.dirname(os.path.abspath(_chk613)),
+            *_EXTRA_IMPORT_PATHS)}
         for _r613 in _roots613:
             try:
                 _ls613 = sorted(os.listdir(_r613))
@@ -4220,6 +4256,9 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                        "holds for the standard library's imports is unknown.")
                 break
             for _e613 in _ls613:
+                if (_e613.split(".", 1)[0] not in _old613 and _r613 == os.getcwd()
+                        and os.path.realpath(_r613) not in _cpr613):
+                    continue
                 if _e613.split(".", 1)[0] in _names613:
                     _cand613.setdefault(_e613.split(".", 1)[0], []).append(
                         os.path.join(_r613, _e613))

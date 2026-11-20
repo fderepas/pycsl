@@ -2,7 +2,10 @@
 
 **Status: REPAIRED (refusal-only)** on run #8, branch run8-u52, by executor u52; FOLLOW-UP REPAIR
 of review rt66's five gaps (g01 / g02 / g08 / g09 / g10) on branch run8-u55 by executor u55 (see the
-section "u55 follow-up" at the end, and `getting-better/run8-u55-report.md`). USER DECISION of
+section "u55 follow-up" at the end, and `getting-better/run8-u55-report.md`); ROUND 3 on branch
+run8-u58 by executor u58 after review rt69 (section "u58 round 3" at the end,
+`getting-better/run8-u58-report.md`): `--as-package-module` WITHDRAWN (rc 2), and the
+pre-existing gaps G5 / G6 / G7 closed. USER DECISION of
 2026-11-18: "really bad, recursively check imported modules". Recorded first as u50's residual (log
 1071), then opened as a route (log 1090).
 
@@ -54,7 +57,7 @@ program's imports, through the local modules they name, over the stdlib import g
 `program -> json -> re -> …/re.py`, and `program -> builtins (C code …) -> re` when no import statement
 reaches the name.
 
-## Declared run mode `--as-package-module ROOT` (driver decision)
+## Declared run mode `--as-package-module ROOT` (driver decision; WITHDRAWN by u58, see the end)
 
 The program is declared to be imported as a submodule of the package rooted at ROOT, never run as a
 script.

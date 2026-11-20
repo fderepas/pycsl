@@ -1525,29 +1525,27 @@ forms.
 
 ---
 
-### 11.3 Command-line run mode (route #613)
+### 11.3 Command-line declared model (route #613)
 
-`--as-package-module ROOT` is not annotation syntax but a DECLARED assumption about how the
-program runs: it is imported as a submodule of the package rooted at ROOT (a directory that
-contains the file), never run as a script. It is opt-in and never inferred. It changes only the
-roots of the transitive stdlib-shadow check (`PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`): ROOT takes
-the place of the program's own directory, whose same-named siblings are then not on
-`sys.path`. The program's own imports, and so the emitted WhyML, are unchanged. pycsl passes it
-to its own sub-invocations as `PYCSL_AS_PACKAGE_MODULE`, and `--soundness-report` lists it as
-the model assumption AS-PACKAGE-MODULE. (u55, review rt66 g02 / g08) As CPython does under
-`-m`, every absolute import must then resolve with ROOT first to the file pycsl took
-(`PYCSL-SEM-IMPORT-PACKAGE-MODE-ORDER`), and each parent package between ROOT and the program
-must resolve from ROOT to its own `__init__.py`, judged as a dependency
-(`PYCSL-SEM-IMPORT-PACKAGE-MODE-PARENT`); an agreeing program emits unchanged.
-
-`--verification-image ROOT` is a second, distinct declared assumption: the file is a
+`--verification-image ROOT` is not annotation syntax but a DECLARED assumption: the file is a
 VERIFICATION MODEL that CPython never executes, so the proof makes NO claim about a CPython run
 (`--soundness-report` lists VERIFICATION-IMAGE). Its own imports resolve as pycsl resolves them
-(program directory first, then `--import-path`); only the transitive stdlib-shadow check's roots
-move to ROOT, and every other import rule still applies. It is opt-in, never inferred, passed
-as `PYCSL_VERIFICATION_IMAGE`, and excludes `--as-package-module`. The mirror gates
-(`bin/mirror-emit-sweep.sh`, the shared mirror emission of `bin/run-soundness-planes.sh`, and
-the mirror-emitting checks) pass ROOT = `src/self-annotate/src`.
+(program directory first, then `--import-path`); only the transitive stdlib-shadow check's
+roots (`PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`) move to ROOT, and every other import rule still
+applies. It is opt-in, never inferred, and passed to pycsl's own sub-invocations as
+`PYCSL_VERIFICATION_IMAGE` with `PYCSL_VERIFICATION_IMAGE_TOKEN` (the declaring run's pid): an
+inherited value is honoured only while that pid is the process itself or an ancestor, so a
+variable exported in the user's environment alone never enables the mode (run #8 u58). The mirror gates (`bin/mirror-emit-sweep.sh`, the shared mirror
+emission of `bin/run-soundness-planes.sh`, and the mirror-emitting checks) pass ROOT =
+`src/self-annotate/src`; `bin/check-stdlib-modules-verify.py` passes ROOT = `src` (the
+pycsl_lib stub models, imported as `pycsl_lib.X`).
+
+`--as-package-module ROOT` (a `python -m` run from ROOT) is WITHDRAWN from this release (run #8
+u58, review rt69 found four gaps in its `-m` model and two over-refusals). Passing it, in either
+the `--as-package-module ROOT` or the `--as-package-module=ROOT` spelling,
+exits with rc 2 and the message "not supported in this release" before anything is verified;
+it never falls back to a silent script-mode verification. An inherited `PYCSL_AS_PACKAGE_MODULE`
+is ignored (a mode is never enabled implicitly).
 
 ## Appendix A. AST Node Hierarchy
 

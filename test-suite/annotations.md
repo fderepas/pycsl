@@ -1455,19 +1455,28 @@ COMPUTED name), literal names handed to `__import__` / `import_module` /
 `usercustomize` and `.pth` import lines in the site directories of the interpreter and its
 base installation, followed module by module: Ubuntu's apport hook imports `apport.report`);
 and EVERY candidate in EVERY root is judged in its own root, not only the first hit in pycsl's
-order (u55, review rt66 g01 / g09 / g10); the roots are
-those of a SCRIPT, the program's own directory first, unless a mode is DECLARED (never
-inferred, each listed by `--soundness-report`): `--as-package-module ROOT` — the program runs
-as `python -m` from ROOT, which takes the program directory's place in this check; then, as
-CPython resolves under `-m`, every absolute import must resolve with ROOT first to the file
-pycsl took (`PYCSL-SEM-IMPORT-PACKAGE-MODE-ORDER`), and each parent package between ROOT and
-the program, and the program itself, must resolve from ROOT to its own `__init__.py` / file,
-each parent `__init__.py` judged as a dependency (the import-system rule below, and no dynamic
-import machinery: `PYCSL-SEM-IMPORT-PACKAGE-MODE-PARENT`; AS-PACKAGE-MODULE); or
-`--verification-image ROOT` — the file is a verification model CPython never executes (the
-mirror gates, ROOT = `src/self-annotate/src`): NO claim about a CPython run, its own imports
-resolve as pycsl resolves them, and only this closure check moves to ROOT
-(VERIFICATION-IMAGE)): CPython
+order (u55, review rt66 g01 / g09 / g10); and (u58, review rt69 G6) the judged names also
+include every top-level module importable from the site directories (the interpreter's, its
+base installation's and the user's, plus `.pth`-added directories) and every top-level name
+imported anywhere by their sources (`program -> lark -> regex`: an installed package's own
+imports resolve from `sys.path[0]` first; a name only third-party code brings in is not judged
+in pycsl's cwd unless the cwd is a CPython root, see G7 below); the roots are
+those of a SCRIPT, the program's own directory first, unless the mode
+`--verification-image ROOT` is DECLARED (never inferred, listed by `--soundness-report`) — the
+file is a verification model CPython never executes (the mirror gates, ROOT =
+`src/self-annotate/src`; the pycsl_lib plane, ROOT = `src`): NO claim about a CPython run, its
+own imports resolve as pycsl resolves them, and only this closure check moves to ROOT
+(VERIFICATION-IMAGE); `--as-package-module` is WITHDRAWN from this release (u58, review rt69:
+rc 2, never a silent script-mode verification). Two more import rules (u58, review rt69,
+PRE-EXISTING gaps): a module found FIRST in pycsl's own working directory, which CPython's
+script mode never searches, is REFUSED unless that directory is the program's, an
+`--import-path` root, or the module is an admitted byte-identical stdlib copy
+(`PYCSL-SEM-IMPORT-CWD-ROOT`, G7); and a dotted import reached through a top-level directory
+with no `__init__.py` (a namespace portion) is REFUSED when any other root CPython searches —
+the program directory, `--import-path`, the stdlib or a site directory — holds that top-level
+name too, since a regular package there wins and portions merge in `sys.path` order
+(`PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`, G5: a local bare `lark/utils.py` lost to the
+installed `lark`)): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or
 startup-loaded module, and for the rest which one runs depends on `sys.path` and startup.
 A program that edits the import system — any reference to `sys.path`, `sys.modules`,

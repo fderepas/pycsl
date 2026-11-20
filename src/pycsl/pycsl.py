@@ -41532,7 +41532,7 @@ def main() -> None:
     # (G1: the parent-package `__init__` chain judged only shallowly; G2: `python -m pkg` with
     # an unread `__main__.py`; G3: a rule skipped by a magic program FILE name; G4: an ancestor
     # namespace portion beaten by a regular site-packages package) and two over-refusals (o06 /
-    # o07). Passing it -- or inheriting PYCSL_AS_PACKAGE_MODULE -- exits rc 2 BEFORE anything
+    # o07). Passing the flag exits rc 2 BEFORE anything
     # is verified; it never silently falls back to script mode. The resolver has no code path
     # for it any more.
     #
@@ -41572,14 +41572,49 @@ def main() -> None:
             continue
         _rest613.append(_a613[_k613])
         _k613 += 1
-    if os.environ.get("PYCSL_AS_PACKAGE_MODULE"):
-        print("[!] Error: PYCSL_AS_PACKAGE_MODULE is set, but --as-package-module is not supported "
-              "in this release (route #613: withdrawn after review rt69). Unset it to verify the "
-              "file as a script.")
-        sys.exit(2)
+    # (#49) run #8 u58 (driver, review rt69 final report) -- A DECLARED MODE IS NEVER ENABLED
+    # IMPLICITLY. An inherited PYCSL_VERIFICATION_IMAGE is honoured only when the pycsl run that
+    # declared `--verification-image` handed it down in THIS process tree: it stamps
+    # PYCSL_VERIFICATION_IMAGE_TOKEN with its own pid, and the value counts only while that pid
+    # is this process or one of its ancestors AND that process's own command line carries the
+    # flag (the resolver re-checks the same token). Any other
+    # inherited value -- one exported in the user's shell, a stale token -- is dropped, so the
+    # run is the default script mode. The withdrawn PYCSL_AS_PACKAGE_MODULE is dropped likewise:
+    # an environment variable alone changes no verdict.
+    _tk613 = os.environ.get("PYCSL_VERIFICATION_IMAGE_TOKEN") or ""
+    _anc613: List[str] = []
+    _pp613 = str(os.getpid())
+    while _pp613 not in ("", "0") and len(_anc613) < 256:
+        _anc613.append(_pp613)
+        try:
+            _st613 = open("/proc/" + _pp613 + "/stat").read()
+            _pp613 = _st613.rsplit(")", 1)[1].split()[1]
+        except (OSError, IndexError):
+            break
+    try:
+        # the token's process must itself be a run that DECLARED the flag on its own command
+        # line (/proc/<pid>/cmdline is the original argv): pid 1 or the user's shell never is
+        _cl613 = open("/proc/" + _tk613 + "/cmdline", "rb").read().decode(
+            errors="replace").split("\0") if _tk613.isdigit() else []
+    except OSError:
+        _cl613 = []
+    if _vi613 is not None or not (_tk613 and _tk613 in _anc613
+                                  and any(_c == "--verification-image"
+                                          or _c.startswith("--verification-image=")
+                                          for _c in _cl613)
+                                  and os.environ.get("PYCSL_VERIFICATION_IMAGE")):
+        if os.environ.pop("PYCSL_VERIFICATION_IMAGE", None) and _vi613 is None:
+            print("[*] Ignoring an inherited PYCSL_VERIFICATION_IMAGE that no parent pycsl run "
+                  "declared (a declared mode is never enabled implicitly; pass "
+                  "--verification-image ROOT).")
+        os.environ.pop("PYCSL_VERIFICATION_IMAGE_TOKEN", None)
+    if os.environ.pop("PYCSL_AS_PACKAGE_MODULE", None):
+        print("[*] Ignoring an inherited PYCSL_AS_PACKAGE_MODULE: --as-package-module is not "
+              "supported in this release (route #613), and a mode is never enabled implicitly.")
     if _vi613 is not None:
         sys.argv[1:] = _rest613
         os.environ["PYCSL_VERIFICATION_IMAGE"] = os.path.abspath(_vi613)
+        os.environ["PYCSL_VERIFICATION_IMAGE_TOKEN"] = str(os.getpid())
     args = _parse_args()
     if os.environ.get("PYCSL_VERIFICATION_IMAGE"):
         _pr613 = os.environ["PYCSL_VERIFICATION_IMAGE"]
