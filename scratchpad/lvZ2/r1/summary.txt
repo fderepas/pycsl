@@ -1,0 +1,5 @@
+2026-11-20T10:29:45Z oom=15 START tree=/home/fabrice/git/pycsl-lvZ2rs head=04c14cbae steps=123
+2026-11-20T11:39:16Z oom=15 S1 sweep: start 2026-11-20T10:29:45Z oom=15 head=04c14cbaeb97ff1308dff62f7605f29176003ade cwd=/home/fabrice/git/pycsl-lvZ2rs bd rc=0 2026-11-20T11:31:31Z oom=15 cmp-root rc=0 cmp-pyref rc=0 mir rc=0 2026-11-20T11:39:16Z oom=15 mir-diffq lines=0 n=53 end 2026-11-20T11:39:16Z oom=15 
+2026-11-20T11:39:30Z oom=15 S2 census rows: 7 (      7 REFUSAL )
+2026-11-20T11:54:48Z oom=15 S3 witnesses:      24 FAIL	PIPELINE ERROR      12 FAIL	Verification FAILED       2 PASS	Verification FAILED      13 PASS	Verification SUCCESS 
+2026-11-20T11:54:48Z oom=15 BATTERY-DONE
