@@ -1,0 +1,33 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10144_lvx_path_ctor_read_bytes_fnf_false.py'...
+[*] Memory model: store
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_m_99nvgb.mlw", line 45, characters 15-27:
+Sub-goal postcondition of goal file_ok'vc.
+Prover result is: Valid (0.00s, 766 steps).
+
+File "/tmp/.pycsl_m_99nvgb.mlw", line 46, characters 15-34:
+Sub-goal postcondition of goal file_ok'vc.
+Prover result is: Valid (0.00s, 767 steps).
+
+File "/tmp/.pycsl_m_99nvgb.mlw", line 45, characters 15-27:
+Sub-goal postcondition of goal file_ok'vc.
+Prover result is: Timeout (30.00s, 37057043 steps).
+
+File "/tmp/.pycsl_m_99nvgb.mlw", line 46, characters 15-34:
+Sub-goal postcondition of goal file_ok'vc.
+Prover result is: Valid (0.00s, 758 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_m_99nvgb.mlw", line 14, characters 19-20: unused variable m
+Warning, file "/tmp/.pycsl_m_99nvgb.mlw", line 40, characters 31-32: unused variable p
+Warning, file "/tmp/.pycsl_m_99nvgb.mlw", line 14, characters 19-20: unused variable m
+Warning, file "/tmp/.pycsl_m_99nvgb.mlw", line 40, characters 31-32: unused variable p
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 37057043 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

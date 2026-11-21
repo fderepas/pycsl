@@ -1,0 +1,10 @@
+2026-11-20T05:55:44Z oom=15 START tree=/home/fabrice/git/pycsl-lvZ2g head=ea706103e steps=12345678
+2026-11-20T06:47:41Z oom=15 S1 sweep: start 2026-11-20T05:55:44Z oom=15 head=ea706103e7374fc3f417a7eff292621f128ca472 cwd=/home/fabrice/git/pycsl-lvZ2g bd rc=0 2026-11-20T06:42:33Z oom=15 cmp-root rc=1 cmp-pyref rc=0 mir rc=0 2026-11-20T06:47:40Z oom=15 mir-diffq lines=1 n=53 end 2026-11-20T06:47:41Z oom=15 
+2026-11-20T06:48:44Z oom=15 S2 census rows: 13 (     11 REFUSAL       2 VERIFY-FAIL )
+2026-11-20T07:08:07Z oom=15 S3 witnesses:      36 FAIL	PIPELINE ERROR      18 FAIL	Verification FAILED       7 PASS	Verification FAILED      17 PASS	Verification SUCCESS 
+2026-11-20T08:46:45Z oom=15 S4 fun: Verification SUCCESS rc=0 oom=15->15 valid=754/754; leaf: Verification FAILED; mut: Verification FAILED; diff-restored=same
+2026-11-20T08:46:59Z oom=15 S5 fidelity sync=0 mirror-check=0 doc=0
+2026-11-20T09:25:44Z oom=15 S6 fast planes rc=0:     NOT CHECKED: 23 prover/emission plane(s) — among them     check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival     and check-stdlib-modules-verify. Re-run with --slow before a GATE. 
+2026-11-20T10:29:41Z oom=15 S7 planes: check-refusal-witness-coverage rc=0 check-getattr-erasure rc=0 check-claim-vacuity rc=0 check-assumed-facts rc=0 check-assigns-writes-survival rc=0 check-trusted-frame-honesty rc=0 count-trusted-directives rc=0 
+2026-11-20T10:29:45Z oom=15 S8 conformance fe=0 core=0
+2026-11-20T10:29:45Z oom=15 BATTERY-DONE

@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt70/t05_subclass.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: class 'MyP' at line 5: its base `Path` is the standard-library / builtin class `pathlib.Path`, which PyCSL has no model of. The verifier reads a class's MRO only through the classes of this file and the modelled bases (`object`, builtin exceptions whose constructor takes any positional arguments, and the `SyntaxError` family -- not `ExceptionGroup`, `UnicodeDecodeError` / `UnicodeEncodeError` / `UnicodeTranslateError`, route #393 --, `enum.Enum` / `IntEnum` / `Flag` / `IntFlag` / `StrEnum`, `typing.NamedTuple` / `Protocol` / `Generic` / `TypedDict`, `abc.ABC`, `ast.NodeVisitor` / `NodeTransformer`, and `type` only for a metaclass that defines nothing, route #404); the attributes, `__eq__` / `__hash__`, `__init__` and `__getattr__` this base contributes would be absent from the model (systematic rule S1; route #381 measured `class D(collections.UserList)` hashed in a set under `no_exception` PROVED, CPython TypeError). Keep the standard-library object in a field instead of deriving from it, and import standard-library names explicitly.
+rc=1

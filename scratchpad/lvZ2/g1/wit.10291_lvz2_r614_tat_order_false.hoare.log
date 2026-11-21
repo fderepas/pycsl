@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10291_lvz2_r614_tat_order_false.py'...
+[*] Memory model: hoare
+
+[!] UNEXPECTED PIPELINE ERROR:
+tuple index out of range

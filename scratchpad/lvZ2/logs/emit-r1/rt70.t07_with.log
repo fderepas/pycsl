@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt70/t07_with.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+function 'f' binds q with a `with ... as` clause, and no certified lowering models it. `_py_stmt_with` reads only the `with` BODY: the context-manager expression and the `as` binding are both DROPPED, so the body would run against the PRE-`with` value of the name while the run still reported 'All contracts formally proven'. Measured: `v = 0; with CM() as v: return v` proved `\result == 0` while Python returns 7. USE A BARE `with <lock>:`, which IS modelled, as a critical section. (The advice this message used to give first — call `__enter__` explicitly and assign its result — DOES NOT WORK TODAY and was measured in gen #30: an explicitly-called DUNDER method does not carry its contract to the call site, so the caller cannot use the postcondition. Differential: the identical class and contracts with the method renamed `enter` VERIFY, and with `__enter__` or `__len__` they do not. That is a completeness gap, not an unsoundness — it FAILS rather than proves — but it makes the advice unfollowable, so it is no longer given.)
+rc=1

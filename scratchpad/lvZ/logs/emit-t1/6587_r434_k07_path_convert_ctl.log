@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/6587_r434_k07_path_convert_ctl.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+an effectful expression is erased here (route #310): a `Subscript` operand containing a call that is not known pure (or a walrus/yield/await) reaches a position of this `Call` that has no model for its value, and it cannot be evaluated at its Python position (a conditional arm, after an earlier operand, or re-derived from its shape). FIX: assign the effectful expression to a local first.
+rc=1

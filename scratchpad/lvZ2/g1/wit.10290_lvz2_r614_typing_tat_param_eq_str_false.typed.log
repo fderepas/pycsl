@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10290_lvz2_r614_typing_tat_param_eq_str_false.py'...
+[*] Memory model: typed
+
+[!] UNEXPECTED PIPELINE ERROR:
+tuple index out of range

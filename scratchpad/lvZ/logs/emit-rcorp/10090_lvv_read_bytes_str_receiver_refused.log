@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10090_lvv_read_bytes_str_receiver_refused.py'...
+[*] Memory model: hoare
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+
+[!] PIPELINE ERROR:
+[module6-call]: PYCSL-R7V-SHA-RECEIVER: `p.read_bytes()` is modelled as `pathlib.Path.read_bytes` (inside `hashlib.sha256(..).hexdigest()`), but the source does not show that `p` is a `pathlib.Path` (a `str` receiver raises AttributeError in CPython, which the model does not raise). Annotate it as `Path`, or bind it only from `Path(..)` / `<Path> / <str>`.
+rc=1

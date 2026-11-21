@@ -5303,7 +5303,17 @@ expression-statement `print(..)` call, closed under f-string constant parts and 
 every other str `Constant` value plus the `ast.literal_eval` of every string token on a `#@` line,
 the run is REFUSED (`PYCSL-R429-NONLATIN1-STR-LITERAL`) iff some $v \in O$ has $v \notin E$ or
 $v \in N$, or $v$'s code point above 255 was written raw, or $N$ minus bare-string statements holds any
-value with a code point above 255 (then nothing is excused). Excused values reach the model only as an exception payload (bound by wildcard arms,
+value with a code point above 255 (then nothing is excused). (4) (run #8 u59, review rt71) Let $P$ be the values with an
+occurrence that is not a PAYLOAD of the emitted text: walking the enclosing parentheses outward from
+the literal through `(str_concat_op ..)` groups, a group the literal opens, or a group whose first
+element is the inner group, the walk must reach a group `(E ..)` right after `raise` ($E$ a
+constructor), a `(str_hash_op ..)` directly in `(print_1 ..)`, or such a group right after `let _
+=`. Let $M$ be the import closure (every `import` / `from .. import` of every reached module,
+transitively, resolved by `_resolve_module_path`, package prefixes and `from X import Y` submodules
+included). Every str `Constant` of a module in $M$ other than the main file, outside that module's
+own raise / print text, and every `#@` string token there, joins $N$. The run is also REFUSED iff
+some $v \in O \cap P$; an import the resolver refuses, or a module of $M$ that cannot be read or
+parsed, empties $E$. Excused values reach the model only as an exception payload (bound by wildcard arms,
 never read) or under `print_1 (str_hash_op ..)` (result `unit`). A literal of code points $\le 255$
 is translated exactly as in §T.6.101. All of it is inline in `_run_pipeline` (mirror twin
 `\trusted`); `whyml_string_literal` has no mirror twin.
@@ -5388,6 +5398,54 @@ function with `no_exception_all`, computes the Path names $P$ (parameters / `Ann
 (`PYCSL-R434-ORD-PATH`) a call `ord(a)` where $a$ is a Path value: a name in $P$, `x.parent`, a `/` with a
 Path operand, a call of `Path` / `PurePath` / ... or of `resolve` / `with_suffix` / ..., a subscript,
 conditional or walrus of one.
+
+PATH / STR CONFLATION (route #614, `annotations.md` §7.614). In the same function, after the route #434
+pass, `_run_pipeline` computes, for EVERY non-`\trusted` non-`\abstract` IR function, the path-ish AST nodes
+of its `def` by a post-order fixpoint (names per outermost `def`, fields and Path-returning functions
+module-wide), and refuses (`PYCSL-R614-PATH-STR-CONFLATED`) a `Compare` with a path-ish operand (exempt:
+`is None`; `Path(a) == / != Path(b)` with two direct one-argument `Path` calls), an ordering / hashing /
+equality / type / repr call involving one, a path-ish key, a `!r` / `%` format, a `match` subject, an
+un-annotated return / parameter flow and a store into a non-fresh container. It then walks the IR of the
+function: a `BinOp` comparison with a path-ish operand (a `Var` in the set, `Result` of a `-> Path`
+function, a `Path` call, `.parent`, `/`) and, in the contract part (clauses, `ProofAssert`, invariants /
+variants), a call with a path-ish argument to an unchecked callee, is refused the same way. No WhyML is
+emitted differently; a refused file emits nothing.
+Route #617 (`annotations.md` §7.614): before the seeds, the pass computes the Path ALIASES of the unit
+(fixpoint over `X: T = <type expr>`, `X = <type expr>`, `type X = <type expr>` whose text matches the Path
+pattern or an alias, plus `Path as X` import bindings and aliases imported from a local dependency) and
+widens the annotation pattern and the Path-class set with them; it resolves every imported module whose
+injected `\trusted` stubs the unit calls (`frontend.ir_resolve._resolve_module_path`), parses its source,
+and records each imported callee's `def` (None when absent): a call is path-ish when the `def` returns a
+Path (or is None, or returns unannotated with a path-ish argument), any dependency function / method
+returning a Path joins the Path-returning names, and a path-ish argument to a callee parameter not
+annotated Path is refused, in the body and in the IR contract walk. Still refusal-only: an admitted file
+emits byte-identical WhyML.
+
+RESTRICTED PATH TYPE SEPARATION (run #8 lvZ2, `annotations.md` §7.614). `_run_pipeline` records, per
+function (route #599's names), `ppath_locals_lvz2`: the non-parameter names every binding of which (nested
+scopes included) is a single-target `n = Path(<one positional arg>)` / `n: T = Path(..)`. Module 6 calls an
+expression MODELLED-PATH when lvX's constructor test holds (every import binding of `Path` is `from pathlib
+import Path`, no star import, route #610's tables show `Path` unshadowed, no unit def / type named `Path`)
+and it is a one-argument `Path(<string>)` call or a `Var` in that table; the test is inlined at every use.
+Lowerings: `Path(<str>)` -> `(ext_path_of_str_op s)` with `val function ext_path_of_str_op (s: string) :
+py_path`; `str(e)` / `os.fspath(e)` (os the module, unshadowed) / an f-string part `{e}` / an `os.path`
+argument -> `(path_str_op e)`, `val function path_str_op (p: py_path) : string`; `e1 == e2` / `!=` ->
+`(path_eq_op e1 e2)` (`val path_eq_op (a b: py_path) : bool ensures { result <-> (a = b) }`; `a = b` in a
+contract); `hashlib.sha256(e.read_bytes()).hexdigest()` -> `ext_ppath_read_bytes_op (p: py_path)` with the
+string twin's raises; `e.exists()` / `.is_file()` / `.is_dir()` -> `ppath_exists_op` / `ppath_isfile_op` /
+`ppath_isdir_op (p: py_path) : int`; a modelled local is `let`-bound at its assignment (never the `ref 0`
+pre-decl). `type py_path` is declared once in the abstract block when an op mentions it. A modelled Path is
+no longer `_is_string_expr`, so every other use meets a monomorphic `string` / `int` op: a Why3 type error.
+R614 unresolved aliases (run #8 lvZ2, `annotations.md` §7.614): before the alias fixpoint, the pass
+collects every name and dotted tail of the unit's parameter / return / annotated-assignment annotations
+(string annotations parsed) and adds to the aliases each one it cannot show innocuous (the exact rule and
+its measured narrowing are in §7.614: a call binding with a suspicious argument, a suspicious PEP 695
+bound, a non-type binding, a dependency binding of either kind or unparsable, an unbound name under a
+non-stdlib star import); each dependency's signature names get the same test one level deep. The
+imported-callee table no longer subtracts the unit's defs, keys every top-level def and every top-level
+class method of a local dependency (local, dotted-module and `Class.method` spellings; `from pkg import
+mod` as the submodule), and treats an unkeyed dotted callee rooted at a local module import as an unknown
+signature when a typed stub may still reach it. Still refusal-only.
 
 ### §T.6.148  Unbound builtin descriptors (route #435, run #3)
 
@@ -6206,7 +6264,15 @@ for $m$ is in its own working directory and that directory is neither $R_0$ nor 
 the interpreter's identical module); and $\rho(a.b\ldots) = \bot$
 (`PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED`) when the hit's top-level directory $a$ has no
 `__init__.py` and another root CPython searches (program directory, `--import-path`, stdlib,
-site directories) holds an entry for $a$: a regular package there wins over the portion. $\rho$ is a function of the
+site directories) holds an entry for $a$: a regular package there wins over the portion. A
+dependency's contracts are believed as verified with ITS directory as $R_0$; CPython resolves the
+dependency's absolute imports with the PROGRAM's $R_0$ (u60, review rt72 A1, PRE-EXISTING), so
+the program has no image (`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`) when, for some local module
+$d$ it reaches and some absolute import $m$ in $d$, $\rho_{R_0(d)}(m) \ne \rho_{R_0(P)}(m)$
+while $\rho_{R_0(d)}(m)$ is a file, or is $\bot$ for a stdlib name (pycsl's model); a non-stdlib
+$m$ with $\rho_{R_0(d)}(m) = \bot$ lowered to an unconstrained `val` in $d$'s verification and is
+admitted; relative imports are package-relative in both and not compared; not applied under
+`--verification-image`. $\rho$ is a function of the
 source tree only, so a program that can change CPython's binding has no image
 (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
 path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a

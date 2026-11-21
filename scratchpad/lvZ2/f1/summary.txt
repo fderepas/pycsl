@@ -1,0 +1,5 @@
+2026-11-20T18:52:20Z oom=15 START tree=/home/fabrice/git/pycsl-lvZ2f head=55539d7ad steps=568
+2026-11-20T18:52:34Z oom=15 S5 fidelity sync=0 mirror-check=0 doc=0
+2026-11-20T19:28:55Z oom=15 S6 fast planes rc=0:     NOT CHECKED: 23 prover/emission plane(s) — among them     check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival     and check-stdlib-modules-verify. Re-run with --slow before a GATE. 
+2026-11-20T19:28:59Z oom=15 S8 conformance fe=0 core=0
+2026-11-20T19:28:59Z oom=15 BATTERY-DONE

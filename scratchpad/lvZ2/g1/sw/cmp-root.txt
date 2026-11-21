@@ -1,0 +1,8 @@
+[!]   MOVED 10140_lvx_path_ctor_deterministic_ctl.mlw — if that is an intended SOURCE repair, pass --expect-moved 10140_lvx_path_ctor_deterministic_ctl.
+[!]   MOVED 10141_lvx_path_ctor_not_identity_false.mlw — if that is an intended SOURCE repair, pass --expect-moved 10141_lvx_path_ctor_not_identity_false.
+[!]   MOVED 10142_lvx_path_ctor_empty_is_dot_false.mlw — if that is an intended SOURCE repair, pass --expect-moved 10142_lvx_path_ctor_empty_is_dot_false.
+[!]   MOVED 10144_lvx_path_ctor_read_bytes_fnf_false.mlw — if that is an intended SOURCE repair, pass --expect-moved 10144_lvx_path_ctor_read_bytes_fnf_false.
+[!]   MOVED 10145_lvx_path_ctor_sha_handler_ctl.mlw — if that is an intended SOURCE repair, pass --expect-moved 10145_lvx_path_ctor_sha_handler_ctl.
+[!]   MOVED 10205_r614_path_eq_normalised_parts_false.mlw — if that is an intended SOURCE repair, pass --expect-moved 10205_r614_path_eq_normalised_parts_false.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 3295 baseline / 3303 candidate .mlw; 6 MOVED (6 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 8 new source file(s) ignored.

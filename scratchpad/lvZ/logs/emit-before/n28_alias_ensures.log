@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt67/n28_alias_ensures.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+rc=0

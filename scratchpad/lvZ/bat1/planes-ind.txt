@@ -1,0 +1,6 @@
+check-refusal-witness-coverage rc=0
+check-getattr-erasure rc=0
+check-claim-vacuity rc=0
+check-assigns-writes-survival rc=0
+check-trusted-frame-honesty rc=0
+count-trusted-directives rc=0

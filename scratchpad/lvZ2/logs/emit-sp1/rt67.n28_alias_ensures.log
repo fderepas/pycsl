@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt67/n28_alias_ensures.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[whyml]: PYCSL-R614-PATH-STR-CONFLATED: in 'g' (line 9), a contract or body comparison has a pathlib.Path operand (op `==`). The model represents a Path as its string form, so a Path and its str are the same value there, while in CPython a Path never equals a str and Paths order by parts (route #614). Compare `str(p)` explicitly.
+rc=1

@@ -1,0 +1,8 @@
+/home/fabrice/git/pycsl-lvZ2/src/pycsl/frontend/Module3_Weaver.py:388: UserWarning: Function 'Path' (line 6): \trusted has no reviewer — add `reviewer: <name>` to document who is accountable for this trust assumption.
+  self._dispatch_function_contracts(node, self.contracts_map[node.lineno])
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt70/m17/main.py'...
+[*] Memory model: hoare
+[*] Imported from 'h': ['Path'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+rc=0

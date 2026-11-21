@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt70/t06_match_class.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[parse]: expected ')' (got OP '=') (<unknown>, line 16)
+rc=1

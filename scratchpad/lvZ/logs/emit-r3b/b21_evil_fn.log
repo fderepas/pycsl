@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt65/b21_evil_fn.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at line 6). Every call is resolved against the `def`, so the rebinding would be silently ignored (measured: `inc = dec` then `inc(3)` proved the `inc` contract while Python ran `dec`). Rebinding a function name is not modelled; give the new binding its own name.
+rc=1

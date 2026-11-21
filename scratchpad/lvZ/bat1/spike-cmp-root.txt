@@ -1,0 +1,26 @@
+[!]   MOVED 10083_lvv_read_bytes_fnf_reachable.mlw — if that is an intended SOURCE repair, pass --expect-moved 10083_lvv_read_bytes_fnf_reachable.
+[!]   MOVED 10084_lvv_read_bytes_two_reads_unrelated.mlw — if that is an intended SOURCE repair, pass --expect-moved 10084_lvv_read_bytes_two_reads_unrelated.
+[!]   MOVED 10140_lvx_path_ctor_deterministic_ctl.mlw — if that is an intended SOURCE repair, pass --expect-moved 10140_lvx_path_ctor_deterministic_ctl.
+[!]   MOVED 10141_lvx_path_ctor_not_identity_false.mlw — if that is an intended SOURCE repair, pass --expect-moved 10141_lvx_path_ctor_not_identity_false.
+[!]   MOVED 10142_lvx_path_ctor_empty_is_dot_false.mlw — if that is an intended SOURCE repair, pass --expect-moved 10142_lvx_path_ctor_empty_is_dot_false.
+[!]   MOVED 10144_lvx_path_ctor_read_bytes_fnf_false.mlw — if that is an intended SOURCE repair, pass --expect-moved 10144_lvx_path_ctor_read_bytes_fnf_false.
+[!]   MOVED 10145_lvx_path_ctor_sha_handler_ctl.mlw — if that is an intended SOURCE repair, pass --expect-moved 10145_lvx_path_ctor_sha_handler_ctl.
+[!]   MOVED 10205_r614_path_eq_normalised_parts_false.mlw — if that is an intended SOURCE repair, pass --expect-moved 10205_r614_path_eq_normalised_parts_false.
+[!]   MOVED 10207_r614_str_of_path_compare_ctl.mlw — if that is an intended SOURCE repair, pass --expect-moved 10207_r614_str_of_path_compare_ctl.
+[!]   MOVED 2180_gen36_ch14_path_predicates_compound_receiver.mlw — if that is an intended SOURCE repair, pass --expect-moved 2180_gen36_ch14_path_predicates_compound_receiver.
+[!]   MOVED 2181_gen36_ch14_path_is_file_not_true_false_claim.mlw — if that is an intended SOURCE repair, pass --expect-moved 2181_gen36_ch14_path_is_file_not_true_false_claim.
+[!]   MOVED 2182_gen36_ch14_path_exists_not_is_file_false_claim.mlw — if that is an intended SOURCE repair, pass --expect-moved 2182_gen36_ch14_path_exists_not_is_file_false_claim.
+[!]   MOVED 2183_gen36_ch14_path_is_dir_vs_is_file_false_claim.mlw — if that is an intended SOURCE repair, pass --expect-moved 2183_gen36_ch14_path_is_dir_vs_is_file_false_claim.
+[!]   MOVED 2184_gen36_ch14_path_predicate_simple_name_control.mlw — if that is an intended SOURCE repair, pass --expect-moved 2184_gen36_ch14_path_predicate_simple_name_control.
+[!]   MOVED 6587_r434_k07_path_convert_ctl.mlw — if that is an intended SOURCE repair, pass --expect-moved 6587_r434_k07_path_convert_ctl.
+[!]   MOVED 6786_r443_ctl_stdlib_class_param.mlw — if that is an intended SOURCE repair, pass --expect-moved 6786_r443_ctl_stdlib_class_param.
+[!]   MOVED 9700_lvq_ext_mkdir_honest.mlw — if that is an intended SOURCE repair, pass --expect-moved 9700_lvq_ext_mkdir_honest.
+[!]   MOVED 9701_lvq_ext_mkdir_oserror_reachable.mlw — if that is an intended SOURCE repair, pass --expect-moved 9701_lvq_ext_mkdir_oserror_reachable.
+[!]   MOVED 9706_lvq_ext_write_then_isfile.mlw — if that is an intended SOURCE repair, pass --expect-moved 9706_lvq_ext_write_then_isfile.
+[!]   MOVED 9707_lvq_ext_cwd_fnf_reachable.mlw — if that is an intended SOURCE repair, pass --expect-moved 9707_lvq_ext_cwd_fnf_reachable.
+[!]   MOVED 9961_u44_r599_ctl_path_receiver_under_handler.mlw — if that is an intended SOURCE repair, pass --expect-moved 9961_u44_r599_ctl_path_receiver_under_handler.
+[!]   MOVED 9962_u44_r599_ctl_two_ext_mkdir_body.mlw — if that is an intended SOURCE repair, pass --expect-moved 9962_u44_r599_ctl_two_ext_mkdir_body.
+[!]   MOVED 9963_u44_r599_ctl_advice_move_out_of_try.mlw — if that is an intended SOURCE repair, pass --expect-moved 9963_u44_r599_ctl_advice_move_out_of_try.
+[!]   MOVED 9966_u44_r599_ctl_advice_annotate_path.mlw — if that is an intended SOURCE repair, pass --expect-moved 9966_u44_r599_ctl_advice_annotate_path.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 3295 baseline / 3295 candidate .mlw; 24 MOVED (24 unexpected), 0 GONE (0 unexpected), 0 APPEARED.

@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt67/n06_getattr.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[whyml-emit]: 'f' constructs `Box` (line 14), whose constructor is not a field initialiser: the call `Path(...)` (line 8), whose effects, precondition and raises are not modelled (ROUTE #315). A construction is lowered to a record literal of the `self.<f>` stores and the rest of the body is never emitted, so its effects on the arguments, its callees' preconditions and its raises would be missing from the proof. Move that work out of the constructor (into a function called before or after it).
+rc=1

@@ -1,0 +1,8 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt65/c03_sha_noexc_claim.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+
+[!] PIPELINE ERROR:
+[module6-try]: `except OSError` is reached in the model only from the operation(s) of the `try` body that the model says raise it, but the call `Path(..)` in the same body may also raise OSError in Python and is not modelled as raising it, so Python can run the handler in a state the proof never considers, and this function makes a claim that depends on it (route #599; measured: `Path.cwd(); x = 1; os.path.getsize(s)` under `except OSError: return x` proved `\result == 0`, Python returns 1). Move every operation the handler is not meant for out of the `try` body, or test the condition before the operation.
+rc=1

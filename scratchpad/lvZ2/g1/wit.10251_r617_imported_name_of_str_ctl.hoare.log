@@ -1,0 +1,14 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10251_r617_imported_name_of_str_ctl.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Imported from 'multi_file_lib.r617_pathlib': ['name_of'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/tmp/.pycsl_a9jyq1l0.mlw", line 19, characters 25-47:
+This expression has type PyCSL_Program.py_path,
+but is expected to have type string
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
