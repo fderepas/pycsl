@@ -4403,10 +4403,14 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
         # for a stdlib / builtin name (pycsl's own model of it), and the program's order gives
         # anything else (another file, nothing, a refusal), the program is REFUSED. A non-stdlib
         # name that resolves to NOTHING (or is refused) from the module's own directory had no
-        # contract there: pycsl models such an import as an unconstrained external (`val f () :
-        # int`, no postcondition; measured), so what that verification proved holds of whatever
-        # CPython loads -- admitted (the package-qualified `from multi_file_lib.circ_b import
-        # func_b` inside multi_file_lib/circ_a.py), and the file CPython loads is followed.
+        # contract there and is admitted (the package-qualified `from multi_file_lib.circ_b import
+        # func_b` inside multi_file_lib/circ_a.py), and the file CPython loads is followed. (u61:
+        # review rt74 V1D shows this admission is UNSOUND -- the unconstrained `val` has no
+        # writes and that file is never judged -- but refusing it refuses 9 corpus PASS files,
+        # the frontend-only-conformance goldens 0064 / 0065 among them; left OPEN, see
+        # getting-better/run8-u61-report.md.) Every dotted PREFIX of an import is compared too, and a prefix the program's order
+        # finds as a file must be the package `__init__.py` holding the full name's file (u61,
+        # rt74 V2D).
         # Relative imports (`from . import x`) are package-relative in both views and are only
         # followed. pycsl's own stdlib model root `Lib/` is not followed (CPython runs the
         # interpreter's stdlib there, whose imports the closure check above judges). Under the
@@ -4418,7 +4422,8 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             _seen660: Set[str] = {_mf660}
             _wl660: List[str] = [_mf660]
             _bad660: Optional[Tuple[str, str, str, str]] = None
-            while _wl660 and _bad660 is None:
+            _pfx661: Optional[Tuple[str, str, str, str, str]] = None
+            while _wl660 and _bad660 is None and _pfx661 is None:
                 _m660 = _wl660.pop(0)
                 try:
                     _tr660 = _a613.parse(__import__("pathlib").Path(_m660).read_bytes())
@@ -4434,8 +4439,20 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                             _ent660.append((_n660.module, _lv660))
                         _ent660 += [((_n660.module + "." if _n660.module else "") + _al.name,
                                      _lv660) for _al in _n660.names if _al.name != "*"]
+                # (#49) run #8 u61 -- review rt74 V2D: every dotted PREFIX `a`, `a.b`, ... of
+                # an import is compared and followed too (CPython imports `a` before `a.b`, and
+                # stops at the first root holding a REGULAR package `a`), as u59's closure walk
+                # does; a prefix precedes its longer name.
+                _ex661: List[Tuple[str, int]] = []
                 for _d660, _lv660 in _ent660:
-                    if _bad660 is not None:
+                    _pp661 = (_d660 or "").split(".")
+                    for _k661 in range(1, len(_pp661) + 1):
+                        _e661 = (".".join(_pp661[:_k661]), _lv660)
+                        if _e661 not in _ex661:
+                            _ex661.append(_e661)
+                _ent660 = _ex661
+                for _d660, _lv660 in _ent660:
+                    if _bad660 is not None or _pfx661 is not None:
                         break
                     if not _d660 or not all(_q.isidentifier() for _q in _d660.split(".")):
                         continue
@@ -4463,6 +4480,45 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     if _vw660[-1][0] != "file":
                         continue
                     _hf660 = _vw660[-1][1]
+                    # (#49) run #8 u61 -- review rt74 V2D (PRE-EXISTING): CPython imports the
+                    # dotted name's every prefix first, and a prefix found as a REGULAR package
+                    # (`R/a/__init__.py`) in the first root that holds it is final: `a.b` is
+                    # then searched only in that package's `__path__` (which its `__init__` may
+                    # redirect), never in a later root. pycsl's resolver falls through to a later
+                    # root's `a/b.py` (measured: P/zpa74/__init__.py redirecting `__path__`, an
+                    # --import-path X2/zpa74/b.py; pycsl PROVED X2's `\result == 1`, CPython ran
+                    # P/zpa74_alt/b.py and printed 2). RULE (refusal-only, program's order):
+                    # every prefix of a dotted import that resolves to a file must be a package
+                    # `__init__.py` whose directory holds the file pycsl reads for the full name;
+                    # a module file, another package, or a refused prefix resolution REFUSES.
+                    # (pycsl's own stdlib model root `Lib/` stands for the interpreter's stdlib
+                    # and is not judged here, as it is not followed below.)
+                    _pt661 = _d660.split(".")
+                    for _k661 in range(1 if os.path.commonpath([_hf660, _lib660]) != _lib660
+                                       else len(_pt661), len(_pt661)):
+                        _pd661 = ".".join(_pt661[:_k661])
+                        try:
+                            _pq661 = _resolve_module_path(_pd661, _lv660, (
+                                _m660 if _lv660 or _m660 == _mf660 or os.path.dirname(
+                                    _m660) == os.path.dirname(_mf660) else _mf660))
+                            _po661 = (("file", os.path.abspath(_pq661)) if _pq661 is not None
+                                      else ("none", ""))
+                        except _E613 as _x661:
+                            _po661 = ("refused", str(_x661.code or "refused"))
+                        if _po661[0] == "none" or (
+                                _po661[0] == "file"
+                                and os.path.basename(_po661[1]) == "__init__.py"
+                                and os.path.commonpath([_hf660, os.path.dirname(_po661[1])])
+                                == os.path.dirname(_po661[1])):
+                            continue
+                        _pfx661 = (_m660, _d660, _pd661, *[
+                            ((os.path.relpath(_v[1]) if _v[1].startswith(os.getcwd() + os.sep)
+                              else _v[1]) if _v[0] == "file"
+                             else "a refused resolution (" + _v[1] + ")")
+                            for _v in (_po661, ("file", _hf660))])
+                        break
+                    if _pfx661 is not None:
+                        break
                     _fol660 = [_hf660]
                     # the package `__init__` chain CPython runs before the module itself
                     _pt660 = _d660.split(".")
@@ -4479,6 +4535,22 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                 and os.path.commonpath([_f660, _lib660]) != _lib660):
                             _seen660.add(_f660)
                             _wl660.append(_f660)
+            if _pfx661 is not None:
+                _dm661 = (os.path.relpath(_pfx661[0]) if _pfx661[0].startswith(os.getcwd() + os.sep)
+                          else _pfx661[0])
+                raise _E613(
+                    f"the local module {_dm661}, which the program reaches, imports "
+                    f"`{_pfx661[1]}`: through the program's sys.path its package prefix "
+                    f"`{_pfx661[2]}` is {_pfx661[3]}, and CPython stops at the first root that "
+                    f"holds a regular package (or module) for a prefix, searching `{_pfx661[1]}` "
+                    f"only in that package's `__path__` -- which its `__init__` may redirect -- "
+                    f"while pycsl read {_pfx661[4]}, outside it, so the file pycsl verified "
+                    f"against is not the one CPython runs (review rt74 V2D: P/zpa74/__init__.py "
+                    f"redirecting `__path__`, an --import-path X2/zpa74/b.py; pycsl PROVED "
+                    f"`\\result == 1`, CPython ran P/zpa74_alt/b.py and printed 2). FIX: rename the "
+                    f"package (or the module) so that one root holds the whole dotted path.",
+                    filename=main_file, stage="imports",
+                    code="PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER")
             if _bad660 is not None:
                 _dm660 = (os.path.relpath(_bad660[0]) if _bad660[0].startswith(os.getcwd() + os.sep)
                           else _bad660[0])

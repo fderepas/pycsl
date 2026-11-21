@@ -6271,8 +6271,12 @@ the program has no image (`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`) when, for 
 $d$ it reaches and some absolute import $m$ in $d$, $\rho_{R_0(d)}(m) \ne \rho_{R_0(P)}(m)$
 while $\rho_{R_0(d)}(m)$ is a file, or is $\bot$ for a stdlib name (pycsl's model); a non-stdlib
 $m$ with $\rho_{R_0(d)}(m) = \bot$ lowered to an unconstrained `val` in $d$'s verification and is
-admitted; relative imports are package-relative in both and not compared; not applied under
-`--verification-image`. $\rho$ is a function of the
+admitted (OPEN: rt74 V1D, the `val` has no writes); $m$ ranges over every dotted prefix of
+each import too, and for every prefix $p$ of $m$ with $\rho_{R_0(P)}(p)$ a file, that file
+must be a package `__init__.py` whose directory contains $\rho_{R_0(P)}(m)$ (u61, rt74 V2D:
+CPython's search for $m$ stops at the first root holding a regular package $p$ and continues
+in its `__path__` only); relative imports are package-relative in both and not compared; not
+applied under `--verification-image`. $\rho$ is a function of the
 source tree only, so a program that can change CPython's binding has no image
 (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
 path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a

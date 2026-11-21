@@ -1485,7 +1485,13 @@ model) and the program's order gives anything else (another file, nothing, a ref
 program is REFUSED (`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`: `lib/dep.py`'s `from zqh72
 import one` took `lib/zqh72.py` in pycsl and the program directory's `zqh72.py` in CPython); a
 non-stdlib name that resolves to nothing from the module's directory was an unconstrained
-external there (no contract), so it is admitted. Relative imports stay package-relative; the
+external there (no contract), so it is admitted (an OPEN gap, review rt74 V1D: that file's code
+runs unjudged; see `getting-better/run8-u61-report.md`). Every dotted PREFIX `a`, `a.b`, ... of an
+import is compared and followed as well, and through the program's order each prefix that is a
+file must be a package `__init__.py` whose directory holds the file pycsl reads for the full name
+(u61, review rt74 V2D: CPython stops at the first root with a regular package `a` and searches
+`a.b` only in its `__path__`, which `P/zpa74/__init__.py` redirected, while pycsl fell through to
+an `--import-path` `zpa74/b.py`). Relative imports stay package-relative; the
 check is skipped under the declared `--verification-image`, which makes no CPython-run
 claim): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or
