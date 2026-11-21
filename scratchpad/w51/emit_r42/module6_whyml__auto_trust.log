@@ -1,0 +1,5 @@
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1711: UserWarning: Function 'autotrustmixin___has_set_op_on_map': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl/src/self-annotate/src/module6_whyml/auto_trust.py'...
+[*] Memory model: hoare
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

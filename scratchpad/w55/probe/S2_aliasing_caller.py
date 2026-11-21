@@ -1,0 +1,18 @@
+# pycsl-flags: --memory-model hoare
+from typing import List
+
+
+#@ requires a[0] == 1
+#@ ensures \result == 1
+#@ assigns b[0..0]
+def f(a: List[int], b: List[int]) -> int:
+    b[0] = 9
+    return a[0]
+
+
+#@ requires True
+#@ ensures \result == 1
+#@ assigns \nothing
+def g() -> int:
+    xs: List[int] = [1]
+    return f(xs, xs)

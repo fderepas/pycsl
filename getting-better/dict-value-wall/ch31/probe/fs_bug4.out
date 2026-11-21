@@ -1,0 +1,33 @@
+[*] Parsing and Semantic Analysis for 'getting-better/dict-value-wall/ch31/probe/fs_bug4.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "getting-better/dict-value-wall/ch31/probe/fs_bug4.mlw", line 36, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2662 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/fs_bug4.mlw", line 57, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 2838 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/fs_bug4.mlw", line 64, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2190 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/fs_bug4.mlw", line 71, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2226 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/fs_bug4.mlw", line 85, characters 15-32:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 1199 steps).
+
+File "getting-better/dict-value-wall/ch31/probe/fs_bug4.mlw", line 85, characters 15-32:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Timeout (30.00s, 32213071 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 32213071 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

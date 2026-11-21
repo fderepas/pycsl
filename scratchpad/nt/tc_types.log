@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/types.py'...
+[*] Memory model: hoare
+[*] Imported from 'module6_whyml.struct_format': ['parse_format', 'parse_format'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

@@ -85,6 +85,13 @@ mutates a field through a value passed in (R3) is rejected.
 - **A crude enforcement** is cheap and worth having even short of full A2b-2: reject R2 (mutable
   default args — a pure-syntactic check) and flag `self.x = <param>` followed by a mutation of that
   param (R3 heuristic). These catch the common bugs without a full alias graph.
+- **Declared residue (routes #256, #282).** R1 for an alias built in UNVERIFIED code (a caller the
+  verifier never sees) cannot be refused; it is DECLARED instead. `pycsl --soundness-report` lists
+  FIELD-DISJOINT (two distinct mutable fields hold distinct objects, corpus 2570) and PARAM-DISJOINT
+  (two distinct mutable parameters — or a parameter and `self` / a module-level name — and two
+  distinct elements of a container parameter hold distinct objects, corpus 3180-3188) for every
+  function whose proof rests on them. A verified caller that builds either alias is refused or fails
+  closed (Why3's illegal-alias check, routes #243/#244/#254, the `matrix`/`array` split).
 - **Full enforcement (A2b-2)** — a sound per-program-point alias/ownership analysis — is **contingent**
   (build only if a third-party use case needs aliased mutation that must verify). Its gates are in
   `no-more-int-7.md` §A2b-2, including the false-reject acceptance gate.

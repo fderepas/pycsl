@@ -1,0 +1,7 @@
+[*] trusted-frame-honesty: EXTERNAL EFFECTS — 16 `\trusted` stub(s) declare `#@ assigns \nothing` while their LIVE body calls `subprocess.*`/`os.*`/`shutil.*`; 16 named in KNOWN_EXTERNAL_EFFECT_NOTHING. The clause is glossed "pure, side-effect-free" in annotations.md §926.
+[*] trusted-frame-honesty: 184 method(s) declare `#@ assigns \nothing`; 1 stand for a live body that transitively writes `self` state (1 write DIRECTLY); 0 of those are MODEL-VISIBLE (`@mutable_state` class).
+[*] converted-frame-honesty: 535 method(s) declare `#@ assigns \nothing`; 93 stand for a live body that transitively writes `self` state (11 write DIRECTLY); 0 of those are MODEL-VISIBLE (`@mutable_state` class).
+[*] param-frame-honesty(trusted): 407 method(s) examined; 9 declare a frame omitting a parameter their LIVE body writes (17 (method, parameter) pairs, 17 of them ledgered).
+[*] param-frame-honesty(converted): 908 method(s) examined; 13 declare a frame omitting a parameter their LIVE body writes (25 (method, parameter) pairs, 25 of them ledgered).
+[*] param-frame-honesty: 86 (method, parameter) frame(s) name a written parameter that the emitted `writes` does NOT carry (object handle / by-value set or dict: source-honest, model-inert; trusted 69, converted 17).
+[+] frame-honesty: OK — measured trusted 0 model-visible / 1 total, converted 0 model-visible / 93 total (ratchets 0/1 and 0/93).

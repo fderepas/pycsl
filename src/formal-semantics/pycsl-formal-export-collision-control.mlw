@@ -1,0 +1,24 @@
+(* pycsl-formal-export-collision-control.mlw — the M1 §5.2 collision, shown.
+
+   The negative control for `pycsl-formal-export.mlw`. It attempts what 09-2223
+   §5.2 measured as impossible: inline BOTH the pyval `size` measure and the
+   emit-IR `size` measure into ONE theory/module scope. Why3 rejects it:
+
+     "Symbol size is already defined in the current scope"
+
+   The bridge's fix (M1, 09-2223-plan §1) is to keep the two measures in
+   SEPARATE modules and reference them QUALIFIED (`PV.size` / `EI.size`) — which
+   is exactly what `pycsl-formal-export.mlw`'s BridgeHost does. This file is
+   EXPECTED TO FAIL type-check; it exists only to exhibit the collision.
+*)
+module OneScopeCollision
+  use int.Int
+
+  (* the pyval measure *)
+  function size (v: int) : int = v + 1
+
+  (* the emit-IR node measure — SAME NAME, same scope -> hard error *)
+  function size (e: int) : int = e + 2
+
+  goal g : size 0 = 1
+end

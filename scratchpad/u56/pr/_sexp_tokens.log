@@ -1,0 +1,6 @@
+fns: [('_sexp_tokens', 106)]
+[run] callsite prover=Alt-Ergo,2.6.3, rc=2 selectors=16 records=16 probe-goals={'vacpost 0': ['Timeout'], 'vacpost 1': ['Timeout'], 'vacpost 10': ['Timeout'], 'vacpost 11': ['Timeout'], 'vacpost 12': ['Timeout'], 'vacpost 13': ['Timeout'], 'vacpost 14': ['Timeout'], 'vacpost 15': ['Timeout'], 'vacpost 2': ['Timeout'], 'vacpost 3': ['Timeout'], 'vacpost 4': ['Timeout'], 'vacpost 5': ['Timeout'], 'vacpost 6': ['Timeout'], 'vacpost 7': ['Timeout'], 'vacpost 8': ['Timeout'], 'vacpost 9': ['Timeout']} stderr=''
+[run] callsite prover=Z3,4.13.3, rc=2 selectors=16 records=16 probe-goals={'vacpost 0': ['Timeout'], 'vacpost 1': ['Timeout'], 'vacpost 10': ['Timeout'], 'vacpost 11': ['Timeout'], 'vacpost 12': ['Timeout'], 'vacpost 13': ['Timeout'], 'vacpost 14': ['Timeout'], 'vacpost 15': ['Unknown\n(unknown)'], 'vacpost 2': ['Timeout'], 'vacpost 3': ['Timeout'], 'vacpost 4': ['Timeout'], 'vacpost 5': ['Timeout'], 'vacpost 6': ['Timeout'], 'vacpost 7': ['Timeout'], 'vacpost 8': ['Timeout'], 'vacpost 9': ['Timeout']} stderr=''
+[run] perfn prover=Alt-Ergo,2.6.3, rc=2 selectors=1 records=1 probe-goals={'vacprobe': ['Timeout']} stderr=''
+[run] perfn prover=Z3,4.13.3, rc=2 selectors=1 records=1 probe-goals={'vacprobe': ['Unknown\n(unknown)']} stderr=''
+RESULT: []

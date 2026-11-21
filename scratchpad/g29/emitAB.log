@@ -1,0 +1,19 @@
+emitted 1239 of 1565 source file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAB/corpus_cand (6 jobs)
+emitted 2199 of 2217 python-reference file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAB/corpus_cand/pyref (6 jobs)
+[*] mirror-emit-sweep: emitted 52 of 53 mirror file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAB/mirror_cand
+    Compare with: bin/byte-diff-compare.py <baseline> /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAB/mirror_cand --min-files 45
+== COMPARE corpus
+[*] byte-diff-compare: 1237 baseline / 1238 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED, 1 new source file(s) ignored.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+== COMPARE pyref
+[*] byte-diff-compare: 2199 baseline / 2199 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+== COMPARE mirrors
+[!]   GONE Module6_WhyMLTranspiler.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone Module6_WhyMLTranspiler.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 53 baseline / 52 candidate .mlw; 0 MOVED, 1 GONE (1 unexpected), 0 APPEARED.
+rc=1
+EMISSION-DONE 17:15:27Z
+EXIT=0

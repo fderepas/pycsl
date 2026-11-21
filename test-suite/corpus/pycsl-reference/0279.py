@@ -11,6 +11,7 @@ temp = 20
 #@ thread_entry
 #@ \diverges
 def adjust_temp() -> int:
+    global temp
     #@ critical lock_temp
     with lock_temp:
         temp += 1

@@ -26,19 +26,26 @@ def test_floordiv_nonneg(x: int, y: int) -> int:
     return floordiv(x, y)
 
 
+# (#49) gen #30: this driver PROVED `\result == num` for ANY `num >= 0`, `den > 0` —
+# false of CPython, where `Fraction(2, 4).numerator` is 1. The `gcd(num, den) == 1` guard
+# is now the model's precondition and must be discharged here.
 #@ requires num >= 0
 #@ requires den > 0
+#@ requires gcd(num, den) == 1
 #@ ensures \result == num
 def test_rational_num_value(num: int, den: int) -> int:
-    """Rational.numerator returns num."""
+    """Rational.numerator returns num for an ALREADY-REDUCED pair."""
     return rational_num(num, den)
 
 
+# (#49) gen #30: same guard as `test_rational_num_value`;
+# `Fraction(2, 4).denominator` is 2, not 4.
 #@ requires num >= 0
 #@ requires den > 0
+#@ requires gcd(num, den) == 1
 #@ ensures \result == den
 def test_rational_den_value(num: int, den: int) -> int:
-    """Rational.denominator returns den."""
+    """Rational.denominator returns den for an ALREADY-REDUCED pair."""
     return rational_den(num, den)
 
 

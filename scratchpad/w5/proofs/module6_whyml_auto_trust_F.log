@@ -1,0 +1,1170 @@
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1629: UserWarning: Function 'autotrustmixin___has_set_op_on_map': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/auto_trust.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 79, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 17247 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 80, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 17166 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 77, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.26s, 629260 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 84, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 84, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5217 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 83, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 16925 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 87, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4514 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 87, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5578 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 86, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 18160 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 94, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.00s, 5660 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 90, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 25056 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 121, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 8074 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 121, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 30628 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 117, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.62s, 700666 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 162, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8232 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 173, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 183, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8252 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 184, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8524 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 180, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.02s, 30846 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 188, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 28826 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 188, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.16s, 433134 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 188, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.13s, 281686 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 207, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/home/fabrice/.opam/framac-coq8/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 253, characters 79-132:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gstmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 254, characters 24-77:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gstmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 254, characters 24-77:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gstmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 261, characters 24-76:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gtgt'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 261, characters 24-76:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gtgt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 268, characters 24-76:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__gval'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 276, characters 24-79:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__Lbody_g'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 272, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lbody_g'vc.
+Prover result is: Valid (0.02s, 47786 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 279, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lbody'vc.
+Prover result is: Valid (0.02s, 49115 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 279, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lbody'vc.
+Prover result is: Valid (1.04s, 7848164 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 279, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lbody'vc.
+Prover result is: Valid (0.13s, 367047 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 287, characters 24-81:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__Lorelse_g'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 283, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lorelse_g'vc.
+Prover result is: Valid (0.02s, 47786 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 290, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lorelse'vc.
+Prover result is: Valid (0.02s, 49115 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 290, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lorelse'vc.
+Prover result is: Valid (1.20s, 7848164 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 290, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lorelse'vc.
+Prover result is: Valid (0.14s, 367047 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 297, characters 74-133:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__Lhandlers_g'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 298, characters 24-83:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__Lhandlers_g'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 294, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lhandlers_g'vc.
+Prover result is: Valid (0.02s, 51941 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 301, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lhandlers'vc.
+Prover result is: Valid (0.02s, 49115 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 301, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lhandlers'vc.
+Prover result is: Valid (1.13s, 7848164 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 301, characters 14-45:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__Lhandlers'vc.
+Prover result is: Valid (0.15s, 367047 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 304, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4709 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 58572 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 5138 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 58830 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 5149 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 59086 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 5158 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 58994 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 5158 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 304, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 5158 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53561 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4739 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53819 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 54075 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4759 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53979 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4759 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 304, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4759 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53533 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4730 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53791 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4741 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 54047 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53951 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 304, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53533 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4730 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53791 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4741 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 54047 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53951 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 304, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53561 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4739 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53819 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 54075 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.00s, 4759 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53979 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4759 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 304, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4759 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53533 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 320, characters 13-114:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4730 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53791 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 321, characters 13-116:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4741 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 54047 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 322, characters 13-119:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 53951 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 304, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.02s, 54761 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 324, characters 8-61:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4782 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 304, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__f'vc.
+Prover result is: Valid (0.01s, 4782 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 327, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4700 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 329, characters 47-149:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.02s, 53307 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 329, characters 47-149:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 329, characters 166-220:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.02s, 53215 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 329, characters 166-220:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 327, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 329, characters 166-220:
+Sub-goal variant decrease of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.02s, 49535 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 329, characters 166-220:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4773 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 327, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals__hf'vc.
+Prover result is: Valid (0.01s, 4773 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 333, characters 36-87:
+Sub-goal precondition of goal autotrustmixin___collect_map_typed_locals'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 331, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 331, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___collect_map_typed_locals'vc.
+Prover result is: Valid (0.01s, 4821 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 341, characters 24-74:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gtype'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 346, characters 24-72:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gop'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 351, characters 24-74:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gleft'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 356, characters 24-75:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gright'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 360, characters 69-118:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gvar'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 361, characters 24-73:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gvar'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 366, characters 24-75:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gvalue'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 370, characters 67-114:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gn'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 371, characters 24-71:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__gn'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 16420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 5079 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 5079 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 14909 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 6625 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4645 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4645 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 16503 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 5080 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 5080 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 14992 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4650 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4650 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 15087 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4675 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4675 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 14970 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4645 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4645 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 15371 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4771 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4771 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13459 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4790 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4790 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13261 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13287 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4730 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4730 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13459 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4790 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4790 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13261 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal variant decrease of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 13443 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 437, characters 8-58:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4786 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 398, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths__f'vc.
+Prover result is: Valid (0.01s, 4786 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 442, characters 35-83:
+Sub-goal precondition of goal autotrustmixin___extract_array_lengths'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 440, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 440, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___extract_array_lengths'vc.
+Prover result is: Valid (0.01s, 4821 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 451, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gtype'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 451, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gtype'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 458, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gname'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 458, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gname'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 464, characters 79-125:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gstmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 465, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gstmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 465, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gstmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 472, characters 24-68:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gop'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 472, characters 24-68:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gop'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 479, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gleft'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 486, characters 24-71:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gright'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 492, characters 72-118:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__giter'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 493, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__giter'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 499, characters 72-118:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gtest'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 500, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__gtest'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 503, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___has_set_op_on_map__ym'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 516, characters 91-147:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4787 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 517, characters 95-151:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4723 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 519, characters 90-146:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4815 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 523, characters 13-72:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.02s, 58719 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 523, characters 13-72:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4901 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 524, characters 18-78:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 524, characters 18-78:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 511, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___has_set_op_on_map'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 532, characters 33-85:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.02s, 54074 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 532, characters 33-85:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.01s, 4784 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 532, characters 100-160:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.02s, 54136 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 532, characters 100-160:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.01s, 4784 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 533, characters 11-73:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.02s, 58150 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 533, characters 11-73:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.01s, 4866 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 528, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___has_set_op_on_map__dfold'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 537, characters 18-70:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__lfold'vc.
+Prover result is: Valid (0.02s, 53003 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 537, characters 18-70:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map__lfold'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 537, characters 74-133:
+Sub-goal variant decrease of goal autotrustmixin___has_set_op_on_map__lfold'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 537, characters 74-133:
+Sub-goal precondition of goal autotrustmixin___has_set_op_on_map__lfold'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 535, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___has_set_op_on_map__lfold'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 544, characters 24-71:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gtype'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 544, characters 24-71:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gtype'vc.
+Prover result is: Valid (0.01s, 13930 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 552, characters 24-69:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gop'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 552, characters 24-69:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gop'vc.
+Prover result is: Valid (0.01s, 13930 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 560, characters 24-72:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gvalue'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 556, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___is_linear_expr__chk_gvalue'vc.
+Prover result is: Valid (0.01s, 47786 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 567, characters 67-111:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gn'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 568, characters 24-68:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gn'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 564, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___is_linear_expr__chk_gn'vc.
+Prover result is: Valid (0.02s, 51941 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 576, characters 24-71:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gleft'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 572, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___is_linear_expr__chk_gleft'vc.
+Prover result is: Valid (0.02s, 47786 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 584, characters 24-72:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gright'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 580, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___is_linear_expr__chk_gright'vc.
+Prover result is: Valid (0.01s, 47786 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 591, characters 70-117:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gexpr'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 592, characters 24-71:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_gexpr'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 588, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___is_linear_expr__chk_gexpr'vc.
+Prover result is: Valid (0.02s, 51941 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 599, characters 73-123:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_goperand'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 600, characters 24-74:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk_goperand'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 596, characters 14-85:
+Sub-goal postcondition of goal autotrustmixin___is_linear_expr__chk_goperand'vc.
+Prover result is: Valid (0.02s, 51941 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 615, characters 80-119:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.02s, 56198 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 615, characters 80-119:
+Sub-goal precondition of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.01s, 4920 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 616, characters 84-123:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.02s, 55374 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 616, characters 84-123:
+Sub-goal precondition of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.01s, 4868 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 620, characters 92-131:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.02s, 62505 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 620, characters 92-131:
+Sub-goal precondition of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.01s, 5529 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 621, characters 96-135:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.02s, 65244 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 621, characters 96-135:
+Sub-goal precondition of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.01s, 5538 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 627, characters 79-117:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.02s, 56228 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 627, characters 79-117:
+Sub-goal precondition of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.01s, 4929 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 628, characters 93-131:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.03s, 56229 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 628, characters 93-131:
+Sub-goal precondition of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.01s, 4930 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 631, characters 77-115:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.02s, 56248 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 631, characters 77-115:
+Sub-goal precondition of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.01s, 4928 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 603, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___is_linear_expr__chk'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 637, characters 4-45:
+Sub-goal precondition of goal autotrustmixin___is_linear_expr'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 636, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___is_linear_expr'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 641, characters 85-122:
+Sub-goal variant decrease of goal autotrustmixin___is_linear_vc__fold'vc.
+Prover result is: Valid (0.02s, 53044 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 641, characters 85-122:
+Sub-goal precondition of goal autotrustmixin___is_linear_vc__fold'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 640, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___is_linear_vc__fold'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 644, characters 4-53:
+Sub-goal precondition of goal autotrustmixin___is_linear_vc'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 644, characters 57-107:
+Sub-goal precondition of goal autotrustmixin___is_linear_vc'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 643, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___is_linear_vc'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 647, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_array_return'vc.
+Prover result is: Valid (0.01s, 4811 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 647, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_array_return'vc.
+Prover result is: Valid (0.01s, 4861 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 659, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_map_return'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 659, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_map_return'vc.
+Prover result is: Valid (0.01s, 5281 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 671, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_set_op'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 671, characters 15-19:
+Sub-goal postcondition of goal autotrustmixin___should_auto_trust_set_op'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 692, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__gtype'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 692, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__gtype'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 697, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__gname'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 697, characters 24-70:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__gname'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 704, characters 77-129:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.02s, 56287 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 704, characters 77-129:
+Sub-goal precondition of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.01s, 4826 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 704, characters 239-291:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.02s, 55828 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 704, characters 239-291:
+Sub-goal precondition of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.01s, 4909 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 704, characters 401-453:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.02s, 58598 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 704, characters 401-453:
+Sub-goal precondition of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.01s, 5077 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 710, characters 15-74:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.02s, 64816 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 710, characters 15-74:
+Sub-goal precondition of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.01s, 5273 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 699, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___test_contains_map'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 718, characters 33-85:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.02s, 54074 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 718, characters 33-85:
+Sub-goal precondition of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.01s, 4784 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 718, characters 100-160:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.02s, 54136 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 718, characters 100-160:
+Sub-goal precondition of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.00s, 4784 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 719, characters 11-73:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.02s, 58150 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 719, characters 11-73:
+Sub-goal precondition of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.01s, 4866 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 714, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___test_contains_map__dfold'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 723, characters 18-70:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__lfold'vc.
+Prover result is: Valid (0.02s, 53003 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 723, characters 18-70:
+Sub-goal precondition of goal autotrustmixin___test_contains_map__lfold'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 723, characters 74-133:
+Sub-goal variant decrease of goal autotrustmixin___test_contains_map__lfold'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 723, characters 74-133:
+Sub-goal precondition of goal autotrustmixin___test_contains_map__lfold'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 721, characters 32-36:
+Sub-goal postcondition of goal autotrustmixin___test_contains_map__lfold'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 240, characters 42-46: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 240, characters 65-76: unused variable field_names
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 240, characters 93-97: unused variable vals
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 240, characters 105-116: unused variable field_types
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 240, characters 124-137: unused variable array_lengths
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 240, characters 145-165: unused variable array_elem_witnesses
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 242, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 244, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 244, characters 66-70: unused variable vals
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 244, characters 78-82: unused variable invs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 244, characters 96-107: unused variable field_names
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 246, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 330, characters 49-53: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 331, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 439, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 440, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 502, characters 46-50: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 503, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 535, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 528, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 511, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 603, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 636, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 640, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 643, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 645, characters 55-59: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 645, characters 78-82: unused variable func
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 647, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 657, characters 53-57: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 659, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 669, characters 49-53: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 671, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 682, characters 55-59: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 682, characters 78-88: unused variable body_stmts
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 682, characters 102-113: unused variable return_type
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 682, characters 124-136: unused variable func_trusted
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 684, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 721, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 714, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/tmp/.pycsl_s1likzt4.mlw", line 699, characters 32-36: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

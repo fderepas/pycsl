@@ -1,7 +1,8 @@
 Deferred (not in this implementation)
 
- - Layer B contract for _handle_for_stmt (semantic WP equiv) — desugar_correct
-   is NOW PROVED (plan-formal-03). Remaining blocker: wp_for_desugar coherence
-   lemma (SFor WP uses variant-at-outer-state vs SWhile variant-at-iteration-state).
- - pycsl-wp-spec.mlw SFor val declaration — unblocked but needs wp_for_desugar
-   to close the coherence lemma.
+ - CLOSED (2026-07): Layer B contract for _handle_for_stmt (semantic WP equiv).
+   desugar_correct is PROVED (plan-formal-03) AND wp_for_desugar is now PROVED
+   (Phase5c_WpForDesugar.v: wp_for_desugar / wp_desugar_iff, 0 Admitted;
+   Print Assumptions = only the two standard extensionality axioms).
+ - CLOSED (2026-07): pycsl-wp-spec.mlw SFor — for_code_state_coherent is a proved
+   lemma (Z3-Valid), and the full WP equivalence is carried by wp_for_desugar above.

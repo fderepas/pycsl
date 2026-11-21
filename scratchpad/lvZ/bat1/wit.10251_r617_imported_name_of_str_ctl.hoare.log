@@ -1,0 +1,16 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10251_r617_imported_name_of_str_ctl.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Imported from 'multi_file_lib.r617_pathlib': ['name_of'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_kgtf7ng8.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 489 steps).
+
+File "/tmp/.pycsl_kgtf7ng8.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 252 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

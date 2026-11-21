@@ -1,0 +1,26 @@
+[*] Parsing and Semantic Analysis for 'getting-better/dict-value-wall/ch31/probe/w_fs.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_ufgn9f9b.mlw", line 33, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2662 steps).
+
+File "/tmp/.pycsl_ufgn9f9b.mlw", line 54, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 2838 steps).
+
+File "/tmp/.pycsl_ufgn9f9b.mlw", line 61, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2190 steps).
+
+File "/tmp/.pycsl_ufgn9f9b.mlw", line 68, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2226 steps).
+
+File "/tmp/.pycsl_ufgn9f9b.mlw", line 82, characters 15-31:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.01s, 1671 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

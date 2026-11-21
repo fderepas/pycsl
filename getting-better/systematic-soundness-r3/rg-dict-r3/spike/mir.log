@@ -1,0 +1,759 @@
+src/self-annotate/src/audit_proof.py	_parse_lean_file	331	NONE	0	0	len('_root_.'):	name[len('_root_.'):]
+src/self-annotate/src/audit_proof.py	_audit_one_prover	444	NONE	0	0	:300	(rep.compile_stderr or rep.compile_stdout)[:300]
+src/self-annotate/src/audit_proof.py	_audit_one_prover	434	UND	0	0	src	by_file.setdefault(src, [])
+src/self-annotate/src/audit_proof_reverify.py	verify_rocq_file	290	UND	0	0	qn	blocks.get(qn, '')
+src/self-annotate/src/audit_proof_reverify.py	_split_rocq_print_assumptions	346	NONE	0	0	start:end	stdout[start:end]
+src/self-annotate/src/audit_proof_reverify.py	verify_lean_file	440	UND	0	0	qn	by_qn.get(qn, '')
+src/self-annotate/src/audit_proof_reverify.py	verify_lean_file	435	UND	0	0	qn	qn in line
+src/self-annotate/src/audit_proof_reverify.py	verify_lean_file	436	UND	0	0	qn	by_qn[qn]
+src/self-annotate/src/exception_model.py	bases_closure	158	UND-IT	0	0	seen	frozenset(seen)
+src/self-annotate/src/exception_model.py	bases_closure	154	UND	0	0	b	b in seen
+src/self-annotate/src/exception_model.py	bases_closure	156	UND	0	0	b	seen.add(b)
+src/self-annotate/src/exception_model.py	bases_closure	157	UND	0	0	b	EXCEPTION_BASES.get(b, ())
+src/self-annotate/src/exception_model.py	subclasses_of	183	UND	0	0	c	frozenset((c for c in candidates if handler_catches(base, c)))
+src/self-annotate/src/core_ir_semantic.py	_collect_call_targets	27	UND	0	0	f	acc.add(f)
+src/self-annotate/src/core_ir_semantic.py	_collect_call_targets	28	UND	0	0	f.rsplit('.', 1)[-1]	acc.add(f.rsplit('.', 1)[-1])
+src/self-annotate/src/core_ir_semantic.py	_check_fresh_globals	81	UND	0	0	name	name in call_targets
+src/self-annotate/src/core_ir_semantic.py	_check_fresh_globals	81	UND	0	0	short	short in call_targets
+src/self-annotate/src/core_ir_semantic.py	_check_no_exception	115	UND	0	0	r.get('exc_type')	{r.get('exc_type') for r in raises}
+src/self-annotate/src/core_ir_semantic.py	_check_no_exception	120	UND	0	0	name	name not in KNOWN_EXCEPTIONS
+src/self-annotate/src/core_ir_semantic.py	_check_no_exception	126	UND	0	0	name	name in raised_names
+src/self-annotate/src/core_ir_semantic.py	_check_assigns_regions	148	UND	0	0	base	symtab.get(base)
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	247	UND	0	0	var	symtab.get(var)
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	248	UND	0	0	typ	typ in _PB_LENGTHLESS_TYPES
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	258	UND	0	0	base	symtab.get(base)
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	259	UND	0	0	arr_type	arr_type not in _PB_ARRAY_BASE_TYPES
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	267	UND	0	0	base	symtab.get(base)
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	268	UND	0	0	arr_type	arr_type not in _PB_ARRAY_BASE_TYPES
+src/self-annotate/src/core_ir_semantic.py	_pb_expr	276	UND	0	0	bt	bt not in known
+src/self-annotate/src/core_ir_semantic.py	_check_contract_scope	293	UND	0	0	_va_name	_va_name not in symtab
+src/self-annotate/src/core_ir_semantic.py	_check_contract_scope	294	UND	0	0	_va_name	{**symtab, _va_name: 'tuple'}
+src/self-annotate/src/core_ir_semantic.py	_check_contract_scope	300	UND	0	0	key	contracts.get(key, [])
+src/self-annotate/src/core_ir_semantic.py	_cs_clause	368	UND	0	0	v	v not in symtab
+src/self-annotate/src/core_ir_semantic.py	_cs_clause	368	UND	0	0	v	v not in mc
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	416	UND	0	0	b	{b for b in base_names if b}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	394	UND	0	0	node.get('name')	{node.get('name')}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	401	UND	0	0	var	{var}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	409	UND	0	0	node.get('base')	{node.get('base')}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	403	UND	0	0	node.get('var')	{node.get('var')}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	406	UND	0	0	node.get('coll')	{node.get('coll')}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	411	UND	0	0	node.get('base1')	{node.get('base1'), node.get('base2')}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	411	UND	0	0	node.get('base2')	{node.get('base1'), node.get('base2')}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	405	UND	0	0	node.get('key')	{node.get('key'), node.get('val')}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	405	UND	0	0	node.get('val')	{node.get('key'), node.get('val')}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	413	UND	0	0	node.get('arr')	{node.get('arr')}
+src/self-annotate/src/core_ir_semantic.py	_ir_free_vars	415	UND	0	0	node.get('base')	{node.get('base')}
+src/self-annotate/src/core_ir_semantic.py	_sa_immutable_walk	441	UND	0	0	arr.get('name')	symtab.get(arr.get('name'))
+src/self-annotate/src/core_ir_semantic.py	_sa_walk	464	UND	0	0	name	symtab.get(name)
+src/self-annotate/src/core_ir_semantic.py	_gso_walk	534	UND	0	0	target	symtab.get(target)
+src/self-annotate/src/core_ir_semantic.py	_collect_noreturn_names	711	UND	0	0	nm	out.add(nm)
+src/self-annotate/src/core_ir_semantic.py	_collect_noreturn_names	714	UND	0	0	nm.rsplit('__', 1)[-1]	out.add(nm.rsplit('__', 1)[-1])
+src/self-annotate/src/core_ir_semantic.py	_stmt_is_noreturn_call	770	UND	0	0	fn	fn in noreturn_names
+src/self-annotate/src/core_ir_semantic.py	_stmt_is_noreturn_call	770	UND	0	0	fn.rsplit('.', 1)[-1]	fn.rsplit('.', 1)[-1] in noreturn_names
+src/self-annotate/src/core_ir_semantic.py	_lemma_calls_trusted	813	UND	0	0	fn	fn in trusted
+src/self-annotate/src/core_ir_semantic.py	_check_acts	978	UND	0	0	name	name in defined
+src/self-annotate/src/core_ir_semantic.py	_check_acts	981	UND	0	0	name	defined[name]
+src/self-annotate/src/core_ir_semantic.py	_check_acts	1000	UND	0	0	nm	nm not in referenced
+src/self-annotate/src/core_ir_semantic.py	_check_acts	993	UND	0	0	nm	referenced.add(nm)
+src/self-annotate/src/core_ir_semantic.py	_check_acts	994	UND	0	0	nm	nm not in defined
+src/self-annotate/src/core_ir_semantic.py	_check_happy	1013	UND-IT	0	0	happy.get('method_names', [])	set(happy.get('method_names', []))
+src/self-annotate/src/core_ir_semantic.py	_check_happy	1042	UND	0	0	hp.get('field')	hp.get('field') not in written
+src/self-annotate/src/core_ir_semantic.py	_check_happy	1024	UND	0	0	name	name not in method_names
+src/self-annotate/src/core_ir_semantic.py	_check_happy	1031	UND-IT	0	0	exec_methods	set(exec_methods)
+src/self-annotate/src/core_ir_semantic.py	_check_happy	1032	UND	0	0	m	m not in except_set
+src/self-annotate/src/core_ir_semantic.py	_hp_collect_written	1058	UND	0	0	arr.get('field')	written.add(arr.get('field'))
+src/self-annotate/src/core_ir_semantic.py	_check_final	1072	UND	0	0	e['name']	{e['name'] for e in registry if e.get('kind') == 'module'}
+src/self-annotate/src/core_ir_semantic.py	_check_final	1073	UND	0	0	e['name']	{e['name'] for e in registry if e.get('kind') == 'class_attr'}
+src/self-annotate/src/core_ir_semantic.py	_final_check_stmt	1098	UND	0	0	target	target in module_finals
+src/self-annotate/src/core_ir_semantic.py	_final_check_stmt	1107	UND	0	0	s.get('field')	s.get('field') in class_attr_finals
+src/self-annotate/src/core_ir_semantic.py	_check_concurrency	1137	UND	0	0	sv.get('name')	{sv.get('name'): sv.get('mutex') for sv in shared_list}
+src/self-annotate/src/core_ir_semantic.py	_conc_check_shared_access	1147	NONE	0	0	var_name	var_name not in shared
+src/self-annotate/src/core_ir_semantic.py	_conc_check_shared_access	1149	NONE	0	0	var_name	shared[var_name]
+src/self-annotate/src/core_ir_semantic.py	_conc_check_shared_access	1152	UND	0	0	req_mutex	req_mutex not in held
+src/self-annotate/src/core_ir_semantic.py	_conc_stmt	1187	UND	0	0	mutex	{mutex}
+src/self-annotate/src/core_ir_semantic.py	_conc_stmt	1195	UND	0	0	already_held	already_held in lock_order
+src/self-annotate/src/core_ir_semantic.py	_conc_stmt	1196	UND	0	0	mutex	mutex in lock_order
+src/self-annotate/src/core_ir_semantic.py	_check_class_invariants	1240	UND-IT	0	0	field_names	set(field_names)
+src/self-annotate/src/core_ir_semantic.py	_check_class_invariants	1247	UND	0	0	var	var not in field_set
+src/self-annotate/src/core_ir_semantic.py	_check_mutex_invariants	1274	UND	0	0	sv.get('name')	{sv.get('name'): sv.get('mutex') for sv in shared_vars}
+src/self-annotate/src/core_ir_semantic.py	_check_mutex_invariants	1276	UND	0	0	v	{v for v, m in shared.items() if m == mutex or (m is not None and m.split('[')[0] == mutex.split('[')[0])}
+src/self-annotate/src/core_ir_semantic.py	_check_mutex_invariants	1279	UND	0	0	var	var in protected
+src/self-annotate/src/core_ir_semantic.py	_check_typeddict_access	1297	UND	0	0	v	{v for v, t in symtab.items() if t in td_record_names}
+src/self-annotate/src/core_ir_semantic.py	_check_typeddict_access	1297	UND	0	0	t	t in td_record_names
+src/self-annotate/src/core_ir_semantic.py	_check_namedtuple_access	1338	UND	0	0	v	{v for v, t in symtab.items() if t in nt_record_names}
+src/self-annotate/src/core_ir_semantic.py	_check_namedtuple_access	1338	UND	0	0	t	t in nt_record_names
+src/self-annotate/src/core_ir_semantic.py	_check_union_narrowing	1408	UND	0	0	v	{v for v, t in symtab.items() if t and isinstance(t, str) and t.startswith('_union_')}
+src/self-annotate/src/core_ir_semantic.py	_union_c8_test_references_union_var	1454	UND	0	0	test.get('name')	test.get('name') in union_vars
+src/self-annotate/src/core_ir_semantic.py	_union_c11_check_dead_arms	1521	UND	0	0	ctor	ctor in seen_ctors
+src/self-annotate/src/core_ir_semantic.py	_union_c11_check_dead_arms	1528	UND	0	0	ctor	seen_ctors.add(ctor)
+src/self-annotate/src/core_ir_semantic.py	_check_callable_params	1549	NONE	0	0	len('callable:'):	ptag[len('callable:'):]
+src/self-annotate/src/core_ir_semantic.py	walk	813	UND	0	0	fn	fn in trusted
+src/self-annotate/src/frontend/Module1_Ingestor.py	_clean	47	NONE	0	0	2:	comment_text[2:]
+src/self-annotate/src/frontend/Module1_Ingestor.py	_indent_width	66	NONE	0	0	:len(body) - len(body.lstrip())	body[:len(body) - len(body.lstrip())]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.__init__	119	UND	0	0	g['name']	{g['name']: g['class'] for g in self.ir.get('module_globals', [])}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._build_callee_no_exception_summary	235	UND	0	0	name	self._module_func_no_exception[name]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._build_callee_no_exception_summary	235	UND-IT	0	0	contracts.get('no_exception', []) or []	set(contracts.get('no_exception', []) or [])
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._build_callee_no_exception_summary	236	UND	0	0	name	self._module_func_no_exception_all[name]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._build_callee_no_exception_summary	238	UND	0	0	name	self._module_func_raises[name]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._build_callee_no_exception_summary	239	UND	0	0	name	self._module_func_param_names[name]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._callee_implicit_exceptions	251	UND-IT	0	0	self._module_func_no_exception.get(callee_name, set())	set(self._module_func_no_exception.get(callee_name, set()))
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._callee_implicit_exceptions	257	UND	0	0	r['exc_type']	{r['exc_type'] for r in self._module_func_raises.get(callee_name, [])}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._wrap_call_with_callee_raises_assert	293	UND-IT	0	0	self._current_no_exception	set(self._current_no_exception)
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._wrap_call_with_callee_raises_assert	307	UND	0	0	exc	exc not in active
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._maybe_emit_no_exception_assert	402	UND-IT	0	0	self._current_no_exception	set(self._current_no_exception)
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._maybe_emit_no_exception_assert	407	UND	0	0	exc_name	exc_name not in active
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	592	UND	0	0	whyml_ident(func['name'])	{whyml_ident(func['name']) for func in functions}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	598	UND	0	0	whyml_ident(func['name'])	{whyml_ident(func['name']) for func in functions if func.get('sibling_concrete')}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	605	UND-IT	0	0	self.ir.get('composed_provider_methods', [])	set(self.ir.get('composed_provider_methods', []))
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	624	UND	0	0	f['name']	{f['name']: list(f.get('formal_params', [])) for f in funcs_for_maps}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	626	UND	0	0	f['name']	{f['name']: dict(f.get('param_defaults', {})) for f in funcs_for_maps}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	652	UND	0	0	f['name']	{f['name'] for f in funcs_for_maps if self._func_returns_string_seq(f)}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	558	UND	0	0	ind['name']	{ind['name'] for ind in self.ir.get('inductive_decls', [])}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	559	UND	0	0	m['name']	{m['name'] for ind in self.ir.get('inductive_decls', []) for m in ind.get('members', [])}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	609	UND	0	0	ind['name']	{ind['name'] for ind in self.ir.get('inductive_decls', [])}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	610	UND	0	0	m['name']	{m['name'] for ind in self.ir.get('inductive_decls', []) for m in ind.get('members', [])}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	627	UND-IT	0	0	f.get('param_defaults', {})	dict(f.get('param_defaults', {}))
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	688	UND	0	0	pf['name']	self._module_method_return_types[pf['name']]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._verify_module_groups	715	UND	0	0	g	groups.setdefault(g, [])
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	728	UND	0	0	whyml_ident(func['name'])	{whyml_ident(func['name']) for func in functions}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	729	UND	0	0	whyml_ident(func['name'])	{whyml_ident(func['name']) for func in functions if func.get('sibling_concrete')}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	731	UND-IT	0	0	self.ir.get('composed_provider_methods', [])	set(self.ir.get('composed_provider_methods', []))
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	739	UND	0	0	f['name']	{f['name']: list(f.get('formal_params', [])) for f in funcs_for_maps}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	741	UND	0	0	f['name']	{f['name']: dict(f.get('param_defaults', {})) for f in funcs_for_maps}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	747	UND	0	0	f['name']	{f['name'] for f in funcs_for_maps if self._func_returns_string_seq(f)}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	733	UND	0	0	ind['name']	{ind['name'] for ind in self.ir.get('inductive_decls', [])}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	734	UND	0	0	m['name']	{m['name'] for ind in self.ir.get('inductive_decls', []) for m in ind.get('members', [])}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	742	UND-IT	0	0	f.get('param_defaults', {})	dict(f.get('param_defaults', {}))
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	763	UND	0	0	pf['name']	self._module_method_return_types[pf['name']]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._emit_prefunctions_infra	797	UND	0	0	ind['name']	{ind['name'] for ind in self.ir.get('inductive_decls', [])}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._emit_prefunctions_infra	798	UND	0	0	m['name']	{m['name'] for ind in self.ir.get('inductive_decls', []) for m in ind.get('members', [])}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._sig_val_from_let	871	NONE	0	0	i:	let_lines[i:]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._sig_val_from_let	862	NONE	0	0	len(kw):	stripped[len(kw):]
+src/self-annotate/src/frontend/Module3_Weaver.py	PyCSLWeaver._act_guard	127	NONE	0	0	1:	givens[1:]
+src/self-annotate/src/frontend/Module3_Weaver.py	Module3_Weaver._collect_protect_sites	436	UND	0	0	p	p in protected
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular	930	UND	0	0	g	{g: [] for g in groups}
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular	1040	UND-IT	0	0	self._shared_symbol_decls	set(self._shared_symbol_decls)
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular	934	UND	0	0	wn	self._verify_module_of.get(wn)
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular	994	UND	0	0	g	group_funcs[g]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular	1015	UND-IT	0	0	self._shared_symbol_decls	set(self._shared_symbol_decls)
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular	936	UND	0	0	g	group_funcs[g]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._collect_shared_symbol_decls	1075	UND	0	0	sym	shared_syms.add(sym)
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._collect_shared_symbol_decls	1080	UND	0	0	_symbol(d.strip())	_symbol(d.strip()) in shared_syms
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._collect_shared_symbol_decls	1081	UND	0	0	d	raw.add(d)
+src/self-annotate/src/Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._shared_use_lines	1097	NONE	0	0	1:	self._emit_preamble_uses(needs, module_name='__tmp__')[1:]
+src/self-annotate/src/Module6_WhyMLTranspiler.py	_hdr_name	862	NONE	0	0	len(kw):	stripped[len(kw):]
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._py_expr_boolop	1215	NONE	0	0	1:	expr.values[1:]
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._py_stmt_assign	1587	NONE	0	0	target.value.id	target.value.id in self._cur_func_symtab
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._py_stmt_augassign	1709	NONE	0	0	stmt.target.value.id	stmt.target.value.id in self._cur_func_symtab
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._scan_2d_in_expr	2311	UND	0	0	root.get('name')	root.get('name') in param_names
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._scan_2d_in_expr	2316	UND	0	0	root['name']	result.add(root['name'])
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._scan_2d_in_stmt	2339	UND	0	0	root.get('name')	root.get('name') in param_names
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._scan_2d_in_stmt	2343	UND	0	0	root['name']	result.add(root['name'])
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_type_params	2500	NONE	0	0	b.value.id	b.value.id in self._GENERIC_BASE_NAMES
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_typevar_registry	2578	UND	0	0	name	registry[name]
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._union_arm_tag	2916	NONE	0	0	elt.id	elt.id not in self._TYPING_ALIAS_ARMS
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._union_arm_tag	2916	NONE	0	0	:1	elt.id[:1]
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_str_decode_locals	3389	UND	0	0	node['target']	out.add(node['target'])
+src/self-annotate/src/frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._build_overload_param_guard	3519	NONE	0	0	1:	guards[1:]
+src/self-annotate/src/frontend/Module5_IREmitter.py	rec	3389	UND	0	0	node['target']	out.add(node['target'])
+src/self-annotate/src/frontend/desugar.py	_chain_operand_repeatable	24	NONE	0	0	sub.func.id	sub.func.id in _REPEATABLE_CALLS
+src/self-annotate/src/frontend/ir_inline.py	_Inliner.__init__	155	UND	0	0	f['name']	{f['name']: f for f in funcs}
+src/self-annotate/src/frontend/ir_inline.py	_touches_global	34	UND	0	0	o.get('name')	o.get('name') in globals_set
+src/self-annotate/src/frontend/ir_inline.py	_touches_global	37	UND	0	0	node.get('object')	node.get('object') in globals_set
+src/self-annotate/src/frontend/ir_inline.py	_global_call_target	60	UND	0	0	recv	recv in globals_set
+src/self-annotate/src/frontend/ir_inline.py	_global_call_target	61	UND	0	0	recv	g_class[recv]
+src/self-annotate/src/frontend/ir_inline.py	_method_edges	84	UND	0	0	cand	cand in names
+src/self-annotate/src/frontend/ir_inline.py	_method_edges	85	UND	0	0	cand	out.add(cand)
+src/self-annotate/src/frontend/ir_inline.py	_method_edges	78	NONE	0	0	len('self.'):	func_name[len('self.'):]
+src/self-annotate/src/frontend/ir_inline.py	_method_edges	81	UND	0	0	recv	recv in globals_set
+src/self-annotate/src/frontend/ir_inline.py	_method_edges	81	UND	0	0	recv	g_class[recv]
+src/self-annotate/src/frontend/ir_inline.py	_assigned_locals	105	UND	0	0	node['target']	out.add(node['target'])
+src/self-annotate/src/frontend/ir_inline.py	_substitute	127	UND	0	0	k	{k: _substitute(v, self_name, param_map, rename) for k, v in node.items()}
+src/self-annotate/src/frontend/ir_inline.py	_substitute	122	UND	0	0	nm	nm in param_map
+src/self-annotate/src/frontend/ir_inline.py	_substitute	124	UND	0	0	nm	nm in rename
+src/self-annotate/src/frontend/ir_inline.py	_substitute	126	UND-IT	0	0	node	dict(node)
+src/self-annotate/src/frontend/ir_inline.py	_substitute	145	UND	0	0	new['target']	new['target'] in rename
+src/self-annotate/src/frontend/ir_inline.py	_substitute	146	UND	0	1	new['target']	rename[new['target']]
+src/self-annotate/src/frontend/ir_inline.py	_substitute	123	UND	0	0	nm	param_map[nm]
+src/self-annotate/src/frontend/ir_inline.py	_substitute	125	UND	0	1	nm	rename[nm]
+src/self-annotate/src/frontend/ir_inline.py	_substitute	137	NONE	0	0	len('self'):	fn[len('self'):]
+src/self-annotate/src/frontend/ir_inline.py	_substitute	142	UND	0	0	recv_part	recv_part in rename
+src/self-annotate/src/frontend/ir_inline.py	_substitute	143	UND	0	1	recv_part	rename[recv_part]
+src/self-annotate/src/frontend/ir_inline.py	_check_no_aliasing	200	UND	0	0	node['value'].get('name')	node['value'].get('name') in globals_set
+src/self-annotate/src/frontend/ir_inline.py	_check_no_aliasing	208	UND	0	0	a.get('name')	a.get('name') in globals_set
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	51	UND	0	0	decl['name']	generics[decl['name']]
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	58	UND	0	0	func['name']	generics[func['name']]
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	65	UND	0	0	self_type	self_type in generics
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	66	UND	0	0	func	func not in generics[self_type]['methods']
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	65	UND	0	0	self_type	generics[self_type]
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	66	UND	0	0	self_type	generics[self_type]
+src/self-annotate/src/frontend/monomorphize.py	_collect_generic_decls	67	UND	0	0	self_type	generics[self_type]
+src/self-annotate/src/frontend/monomorphize.py	_scan_node_for_subscript_calls	126	UND	0	0	gname	gname in generic_names
+src/self-annotate/src/frontend/monomorphize.py	_match_generic_annotation	193	UND	0	0	gname	gname in generic_names
+src/self-annotate/src/frontend/monomorphize.py	_collect_instantiations_ast	202	UND-IT	0	0	generics	set(generics)
+src/self-annotate/src/frontend/monomorphize.py	_extract_ast_subscript	243	UND	0	0	gname	gname not in generic_names
+src/self-annotate/src/frontend/monomorphize.py	_subst_type_in_ir	329	UND	0	0	k	new[k]
+src/self-annotate/src/frontend/monomorphize.py	_subst_type_in_ir	331	UND	0	0	k	new[k]
+src/self-annotate/src/frontend/monomorphize.py	_subst_type_in_ir	333	UND	0	0	k	new[k]
+src/self-annotate/src/ir_schema.py	validate_ir	197	UND	0	0	ir_version	ir_version not in ACCEPTED_IR_VERSIONS
+src/self-annotate/src/frontend/pure_ast.py	_Parser.closed_pattern	1707	UND	0	0	s	s in _keyword.kwlist
+src/self-annotate/src/frontend/pure_ast.py	_Parser.closed_pattern	1706	UND	0	0	s	{'None': None, 'True': True, 'False': False}[s]
+src/self-annotate/src/frontend/pure_ast.py	_Parser.atom	3206	UND	0	0	s	s in _keyword.kwlist
+src/self-annotate/src/frontend/pure_ast.py	_Parser.atom	3208	UND	0	0	s	s in _keyword.kwlist
+src/self-annotate/src/frontend/pure_ast.py	_Unparser.get_precedence	4419	NONE	0	0	node	self._precedences.get(node, _Precedence.TEST)
+src/self-annotate/src/frontend/pure_ast.py	_Unparser.visit_Module	4490	NONE	0	0	ignore.lineno	{ignore.lineno: f'ignore{ignore.tag}' for ignore in node.type_ignores}
+src/self-annotate/src/frontend/pure_ast.py	_Unparser.visit_AugAssign	4567	NONE	0	0	node.op.__class__.__name__	self.binop[node.op.__class__.__name__]
+src/self-annotate/src/frontend/pure_ast.py	_Unparser.visit_UnaryOp	5108	NONE	0	0	node.op.__class__.__name__	self.unop[node.op.__class__.__name__]
+src/self-annotate/src/frontend/pure_ast.py	_Unparser.visit_UnaryOp	5109	UND	0	0	operator	self.unop_precedence[operator]
+src/self-annotate/src/frontend/pure_ast.py	_Unparser.visit_BinOp	5127	NONE	0	0	node.op.__class__.__name__	self.binop[node.op.__class__.__name__]
+src/self-annotate/src/frontend/pure_ast.py	_Unparser.visit_BinOp	5128	UND	0	0	operator	self.binop_precedence[operator]
+src/self-annotate/src/frontend/pure_ast.py	_Unparser.visit_BinOp	5130	UND	0	0	operator	operator in self.binop_rassoc
+src/self-annotate/src/frontend/pure_ast.py	_Unparser.visit_Compare	5153	NONE	0	0	o.__class__.__name__	self.cmpops[o.__class__.__name__]
+src/self-annotate/src/frontend/pure_ast.py	_new	87	NONE	0	0	cls	cls in _const_types
+src/self-annotate/src/frontend/pure_ast.py	_N	138	NONE	0	0	name	_g[name]
+src/self-annotate/src/frontend/ir_resolve.py	_collect_calls	27	UND	0	0	obj['func']	calls.add(obj['func'])
+src/self-annotate/src/frontend/ir_resolve.py	_contract_referenced_var_names	96	UND	0	0	node['name']	referenced.add(node['name'])
+src/self-annotate/src/frontend/ir_resolve.py	_contract_referenced_var_names	99	UND	0	0	obj	referenced.add(obj)
+src/self-annotate/src/frontend/ir_resolve.py	_contract_referenced_names	133	UND	0	0	node['func']	referenced.add(node['func'])
+src/self-annotate/src/frontend/ir_resolve.py	_contract_referenced_var_names	163	UND	0	0	node['name']	referenced.add(node['name'])
+src/self-annotate/src/frontend/ir_resolve.py	_contract_referenced_var_names	168	UND	0	0	obj['name']	referenced.add(obj['name'])
+src/self-annotate/src/frontend/ir_resolve.py	_walk	96	UND	0	0	node['name']	referenced.add(node['name'])
+src/self-annotate/src/frontend/ir_resolve.py	_walk	99	UND	0	0	obj	referenced.add(obj)
+src/self-annotate/src/frontend/ir_resolve.py	_walk	133	UND	0	0	node['func']	referenced.add(node['func'])
+src/self-annotate/src/frontend/ir_resolve.py	_walk	163	UND	0	0	node['name']	referenced.add(node['name'])
+src/self-annotate/src/frontend/ir_resolve.py	_walk	168	UND	0	0	obj['name']	referenced.add(obj['name'])
+src/self-annotate/src/module6_whyml/auto_trust.py	AutoTrustMixin._extract_array_lengths	31	NONE	0	0	len('self.'):	var[len('self.'):]
+src/self-annotate/src/module6_whyml/auto_trust.py	AutoTrustMixin._is_linear_expr	118	UND	0	0	left.get('type')	left.get('type') in _CONST
+src/self-annotate/src/module6_whyml/auto_trust.py	AutoTrustMixin._is_linear_expr	119	UND	0	0	right.get('type')	right.get('type') in _CONST
+src/self-annotate/src/module6_whyml/auto_trust.py	AutoTrustMixin._collect_map_typed_locals	188	UND	0	0	tgt	result.add(tgt)
+src/self-annotate/src/module6_whyml/auto_trust.py	AutoTrustMixin._test_contains_map	225	UND	0	0	expr.get('name')	expr.get('name') in map_locals
+src/self-annotate/src/module6_whyml/auto_trust.py	AutoTrustMixin._has_set_op_on_map	264	UND	0	0	node.get('name')	node.get('name') in map_locals
+src/self-annotate/src/module6_whyml/auto_trust.py	_field_of	31	NONE	0	0	len('self.'):	var[len('self.'):]
+src/self-annotate/src/module6_whyml/auto_trust.py	_check	118	UND	0	0	left.get('type')	left.get('type') in _CONST
+src/self-annotate/src/module6_whyml/auto_trust.py	_check	119	UND	0	0	right.get('type')	right.get('type') in _CONST
+src/self-annotate/src/module6_whyml/auto_trust.py	walk	188	UND	0	0	tgt	result.add(tgt)
+src/self-annotate/src/module6_whyml/auto_trust.py	yields_map	264	UND	0	0	node.get('name')	node.get('name') in map_locals
+src/self-annotate/src/module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._handle_ctor_test_expr	65	UND	0	0	ctor	getattr(self, '_constructors', {}).get(ctor, {})
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._materialize_if_seq	188	UND	0	0	arg_ir.get('name')	arg_ir.get('name') in getattr(self, '_seq_locals', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._array_coerce_arg	252	NONE	0	0	1:	stripped[1:]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._array_coerce_arg	255	NONE	0	0	:1	head.lstrip('!')[:1]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._coerce_to_int	311	NONE	0	0	1:	stripped[1:]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._is_float_expr	506	UND	0	0	ir.get('name', '')	getattr(self, '_current_symbol_table', {}).get(ir.get('name', ''))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._strip_outer_parens	617	NONE	0	0	1:-1	s[1:-1]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._todict_routed_ir	766	NONE	0	0	1:	parts[1:]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._iter_elem_class	786	UND	0	0	iter_ir.get('name')	getattr(self, '_array_elem_types', {}).get(iter_ir.get('name'))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._iter_elem_class	787	UND	0	0	iter_ir.get('name')	getattr(self, '_seq_value_types', {}).get(iter_ir.get('name'))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._todict_recv_node_ir	824	NONE	0	0	1:	parts[1:]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._tag_of_value	887	UND	0	0	name	getattr(self, '_current_symbol_table', {}).get(name)
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._union_none_ctor_for	938	UND	0	0	name	getattr(self, '_current_symbol_table', {}).get(name)
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._union_none_ctor_for	941	UND	0	0	symtype	getattr(self, '_variant_types', {}).get(symtype)
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._union_none_ctor_for	928	UND	0	0	frt	getattr(self, '_variant_types', {}).get(frt)
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._subst_params	962	UND	0	0	k	{k: self._subst_params(v, arg_nodes) for k, v in ir.items()}
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._subst_params	960	UND	0	0	ir.get('name')	ir.get('name') in arg_nodes
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._subst_params	961	UND	0	0	ir['name']	arg_nodes[ir['name']]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_field_access	1003	UND	0	0	rec_name	self._record_types[rec_name]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_field_access	1004	UND	0	0	field_name	field_name not in rec_info['fields']
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_field_access	992	UND	0	0	value.get('name', '')	getattr(self, '_current_symbol_table', {}).get(value.get('name', ''))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_field_access	993	UND	0	0	sym	sym in getattr(self, '_record_types', {})
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_field_access	998	UND	0	0	ft	ft in getattr(self, '_record_types', {})
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_field_access	994	UND	0	0	sym	self._record_types[sym]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_field_access	999	UND	0	0	ft	self._record_types[ft]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_record_literal	1024	UND	0	0	rec_name	self._record_types[rec_name]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_record_literal	1032	UND-IT	0	0	rec_info['fields']	set(rec_info['fields'])
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_record_literal	1051	UND	0	0	fname	kv.get(fname)
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_record_literal	1031	UND	0	0	k.get('value', '')	kv[k.get('value', '')]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_record_literal	1034	UND	0	0	f	f not in present
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._typeddict_record_literal	1035	UND	0	0	k	k not in declared
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._namedtuple_positional_access	1098	UND	0	0	rec_name	self._record_types[rec_name]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._namedtuple_positional_access	1102	UND	0	0	idx_val	fields[idx_val]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._namedtuple_positional_access	1067	UND	0	0	value.get('name', '')	getattr(self, '_current_symbol_table', {}).get(value.get('name', ''))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._namedtuple_positional_access	1068	UND	0	0	sym	sym in getattr(self, '_record_types', {})
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._namedtuple_positional_access	1073	UND	0	0	ft	ft in getattr(self, '_record_types', {})
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._namedtuple_positional_access	1087	UND	0	0	_nm	getattr(self, '_record_array_params', {}).get(_nm)
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._namedtuple_positional_access	1088	UND	0	0	_nm	getattr(self, '_record_array_locals', {}).get(_nm)
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._namedtuple_positional_access	1069	UND	0	0	sym	self._record_types[sym]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._namedtuple_positional_access	1074	UND	0	0	ft	self._record_types[ft]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._var_todict_alias	1146	NONE	0	0	1:	_parts[1:]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1168	UND	0	0	name	name in getattr(self, '_quant_scalar_binders', ())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1170	UND	0	0	name	name in self._array_locals
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1172	UND	0	0	name	name in self._lambda_locals
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1174	UND	0	0	name	name in self._record_locals
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1176	UND	0	0	name	name in getattr(self, '_iropt_ir_local_vars', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1186	UND	0	0	name	name in getattr(self, '_optional_union_locals', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1201	UND	0	0	name	name in getattr(self, '_pyval_locals', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1203	UND	0	0	name	name in local_refs
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1211	UND	0	0	name	name in getattr(self, '_mutated_collection_params', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1215	UND	0	0	name	name in self._shared_var_names
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1221	UND	0	0	name	name in self._module_constants
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1231	UND	0	0	name	name in getattr(self, '_module_global_classes', {})
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1156	UND	0	0	name	name in subst
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1157	UND	0	1	name	subst[name]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1213	UND	0	0	name	name in self._current_params
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1222	UND	0	1	name	self._module_constants[name]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1234	UND	0	0	name	name in self._constructors
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1240	UND	0	0	name	name in self._record_types
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1240	UND	0	0	name	name in getattr(self, '_variant_types', {})
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_var_expr	1234	UND	0	0	name	self._constructors[name]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_field_get_expr	1362	UND	0	0	field	field in self._all_record_fields
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_field_get_expr	1321	UND	0	0	field	_pg2.get((getattr(self, '_current_self_type', None), field))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_field_get_expr	1321	UND	0	0	getattr(self, '_current_self_type', None)	_pg2.get((getattr(self, '_current_self_type', None), field))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_field_get_expr	1360	UND	0	0	field	field in self._class_constants.get(self_type, {})
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_field_get_expr	1361	UND	0	0	field	self._class_constants[self_type][field]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._cf5_arr	1485	UND	0	0	d.get('name')	getattr(self, '_seq_value_types', {}).get(d.get('name'))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._cf5_arr	1486	UND	0	0	d.get('name')	getattr(self, '_array_elem_types', {}).get(d.get('name'))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_named_expr_expr	1532	UND	0	0	target	target in local_refs
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_named_expr_expr	1534	UND	0	0	target	local_refs.add(target)
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._slice_array_or_opaque	1567	UND	0	0	vn	vn in getattr(self, '_array_locals', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._slice_array_or_opaque	1568	UND	0	0	vn	vn in getattr(self, '_current_array1d_params', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._slice_array_or_opaque	1570	UND	0	0	vn	vn in getattr(self, '_array_elem_types', {})
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._slice_array_or_opaque	1569	UND	0	0	vn	self._current_symbol_table.get(vn)
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_slice_access_expr	1613	UND	0	0	_bv.get('name')	_bv.get('name') in getattr(self, '_seq_locals', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_arraylen_expr	1694	UND	0	0	var	var in getattr(self, '_seq_locals', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_arraylen_expr	1701	NONE	0	0	len('self.'):	var[len('self.'):]
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_arraylen_expr	1696	UND	0	0	var	var in local_refs
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_arraylen_expr	1720	UND	0	0	var	var in local_refs
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_arraylen_expr	1721	UND	0	0	var	var not in getattr(self, '_array_locals', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._module_binding_names	1735	UND	0	0	f.get('name')	{f.get('name') for f in ir.get('functions', [])}
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._module_binding_names	1736	UND-IT	0	0	getattr(self, '_module_global_classes', {})	set(getattr(self, '_module_global_classes', {}))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._module_binding_names	1737	UND-IT	0	0	getattr(self, '_module_constants', {})	set(getattr(self, '_module_constants', {}))
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._module_binding_names	1738	UND	0	0	c.get('name')	{c.get('name') for c in ir.get('classes', []) if isinstance(c, dict)}
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_in_globals_expr	1752	UND	0	0	name	name in self._module_binding_names()
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_in_scope_expr	1768	UND	0	0	name	name in getattr(self, '_scope_must', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_in_scope_expr	1771	UND	0	0	name	name not in getattr(self, '_scope_all', set())
+src/self-annotate/src/module6_whyml/expressions.py	ExpressionEmissionMixin._handle_in_scope_expr	1772	UND	0	0	name	name not in getattr(self, '_scope_params', set())
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._callable_whyml_arrow	20	NONE	0	0	len('callable:'):	symtype[len('callable:'):]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._collect_record_fields	64	UND	0	0	flds[j]['name']	fields.add(flds[j]['name'])
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_scope_sets	98	UND-IT	0	0	func.get('formal_params', []) or []	set(func.get('formal_params', []) or [])
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_scope_sets	101	UND-IT	0	0	params	set(params)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_scope_sets	105	UND	0	0	st.get('stmt')	st.get('stmt') in control
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_scope_sets	108	UND	0	0	st['target']	must.add(st['target'])
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._collect_assign_targets	120	UND	0	0	node['target']	acc.add(node['target'])
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_param_list	152	UND	0	0	v	{v for v in symbol_table if v in local_refs and v.startswith('obj_')}
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_param_list	144	UND	0	0	arg	arg in ghost_vars
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_param_list	155	UND	0	0	arg	arg in ghost_vars
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_param_list	152	UND	0	0	v	v in local_refs
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._returns_string_seq	222	UND	0	0	v.get('name')	svt.get(v.get('name'))
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._refine_tuple_return_type	369	UND-IT	0	0	symtab	dict(symtab)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._refine_tuple_return_type	371	UND	0	0	_k	_st.get(_k)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._refine_tuple_return_type	372	UND	0	0	_k	_st[_k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._refine_tuple_return_type	415	UND	0	0	n	_slot_role.get(n, 'int')
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_return_type	461	UND	0	0	getattr(self, '_current_self_type', None)	getattr(self, '_current_self_type', None) in getattr(self, '_mutable_state_classes', set())
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_return_type	474	UND	0	0	getattr(self, '_current_self_type', None)	getattr(self, '_current_self_type', None) in getattr(self, '_mutable_state_classes', set())
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_return_type	535	UND	0	0	func.get('return_value_type')	func.get('return_value_type') in self._record_types
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_return_type	556	UND	0	0	_rv	getattr(self, '_dict_key_types', {}).get(_rv)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_return_type	557	UND	0	0	_rv	getattr(self, '_dict_value_types', {}).get(_rv)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_return_type	536	UND	0	1	func['return_value_type']	self._record_types[func['return_value_type']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_return_type	621	UND	0	0	ann	ann in getattr(self, '_variant_types', {})
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_return_type	624	UND	0	0	ann	self._variant_types[ann]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_return_type	625	UND	0	0	ann	ann in getattr(self, '_record_types', {})
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._compute_return_type	626	UND	0	0	ann	self._record_types[ann]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_return_type_map	834	UND	0	0	func['name']	result[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_return_type_map	710	UND	0	0	func['name']	result[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_return_type_map	715	UND	0	0	func['name']	result[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_return_type_map	733	UND	0	0	whyml_ident(str(func.get('name', '')))	whyml_ident(str(func.get('name', ''))) in getattr(self, '_sibling_concrete_methods', set())
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_return_type_map	808	UND	0	0	ann	ann in getattr(self, '_record_types', {})
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_return_type_map	820	UND	0	0	ann	self._record_types[ann]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_ensures_map	955	UND	0	0	func['name']	out[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1038	UND-IT	0	0	params	set(params)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1039	UND	0	0	p	{p: f'x{i}' for i, p in enumerate(params)}
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1006	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1008	UND	0	0	node.get('var')	node.get('var') in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1019	UND	0	0	node.get('name')	node.get('name') in pmap
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1044	UND	0	0	func['name']	out[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	985	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	992	UND	0	0	v	v in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1020	UND	0	0	node['name']	pmap[node['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1023	UND	0	0	v	v in pmap
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1024	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1024	UND	0	1	v	pmap[v]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1026	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1028	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_result_ensures_map	1030	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_result_ensures_map	1125	UND-IT	0	0	func.get('formal_params', []) or []	set(func.get('formal_params', []) or [])
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_result_ensures_map	1130	UND	0	0	func['name']	out[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1226	UND-IT	0	0	params	set(params)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1227	UND	0	0	p	{p: f'x{i}' for i, p in enumerate(params)}
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1194	UND	0	0	node.get('name')	node.get('name') in pmap
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1211	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1213	UND	0	0	node.get('var')	node.get('var') in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1240	UND	0	0	func['name']	out[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1166	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1195	UND	0	0	node['name']	pmap[node['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1198	UND	0	0	v	v in pmap
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1199	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1199	UND	0	1	v	pmap[v]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1169	UND	0	0	v	v in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1201	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1203	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_result_ensures_map	1205	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_writes_map	1295	UND	0	0	func['name']	out[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_old_ensures_map	1349	UND	0	0	func['name']	out[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1440	UND-IT	0	0	params	set(params)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1441	UND	0	0	p	{p: f'x{i}' for i, p in enumerate(params)}
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1415	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1423	UND	0	0	node.get('name')	node.get('name') in pmap
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1447	UND	0	0	func['name']	out[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1390	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1424	UND	0	0	node['name']	pmap[node['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1428	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1395	UND	0	0	v	v in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1430	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_post_ensures_map	1432	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1550	UND-IT	0	0	params	set(params)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1551	UND	0	0	p	{p: f'x{i}' for i, p in enumerate(params)}
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1519	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1521	UND	0	0	node.get('var')	node.get('var') in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1529	UND	0	0	node.get('name')	node.get('name') in pmap
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1561	UND	0	0	func['name']	out[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1530	UND	0	0	node['name']	pmap[node['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1533	UND	0	0	v	v in pmap
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1534	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1534	UND	0	1	v	pmap[v]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1483	UND	0	0	n	n in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1483	UND	0	0	n	n in bound
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1488	UND	0	0	v	v in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1488	UND	0	0	v	v in bound
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1492	UND	0	0	bv	{bv}
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1536	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1538	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_field_param_frame_ensures_map	1540	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1662	UND-IT	0	0	params	set(params)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1663	UND	0	0	p	{p: f'x{i}' for i, p in enumerate(params)}
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1643	UND	0	0	node.get('name')	node.get('name') in pmap
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1670	UND	0	0	func['name']	out[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1644	UND	0	0	node['name']	pmap[node['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1647	UND	0	0	v	v in pmap
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1648	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1648	UND	0	1	v	pmap[v]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1607	UND	0	0	n	n in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1607	UND	0	0	n	n in bound
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1612	UND	0	0	v	v in params
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1612	UND	0	0	v	v in bound
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1616	UND	0	0	bv	{bv}
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1650	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1652	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_result_frame_ensures_map	1654	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1746	UND-IT	0	0	func.get('formal_params', [])	set(func.get('formal_params', []))
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1836	UND	0	0	func['name']	result[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1750	UND	0	0	name	name in local_assignees
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1750	UND	0	0	name	name not in _formal
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1778	UND	0	0	name	name in _formal
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1778	UND	0	0	name	name in _pann
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1780	UND	0	0	name	_pann[name]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1770	UND	0	0	name	_plet.get(name)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1804	UND	0	0	name	name in _kt
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1804	UND	0	0	name	name in _vt
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_types_map	1811	UND	0	0	symtype	_rt.get(symtype)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_whyml_types_by_name	1885	UND	0	0	func['name']	result[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_whyml_types_by_name	1880	UND	0	0	pname	symtable.get(pname)
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_whyml_types_by_name	1882	UND	0	0	pname	by_name[pname]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_whyml_types_by_name	1884	UND	0	0	pname	by_name[pname]
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_whyml_types_by_name	1881	UND	0	0	pname	pname in _kt
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_param_whyml_types_by_name	1881	UND	0	0	pname	pname in _vt
+src/self-annotate/src/module6_whyml/functions.py	FunctionEmissionMixin._build_method_return_annotation_map	1897	UND	0	0	func['name']	result[func['name']]
+src/self-annotate/src/module6_whyml/functions.py	rec	222	UND	0	0	v.get('name')	svt.get(v.get('name'))
+src/self-annotate/src/module6_whyml/functions.py	classify	985	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	classify	992	UND	0	0	v	v in params
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1006	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1008	UND	0	0	node.get('var')	node.get('var') in params
+src/self-annotate/src/module6_whyml/functions.py	rename	1019	UND	0	0	node.get('name')	node.get('name') in pmap
+src/self-annotate/src/module6_whyml/functions.py	rename	1020	UND	0	0	node['name']	pmap[node['name']]
+src/self-annotate/src/module6_whyml/functions.py	rename	1023	UND	0	0	v	v in pmap
+src/self-annotate/src/module6_whyml/functions.py	rename	1024	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1024	UND	0	1	v	pmap[v]
+src/self-annotate/src/module6_whyml/functions.py	rename	1026	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1028	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1030	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	classify	1166	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	classify	1169	UND	0	0	v	v in params
+src/self-annotate/src/module6_whyml/functions.py	rename	1194	UND	0	0	node.get('name')	node.get('name') in pmap
+src/self-annotate/src/module6_whyml/functions.py	rename	1195	UND	0	0	node['name']	pmap[node['name']]
+src/self-annotate/src/module6_whyml/functions.py	rename	1198	UND	0	0	v	v in pmap
+src/self-annotate/src/module6_whyml/functions.py	rename	1199	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1199	UND	0	1	v	pmap[v]
+src/self-annotate/src/module6_whyml/functions.py	rename	1201	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1203	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1205	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1211	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1213	UND	0	0	node.get('var')	node.get('var') in params
+src/self-annotate/src/module6_whyml/functions.py	classify	1390	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	classify	1395	UND	0	0	v	v in params
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1415	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	rename	1423	UND	0	0	node.get('name')	node.get('name') in pmap
+src/self-annotate/src/module6_whyml/functions.py	rename	1424	UND	0	0	node['name']	pmap[node['name']]
+src/self-annotate/src/module6_whyml/functions.py	rename	1428	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1430	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1432	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	classify	1483	UND	0	0	n	n in params
+src/self-annotate/src/module6_whyml/functions.py	classify	1483	UND	0	0	n	n in bound
+src/self-annotate/src/module6_whyml/functions.py	classify	1488	UND	0	0	v	v in params
+src/self-annotate/src/module6_whyml/functions.py	classify	1488	UND	0	0	v	v in bound
+src/self-annotate/src/module6_whyml/functions.py	classify	1492	UND	0	0	bv	{bv}
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1519	UND	0	0	node.get('name')	node.get('name') in params
+src/self-annotate/src/module6_whyml/functions.py	refs_param	1521	UND	0	0	node.get('var')	node.get('var') in params
+src/self-annotate/src/module6_whyml/functions.py	rename	1529	UND	0	0	node.get('name')	node.get('name') in pmap
+src/self-annotate/src/module6_whyml/functions.py	rename	1530	UND	0	0	node['name']	pmap[node['name']]
+src/self-annotate/src/module6_whyml/functions.py	rename	1533	UND	0	0	v	v in pmap
+src/self-annotate/src/module6_whyml/functions.py	rename	1534	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1534	UND	0	1	v	pmap[v]
+src/self-annotate/src/module6_whyml/functions.py	rename	1536	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1538	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1540	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	classify	1607	UND	0	0	n	n in params
+src/self-annotate/src/module6_whyml/functions.py	classify	1607	UND	0	0	n	n in bound
+src/self-annotate/src/module6_whyml/functions.py	classify	1612	UND	0	0	v	v in params
+src/self-annotate/src/module6_whyml/functions.py	classify	1612	UND	0	0	v	v in bound
+src/self-annotate/src/module6_whyml/functions.py	classify	1616	UND	0	0	bv	{bv}
+src/self-annotate/src/module6_whyml/functions.py	rename	1643	UND	0	0	node.get('name')	node.get('name') in pmap
+src/self-annotate/src/module6_whyml/functions.py	rename	1644	UND	0	0	node['name']	pmap[node['name']]
+src/self-annotate/src/module6_whyml/functions.py	rename	1647	UND	0	0	v	v in pmap
+src/self-annotate/src/module6_whyml/functions.py	rename	1648	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1648	UND	0	1	v	pmap[v]
+src/self-annotate/src/module6_whyml/functions.py	rename	1650	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1652	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/functions.py	rename	1654	UND	0	0	k	new[k]
+src/self-annotate/src/module6_whyml/identifiers.py	stable_hash	16	NONE	0	0	:8	hashlib.sha256(s.encode('utf-8')).hexdigest()[:8]
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_assigned_vars	43	UND	0	0	stmt['target']	assigned.add(stmt['target'])
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_assigned_vars	54	UND	0	0	tgt	assigned.add(tgt)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_named_expr_targets	73	UND	0	0	obj['target']	targets.add(obj['target'])
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_ghost_vars	90	UND	0	0	stmt['target']	ghosts.add(stmt['target'])
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.uses_ghost_type	107	UND	0	0	stmt.get('ghost_type')	stmt.get('ghost_type') in types
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.collection_binder_kinds	129	UND	0	0	bt	found.add(bt)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	152	UND	0	0	target	array_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	155	UND	0	0	target	array_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	157	UND	0	0	target	array_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	159	UND	0	0	target	array_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	161	UND	0	0	target	dict_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	164	UND	0	0	target	dict_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	169	UND	0	0	target	array_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	174	UND	0	0	target	array_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	178	UND	0	0	target	array_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	182	UND	0	0	target	array_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	184	UND	0	0	target	dict_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	188	UND	0	0	target	dict_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	190	UND	0	0	target	array_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_array_and_dict_vars	194	UND	0	0	target	array_vars.add(target)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_lambda_vars	261	UND	0	0	stmt.get('target', '')	lambda_vars.add(stmt.get('target', ''))
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_record_vars	284	UND	0	0	val.get('func', '')	val.get('func', '') in record_types
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_record_vars	285	UND	0	0	stmt.get('target', '')	record_vars.add(stmt.get('target', ''))
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_record_var_classes	312	UND	0	0	val.get('func', '')	val.get('func', '') in record_types
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_record_var_classes	315	UND	0	0	tgt	out[tgt]
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.collect_user_exceptions	374	UND	0	0	stmt['exc_type']	result.add(stmt['exc_type'])
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.collect_user_exceptions	382	UND	0	0	ep	result.add(ep)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.collect_escaping_exceptions	398	UND	0	0	stmt['exc_type']	raised.add(stmt['exc_type'])
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.collect_escaping_exceptions	414	UND	0	0	e	{e for e in inner_raised if not any((handler_catches(b, e) for b in handler_bases))}
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.collect_escaping_exceptions	408	UND	0	0	ep	handler_bases.add(ep)
+src/self-annotate/src/module6_whyml/scc.py	find_calls_in_ir	23	UND	0	0	obj.get('func')	obj.get('func') in func_names_set
+src/self-annotate/src/module6_whyml/scc.py	find_calls_in_ir	24	UND	0	0	obj['func']	calls.add(obj['func'])
+src/self-annotate/src/module6_whyml/scc.py	find_self_method_calls	53	NONE	0	0	len('self.'):	f[len('self.'):]
+src/self-annotate/src/module6_whyml/scc.py	find_self_method_calls	54	UND	0	0	resolved	resolved in func_names_set
+src/self-annotate/src/module6_whyml/scc.py	find_self_method_calls	54	UND	0	0	resolved	resolved in concrete_set
+src/self-annotate/src/module6_whyml/scc.py	find_self_method_calls	55	UND	0	0	resolved	out.add(resolved)
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner.find_append_targets	659	UND	0	0	arr_name.replace('.', '_')	result.add(arr_name.replace('.', '_'))
+src/self-annotate/src/module6_whyml/ir_scanner.py	IRScanner._collect_mutations	686	UND	0	0	method	method in IRScanner._MUTATING_METHODS
+src/self-annotate/src/module6_whyml/preamble.py	PreambleEmissionMixin._func_returns_string_seq	30	UND	0	0	v.get('name')	svt.get(v.get('name'))
+src/self-annotate/src/module6_whyml/preamble.py	PreambleEmissionMixin._inductive_refs_global_or_axiom_func	167	UND	0	0	g['name']	{g['name'] for g in ir.get('module_globals', [])}
+src/self-annotate/src/module6_whyml/preamble.py	PreambleEmissionMixin._inductive_refs_global_or_axiom_func	178	UND	0	0	node.get('func')	node.get('func') in axiom_fns
+src/self-annotate/src/module6_whyml/preamble.py	PreambleEmissionMixin._inductive_refs_global_or_axiom_func	181	UND	0	0	node.get('name')	node.get('name') in globals_names
+src/self-annotate/src/module6_whyml/preamble.py	PreambleEmissionMixin._inductive_refs_global_or_axiom_func	184	UND	0	0	node['object']	node['object'] in globals_names
+src/self-annotate/src/module6_whyml/preamble.py	PreambleEmissionMixin._class_inv_refs_axiom_func	214	UND	0	0	node.get('func')	node.get('func') in axiom_fns
+src/self-annotate/src/module6_whyml/preamble.py	PreambleEmissionMixin._collect_critical_mutexes	288	UND	0	0	s['mutex']	mutexes.add(s['mutex'])
+src/self-annotate/src/module6_whyml/preamble.py	rec	30	UND	0	0	v.get('name')	svt.get(v.get('name'))
+src/self-annotate/src/module6_whyml/preamble.py	_walk	178	UND	0	0	node.get('func')	node.get('func') in axiom_fns
+src/self-annotate/src/module6_whyml/preamble.py	_walk	181	UND	0	0	node.get('name')	node.get('name') in globals_names
+src/self-annotate/src/module6_whyml/preamble.py	_walk	184	UND	0	0	node['object']	node['object'] in globals_names
+src/self-annotate/src/module6_whyml/preamble.py	_walk	214	UND	0	0	node.get('func')	node.get('func') in axiom_fns
+src/self-annotate/src/module6_whyml/preamble.py	walk	288	UND	0	0	s['mutex']	mutexes.add(s['mutex'])
+src/self-annotate/src/module6_whyml/struct_format.py	StructFormat.slot_id	41	NONE	0	0	1:	self.slots[1:]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._val_is_bool	87	UND	0	0	val_ir.get('op')	val_ir.get('op') in _BOOL_BINOPS
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._first_assign_kind	99	UND	0	0	val_ir.get('func', '')	val_ir.get('func', '') in self._record_types
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._first_assign_kind	122	NONE	0	0	len('self.'):	val_ir['func'][len('self.'):]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._first_assign_kind	125	UND	0	0	lookup	self._module_method_return_types.get(lookup)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._rhs_yields_array	173	UND	0	0	name	name in self._array_locals
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._rhs_yields_array	173	UND	0	0	name	name in self._current_array1d_params
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._rhs_yields_array	177	UND	0	0	name	self._current_symbol_table.get(name)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._rhs_yields_array	187	NONE	0	0	len('self.'):	fn[len('self.'):]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._rhs_yields_array	192	UND	0	0	key	self._module_method_return_types.get(key)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._rhs_yields_map	220	UND	0	0	name	name in self._dict_locals
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._rhs_yields_map	222	UND	0	0	name	self._current_symbol_table.get(name)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._rhs_yields_map	256	NONE	0	0	len('self.'):	fn[len('self.'):]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._rhs_yields_map	261	UND	0	0	key	self._module_method_return_types.get(key)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	333	UND	0	0	receiver_name	getattr(self, '_module_global_classes', {}).get(receiver_name)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	334	UND	0	0	gcls	gcls in self._record_types
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	337	UND	0	0	receiver_name	getattr(self, '_current_record_var_classes', {}).get(receiver_name)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	366	UND	0	0	field_name	info.get('field_types', {}).get(field_name)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	338	UND	0	0	rvcls	rvcls in self._record_types
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	341	UND	0	0	receiver_name	getattr(self, '_record_param_classes', {}).get(receiver_name)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	335	UND	0	0	gcls	self._record_types[gcls]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	358	UND	0	0	receiver_name	getattr(self, '_record_field_elem_locals', {}).get(receiver_name)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	339	UND	0	0	rvcls	self._record_types[rvcls]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	360	UND	0	0	ecls	ecls in self._record_types
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._field_type_of	361	UND	0	0	ecls	self._record_types[ecls]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_tuple_array_locals	410	UND	0	0	tgt	found[tgt]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_tuple_var_assigns	433	UND	0	0	_fn	rets.get(_fn)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_tuple_var_assigns	436	UND	0	0	_fn	rets.get(f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_tuple_var_assigns	438	UND	0	0	tgt	found[tgt]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_tuple_var_assigns	441	UND	0	0	tgt	self._tuple_var_slot_types[tgt]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_tuple_var_assigns	436	NONE	0	0	len('self.'):	_fn[len('self.'):]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_tuple_var_assigns	442	NONE	0	0	1:-1	rt[1:-1]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._split_tuple_type	485	NONE	0	0	1:-1	inner[1:-1]
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_struct_unpack_array_targets	524	UND	0	0	tgt	found.add(tgt)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_struct_unpack_array_targets	518	UND	0	0	tgt	found.add(tgt)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_struct_pack_assign_targets	561	UND	0	0	tgt	found.add(tgt)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_variant_var_assigns	591	UND	0	0	val.get('func')	val.get('func') in ctors
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_variant_var_assigns	592	UND	0	0	val.get('name')	val.get('name') in ctors
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_variant_var_assigns	596	UND	0	0	tgt	found.add(tgt)
+src/self-annotate/src/module6_whyml/types.py	TypeInferenceMixin._collect_dict_var_assigns	621	UND	0	0	tgt	found.add(tgt)
+src/self-annotate/src/module6_whyml/types.py	_scan	524	UND	0	0	tgt	found.add(tgt)
+src/self-annotate/src/module6_whyml/types.py	_scan	518	UND	0	0	tgt	found.add(tgt)
+src/self-annotate/src/module6_whyml/types.py	_scan	561	UND	0	0	tgt	found.add(tgt)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_for_stmt	376	UND	0	0	getattr(self, '_current_self_type', None)	getattr(self, '_current_self_type', None) in getattr(self, '_mutable_state_classes', set())
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_for_stmt	361	UND	0	0	target	{target}
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_for_stmt	362	UND	0	0	target	{target}
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_for_stmt	380	UND	0	0	target	{target: idx}
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._try_local_decl_kind	493	UND	0	0	val_ir.get('func', '')	val_ir.get('func', '') in self._record_types
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._callee_raised_direct	516	UND	0	0	fn	registry.get(fn, [])
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._callee_raised_direct	519	UND	0	0	exc	out.add(exc)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_try_stmt	626	UND	0	0	safe_var	safe_var not in declared_refs
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_try_stmt	703	UND-IT	0	0	IRScanner.collect_escaping_exceptions(body_stmts)	set(IRScanner.collect_escaping_exceptions(body_stmts))
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_try_stmt	639	UND	0	0	safe_var	declared_refs.add(safe_var)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_try_stmt	757	UND	0	0	tag	seen_local.add(tag)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_try_stmt	643	UND	0	0	safe_var	declared_refs.add(safe_var)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_try_stmt	646	UND	0	0	safe_var	declared_refs.add(safe_var)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_try_stmt	755	UND	0	0	tag	tag in already_matched
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_try_stmt	755	UND	0	0	tag	tag in seen_local
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._try_union_is_none_match	851	UND	0	0	var_name	getattr(self, '_current_symbol_table', {}).get(var_name)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._try_union_is_none_match	861	UND	0	0	var_name	var_name in getattr(self, '_optional_union_locals', set())
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._try_union_is_none_match	863	UND	0	0	symtype	getattr(self, '_variant_types', {}).get(symtype)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._try_union_is_none_match	912	UND	0	0	ctor_name	vinfo['constructors'][ctor_name]
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._match_subject_union_info	1064	UND	0	0	var_name	getattr(self, '_current_symbol_table', {}).get(var_name)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._match_subject_union_info	1067	UND	0	0	symtype	getattr(self, '_variant_types', {}).get(symtype)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._maybe_inject_union_return	1232	UND	0	0	func_ret	getattr(self, '_variant_types', {}).get(func_ret)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._infer_return_value_type	1304	UND	0	0	name	symtab.get(name)
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1392	UND	0	0	val_ir.get('name')	val_ir.get('name') in getattr(self, '_pyval_seq_locals', set())
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1648	UND	0	0	val_ir.get('name')	val_ir.get('name') in self._array_locals
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1400	UND	0	0	val_ir.get('name')	val_ir.get('name') in getattr(self, '_seq_locals', set())
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1441	UND	0	0	val_ir.get('name')	val_ir.get('name') in self._array_locals
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1544	UND	0	0	val_ir.get('name')	val_ir.get('name') in getattr(self, '_seq_locals', set())
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1557	UND	0	0	val_ir.get('name')	val_ir.get('name') in getattr(self, '_seq_locals', set())
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1586	UND	0	0	val_ir.get('name')	val_ir.get('name') in getattr(self, '_seq_locals', set())
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1435	NONE	0	0	len('array '):	self._func_return_type[len('array '):]
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1418	NONE	0	0	len('array '):	self._func_return_type[len('array '):]
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1576	NONE	0	0	len('(snapshot '):	seq_val[len('(snapshot '):]
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1473	UND	0	0	_elts[_k].get('name')	_elts[_k].get('name') in getattr(self, '_seq_locals', set())
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_return_stmt	1511	NONE	0	0	len('option '):	func_ret[len('option '):]
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	walk	516	UND	0	0	fn	registry.get(fn, [])
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	walk	519	UND	0	0	exc	out.add(exc)
+src/self-annotate/src/proof2why3/canonical.py	_expand_nat_to_int	25	NONE	0	0	t.ty	t.ty in _NAT_TYPES
+src/self-annotate/src/proof2why3/canonical.py	_expand_nat_to_int	35	NONE	0	0	t.ty	t.ty in _NAT_TYPES
+src/self-annotate/src/proof2why3/canonical.py	_flip_comparisons	74	NONE	0	0	t.op	t.op in _FLIP_COMPARISON
+src/self-annotate/src/proof2why3/canonical.py	_flip_comparisons	76	NONE	0	0	t.op	_FLIP_COMPARISON[t.op]
+src/self-annotate/src/proof2why3/emit_why3.py	_pp	46	NONE	0	0	t.op	_BINOP_PREC.get(t.op, _PREC_CMP)
+src/self-annotate/src/proof2why3/extract.py	_split_rocq_check_output	44	NONE	0	0	2:	lines[i].lstrip()[2:]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._array_coerce_arg	412	NONE	0	0	1:	stripped[1:]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._array_coerce_arg	415	NONE	0	0	:1	head.lstrip('!')[:1]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._first_assign_kind	480	UND	0	0	val_ir.get('func', '')	val_ir.get('func', '') in self._record_types
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._first_assign_kind	503	NONE	0	0	len('self.'):	val_ir['func'][len('self.'):]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._first_assign_kind	506	UND	0	0	lookup	self._module_method_return_types.get(lookup)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._rhs_yields_array	554	UND	0	0	name	name in self._array_locals
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._rhs_yields_array	554	UND	0	0	name	name in self._current_array1d_params
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._rhs_yields_array	558	UND	0	0	name	self._current_symbol_table.get(name)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._rhs_yields_array	568	NONE	0	0	len('self.'):	fn[len('self.'):]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._rhs_yields_array	573	UND	0	0	key	self._module_method_return_types.get(key)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._rhs_yields_map	601	UND	0	0	name	name in self._dict_locals
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._rhs_yields_map	603	UND	0	0	name	self._current_symbol_table.get(name)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._rhs_yields_map	637	NONE	0	0	len('self.'):	fn[len('self.'):]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._rhs_yields_map	642	UND	0	0	key	self._module_method_return_types.get(key)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._val_is_bool	663	UND	0	0	val_ir.get('op')	val_ir.get('op') in _BOOL_BINOPS
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	733	UND	0	0	receiver_name	getattr(self, '_module_global_classes', {}).get(receiver_name)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	734	UND	0	0	gcls	gcls in self._record_types
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	743	UND	0	0	receiver_name	getattr(self, '_current_record_var_classes', {}).get(receiver_name)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	778	UND	0	0	field_name	info.get('field_types', {}).get(field_name)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	744	UND	0	0	rvcls	rvcls in self._record_types
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	753	UND	0	0	receiver_name	getattr(self, '_record_param_classes', {}).get(receiver_name)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	735	UND	0	0	gcls	self._record_types[gcls]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	770	UND	0	0	receiver_name	getattr(self, '_record_field_elem_locals', {}).get(receiver_name)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	745	UND	0	0	rvcls	self._record_types[rvcls]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	772	UND	0	0	ecls	ecls in self._record_types
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._field_type_of	773	UND	0	0	ecls	self._record_types[ecls]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._seq_operand	951	UND	0	0	val_ir.get('name')	val_ir.get('name') in self._seq_locals
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._seq_operand	958	UND	0	0	val_ir['value'].get('name')	val_ir['value'].get('name') in self._seq_locals
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_seq_assign	1019	UND	0	0	target	target not in declared_refs
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_seq_assign	1020	UND	0	0	target	declared_refs.add(target)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_seq_assign	1021	UND	0	0	target	local_refs.add(target)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_critical_section_stmt	1200	NONE	0	0	:-1	body_stmts[:-1]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_fieldassign_stmt	1297	UND	0	0	field	field in self._all_record_fields
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_fieldassign_stmt	1272	UND	0	0	obj	getattr(self, '_current_symbol_table', {}).get(obj)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_fieldassign_stmt	1273	UND	0	0	_obj_cls	_obj_cls in getattr(self, '_list_element_record_types', set())
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_fieldassign_stmt	1367	UND	0	0	obj.lstrip('!')	obj.lstrip('!') in getattr(self, '_emit_ir_local_vars', set())
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_fieldassign_stmt	1295	UND	0	0	obj	getattr(self, '_current_record_var_classes', {}).get(obj, '')
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_fieldaugassign_stmt	1413	UND	0	0	field	field in self._all_record_fields
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._handle_fieldaugassign_stmt	1411	UND	0	0	obj	getattr(self, '_current_record_var_classes', {}).get(obj, '')
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._stmts_to_whyml	1470	NONE	0	0	1:	stmts[1:]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._wrap_body_with_return_catch	1665	NONE	0	0	len('option '):	return_type[len('option '):]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._collect_string_elem_read_locals	1789	UND	0	0	v	st.get(v)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._collect_string_elem_read_locals	1790	UND	0	0	v	st[v]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._collect_string_elem_read_locals	1766	UND	0	0	whyml_ident(v['func'])	whyml_ident(v['func']) in ssf
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._collect_string_elem_read_locals	1767	UND	0	0	node['target']	str_arrays.add(node['target'])
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._collect_string_elem_read_locals	1771	UND	0	0	v['value'].get('name')	v['value'].get('name') in str_arrays
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._collect_string_elem_read_locals	1772	UND	0	0	node['target']	elem_reads.add(node['target'])
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._collect_field_decode_str_locals	1846	UND	0	0	v	st.get(v)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._collect_field_decode_str_locals	1847	UND	0	0	v	st[v]
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._collect_field_decode_str_locals	1832	UND	0	0	node['target']	out.add(node['target'])
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._typed_local_vars	1889	UND-IT	0	0	array_vars	set(array_vars)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._typed_local_vars	1895	UND	0	0	name	{name for name, ty in getattr(self, '_current_symbol_table', {}).items() if ty in ('str', 'string') and name not in set(self._formal_params)}
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._typed_local_vars	1920	UND-IT	0	0	self._formal_params	set(self._formal_params)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._typed_local_vars	1897	UND	0	0	name	name not in set(self._formal_params)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._typed_local_vars	1922	UND-IT	0	0	tuple_vars	set(tuple_vars)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._typed_local_vars	1897	UND-IT	0	0	self._formal_params	set(self._formal_params)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	1979	UND	0	0	v	{v for v in local_refs if v not in ghost_vars and v not in ref_params and (v not in typed_local_vars) and (v not in struct_array_targets) and (v not in struct_p
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	2007	UND	0	0	t	{t for t in append_targets if t in self._seq_locals and t in self._formal_params}
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	1989	UND	0	0	whyml_ident(v)	{whyml_ident(v) for v in pre_decl_vars}
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	1991	UND	0	0	whyml_ident(v)	{whyml_ident(v) for v in pre_decl_vars}
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	2017	UND	0	0	whyml_ident(v)	{whyml_ident(v) for v in struct_pack_targets}
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	2069	UND	0	0	tgt	tgt in self._seq_locals
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	2069	UND	0	0	tgt	tgt in self._formal_params
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	2077	UND	0	0	tgt	tgt not in local_refs
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	2077	UND	0	0	tgt	tgt not in ref_params
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	2079	UND	0	0	tgt	self._array_locals.add(tgt)
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	1981	UND	0	0	v	v not in ghost_vars
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	1982	UND	0	0	v	v not in ref_params
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	1983	UND	0	0	v	v not in typed_local_vars
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	1984	UND	0	0	v	v not in struct_array_targets
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	1985	UND	0	0	v	v not in struct_pack_targets
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	2009	UND	0	0	t	t in self._seq_locals
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	2009	UND	0	0	t	t in self._formal_params
+src/self-annotate/src/module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	2016	UND	0	0	whyml_ident(v)	{whyml_ident(v) for v in struct_array_targets}
+src/self-annotate/src/module6_whyml/statements.py	rec	1766	UND	0	0	whyml_ident(v['func'])	whyml_ident(v['func']) in ssf
+src/self-annotate/src/module6_whyml/statements.py	rec	1767	UND	0	0	node['target']	str_arrays.add(node['target'])
+src/self-annotate/src/module6_whyml/statements.py	rec	1771	UND	0	0	v['value'].get('name')	v['value'].get('name') in str_arrays
+src/self-annotate/src/module6_whyml/statements.py	rec	1772	UND	0	0	node['target']	elem_reads.add(node['target'])
+src/self-annotate/src/module6_whyml/statements.py	rec	1832	UND	0	0	node['target']	out.add(node['target'])
+src/self-annotate/src/proof2why3/ir.py	free_vars	151	NONE	0	0	t.name	{t.name}
+src/self-annotate/src/proof2why3/ir.py	free_vars	164	UND-IT	0	0	t.binders	set(t.binders)
+src/self-annotate/src/proof2why3/parser.py	_Parser.parse_atom_application	424	NONE	0	0	atom.name	atom.name in _KNOWN_FN_HEADS
+src/self-annotate/src/proof_axiom_allowlist.py	parse_lean_axioms_line	81	NONE	0	0	1:-1	bracket[1:-1]
+src/self-annotate/src/pycsl.py	_check_rocq_proofs	208	NONE	0	0	:3	result.stderr.strip().splitlines()[:3]
+src/self-annotate/src/pycsl.py	_check_rocq_proofs	184	NONE	0	0	:16	current_hash[:16]
+src/self-annotate/src/pycsl.py	_check_rocq_proofs	185	NONE	0	0	:16	stored_hash[:16]
+src/self-annotate/src/pycsl.py	_build_soundness_report	393	UND	0	0	f['name']	{f['name'] for f in funcs if f.get('trusted') or f.get('abstract')}
+src/self-annotate/src/pycsl.py	_build_soundness_report	406	UND	0	0	name	{name}
+src/self-annotate/src/pycsl.py	_run_pipeline	547	UND	0	0	f['name']	{f['name'] for f in ir_data['functions']}
+src/self-annotate/src/pycsl.py	_run_pipeline	548	UND-IT	0	0	args.fun	set(args.fun)
+src/self-annotate/src/pycsl.py	_run_pipeline	554	UND	0	0	f['name']	{f['name']: _collect_calls(f['body']) & all_func_names for f in ir_data['functions']}
+src/self-annotate/src/pycsl.py	_run_pipeline	556	UND-IT	0	0	fun_names	set(fun_names)
+src/self-annotate/src/pycsl.py	_run_pipeline	560	UND	0	0	fname	call_graph.get(fname, set())
+src/self-annotate/src/pycsl.py	_run_pipeline	565	UND	0	0	f['name']	f['name'] not in reachable
+src/self-annotate/src/pycsl.py	_run_pipeline	561	UND	0	0	callee	callee not in reachable
+src/self-annotate/src/pycsl.py	_run_pipeline	562	UND	0	0	callee	reachable.add(callee)
+src/self-annotate/src/pycsl.py	_parse_why3_json	731	UND	0	0	i	s[i]
+src/self-annotate/src/pycsl.py	_run_vacuity_gate	991	UND	0	0	fname	fname in skip
+src/self-annotate/src/pycsl.py	_run_vacuity_gate	993	NONE	0	0	idx:	lines[idx:]
+src/self-annotate/src/pycsl.py	_run_vacuity_gate	993	NONE	0	0	:idx	lines[:idx]
+src/self-annotate/src/pycsl.py	_run_vacuity_gate	1030	UND	0	0	probe_path	os.remove(probe_path)
+src/self-annotate/src/pycsl.py	_dispatch_provers	1148	NONE	0	0	:-1	provers[:-1]
+src/self-annotate/src/pycsl.py	_run_proofs	1294	UND	0	0	whyml_ident(_f.get('name', ''))	_nr_names.add(whyml_ident(_f.get('name', '')))
+src/self-annotate/src/pycsl.py	_probe_one	993	NONE	0	0	idx:	lines[idx:]
+src/self-annotate/src/pycsl.py	_probe_one	993	NONE	0	0	:idx	lines[:idx]
+src/self-annotate/src/pycsl.py	_probe_one	1030	UND	0	0	probe_path	os.remove(probe_path)
+src/self-annotate/src/pycsl.py	_gate_vacuity_then_succeed	1294	UND	0	0	whyml_ident(_f.get('name', ''))	_nr_names.add(whyml_ident(_f.get('name', '')))

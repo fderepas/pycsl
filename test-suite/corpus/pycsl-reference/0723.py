@@ -29,6 +29,9 @@ class Bank:
     #@ requires s != r
     #@ requires amount > 0
     #@ requires self.audit_len < 1024
+    # (#34) HONEST FRAME: this method writes `self.audit_len` (and the two array fields),
+    # and a method with NO `#@ assigns` at all was assumed by callers to write nothing.
+    #@ assigns self.balance, self.audit, self.audit_len
     def transfer(self, s: int, r: int, amount: int) -> int:
         if self.balance[s] < amount:
             return -1

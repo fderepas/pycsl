@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-base/r3d_nested_plain.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-base/r3d_nested_plain.mlw", line 19, characters 22-29:
+This expression has type (int, string), but is expected to have type (int,
+int)
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

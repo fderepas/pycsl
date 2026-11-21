@@ -1,0 +1,13 @@
+src/self-annotate/src/module6_whyml/types.py
+src/self-annotate/src/proof2why3/canonical.py
+src/self-annotate/src/proof2why3/crosscheck.py
+src/self-annotate/src/proof2why3/crosscheck_ir.py
+src/self-annotate/src/proof2why3/extract.py
+src/self-annotate/src/proof2why3/extract_lean_meta.py
+src/self-annotate/src/proof2why3/from_lean_json.py
+src/self-annotate/src/proof2why3/from_sexp.py
+src/self-annotate/src/proof2why3/normalize.py
+src/self-annotate/src/proof2why3/parser.py
+src/self-annotate/src/proof2why3/sertop.py
+src/self-annotate/src/proof_axiom_allowlist.py
+src/self-annotate/src/pycsl.py

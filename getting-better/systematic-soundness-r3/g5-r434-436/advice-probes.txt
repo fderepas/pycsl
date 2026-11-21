@@ -1,0 +1,17 @@
+6584_r436_k05_split_local_ctl base rc=1 exp=PASS 
+6584_r436_k05_split_local_ctl cand rc=1 exp=PASS 
+a434_callee_drop_all base rc=0 exp= Verification SUCCESS 
+a434_callee_drop_all cand rc=0 exp= Verification SUCCESS 
+a434_drop_all base rc=0 exp= Verification SUCCESS 
+a434_drop_all cand rc=0 exp= Verification SUCCESS 
+a434_one_char base rc=0 exp= Verification SUCCESS 
+a434_one_char cand rc=0 exp= Verification SUCCESS 
+a434_unchecked_drop_all base rc=0 exp= Verification SUCCESS 
+a434_unchecked_drop_all cand rc=0 exp= Verification SUCCESS 
+a435_annotate base rc=0 exp= Verification SUCCESS 
+a435_annotate cand rc=0 exp= Verification SUCCESS 
+a435_method_on_value base rc=1 exp= 
+a435_method_on_value cand rc=1 exp= 
+a436_drop_all base rc=0 exp= Verification SUCCESS 
+a436_drop_all cand rc=0 exp= Verification SUCCESS 
+DONE

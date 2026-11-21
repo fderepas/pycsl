@@ -1,0 +1,79 @@
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_SertopSession_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/sertop.py'...
+[*] Memory model: hoare
+[*] Import 'shutil.which': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_aydp1flz.mlw", line 46, characters 15-19:
+Sub-goal postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 815 steps).
+
+File "/tmp/.pycsl_aydp1flz.mlw", line 46, characters 15-19:
+Sub-goal postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 822 steps).
+
+File "/tmp/.pycsl_aydp1flz.mlw", line 46, characters 15-19:
+Sub-goal postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 818 steps).
+
+File "/tmp/.pycsl_aydp1flz.mlw", line 72, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1039 steps).
+
+File "/tmp/.pycsl_aydp1flz.mlw", line 83, characters 16-33:
+Sub-goal precondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1056 steps).
+
+File "/tmp/.pycsl_aydp1flz.mlw", line 72, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1123 steps).
+
+File "/tmp/.pycsl_aydp1flz.mlw", line 72, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1130 steps).
+
+File "/tmp/.pycsl_aydp1flz.mlw", line 72, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1131 steps).
+
+File "/tmp/.pycsl_aydp1flz.mlw", line 72, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1527 steps).
+
+File "/tmp/.pycsl_aydp1flz.mlw", line 72, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1278 steps).
+
+File "/tmp/.pycsl_aydp1flz.mlw", line 134, characters 15-19:
+Sub-goal postcondition of goal sertop_available'vc.
+Prover result is: Valid (0.00s, 748 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 46, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 66, characters 18-19: unused variable s
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 68, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 72, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 116, characters 19-25: unused variable tokens
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 118, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 120, characters 20-21: unused variable s
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 122, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 124, characters 26-36: unused variable proof_file
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 124, characters 47-56: unused variable qualnames
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 126, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 128, characters 24-34: unused variable load_paths
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 128, characters 42-45: unused variable cwd
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 128, characters 56-70: unused variable require_module
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 128, characters 81-90: unused variable qualnames
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 128, characters 107-116: unused variable timeout_s
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 128, characters 125-139: unused variable require_prefix
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 130, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 134, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 140, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 142, characters 36-40: unused variable self
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 142, characters 58-72: unused variable require_module
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 142, characters 83-92: unused variable qualnames
+Warning, file "/tmp/.pycsl_aydp1flz.mlw", line 144, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+r"""AN IR NODE KIND WHOSE MODULE-6 LOWERING IS A WHY3 CONSTANT — a named ratchet.
+
+THE DEFECT CLASS, and it is the one that produced FIVE routes in two windows. A Python
+value the model does not represent has to lower to SOMETHING. When that something is a
+Why3 CONSTANT — `0`, `1`, `true`, `false` — the model does not merely lose the value: it
+becomes indistinguishable from that constant, and every comparison against the constant is
+then DECIDED, and decided wrongly.
+
+    #40  the `...` literal, and the builtin name `Ellipsis`, WERE the integer `0`.
+         `x = 0; if x is ...:` proved; `x = ...; if x == 0:` proved; `return ...`
+         proved `\result == 0`.
+    #41  a generator / non-empty set / non-empty tuple local WAS the integer `0`.
+         `x == 0`, `x < 1` and `x + 5` all proved.
+    #42  a `bool` literal under `is` WAS the integer `1`/`0`, because Module 5 collapsed
+         `ast.Is` onto `==` and Module 6 int-encodes `bool`. `<int> is True` proved.
+    #43  a COMPLEX literal WAS `int(value.real)`. `3j == 0` proved.
+    #44  `None` WAS the integer `0`. `None == 0` proved, `<int> is None` proved, and the
+         CONTRACT `ensures \result == None` proved for a function returning `0`.
+
+Every one was found by hand, one at a time, and four of the five were found AFTER an
+earlier route had already established the shape. THE POINT OF THIS PLANE IS THAT THE SIXTH
+IS FOUND WHEN IT IS WRITTEN.
+
+WHAT IT CHECKS. Every `if` in `src/pycsl/module6_whyml/` that is keyed on an IR NODE KIND
+— `isinstance(node, <X>Expr)`, or a `== "<Kind>"` / `in ("<Kind>", ...)` test on a node's
+type tag — and whose whole body is a `return "<literal>"` (or a two-armed
+`return "<a>" if C else "<b>"`) for a Why3 constant. The baseline is keyed on
+(function, kind, literal), never on line numbers, so it survives ordinary edits and fails
+only when a NEW arm appears, a known one changes its answer, or a baseline entry outlives
+its site.
+
+WHAT IT DOES NOT CHECK, stated so nobody reads more into a green run than is there:
+
+  * the TAIL fall-through of a handler. That is `bin/check-constant-fallthrough.py`, the
+    twenty-third plane, and the two are deliberately disjoint: that one watches what a
+    lowering answers when it recognized NOTHING, this one watches what it answers when it
+    recognized a node kind EXACTLY and still had nothing to say about it.
+  * a constant reached through a helper (`self._some_default()`), or built by string
+    formatting. Only a literal `return` in the arm is seen.
+  * MODULE 5. Routes #40, #43 and #44 were all born in `_py_expr_constant` /
+    `_py_expr_name`, where a Python literal is turned into a constant IR NODE before
+    Module 6 ever sees it. That producer side has no plane yet and is the honest gap in
+    this instrument; the arms below are where those constants come to REST.
+"""
+import argparse
+import ast
+import os
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+M6 = os.path.join(ROOT, "src", "pycsl", "module6_whyml")
+
+# Why3 constants a lowering can DECIDE with.
+DECIDING = {"true", "false", "0", "1", "0.0", "-1"}
+
+# ---------------------------------------------------------------------------
+# THE BASELINE.  (function, kind, literal) -> why this constant answer is not a route.
+# Anything not listed here is a FAILURE, whether it is new or merely un-triaged.
+# ---------------------------------------------------------------------------
+BASELINE = {
+    #   ("_expr_to_whyml", '"None"', "0") — ROUTE #184 (gen #29) made the dict-shaped arm
+    #     answer the opaque `pycsl_none` instead of the int 0: `[None]` elements and
+    #     `{"k": None}` values read back as a DEFINITE zero (`xs[0] == 0` PROVED True,
+    #     CPython False; `xs[0] + 1` PROVED == 1, CPython TypeError).
+    #   ("_expr_to_whyml", "NoneExpr", "0") — ROUTE #191 (gen #30) RETIRED IT. The entry
+    #     claimed the TYPED twin was only ever the STRUCTURAL `None` (an absent slice
+    #     bound, an optional-field slot, a union arm) and that the VALUE positions were
+    #     "intercepted upstream". THEY WERE NOT: every `None` STORE went through this arm,
+    #     so `xs[0] = None`, `d["a"] = None`, `b.v = None` and `xs.append(None)` each read
+    #     back a DEFINITE zero and a `v == 0` guard PROVED while CPython answers False
+    #     (witnesses 1673-1676). The arm now answers the same opaque `pycsl_none` as its
+    #     dict-shaped twin — route #56's general repair — so it declares no constant and
+    #     the entry has no site. The UnknownPyExprExpr / str precedent below: a baseline
+    #     justification is a claim about the code, and a measurement refuted this one.
+    ("_expr_to_whyml", "SliceExpr", "0"):
+        "a bare `Slice` node in a VALUE position has no value; the real bounds are read "
+        "by the subscript handler, which never routes the slice itself through here.",
+    ("_expr_to_whyml", '"Slice"', "0"):
+        "the dict-shaped twin of the SliceExpr arm above.",
+    # (#49, gen #23) REMOVED, BECAUSE THEIR ARMS NO LONGER ANSWER A CONSTANT:
+    #   ("_expr_to_whyml", "UnknownPyExprExpr", "0") — blessed as "closed one level up, at
+    #     the BINDING"; ROUTE #115 measured the unbound spelling (`return (lambda y: y + 1)(x)`
+    #     proved `\result == 0`). The arm now answers `(any int)`.
+    #   ("_expr_to_whyml", "str", "0") — blessed as "a REFUSAL ... Not a value"; ROUTE #116
+    #     measured that it WAS a value (`Pick(name)(3)` proved `\result == 0`). Now `(any int)`.
+    # A baseline entry's justification is a claim about the code, and both of these were
+    # refuted by a measurement. The population only ever goes down.
+    ("_to_bool", '"Var"', "true"):
+        "THIS TEXT WAS STALE UNTIL gen #30 SWEPT IT, and the staleness is the thing worth "
+        "recording: it quoted the PRE-ROUTE-#55 justification -- \"`true` is a sound "
+        "OVER-approximation ... the real check is the `in` or the projection that "
+        "follows\" -- which is the very sentence route #55 refuted. That arm fired on a "
+        "BARE guard, where there is no `in` that follows, and `ensures \\result == 7` "
+        "proved for a body returning 0 on the empty-dict path (witnesses 1104-1106). "
+        "WHAT THE CODE ACTUALLY DOES NOW: the unsubsumed guard answers the per-name "
+        "opaque `pycsl_nonempty_<name>` and decides nothing; `true` survives ONLY for a "
+        "name the parent `&&` has marked SUBSUMED -- `if subst and name in subst:`, where "
+        "an EMPTY `subst` makes `name in subst` False anyway, so the short-circuit "
+        "changes nothing and `true` is FAITHFUL. The mark is made at the `&&`, where the "
+        "parent is visible, and restored immediately after the left operand, so a "
+        "same-named guard in the RIGHT operand or anywhere else does not inherit it. "
+        "Re-probed in gen #30: a dict/set local outside the subsumed shape reaches "
+        "`map_nonempty` (a function OF THE MAP VALUE, so a store changes its argument) or "
+        "fails L3-tc; `d = self.d` is refused by route #59's aliasing fence.",
+    ("_to_bool", "int", "true|false"):
+        "route #31's repair, not its defect: a collection whose SIZE the emitter KNOWS "
+        "(`_known_collection_sizes`, and only while the name is not in "
+        "`_rebound_collections`) has an EXACT truth value. The unknown-size case falls "
+        "through to `Array.length x <> 0`.",
+    ("_match_pattern_cond", '"Wildcard"', "true"):
+        "route #30's repair, not its defect: a `case _:` wildcard genuinely matches "
+        "everything. The kinds that do NOT are refused above it.",
+    ("_handle_binop", '"None#empty"', "true|false"):
+        "route #50 (relaunch #49): `x is None` on a STRING-typed local under a live "
+        "`None#empty` record. The record is LINEAR, so it says the name is bound to the "
+        "None singleton RIGHT HERE -- a fact, not an approximation -- and the DECIDED "
+        "answer is the faithful one. What this arm REPLACES is the defect: the same "
+        "position used to answer the literal `false` for EVERY string operand, deleting "
+        "the branch Python takes (`if false then <the None path>`), which is why "
+        "`scratchpad/w49/route50/r50.py` proved `\\result == 7` where Python returns 0. "
+        "The two cases this arm does NOT decide are the ones the model cannot know: an "
+        "`AMBIG` name (bound to None on one path and to something else on another) gets "
+        "the opaque `str_eq_op x pycsl_none_str`, and a name never bound to None keeps "
+        "the always-present `false`. Corpus controls 1087 (decided, proves) and 1085 "
+        "(ambiguous, fails closed).",
+    ("_to_bool", '"None#empty"', "false"):
+        "route #44: `bool(None)` IS False, so this is the FAITHFUL truth value, not an "
+        "erasure — the VALUE of a `None`-bound local is opaque (`pycsl_none`) and only "
+        "its truthiness is decided. Corpus control 1064 is the driver that holds it; a "
+        "future change that made this opaque would turn a true contract unprovable and "
+        "1064 would go red.",
+    ("_to_bool", '"NaN"', "true"):
+        "route #45: `bool(float(\"nan\"))` IS True — NaN is not zero — so this is the "
+        "FAITHFUL truth value and the exact OPPOSITE of the `None` arm above. Corpus "
+        "control 1068 is the driver that holds it. Three different truthiness answers now "
+        "live in one dict (refuse for a generator, `false` for `None`, `true` for NaN), "
+        "and that is a semantic distinction, not an inconsistency.",
+    # (#49, gen #36) REMOVED, BECAUSE ITS ARM NO LONGER ANSWERS A CONSTANT:
+    #   ("_expr_to_whyml", '"GenExp"', "0") — blessed as "a generator expression in a value
+    #     position still lowers to 0 for R2a parity; its truthiness is refused at the
+    #     binding". ROUTE #241 measured that refusing the TRUTHINESS left the VALUE decided:
+    #     `g(v for v in [1])` against `def g(x: Any)` with `ensures x == 0 ==> \result == 1`
+    #     emitted `g 0` and PROVED (CPython 0), and so did a list element, a field store, a
+    #     keyword actual, a direct `== 0` and an `Any` return (corpus 2242-2247). The arm
+    #     now answers `(any int)`, the UnknownPyExpr half's answer since route #115.
+    ("_emit_term_retval", '"Bool"', "true|false"):
+        "a `#@ proof`-bridge term whose value IS the bool literal -- faithful.",
+}
+
+
+def kind_of_test(t):
+    """The single IR node KIND this `if` test is keyed on, or None if it is keyed on
+    zero kinds or on more than one (an ambiguous test is not this plane's business)."""
+    names = []
+    for n in ast.walk(t):
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                and n.func.id == "isinstance" and len(n.args) == 2
+                and isinstance(n.args[1], ast.Name)):
+            names.append(n.args[1].id)
+        if isinstance(n, ast.Compare) and len(n.ops) == 1:
+            if isinstance(n.ops[0], ast.Eq):
+                r = n.comparators[0]
+                if (isinstance(r, ast.Constant) and isinstance(r.value, str)
+                        and r.value[:1].isupper()):
+                    names.append('"%s"' % r.value)
+            elif isinstance(n.ops[0], ast.In):
+                r = n.comparators[0]
+                if isinstance(r, ast.Tuple) and r.elts and all(
+                        isinstance(e, ast.Constant) and isinstance(e.value, str)
+                        and e.value[:1].isupper() for e in r.elts):
+                    names.append('"%s"' % "|".join(e.value for e in r.elts))
+    return names[0] if len(names) == 1 else None
+
+
+def literal_body(stmts):
+    """The Why3 literal this arm answers with, or None. A one-statement body that is a
+    `return "<lit>"` or `return "<a>" if C else "<b>"`."""
+    body = [s for s in stmts
+            if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
+    if len(body) != 1 or not isinstance(body[0], ast.Return):
+        return None
+    v = body[0].value
+    if isinstance(v, ast.Constant) and isinstance(v.value, str):
+        return v.value.strip()
+    if (isinstance(v, ast.IfExp) and isinstance(v.body, ast.Constant)
+            and isinstance(v.orelse, ast.Constant)
+            and isinstance(v.body.value, str) and isinstance(v.orelse.value, str)):
+        return "%s|%s" % (v.body.value.strip(), v.orelse.value.strip())
+    return None
+
+
+def scan():
+    hits = []
+    for dp, _dn, fn in os.walk(M6):
+        for f in sorted(fn):
+            if not f.endswith(".py"):
+                continue
+            p = os.path.join(dp, f)
+            tree = ast.parse(open(p, encoding="utf-8").read())
+            for fu in ast.walk(tree):
+                if not isinstance(fu, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                for st in ast.walk(fu):
+                    if not isinstance(st, ast.If):
+                        continue
+                    k = kind_of_test(st.test)
+                    if k is None:
+                        continue
+                    lit = literal_body(st.body)
+                    if lit is None:
+                        continue
+                    if all(x in DECIDING for x in lit.split("|")):
+                        hits.append((fu.name, k, lit,
+                                     os.path.relpath(p, ROOT), st.lineno))
+    return hits
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--verbose", action="store_true")
+    args = ap.parse_args()
+
+    hits = scan()
+    if not hits:
+        print("[!] singleton-constant-lowering: scanned 0 site(s) in %s — that is not a "
+              "measurement, the module path is broken. NOT A PASS." % M6, file=sys.stderr)
+        return 2
+
+    keys = {(h[0], h[1], h[2]) for h in hits}
+    unknown = [h for h in hits if (h[0], h[1], h[2]) not in BASELINE]
+    stale = sorted(set(BASELINE) - keys)
+
+    print("[*] singleton-constant-lowering: %d node-kind arm(s) answering a Why3 "
+          "CONSTANT." % len(hits))
+    if args.verbose or unknown:
+        for nm, k, lit, rel, ln in sorted(hits):
+            mark = "NEW " if (nm, k, lit) not in BASELINE else "    "
+            print("    %s%-28s %-22s -> %-12s %s:%d" % (mark, nm, k, lit, rel, ln))
+            if (nm, k, lit) in BASELINE:
+                print("         %s" % BASELINE[(nm, k, lit)])
+
+    rc = 0
+    for nm, k, lit, rel, ln in unknown:
+        print("[!] singleton-constant-lowering: %s:%d — `%s` answers the Why3 constant "
+              "`%s` for node kind %s, and no entry in this gate's baseline says why the "
+              "model gets to DECIDE with it. PROBE IT END TO END: write a driver whose "
+              "contract is FALSE of the program and whose guard consumes that value, and "
+              "run Python to confirm the true answer. Then either classify it here or "
+              "make the answer opaque." % (rel, ln, nm, lit, k), file=sys.stderr)
+        rc = 1
+    for nm, k, lit in stale:
+        print("[!] singleton-constant-lowering: baseline entry (%s, %s, %s) no longer "
+              "matches any site. Remove it — a baseline that outlives its site hides the "
+              "next one." % (nm, k, lit), file=sys.stderr)
+        rc = 1
+    if rc == 0:
+        print("[+] singleton-constant-lowering: OK — %d arm(s), every one classified."
+              % len(hits))
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())

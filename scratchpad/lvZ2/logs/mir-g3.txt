@@ -1,0 +1,15 @@
+frontend__Module2_Parser EMIT
+frontend__Module3_Weaver EMIT
+frontend__Module5_IREmitter NONE PYCSL-R614-PATH-STR-CONFLATED: line 3433: `out.add(node['target'])
+frontend__desugar EMIT
+frontend__exec_splice EMIT
+frontend__import_classifier EMIT
+frontend__monomorphize EMIT
+frontend__pure_ast EMIT
+module6_whyml__auto_trust EMIT
+module6_whyml__expressions EMIT
+module6_whyml__functions NONE PYCSL-R614-PATH-STR-CONFLATED: line 1791: `name in local_assignees
+module6_whyml__statements NONE PYCSL-R614-PATH-STR-CONFLATED: line 1325: `target in self._array_locals
+module6_whyml__stmt_control_flow NONE PYCSL-R614-PATH-STR-CONFLATED: line 780: `safe_exc_name(tag)
+module6_whyml__types EMIT
+pycsl EMIT

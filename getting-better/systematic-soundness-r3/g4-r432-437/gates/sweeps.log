@@ -1,0 +1,4 @@
+g4/gates/mb.log:[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into g4/mb
+g4/gates/ma.log:[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into g4/ma
+g4/ca2.log:emitted 2532 of 4220 source file(s) into g4/ca2 (6 jobs)
+g4/ca2.log:emitted 2186 of 2217 python-reference file(s) into g4/ca2/pyref (6 jobs)

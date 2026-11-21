@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u52-g2/witnesses-r613/h0/prog.py'...
+[*] Memory model: hoare
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_sq5sdm36.mlw", line 18, characters 15-27:
+Sub-goal postcondition of goal same'vc.
+Prover result is: Valid (0.00s, 775 steps).
+
+File "/tmp/.pycsl_sq5sdm36.mlw", line 18, characters 15-27:
+Sub-goal postcondition of goal same'vc.
+Prover result is: Valid (0.00s, 404 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_sq5sdm36.mlw", line 13, characters 31-32: unused variable s
+
+[+] Verification SUCCESS! All contracts formally proven.

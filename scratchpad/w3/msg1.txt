@@ -1,0 +1,112 @@
+cert+emitter+mirror(lambda_parameters, parse_parameters): LIST-ALIAS ELEMENT TYPE built; 516->514
+
+The CERTIFIED-BOUNDARY [LIST-ALIAS ELEMENT TYPE] recorded at the end of relaunch #11 is
+BROKEN by exactly the capability that refutation named — TWO markers for ONE capability,
+the best ratio on the board, and the fourth boundary in two sessions to reopen on the
+capability its own refutation spelled out (lesson (bk)).
+
+MARKERS 516 -> 514 - grep-substring 541 -> 539 - offset 25 - unattached 0.
+
+SIX PIECES. Five are the ones relaunch #11 built, measured and reverted with its spike;
+the sixth is the one it named.
+
+  1. `arg` JOINS THE FAMILY as `IrPyArg string iropt_ir iropt_str`, with `_lambda_arg`
+     and `_param_arg` retyped `-> "ExprIR"`. It MUST join: `arguments`' five child slots
+     are `irlist`s of `emit_ir`, and a `seq arg` RECORD payload inside `emit_ir` is
+     non-strictly-positive — Why3 rejects the ADT outright (lesson (bf) §1, the
+     `comprehension` precedent). `_param_arg`'s real `annotation` rides the `iropt_ir`
+     slot through its already-synthesized `_union_*`; `_lambda_arg`'s literal `None`s
+     become the honest `IrONone` / `IrSNone`.
+  2. `arguments.kw_defaults` retyped `irlist -> iroptlist`. ASDL aligns `kw_defaults`
+     POSITIONALLY with `kwonlyargs`: a kw-only parameter WITHOUT a default contributes a
+     `None` AT ITS POSITION, so the list genuinely has HOLES and an `irlist` would have to
+     model an absent default as a NODE. The sibling `defaults` is NOT the same shape
+     (ASDL `expr*`, appended only under the `is not None` guard) and stays `irlist`.
+  3. A SECOND ADMISSION ROUTE for the OPTIONAL-NODE CARRIER: a local that is assigned a
+     bare `None`, whose PRESENCE IS TESTED against `None` in this body, and that is
+     already classified an emit_ir local. `default` never reaches an `iropt_ir` PAYLOAD
+     SLOT — it is APPENDED to a child list, not bound to a field — so the increment-5 slot
+     route could not see it, yet it is exactly as optional as `Slice.lower`. Under the
+     emit_ir sentinel model `if default is not None:` lowered to the LITERAL `true`, so
+     the model appended a default for EVERY parameter. All three conjuncts are
+     load-bearing: `None`-assigned (else it is not optional), presence-tested (else the
+     two models are indistinguishable and moving it is pure churn), emit_ir-classified
+     (else the value it carries when present is not a node).
+  4. A SLOT-BASED `iropt_ir`-ELEMENT SEQ classification: a seq local bound into an
+     `iroptlist` PAYLOAD SLOT holds `iropt_ir` elements. The relaunch-#10 `None`-append
+     scan sees a list grown with a LITERAL `None`; `kw_defaults` is the other shape of the
+     same thing — grown with a CARRIER local, so no literal `None` ever appears at the
+     append site. The gate is the SLOT, exactly as for the optional-node LOCAL (lesson
+     (bk) §1). It takes `kw_defaults` and correctly LEAVES `defaults` alone.
+  5. THE CARRIER-APPEND RULE: a carrier appended to a carrier seq COPIES the carrier —
+     the `.append` twin of the chained-assignment alias rule in `_handle_assign_stmt`.
+     Without it the plain Var read projects through `iropt_val` and the `IrOSome` turns an
+     ABSENT default into a PRESENT sentinel node. The other direction was already right:
+     `defaults.append(default)` PROJECTS through `iropt_val` under the guard that has just
+     proved the value present.
+  6. THE LIST-ALIAS ELEMENT TYPE, and the APPEND SEED it turned out to need. Measured, not
+     assumed: `_emit_ir_seq_locals` was EMPTY at the construction site, so `args` was
+     unclassified too. `args.append(a)` appends a bare LOCAL, which the append site's own
+     element-type test (a `(Ir` ctor application, or a call with an IR return annotation)
+     does not recognise; and `posonly = args` carries no element information at all. Both
+     halves are ONE FIXPOINT over the body's assignment graph, run to closure so a chain
+     propagates: SEED `x.append(<local that is itself an emit_ir local>)` — the LOCAL
+     spelling of the rule the append site already applies to a DIRECT call — and EDGE
+     `x = <other seq local>`, where Python binds the SAME list object so the element type
+     of an alias IS the element type of its source. Fail-closed both ways: an unclassified
+     source propagates nothing, and a local another producer already typed is never
+     overwritten.
+
+MEASURED EMISSION, every facade gone:
+
+    (IrPyArguments (seq_to_irlist !posonly) (seq_to_irlist !args) !vararg
+                   (seq_to_irlist !kwonly) (seq_to_iroptlist !kw_defaults)
+                   !kwarg (seq_to_irlist !defaults))
+
+against HEAD's `(arguments_0 ())`, which dropped all seven children. Both presence tests
+lower to the carrier's own `match !default with IrONone -> true | _ -> false end`
+discriminant — the lesson-(bl) check (grep the emitted body for `if true then` / `&& false`
+before believing a conversion) passes.
+
+GROUP VARIANT, AND THE PROVER REFUTED THE FIRST OFFSET — measure, do not assume.
+Converting `lambda_parameters` makes `lambdef -> lambda_parameters` a real edge of the
+NINETEEN-member expression `let rec` group. The first attempt placed the new member at
+depth 15 under the standing multiplier 16, on the assumption that `lambdef`'s leading
+`t = self.advance()` pays for the rise. IT DOES NOT: `advance` is only CONDITIONALLY
+strict — its contract is `\old(self.i) < \length(self.toks) - 1 ==> self.i ==
+\old(self.i) + 1`, the EOF sentinel — and `lambdef` itself never tests the token, so
+inside it there is no evidence the cursor moved. Depth 15 therefore RAISED the variant
+across that edge, and the run came back with EXACTLY TWO `_parser__lambdef'vc` sub-goals
+Unknown: the postcondition and the variant decrease — the same pair the stub's own comment
+had recorded years of increments ago.
+
+The depth is FORCED to sit strictly below `lambdef`'s 10, and 9 is free. The OUTGOING edge
+`lambda_parameters -> test` (depth 11) raises the offset by 2 and IS paid, for a reason
+that had to be checked rather than assumed: every path to `self.test()` passes
+`a = self._lambda_arg()` first, and composing its STRICT `self.i > \old(self.i)` with the
+loop invariant `self.i >= i0` gives the cursor term a full drop of 16 — enough for ANY
+offset. The multiplier does not rise; the no-advance chain is unchanged.
+
+`_lambda_arg` and `_param_arg` both had their cursor postcondition STRENGTHENED from `>=`
+to `>`. Both are CONVERTED bodies, so that is a PROOF OBLIGATION discharged here, not TCB —
+and the second edge above is exactly what consumes it.
+
+TCB NET STRICTLY NEGATIVE, measured the right way (lesson (bh)): the emitted file's
+abstract-`val` SET differs from HEAD's by exactly TWO lines — `val _parser__lambda_parameters`
+and `val _parser__parse_parameters` REMOVED, ZERO added. No new abstract op: `seq_to_irlist`
+and `seq_to_iroptlist` are the pre-existing pointwise-pinned bridges.
+
+GATES (driver-verified FRESH, on the FINAL artifact):
+  PROOF frontend/pure_ast   2331 Valid, 0 non-Valid, SUCCESS
+  CORPUS BYTE-DIFF          0 over 813/813
+  MIRROR SWEEP WITH L3-tc   1 of 52 changed (pure_ast only), 0 TC_FAIL
+  FIDELITY                  2 DIVERGED (the standing baseline)
+  mirror-check              byte-identical to the HEAD baseline
+  field parity              335 / 7 known / 0 NEW
+  untrusted-emitted         796 / 779 / 0 / 0
+  shadowed-selfcalls        27 methods / 176 sites (ratchet 27 held)
+  emitted-vacuity --emit    no NEW erasure (8 known)
+  emitted axioms in pure_ast 0
+  LEDGER                    3 (no certificate touched)
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

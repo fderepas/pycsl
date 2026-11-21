@@ -1,0 +1,15 @@
+from typing import List
+
+
+class C:
+    def __init__(self) -> None:
+        self.v = 0
+
+    #@ assigns self.v
+    def __add__(self, x: int) -> int:
+        self.v = 7
+        return 1
+
+
+def k(o: C) -> int:
+    return o + 1

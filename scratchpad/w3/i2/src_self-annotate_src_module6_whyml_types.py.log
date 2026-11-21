@@ -1,0 +1,2773 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/types.py'...
+[*] Memory model: hoare
+[*] Imported from 'module6_whyml.struct_format': ['parse_format', 'parse_format'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_5vpix1kd.mlw", line 79, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 17247 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 80, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 17166 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 77, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.12s, 629260 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 84, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 84, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.00s, 5217 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 83, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 16925 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 87, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 4514 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 87, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 5578 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 86, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 18160 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 94, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.00s, 5660 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 90, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 25056 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 121, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.00s, 8074 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 121, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 30628 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 117, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.27s, 700666 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 162, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.00s, 8232 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 173, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 316, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29222 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 316, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29244 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 317, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29238 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 317, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29260 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 318, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29210 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 318, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29232 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 319, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29214 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 319, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29236 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 320, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29170 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 321, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29204 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 322, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29250 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 322, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29272 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 322, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29294 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 323, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29240 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 324, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29244 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 325, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29262 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 326, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29280 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 326, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29302 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 327, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29280 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 327, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29302 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 328, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29284 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 328, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29306 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 329, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29288 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 329, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29310 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 330, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29288 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 330, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29310 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 331, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29292 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 331, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29314 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 332, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29300 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 332, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29322 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 333, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29304 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 333, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29326 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 334, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29306 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 335, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29314 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 335, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29336 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 336, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29326 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 336, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29348 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 336, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29370 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 337, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29322 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 337, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29344 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 338, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29326 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 338, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29348 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 339, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29330 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 339, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29352 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 340, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29340 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 340, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29362 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 341, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29344 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 341, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29366 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 342, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29348 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 342, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29370 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 343, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29352 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 343, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29374 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 344, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29356 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 344, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29378 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 345, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29360 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 345, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29382 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 346, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29372 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 346, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29394 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 346, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29416 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 347, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29368 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 347, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29390 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 348, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29372 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 348, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29394 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 349, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29382 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 349, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29404 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 350, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29376 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 351, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29380 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 352, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29384 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 353, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29398 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 353, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29420 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 354, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29402 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 354, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29424 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 355, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29406 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 355, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29428 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 356, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29400 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 357, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29404 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 358, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29428 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 358, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29450 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 359, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29422 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 360, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29444 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 360, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29466 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 360, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29488 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 361, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29450 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 361, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 362, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29450 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 362, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 363, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29454 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 363, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29476 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 364, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29458 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 364, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29480 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 365, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29466 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 366, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29474 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 367, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29504 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 368, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29508 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 369, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29506 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 313, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.02s, 145627 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 374, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.01s, 46406 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 375, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.01s, 47223 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 378, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.01s, 48046 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 379, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.01s, 48863 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 382, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.01s, 49759 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 383, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.01s, 50561 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 384, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.01s, 51389 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 433, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.02s, 52051 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 434, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.01s, 52868 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 435, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.01s, 53616 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 436, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.01s, 54539 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 437, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.01s, 55526 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 438, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.02s, 56343 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 444, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.01s, 17306 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 442, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.01s, 61415 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 448, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.01s, 17342 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 463, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.01s, 17336 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 483, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.01s, 19883 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 490, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.01s, 17306 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 497, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.01s, 17342 steps).
+
+File "/home/fabrice/.opam/framac-coq8/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.01s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 589, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___bool_ir_to_int_wrap'vc.
+Prover result is: Valid (0.01s, 8476 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 589, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___bool_ir_to_int_wrap'vc.
+Prover result is: Valid (0.01s, 9784 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 589, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___bool_ir_to_int_wrap'vc.
+Prover result is: Valid (0.01s, 9684 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 612, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___call_return_whyml_type'vc.
+Prover result is: Valid (0.00s, 9500 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 612, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___call_return_whyml_type'vc.
+Prover result is: Valid (0.01s, 9604 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 612, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___call_return_whyml_type'vc.
+Prover result is: Valid (0.01s, 9822 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 612, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___call_return_whyml_type'vc.
+Prover result is: Valid (0.01s, 9642 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 11587 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12570 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12578 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12882 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 137208 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 137006 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12604 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12800 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12806 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 13102 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 145297 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.03s, 145097 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12828 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12886 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12892 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 13188 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 146161 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 145961 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 12914 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12781 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12789 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 13087 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.03s, 145237 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.03s, 145037 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12811 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7687 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7687 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7755 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7723 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7723 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7689 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7664 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7664 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 7732 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7700 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7700 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7666 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 11576 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12559 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12567 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12871 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 17197 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 17143 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12593 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12789 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12795 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 13091 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.03s, 144930 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 144730 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12817 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 12875 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12881 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 13177 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.03s, 145766 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 145566 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12903 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12770 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12778 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 13076 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 140292 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 140117 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12800 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 7680 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 7680 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7748 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7716 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 7716 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7682 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7657 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 7657 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7725 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 7693 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7693 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7659 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 11502 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12485 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12493 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 12797 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.03s, 131813 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 131635 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 12519 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12715 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12721 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 13017 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 144291 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.03s, 144091 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 12743 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12801 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12807 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 13103 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.03s, 145127 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 144927 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12829 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12696 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12704 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 13002 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 139680 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.03s, 139505 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12726 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7638 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7638 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7706 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7674 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7674 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7640 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7615 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7615 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7683 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7651 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7651 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7617 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 11406 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12389 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12397 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12701 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 16945 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 16891 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12423 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 12619 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12625 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12921 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 143682 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 143482 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12647 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12705 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12711 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 13007 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.03s, 144518 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 144318 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 12733 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12600 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12608 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12906 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 139110 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.02s, 138930 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 12630 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7580 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7580 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7648 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7616 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7616 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7582 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7557 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7557 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7625 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 710, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7593 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 709, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.01s, 7593 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_of'vc.
+Prover result is: Valid (0.00s, 7559 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 12410 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 12589 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 12590 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 752, characters 35-83:
+Sub-goal precondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 11393 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 11537 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 12671 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 12514 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 766, characters 33-92:
+Sub-goal variant decrease of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Timeout (30.00s, 62175543 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 766, characters 33-92:
+Sub-goal precondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 11414 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 766, characters 103-164:
+Sub-goal variant decrease of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Timeout (30.00s, 62257360 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 766, characters 103-164:
+Sub-goal precondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.00s, 11414 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 11466 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 769, characters 35-94:
+Sub-goal variant decrease of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.03s, 211292 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 769, characters 35-94:
+Sub-goal precondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 11568 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 769, characters 105-165:
+Sub-goal variant decrease of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.03s, 203899 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 769, characters 105-165:
+Sub-goal precondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.00s, 11568 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 11620 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_map'vc.
+Prover result is: Valid (0.01s, 11566 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 785, characters 70-134:
+Sub-goal variant decrease of goal typeinferencemixin___collect_dict_var_assigns__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 22552 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 786, characters 24-88:
+Sub-goal variant decrease of goal typeinferencemixin___collect_dict_var_assigns__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 22824 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 793, characters 24-87:
+Sub-goal variant decrease of goal typeinferencemixin___collect_dict_var_assigns__get_K_value'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 800, characters 24-88:
+Sub-goal variant decrease of goal typeinferencemixin___collect_dict_var_assigns__get_K_target'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 821, characters 81-130:
+Sub-goal variant decrease of goal typeinferencemixin___collect_dict_var_assigns'vc.
+Prover result is: Valid (0.02s, 87548 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 821, characters 81-130:
+Sub-goal precondition of goal typeinferencemixin___collect_dict_var_assigns'vc.
+Prover result is: Valid (0.00s, 8415 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 821, characters 28-80:
+Sub-goal variant decrease of goal typeinferencemixin___collect_dict_var_assigns'vc.
+Prover result is: Valid (0.02s, 88649 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 821, characters 28-80:
+Sub-goal precondition of goal typeinferencemixin___collect_dict_var_assigns'vc.
+Prover result is: Valid (0.01s, 8424 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 817, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_dict_var_assigns'vc.
+Prover result is: Valid (0.00s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 825, characters 82-134:
+Sub-goal variant decrease of goal typeinferencemixin___collect_dict_var_assigns__v'vc.
+Prover result is: Valid (0.02s, 82247 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 825, characters 82-134:
+Sub-goal precondition of goal typeinferencemixin___collect_dict_var_assigns__v'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 826, characters 18-66:
+Sub-goal variant decrease of goal typeinferencemixin___collect_dict_var_assigns__v'vc.
+Prover result is: Valid (0.02s, 82247 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 826, characters 18-66:
+Sub-goal precondition of goal typeinferencemixin___collect_dict_var_assigns__v'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 823, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_dict_var_assigns__v'vc.
+Prover result is: Valid (0.00s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 831, characters 87-142:
+Sub-goal variant decrease of goal typeinferencemixin___collect_dict_var_assigns__d'vc.
+Prover result is: Valid (0.02s, 89342 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 831, characters 87-142:
+Sub-goal precondition of goal typeinferencemixin___collect_dict_var_assigns__d'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 831, characters 34-86:
+Sub-goal variant decrease of goal typeinferencemixin___collect_dict_var_assigns__d'vc.
+Prover result is: Valid (0.02s, 90419 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 831, characters 34-86:
+Sub-goal precondition of goal typeinferencemixin___collect_dict_var_assigns__d'vc.
+Prover result is: Valid (0.01s, 8481 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 829, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_dict_var_assigns__d'vc.
+Prover result is: Valid (0.00s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 837, characters 79-146:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__gstmt'vc.
+Prover result is: Valid (0.01s, 22568 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 838, characters 24-91:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__gstmt'vc.
+Prover result is: Valid (0.01s, 22840 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 838, characters 24-91:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__gstmt'vc.
+Prover result is: Valid (0.01s, 22704 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 845, characters 24-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__gtgt'vc.
+Prover result is: Valid (0.01s, 22852 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 845, characters 24-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__gtgt'vc.
+Prover result is: Valid (0.00s, 22704 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 852, characters 24-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__gval'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 859, characters 24-91:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__gtype'vc.
+Prover result is: Valid (0.01s, 22852 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 859, characters 24-91:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__gtype'vc.
+Prover result is: Valid (0.01s, 22704 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 866, characters 24-91:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__gfunc'vc.
+Prover result is: Valid (0.01s, 22852 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 866, characters 24-91:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__gfunc'vc.
+Prover result is: Valid (0.01s, 22704 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 874, characters 24-93:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__Lbody_g'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 870, characters 14-85:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lbody_g'vc.
+Prover result is: Valid (0.02s, 78219 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 877, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lbody'vc.
+Prover result is: Valid (0.01s, 80870 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 877, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lbody'vc.
+Prover result is: Valid (0.23s, 1192455 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 877, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lbody'vc.
+Prover result is: Valid (0.08s, 384340 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 885, characters 24-95:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__Lorelse_g'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 881, characters 14-85:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lorelse_g'vc.
+Prover result is: Valid (0.02s, 78219 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 888, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lorelse'vc.
+Prover result is: Valid (0.02s, 80870 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 888, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lorelse'vc.
+Prover result is: Valid (0.23s, 1192455 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 888, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lorelse'vc.
+Prover result is: Valid (0.08s, 384340 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 895, characters 74-147:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__Lhandlers_g'vc.
+Prover result is: Valid (0.01s, 22552 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 896, characters 24-97:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__Lhandlers_g'vc.
+Prover result is: Valid (0.01s, 22824 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 892, characters 14-85:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lhandlers_g'vc.
+Prover result is: Valid (0.02s, 85018 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 899, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lhandlers'vc.
+Prover result is: Valid (0.02s, 80870 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 899, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lhandlers'vc.
+Prover result is: Valid (0.23s, 1192455 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 899, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__Lhandlers'vc.
+Prover result is: Valid (0.08s, 384340 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 902, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8420 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 96835 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8904 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 97101 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8915 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 97365 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8924 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 97277 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8924 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 902, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8924 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 91604 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8496 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 91870 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8507 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 92134 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8516 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 92042 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8516 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 902, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8516 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 91692 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8501 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 91954 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8512 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 92214 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8521 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 92120 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8521 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 902, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8521 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88612 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8510 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88870 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8521 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 89126 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8530 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 89030 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8530 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 902, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8530 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88037 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8441 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88295 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8452 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88551 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8461 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 88455 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8461 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 902, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8461 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88065 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8450 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88323 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8461 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88579 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8470 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88483 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8470 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 902, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8470 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88037 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 923, characters 13-142:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8441 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88295 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 924, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8452 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88551 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 925, characters 13-147:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8461 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.02s, 88455 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8461 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 902, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 8461 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.01s, 89265 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 927, characters 8-75:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8493 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 902, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__f'vc.
+Prover result is: Valid (0.00s, 8493 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 930, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__hf'vc.
+Prover result is: Valid (0.01s, 8411 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 932, characters 47-177:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__hf'vc.
+Prover result is: Valid (0.02s, 87811 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 932, characters 47-177:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__hf'vc.
+Prover result is: Valid (0.01s, 8432 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 932, characters 194-262:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__hf'vc.
+Prover result is: Valid (0.02s, 87719 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 932, characters 194-262:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__hf'vc.
+Prover result is: Valid (0.01s, 8432 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 930, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__hf'vc.
+Prover result is: Valid (0.00s, 8432 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 932, characters 194-262:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_pack_assign_targets__hf'vc.
+Prover result is: Valid (0.01s, 81395 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 932, characters 194-262:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets__hf'vc.
+Prover result is: Valid (0.00s, 8484 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 930, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets__hf'vc.
+Prover result is: Valid (0.01s, 8484 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 936, characters 36-101:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_pack_assign_targets'vc.
+Prover result is: Valid (0.01s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 934, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets'vc.
+Prover result is: Valid (0.00s, 8481 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 934, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_pack_assign_targets'vc.
+Prover result is: Valid (0.01s, 8532 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 944, characters 79-147:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__gstmt'vc.
+Prover result is: Valid (0.01s, 22568 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 945, characters 24-92:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__gstmt'vc.
+Prover result is: Valid (0.01s, 22840 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 945, characters 24-92:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__gstmt'vc.
+Prover result is: Valid (0.01s, 22704 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 952, characters 24-91:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__gval'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 959, characters 24-92:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__gtype'vc.
+Prover result is: Valid (0.01s, 22852 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 959, characters 24-92:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__gtype'vc.
+Prover result is: Valid (0.01s, 22704 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 966, characters 24-92:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__gfunc'vc.
+Prover result is: Valid (0.01s, 22852 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 966, characters 24-92:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__gfunc'vc.
+Prover result is: Valid (0.01s, 22704 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 973, characters 73-146:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__Ltargets_g'vc.
+Prover result is: Valid (0.00s, 22552 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 974, characters 24-97:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__Ltargets_g'vc.
+Prover result is: Valid (0.01s, 22824 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 970, characters 14-85:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Ltargets_g'vc.
+Prover result is: Valid (0.02s, 85018 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 977, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Ltargets'vc.
+Prover result is: Valid (0.02s, 80870 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 977, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Ltargets'vc.
+Prover result is: Valid (0.23s, 1192455 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 977, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Ltargets'vc.
+Prover result is: Valid (0.08s, 384340 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 985, characters 24-94:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__Lbody_g'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 981, characters 14-85:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lbody_g'vc.
+Prover result is: Valid (0.01s, 78219 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 988, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lbody'vc.
+Prover result is: Valid (0.02s, 80870 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 988, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lbody'vc.
+Prover result is: Valid (0.22s, 1192455 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 988, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lbody'vc.
+Prover result is: Valid (0.08s, 384340 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 996, characters 24-96:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__Lorelse_g'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 992, characters 14-85:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lorelse_g'vc.
+Prover result is: Valid (0.02s, 78219 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 999, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lorelse'vc.
+Prover result is: Valid (0.01s, 80870 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 999, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lorelse'vc.
+Prover result is: Valid (0.23s, 1192455 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 999, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lorelse'vc.
+Prover result is: Valid (0.09s, 384340 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1006, characters 74-148:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__Lhandlers_g'vc.
+Prover result is: Valid (0.01s, 22552 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1007, characters 24-98:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__Lhandlers_g'vc.
+Prover result is: Valid (0.01s, 22824 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1003, characters 14-85:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lhandlers_g'vc.
+Prover result is: Valid (0.02s, 85018 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1010, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lhandlers'vc.
+Prover result is: Valid (0.01s, 80870 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1010, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lhandlers'vc.
+Prover result is: Valid (0.22s, 1192455 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1010, characters 14-45:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__Lhandlers'vc.
+Prover result is: Valid (0.08s, 384340 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1013, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsA'vc.
+Prover result is: Valid (0.00s, 8420 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1018, characters 8-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsA'vc.
+Prover result is: Valid (0.01s, 23580 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1018, characters 8-90:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsA'vc.
+Prover result is: Valid (0.00s, 8836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1013, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsA'vc.
+Prover result is: Valid (0.01s, 8836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1018, characters 8-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsA'vc.
+Prover result is: Valid (0.01s, 22377 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1018, characters 8-90:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsA'vc.
+Prover result is: Valid (0.00s, 8437 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1013, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsA'vc.
+Prover result is: Valid (0.01s, 8437 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1018, characters 8-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsA'vc.
+Prover result is: Valid (0.01s, 22533 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1018, characters 8-90:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsA'vc.
+Prover result is: Valid (0.00s, 8493 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1013, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsA'vc.
+Prover result is: Valid (0.00s, 8493 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1021, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsB'vc.
+Prover result is: Valid (0.00s, 8420 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1026, characters 8-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsB'vc.
+Prover result is: Valid (0.01s, 23580 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1026, characters 8-90:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsB'vc.
+Prover result is: Valid (0.01s, 8836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1021, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsB'vc.
+Prover result is: Valid (0.01s, 8836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1026, characters 8-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsB'vc.
+Prover result is: Valid (0.01s, 22377 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1026, characters 8-90:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsB'vc.
+Prover result is: Valid (0.00s, 8437 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1021, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsB'vc.
+Prover result is: Valid (0.01s, 8437 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1026, characters 8-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsB'vc.
+Prover result is: Valid (0.01s, 22533 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1026, characters 8-90:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsB'vc.
+Prover result is: Valid (0.00s, 8493 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1021, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__tgtsB'vc.
+Prover result is: Valid (0.00s, 8493 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1029, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8411 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1044, characters 49-192:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8468 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 91599 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8479 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 91859 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8488 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 92119 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8497 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 92029 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8497 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1029, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8497 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1045, characters 36-179:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 91545 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8483 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 91805 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8492 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 92065 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8501 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 91975 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8501 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1029, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8501 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 91312 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8467 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 91574 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8478 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 91834 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8487 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 91744 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8487 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1029, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8487 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88386 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8501 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88644 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8512 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88900 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8521 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88808 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8521 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1029, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8521 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 87811 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8432 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88069 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8443 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88325 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8452 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88233 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8452 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1029, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8452 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 87839 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8441 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88097 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8452 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88353 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8461 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88261 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8461 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1029, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8461 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 87811 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1051, characters 13-144:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8432 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88069 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1052, characters 13-146:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8443 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 88325 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1053, characters 13-149:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8452 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 88233 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.00s, 8452 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1029, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8452 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.02s, 81395 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1055, characters 8-76:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8484 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1029, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__f'vc.
+Prover result is: Valid (0.01s, 8484 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1058, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__hf'vc.
+Prover result is: Valid (0.01s, 8411 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1060, characters 47-179:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__hf'vc.
+Prover result is: Valid (0.02s, 87811 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1060, characters 47-179:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__hf'vc.
+Prover result is: Valid (0.00s, 8432 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1060, characters 196-265:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__hf'vc.
+Prover result is: Valid (0.02s, 87719 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1060, characters 196-265:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__hf'vc.
+Prover result is: Valid (0.00s, 8432 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1058, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__hf'vc.
+Prover result is: Valid (0.01s, 8432 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1060, characters 196-265:
+Sub-goal variant decrease of goal typeinferencemixin___collect_struct_unpack_array_targets__hf'vc.
+Prover result is: Valid (0.02s, 81395 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1060, characters 196-265:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets__hf'vc.
+Prover result is: Valid (0.01s, 8484 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1058, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets__hf'vc.
+Prover result is: Valid (0.00s, 8484 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1064, characters 36-102:
+Sub-goal precondition of goal typeinferencemixin___collect_struct_unpack_array_targets'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1062, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets'vc.
+Prover result is: Valid (0.00s, 8481 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1062, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_struct_unpack_array_targets'vc.
+Prover result is: Valid (0.00s, 8532 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1070, characters 70-136:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_array_locals__get_dyn_stmt'vc.
+Prover result is: Valid (0.00s, 22552 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1071, characters 24-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_array_locals__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 22824 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1078, characters 24-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_array_locals__get_K_target'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1095, characters 83-134:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_array_locals'vc.
+Prover result is: Valid (0.02s, 87548 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1095, characters 83-134:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_array_locals'vc.
+Prover result is: Valid (0.01s, 8415 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1095, characters 26-82:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_array_locals'vc.
+Prover result is: Valid (0.02s, 87507 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1095, characters 26-82:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_array_locals'vc.
+Prover result is: Valid (0.00s, 8415 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1091, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_tuple_array_locals'vc.
+Prover result is: Valid (0.00s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1101, characters 82-139:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_array_locals__val'vc.
+Prover result is: Valid (0.01s, 82247 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1101, characters 82-139:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_array_locals__val'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1102, characters 18-68:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_array_locals__val'vc.
+Prover result is: Valid (0.02s, 82247 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1102, characters 18-68:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_array_locals__val'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1098, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_tuple_array_locals__val'vc.
+Prover result is: Valid (0.01s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1110, characters 89-149:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_array_locals__dict'vc.
+Prover result is: Valid (0.02s, 89342 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1110, characters 89-149:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_array_locals__dict'vc.
+Prover result is: Valid (0.01s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1110, characters 32-88:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_array_locals__dict'vc.
+Prover result is: Valid (0.01s, 89301 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1110, characters 32-88:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_array_locals__dict'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1106, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_tuple_array_locals__dict'vc.
+Prover result is: Valid (0.00s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1116, characters 70-135:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_var_assigns__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 22552 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1117, characters 24-89:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_var_assigns__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 22824 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1124, characters 24-89:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_var_assigns__get_K_target'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1141, characters 82-132:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_var_assigns'vc.
+Prover result is: Valid (0.02s, 87548 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1141, characters 82-132:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_var_assigns'vc.
+Prover result is: Valid (0.01s, 8415 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1141, characters 26-81:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_var_assigns'vc.
+Prover result is: Valid (0.02s, 87507 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1141, characters 26-81:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_var_assigns'vc.
+Prover result is: Valid (0.01s, 8415 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1137, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_tuple_var_assigns'vc.
+Prover result is: Valid (0.01s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1147, characters 81-137:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_var_assigns__val'vc.
+Prover result is: Valid (0.02s, 82247 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1147, characters 81-137:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_var_assigns__val'vc.
+Prover result is: Valid (0.01s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1148, characters 18-67:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_var_assigns__val'vc.
+Prover result is: Valid (0.02s, 82247 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1148, characters 18-67:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_var_assigns__val'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1144, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_tuple_var_assigns__val'vc.
+Prover result is: Valid (0.01s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1156, characters 88-147:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_var_assigns__dict'vc.
+Prover result is: Valid (0.02s, 89342 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1156, characters 88-147:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_var_assigns__dict'vc.
+Prover result is: Valid (0.01s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1156, characters 32-87:
+Sub-goal variant decrease of goal typeinferencemixin___collect_tuple_var_assigns__dict'vc.
+Prover result is: Valid (0.02s, 89301 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1156, characters 32-87:
+Sub-goal precondition of goal typeinferencemixin___collect_tuple_var_assigns__dict'vc.
+Prover result is: Valid (0.01s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1152, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_tuple_var_assigns__dict'vc.
+Prover result is: Valid (0.00s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1163, characters 70-137:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 22552 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1164, characters 24-91:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 22824 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1171, characters 24-90:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__get_K_value'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1178, characters 24-89:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__get_K_type'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1185, characters 24-89:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__get_K_func'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1192, characters 24-89:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__get_K_name'vc.
+Prover result is: Valid (0.00s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1199, characters 24-91:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__get_K_target'vc.
+Prover result is: Valid (0.01s, 22836 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1220, characters 84-136:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns'vc.
+Prover result is: Valid (0.02s, 87548 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1220, characters 84-136:
+Sub-goal precondition of goal typeinferencemixin___collect_variant_var_assigns'vc.
+Prover result is: Valid (0.00s, 8415 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1220, characters 28-83:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns'vc.
+Prover result is: Valid (0.02s, 88649 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1220, characters 28-83:
+Sub-goal precondition of goal typeinferencemixin___collect_variant_var_assigns'vc.
+Prover result is: Valid (0.00s, 8424 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1216, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_variant_var_assigns'vc.
+Prover result is: Valid (0.01s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1224, characters 85-140:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__v'vc.
+Prover result is: Valid (0.01s, 82247 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1224, characters 85-140:
+Sub-goal precondition of goal typeinferencemixin___collect_variant_var_assigns__v'vc.
+Prover result is: Valid (0.01s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1225, characters 18-69:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__v'vc.
+Prover result is: Valid (0.02s, 82247 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1225, characters 18-69:
+Sub-goal precondition of goal typeinferencemixin___collect_variant_var_assigns__v'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1222, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_variant_var_assigns__v'vc.
+Prover result is: Valid (0.00s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1230, characters 90-148:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__d'vc.
+Prover result is: Valid (0.02s, 89342 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1230, characters 90-148:
+Sub-goal precondition of goal typeinferencemixin___collect_variant_var_assigns__d'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1230, characters 34-89:
+Sub-goal variant decrease of goal typeinferencemixin___collect_variant_var_assigns__d'vc.
+Prover result is: Valid (0.02s, 90419 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1230, characters 34-89:
+Sub-goal precondition of goal typeinferencemixin___collect_variant_var_assigns__d'vc.
+Prover result is: Valid (0.01s, 8481 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1228, characters 32-36:
+Sub-goal postcondition of goal typeinferencemixin___collect_variant_var_assigns__d'vc.
+Prover result is: Valid (0.00s, 8463 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1233, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_for'vc.
+Prover result is: Valid (0.00s, 8472 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1233, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_for'vc.
+Prover result is: Valid (0.00s, 9441 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1248, characters 24-39:
+Sub-goal loop invariant init of goal typeinferencemixin___field_type_for'vc.
+Prover result is: Valid (0.01s, 9449 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1233, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_for'vc.
+Prover result is: Valid (0.01s, 9753 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1249, characters 22-71:
+Sub-goal loop variant decrease of goal typeinferencemixin___field_type_for'vc.
+Prover result is: Valid (0.02s, 102047 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1248, characters 24-39:
+Sub-goal loop invariant preservation of goal typeinferencemixin___field_type_for'vc.
+Prover result is: Valid (0.02s, 101881 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1233, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___field_type_for'vc.
+Prover result is: Valid (0.01s, 9475 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1263, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_array'vc.
+Prover result is: Valid (0.00s, 4761 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1263, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_array'vc.
+Prover result is: Valid (0.01s, 12481 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1263, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_array'vc.
+Prover result is: Valid (0.01s, 12707 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1263, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_array'vc.
+Prover result is: Valid (0.01s, 12704 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1290, characters 35-83:
+Sub-goal precondition of goal typeinferencemixin___rhs_yields_array'vc.
+Prover result is: Valid (0.01s, 11393 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1263, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_array'vc.
+Prover result is: Valid (0.01s, 11617 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1263, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_array'vc.
+Prover result is: Valid (0.01s, 12671 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1263, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_array'vc.
+Prover result is: Valid (0.01s, 12514 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1263, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___rhs_yields_array'vc.
+Prover result is: Valid (0.01s, 11409 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 12438 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 12441 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 12450 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 12479 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 12761 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13097 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1344, characters 18-69:
+Sub-goal precondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13072 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13081 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13584 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1350, characters 22-71:
+Sub-goal precondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13582 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13591 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13596 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13592 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1344, characters 18-69:
+Sub-goal precondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 12866 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.00s, 12875 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13378 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1350, characters 22-71:
+Sub-goal precondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13376 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13385 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13390 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___first_assign_kind'vc.
+Prover result is: Valid (0.01s, 13386 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1370, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___resolve_effective_ghost_type'vc.
+Prover result is: Valid (0.01s, 9496 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1370, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___resolve_effective_ghost_type'vc.
+Prover result is: Valid (0.01s, 9528 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1370, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___resolve_effective_ghost_type'vc.
+Prover result is: Valid (0.00s, 9560 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1370, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___resolve_effective_ghost_type'vc.
+Prover result is: Valid (0.00s, 9656 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1370, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___resolve_effective_ghost_type'vc.
+Prover result is: Valid (0.01s, 9624 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1370, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___resolve_effective_ghost_type'vc.
+Prover result is: Valid (0.00s, 9635 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1370, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___resolve_effective_ghost_type'vc.
+Prover result is: Valid (0.01s, 8518 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1400, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___split_tuple_type'vc.
+Prover result is: Valid (0.00s, 8926 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1400, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___split_tuple_type'vc.
+Prover result is: Valid (0.00s, 8858 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1416, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___val_is_bool'vc.
+Prover result is: Valid (0.00s, 8497 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1416, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___val_is_bool'vc.
+Prover result is: Valid (0.01s, 8565 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1416, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___val_is_bool'vc.
+Prover result is: Valid (0.01s, 8604 steps).
+
+File "/tmp/.pycsl_5vpix1kd.mlw", line 1416, characters 15-19:
+Sub-goal postcondition of goal typeinferencemixin___val_is_bool'vc.
+Prover result is: Valid (0.00s, 8602 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 562, characters 20-21: unused variable s
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 562, characters 32-35: unused variable sep
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 587, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 589, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 628, characters 10-23: unused variable py_underscore
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 619, characters 8-21: unused variable py_underscore
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 612, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 644, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 644, characters 81-86: unused variable stmts
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 644, characters 100-104: unused variable seed
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 646, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 658, characters 8-12: unused variable info
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 829, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 823, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 817, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 933, characters 63-67: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 934, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1061, characters 64-68: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1062, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1106, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1098, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1091, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1152, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1144, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1137, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1228, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1222, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1216, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1237, characters 8-12: unused variable info
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1233, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1263, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1370, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1398, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1400, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1410, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1410, characters 81-87: unused variable target
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1410, characters 98-104: unused variable val_ir
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1414, characters 40-44: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1416, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 562, characters 20-21: unused variable s
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 562, characters 32-35: unused variable sep
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 587, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 589, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 628, characters 10-23: unused variable py_underscore
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 619, characters 8-21: unused variable py_underscore
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 612, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 644, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 644, characters 81-86: unused variable stmts
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 644, characters 100-104: unused variable seed
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 646, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 658, characters 8-12: unused variable info
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 650, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 724, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 829, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 823, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 817, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 933, characters 63-67: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 934, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1061, characters 64-68: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1062, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1106, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1098, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1091, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1152, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1144, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1137, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1228, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1222, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1216, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1237, characters 8-12: unused variable info
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1233, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1263, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1312, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1370, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1398, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1400, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1410, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1410, characters 81-87: unused variable target
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1410, characters 98-104: unused variable val_ir
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1414, characters 40-44: unused variable self
+Warning, file "/tmp/.pycsl_5vpix1kd.mlw", line 1416, characters 15-19: unused variable result
+
+[-] 2 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 62175543 steps).
+    Prover result is: Timeout (30.00s, 62257360 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

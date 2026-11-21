@@ -4,8 +4,10 @@ from __future__ import annotations
 import argparse
 from frontend import pure_ast as _ast  # dependency import-discovery parses via the pure-Python front-end
 import hashlib
+from pathlib import Path
 import json as _json
 import os
+import shutil
 import sys
 import subprocess
 import tempfile
@@ -39,7 +41,6 @@ from frontend.ConcurrencyChecker import ConcurrencyChecker
 from frontend.ir_resolve import resolve as _ir_resolve, _collect_calls
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -48,7 +49,6 @@ def _proof_reference_mlw_name(source_file: str) -> str:
     return os.path.splitext(os.path.basename(source_file))[0] + ".mlw"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -111,20 +111,20 @@ def _generate_rocq_obligations(mlw_path: str, output_dir: str, unproven_count: i
         print(f"    The WhyML source is saved at: {mlw_dest}")
 
 
-#@ \trusted reviewer: pycsl-self-annotate
+# lvX (run #8): VERIFIED on lvQ's path model + lvV's law-free sha-256 model. The live
+# body is the documented behaviour-identical respelling of the chunked `h.update` loop
+# (one-shot `Path(path).read_bytes()`: same digest, same OSError family); `Path(<str>)` is
+# the law-free `val function ext_path_of_str_op`, `read_bytes` raises the OSError family and
+# ValueError (embedded NUL), which the emitted `raises` lists.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _sha256_file(path: str) -> str:
     """Compute SHA-256 hex digest of a file."""
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    _p = Path(path)
+    return hashlib.sha256(_p.read_bytes()).hexdigest()
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -133,11 +133,9 @@ def _find_coqc() -> Optional[str]:
     opam_coqc = os.path.expanduser("~/.opam/default/bin/coqc")
     if os.path.isfile(opam_coqc) and os.access(opam_coqc, os.X_OK):
         return opam_coqc
-    import shutil as _sh
-    return _sh.which("coqc")
+    return shutil.which("coqc")
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -218,7 +216,6 @@ def _check_rocq_proofs(proof_dir: str, mlw_path: str, unproven_goal_names: List[
     return proved_count
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -262,6 +259,13 @@ def _parse_args() -> argparse.Namespace:
                         help="Recursively resolve transitive imports in "
                              "dependency files (default: only direct imports "
                              "of the main file are resolved).")
+    g_scope.add_argument("--import-path", action="append", default=[],
+                        metavar="DIR",
+                        help="Extra directory to search when resolving imports "
+                             "(repeatable), after the main file's dir/CWD/src/Lib. "
+                             "Lets single-file verification resolve a dependency "
+                             "elsewhere in the repo (e.g. --import-path src/pycsl "
+                             "so a self-annotate mirror finds ir_schema).")
     g_scope.add_argument("--diagnostics-json", action="store_true",
                         help="On a pipeline error, ALSO print the structured "
                              "diagnostic {code, stage, file, line, message} as a single "
@@ -284,8 +288,10 @@ def _parse_args() -> argparse.Namespace:
                              "WhyML is emitted, WITHOUT running `why3 prove --type-only`. "
                              "Use for fast byte-diff / dev sweeps and when why3 is absent. "
                              "(A missing why3 is already treated as skip-not-fail by the gate.)")
-    g_proof.add_argument("--check-vacuity", action="store_true",
-                        help="Run the NON-VACUITY GATE. After a file verifies, the gate "
+    g_proof.add_argument("--check-vacuity", dest="check_vacuity",
+                        action="store_true", default=True,
+                        help="Run the NON-VACUITY GATE (now ON BY DEFAULT — fail-closed). "
+                             "After a file verifies, the gate "
                              "re-proves, per body-bearing function, a probe with an extra "
                              "`ensures false`. split_vc emits one such goal per NORMAL-EXIT "
                              "path; the function is VACUOUS iff EVERY one proves Valid (every "
@@ -294,10 +300,21 @@ def _parse_args() -> argparse.Namespace:
                              "exit is consistent (its false-goal is Unknown/Timeout) the "
                              "function is SOUND, even when a DEAD branch's false-goal is Valid "
                              "(a consequence test's 'didn't-happen' branch is provably dead by "
-                             "design — this is why the criterion is ALL exits, not ANY). The "
-                             "probe filters to the injected goal only and uses a short per-goal "
-                             "timelimit. OPT-IN (surfaces pre-existing genuine vacuities, e.g. "
-                             "the os removal->absence proofs); a missing why3 skips it.")
+                             "design — this is why the criterion is ALL exits, not ANY). "
+                             "`-> NoReturn` and `#@ \\diverges` functions are EXEMPT (their "
+                             "sound green is expected-vacuous on the unreachable normal exit). "
+                             "Route #267: each call to a body-less (\\abstract/\\trusted) callee "
+                             "is also probed with `check false` after and before it; the "
+                             "function is VACUOUS if the point after is unreachable while the "
+                             "point before is not (the callee's contract killed the branch). "
+                             "The probe filters to the injected goal only and uses a short "
+                             "per-goal timelimit; a missing why3 skips it (skip-not-fail).")
+    g_proof.add_argument("--no-check-vacuity", dest="check_vacuity",
+                        action="store_false",
+                        help="Opt OUT of the (default-on) non-vacuity gate — for fast "
+                             "byte-diff / dev sweeps, or when a slow-to-manifest vacuity "
+                             "probe would dominate. The hole is then unguarded, so use only "
+                             "when soundness is being checked elsewhere.")
     g_proof.add_argument("--vacuity-timelimit", metavar="SECS", default="5",
                         help="Per-goal timelimit (seconds) for the non-vacuity gate probe "
                              "(default 5). An inconsistent context derives `false` quickly; "
@@ -321,6 +338,17 @@ def _parse_args() -> argparse.Namespace:
                              "hard errors. Off by default to preserve backward "
                              "compatibility for existing concurrent-model corpora. "
                              "See config/skills/pycsl-ub-catalog/SKILL.md §7.3.")
+    g_strict.add_argument("--verify-imports", action="store_true",
+                        help="(#49 gen #30, route #212.) VERIFY each resolved local "
+                             "import before trusting its contracts, transitively. OFF by "
+                             "default, so no existing behaviour or byte output changes. "
+                             "Without it an importing unit BELIEVES every contract of an "
+                             "imported module — frames, postconditions, class invariants "
+                             "— and nothing checks the module was ever verified: an "
+                             "owner declaring `assigns \\nothing` over a body that writes "
+                             "`a[0]` FAILS compiled alone while its importer PROVES "
+                             "`x - a[0] == 0` (CPython: -4). This flag is the module-level "
+                             "certificate that hole needs.")
     g_strict.add_argument("--allow-unverified-imports", action="store_true",
                         help="Permit imports on the C-extension deny-list "
                              "(ctypes, cffi, numpy.ctypeslib, cython) without "
@@ -331,12 +359,62 @@ def _parse_args() -> argparse.Namespace:
                              "Why3 goal that must be discharged (typically via "
                              "an external proof citation). Off by default — emits "
                              "as an axiom and trusts the user.")
+    g_strict.add_argument("--strict-float-finite", action="store_true",
+                        help="Drop the FLOAT-FINITE model assumption (route #250): "
+                             "model a NaN float value, so every float comparison "
+                             "and `==` also requires its operands to be non-NaN "
+                             "(`x == x` no longer proves for a float parameter). "
+                             "Off by default — floats are assumed finite and "
+                             "non-NaN, a declared assumption listed by "
+                             "--soundness-report. Costs TRUE claims of the shape "
+                             "`\\result == <float arithmetic>`.")
+    g_strict.add_argument("--strict-latin1", action="store_true",
+                        help="Drop the LATIN1-STR model assumption (route #276): "
+                             "`ord` reads an uninterpreted code point in "
+                             "[0, 0x10FFFF] (not Why3's 8-bit `Char.code`), and "
+                             "`chr(n)` is not `Char.chr n`, so `ord(s) < 256` and "
+                             "`ord(chr(300)) != 300` no longer prove. Off by "
+                             "default — every str value is assumed to consist of "
+                             "code points 0..255, a declared assumption listed by "
+                             "--soundness-report. Costs every proof that feeds "
+                             "`ord(..)` into a cited lemma over `Char.code`.")
+    g_strict.add_argument("--strict-bare-containers", action="store_true",
+                        help="Drop the BARE-CONTAINER-INT model assumption (route "
+                             "#330): an element of a parameter annotated with a BARE "
+                             "container (`list`, `List`, `Sequence`, `tuple`, ...) — "
+                             "or a VALUE of a bare `dict` / `Dict` / `Mapping` (route "
+                             "#334) — is of unknown type, so using it as an int (`xs[0] % 1 == 0`, "
+                             "`xs[0] * 0 == 0`) is refused (PYCSL-R325-OPAQUE-INT-"
+                             "FALLBACK). Off by default — such an element is read as an "
+                             "`int`, a declared assumption listed by --soundness-report "
+                             "(measured: 90 corpus files rely on it).")
+    g_strict.add_argument("--strict-hval-keys", action="store_true",
+                        help="Drop the HVAL-STR-KEYS model assumption (route #298): "
+                             "the key of a NESTED `PyVal` dict (an `.items()` key or a "
+                             "bare `for k in m` over a dict read out of a "
+                             "`Dict[str, PyVal]`) is an unknown-typed value, not a "
+                             "`str`, so `isinstance(k, str)` no longer proves and a "
+                             "string operation on it does not type-check. Off by "
+                             "default — `Dict[str, PyVal]` constrains only the "
+                             "top-level keys, and every nested dict is assumed to "
+                             "have str keys, a declared assumption listed by "
+                             "--soundness-report.")
     g_strict.add_argument("--check-behavioral-subtyping", action="store_true",
-                        help="Layer D: emit Liskov refinement goals for "
+                        help="Layer D (ON BY DEFAULT since route #277; kept for "
+                             "compatibility): emit Liskov refinement goals for "
                              "overriding methods (pre_base ⇒ pre_sub, "
-                             "post_sub ⇒ post_base). Fails if an override "
+                             "post_sub ⇒ post_base, raise conditions) and refuse "
+                             "an override that raises / assigns / renames "
+                             "parameters beyond the base. Fails if an override "
                              "strengthens a precondition or weakens a "
                              "postcondition.")
+    g_strict.add_argument("--assume-class-exact", action="store_true",
+                        help="Turn the default override-refinement check OFF "
+                             "(route #277): a value typed with a user class is "
+                             "then ASSUMED to be an exact instance of it (a "
+                             "subclass override is never seen by a caller). "
+                             "This is the declared model assumption CLASS-EXACT, "
+                             "listed by --soundness-report.")
     g_strict.add_argument("--strict-no-exception-propagation", action="store_true",
                         help="(Experimental, off by default.) Under `no_exception` "
                              "treat unannotated callees pessimistically: any call "
@@ -445,7 +523,7 @@ def _print_soundness_report(report: Dict[str, Any]) -> None:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns args
 def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace) -> str:
     """Run Modules 1–6 on *source_code*. Returns WhyML code string."""
     print(f"[*] Parsing and Semantic Analysis for '{args.file}'...")
@@ -593,24 +671,32 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     return transpiler.transpile()
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _why3_typecheck(mlw_filename: str):
+def _why3_typecheck(mlw_filename: str) -> Tuple[bool, str]:
     """Phase D honest gate: parse + typecheck the emitted WhyML with why3 (no proof).
     Returns ``(ok: bool, diagnostic: str)``. A run is only honestly SUCCESS if this
     passes — emitting text that does not even type-check is the silent success the spec
     (refactor.md §1.5 / Phase D) forbids. A missing why3 is NOT a failure (we do not turn
-    an absent prover into a false typecheck-fail) — it is reported as skipped."""
+    an absent prover into a false typecheck-PASS) — (#49) gen #36: a missing why3 used to
+    return ok=True, and the caller then printed `L3-tc ✓` and "WhyML generated AND
+    type-checks" for WhyML nobody had checked (measured: an ill-typed emission reported
+    SUCCESS under `env -i`). An unchecked emission is not a checked one, so it FAILS CLOSED;
+    `--no-typecheck` is the honest opt-out."""
     try:
         r = subprocess.run(["why3", "prove", "--type-only", mlw_filename],
                            capture_output=True, text=True)
     except FileNotFoundError:
-        return True, "(why3 not found — typecheck skipped)"
+        return False, ("why3 not found on PATH -- the type-check could NOT run, so this is "
+                       "NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck "
+                       "for an explicitly emit-only run.")
     if r.returncode == 0:
         return True, ""
-    return False, (r.stderr.strip() or r.stdout.strip())
+    _diag: str = r.stderr.strip()
+    if not _diag:
+        _diag = r.stdout.strip()
+    return False, _diag
 
 
 # ----------------------------------------------------------------------------
@@ -630,11 +716,10 @@ def _why3_typecheck(mlw_filename: str):
 # parsed as a per-goal verdict (each goal is keyed by its own File+Sub-goal
 # header block).
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
+def _parse_goal_blocks(output: str) -> List[Tuple[str, str]]:
     """Split goal-block text into per-goal (header, result_line) pairs by COUNTING
     `Prover result is:` lines. Used only by `_check_goal_conservation` over the
     synthesised canonical text (one block per record) to count goals — the live
@@ -667,20 +752,17 @@ class _MergeConservationError(Exception):
     non-Valid one). It is a trust-free, fail-closed backstop: it depends on NO merge
     implementation being correct, so it survives any future rewrite of the merge.
     See soundness-issue.md (Tier 0)."""
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def __init__(self, expected: int, got: int):
+    def __init__(self, expected: int, got: int, msg: str):
+        # (run #4, route #519) the message is formatted by the RAISER: an f-string of an
+        # int in a constructor is refused (ValueError past 4300 digits, never judged).
         self.expected = expected
         self.got = got
-        super().__init__(
-            f"merge dropped goal(s): first full-file run enumerated {expected} "
-            f"goal block(s) but the merged result has only {got} — refusing to "
-            f"report a verdict (a dropped goal must never silently pass).")
+        super().__init__(msg)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -697,7 +779,11 @@ def _check_goal_conservation(first_full_output: str, merged_output: str) -> None
     first_n = len(_parse_goal_blocks(first_full_output))
     merged_n = len(_parse_goal_blocks(merged_output))
     if merged_n < first_n:
-        raise _MergeConservationError(first_n, merged_n)
+        raise _MergeConservationError(
+            first_n, merged_n,
+            f"merge dropped goal(s): first full-file run enumerated {first_n} "
+            f"goal block(s) but the merged result has only {merged_n} — refusing to "
+            f"report a verdict (a dropped goal must never silently pass).")
 
 
 # --- Structured (`why3 prove --json`) goal handling -------------------------------
@@ -716,7 +802,7 @@ def _check_goal_conservation(first_full_output: str, merged_output: str) -> None
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _parse_why3_json(stdout: str) -> "List[dict]":
+def _parse_why3_json(stdout: str) -> List[Dict[str, PyVal]]:
     """Parse `why3 prove --json` output into a list of records in document order.
     why3 emits a STREAM of concatenated JSON objects (one per goal), NOT a single
     array — so a plain json.loads fails with 'Extra data'. raw_decode in a loop
@@ -742,38 +828,34 @@ def _parse_why3_json(stdout: str) -> "List[dict]":
     return out
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _json_goal_records(stdout: str) -> "List[dict]":
+def _json_goal_records(stdout: str) -> List[Dict[str, PyVal]]:
     """The goal-verdict records (those carrying a prover result) from --json output."""
     return [r for r in _parse_why3_json(stdout) if "prover-result" in r]
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _record_answer(rec: dict) -> str:
+def _record_answer(rec: Dict[str, PyVal]) -> str:
     return (rec.get("prover-result") or {}).get("answer", "") or ""
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _record_is_valid(rec: dict) -> bool:
+def _record_is_valid(rec: Dict[str, PyVal]) -> bool:
     """Soundness chokepoint: ONLY a literal 'Valid' answer counts as proven.
     Invalid / Unknown / Timeout / OutOfMemory / Failure / ... are never proven."""
     return _record_answer(rec) == "Valid"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _record_key(rec: dict) -> "Tuple":
+def _record_key(rec: Dict[str, PyVal]) -> Tuple[Tuple[PyVal, PyVal, PyVal, PyVal, PyVal], PyVal, Tuple[PyVal, ...]]:
     """Cross-prover alignment key (everything but occurrence). Two split sub-goals
     can be byte-identical here — the merge disambiguates by occurrence index."""
     term = rec.get("term") or {}
@@ -814,7 +896,7 @@ def _merge_records_best_of_n(record_lists: "List[List[dict]]") -> "List[dict]":
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _synthesize_block(rec: dict) -> str:
+def _synthesize_block(rec: Dict[str, PyVal]) -> str:
     """Render one record as a legacy why3 goal block (File + Sub-goal + result), so
     the text-based downstream and the Tier-0 guard consume it unchanged. The verdict
     token is 'Valid (...)' ONLY for a real Valid; every non-Valid answer renders with
@@ -849,30 +931,33 @@ def _synthesize_block(rec: dict) -> str:
             f"Prover result is: {tok} ({t:.2f}s, {steps} steps).")
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _synthesize_legacy_text(records: "List[dict]") -> str:
+def _synthesize_legacy_text(records: List[Dict[str, PyVal]]) -> str:
     """Canonical, lossless legacy-format text — ONE block per record, no dedup."""
-    return "\n\n".join(_synthesize_block(r) for r in records)
+    _parts: List[str] = []
+    for r in records:
+        _parts.append(_synthesize_block(r))
+    return "\n\n".join(_parts)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _residual_selectors_from_records(records: "List[dict]") -> "Optional[List[str]]":
+def _residual_selectors_from_records(records: List[Dict[str, PyVal]]) -> Optional[List[str]]:
     """`<file>:<line>` selectors for every non-Valid record (deduped). None if any
     residual lacks a locatable loc — caller falls back to a full-file re-run (sound,
     proves only MORE). Empty list iff there are no residuals."""
-    sels: "List[str]" = []
-    seen: "Set[str]" = set()
+    sels: List[str] = []
+    seen: Set[str] = set()
     for rec in records:
         if _record_is_valid(rec):
             continue
-        loc = (rec.get("term") or {}).get("loc") or {}
-        fn, ln = loc.get("file-name"), loc.get("start-line")
+        term = rec.get("term") or {}
+        loc = term.get("loc") or {}
+        fn = loc.get("file-name")
+        ln = loc.get("start-line")
         if fn is None or ln is None:
             return None
         s = f"{fn}:{ln}"
@@ -905,23 +990,26 @@ _BODY_EQ_RE = _re.compile(r'^  =(\s|$)')
 _LET_FN_RE = _re.compile(r'^  let (?:rec )?(?:function )?(?:ghost )?(\w+)\b')
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _function_body_eqs(mlw_code: str) -> "Tuple[List[Tuple[str, int]], List[str]]":
+def _function_body_eqs(mlw_code: str) -> Tuple[List[Tuple[str, int]], List[str]]:
     """Return ([(fname, body_eq_line_index)], lines) for every top-level body-bearing
     function. The body `=` is the first `^  =` line after a `^  let <name>` header
     (only contract clauses sit between them). `val` stubs (no `=`) are skipped."""
     lines = mlw_code.splitlines()
     res: List[Tuple[str, int]] = []
     cur: Optional[str] = None
-    for i, line in enumerate(lines):
+    #@ loop invariant 0 <= i and i <= len(lines)
+    #@ loop variant len(lines) - i
+    for i in range(len(lines)):
+        line: str = lines[i]
         m = _LET_FN_RE.match(line)
         if m:
             cur = m.group(1)
         elif cur is not None and _BODY_EQ_RE.match(line):
-            res.append((cur, i))
+            _c: str = cur
+            res.append((_c, i))
             cur = None
     return res, lines
 
@@ -1205,9 +1293,9 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
         # run is SUCCESS only if the emitted WhyML at least TYPE-CHECKS (`why3 prove
         # --type-only`) — never merely "text emitted" (§1.5). `--no-typecheck` opts out
         # (fast emit-only, for byte-diff/dev sweeps and when why3 is absent). `--typecheck`
-        # is now a harmless no-op alias (the gate is already on). A missing why3 is treated
-        # as skip-not-fail by `_why3_typecheck` (ok=True), so the gate never turns an absent
-        # prover into a false failure.
+        # is now a harmless no-op alias (the gate is already on). A missing why3 now FAILS
+        # CLOSED in `_why3_typecheck` (gen #36): it used to be ok=True, which printed `L3-tc ✓`
+        # for an emission nobody checked.
         if not getattr(args, "no_typecheck", False):
             ok, diag = _why3_typecheck(mlw_filename)
             print(f"[level] L1 ✓  L2 ✓  L3-tc {'✓' if ok else '✗'}")
@@ -1398,7 +1486,7 @@ def _run_audit_mode(args: argparse.Namespace) -> int:
     the kernel-axiom allow-list (see sticky-01.md Phase 0).
     """
     from pathlib import Path
-    from audit_proof import audit_rocq, audit_lean, AuditReport, print_report
+    from audit_proof import audit_rocq, audit_lean, AuditReport, print_report, _Directive
     py = Path(args.file)
     rocq_dir = Path(args.rocq_proofs_path) if args.rocq_proofs_path else None
     lean_dir = Path(args.lean_proofs_path) if args.lean_proofs_path else None

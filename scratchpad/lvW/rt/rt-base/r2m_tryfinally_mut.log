@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-base/r2m_tryfinally_mut.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[whyml-emit]: a `try ... finally:` in 'f' has no handlers and its body jumps out (ROUTE #156): Module 6 appends the `finally` block only when the lowered try body contains no `raise`, and a `return`/`raise`/`break`/`continue` lowers to one — so the block would be DROPPED on every path and the run would still report 'All contracts formally proven'. A `finally` whose try body cannot jump out IS modelled; move the jump after the `try`.

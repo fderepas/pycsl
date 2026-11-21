@@ -1,0 +1,5 @@
+hoare	9885_whash_ctl_narrowed_pyval_under_claim.py	rc=1		Prover result is: Valid (0.00s, 141 steps). Prover result is: Valid (0.00s, 296 steps). 
+hoare	9886_whash_ctl_narrowed_hval_get_under_claim.py	rc=0		Prover result is: Valid (0.01s, 1172 steps). Prover result is: Valid (0.00s, 1183 steps). 
+hoare	9887_whash_ctl_unclaimed_ambient.py	rc=0		Prover result is: Valid (0.00s, 1341 steps). Prover result is: Valid (0.00s, 1127 steps). 
+hoare	9891_whash_s362_shape_trusted_caller.py	rc=0		Prover result is: Valid (0.00s, 2384 steps). Prover result is: Valid (0.00s, 809 steps). 
+hoare	9892_whash_ctl_schema_scalar_slot_under_claim.py	rc=0		Prover result is: Valid (0.00s, 4269 steps). Prover result is: Valid (0.01s, 3311 steps). 

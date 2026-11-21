@@ -1,0 +1,164 @@
+File "spike_r2b.mlw", line 29, characters 63-76:
+Sub-goal Variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2672 steps).
+
+File "spike_r2b.mlw", line 50, characters 99-120:
+Sub-goal Variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 2848 steps).
+
+File "spike_r2b.mlw", line 57, characters 48-63:
+Sub-goal Variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2200 steps).
+
+File "spike_r2b.mlw", line 64, characters 43-66:
+Sub-goal Variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2236 steps).
+
+File "spike_r2b.mlw", line 128, characters 20-29:
+Sub-goal Loop invariant init of goal find_last'vc.
+Prover result is: Valid (0.00s, 1613 steps).
+
+File "spike_r2b.mlw", line 121, characters 14-41:
+Sub-goal Postcondition of goal find_last'vc.
+Prover result is: Timeout (10.00s, 9237334 steps).
+
+File "spike_r2b.mlw", line 129, characters 18-28:
+Sub-goal Loop variant decrease of goal find_last'vc.
+Prover result is: Valid (0.01s, 21263 steps).
+
+File "spike_r2b.mlw", line 128, characters 20-29:
+Sub-goal Loop invariant preservation of goal find_last'vc.
+Prover result is: Valid (0.01s, 21117 steps).
+
+File "spike_r2b.mlw", line 121, characters 14-41:
+Sub-goal Postcondition of goal find_last'vc.
+Prover result is: Valid (0.00s, 1729 steps).
+
+File "spike_r2b.mlw", line 145, characters 20-29:
+Sub-goal Loop invariant init of goal find_last_twin'vc.
+Prover result is: Valid (0.00s, 1613 steps).
+
+File "spike_r2b.mlw", line 138, characters 14-41:
+Sub-goal Postcondition of goal find_last_twin'vc.
+Prover result is: Timeout (10.00s, 12146213 steps).
+
+File "spike_r2b.mlw", line 146, characters 18-28:
+Sub-goal Loop variant decrease of goal find_last_twin'vc.
+Prover result is: Valid (0.01s, 21263 steps).
+
+File "spike_r2b.mlw", line 145, characters 20-29:
+Sub-goal Loop invariant preservation of goal find_last_twin'vc.
+Prover result is: Valid (0.01s, 21117 steps).
+
+File "spike_r2b.mlw", line 138, characters 14-41:
+Sub-goal Postcondition of goal find_last_twin'vc.
+Prover result is: Valid (0.00s, 1729 steps).
+
+File "spike_r2b.mlw", line 161, characters 18-47:
+Sub-goal Loop invariant init of goal count_fns'vc.
+Prover result is: Valid (0.03s, 92169 steps).
+
+File "spike_r2b.mlw", line 162, characters 16-26:
+Sub-goal Loop variant decrease of goal count_fns'vc.
+Prover result is: Valid (0.00s, 10150 steps).
+
+File "spike_r2b.mlw", line 161, characters 18-47:
+Sub-goal Loop invariant preservation of goal count_fns'vc.
+Prover result is: Valid (0.01s, 19702 steps).
+
+File "spike_r2b.mlw", line 155, characters 14-24:
+Sub-goal Postcondition of goal count_fns'vc.
+Prover result is: Valid (0.03s, 89954 steps).
+
+File "spike_r2b.mlw", line 173, characters 18-47:
+Sub-goal Loop invariant init of goal count_fns_twin'vc.
+Prover result is: Valid (0.03s, 92169 steps).
+
+File "spike_r2b.mlw", line 174, characters 16-26:
+Sub-goal Loop variant decrease of goal count_fns_twin'vc.
+Prover result is: Valid (0.01s, 10150 steps).
+
+File "spike_r2b.mlw", line 173, characters 18-47:
+Sub-goal Loop invariant preservation of goal count_fns_twin'vc.
+Prover result is: Valid (0.01s, 19702 steps).
+
+File "spike_r2b.mlw", line 167, characters 14-24:
+Sub-goal Postcondition of goal count_fns_twin'vc.
+Prover result is: Timeout (10.00s, 11634099 steps).
+
+File "spike_r2b.mlw", line 180, characters 34-47:
+Sub-goal Postcondition of goal has_loc'vc.
+Prover result is: Valid (0.39s, 1139963 steps).
+
+File "spike_r2b.mlw", line 182, characters 39-52:
+Sub-goal Postcondition of goal has_loc_twin'vc.
+Prover result is: Timeout (10.00s, 8429098 steps).
+
+File "spike_r2b.mlw", line 184, characters 44-58:
+Sub-goal Postcondition of goal has_x_absent_twin'vc.
+Prover result is: Timeout (10.00s, 8949914 steps).
+
+File "spike_r2b.mlw", line 187, characters 34-47:
+Sub-goal Postcondition of goal in_list'vc.
+Prover result is: Valid (0.06s, 297184 steps).
+
+File "spike_r2b.mlw", line 189, characters 39-52:
+Sub-goal Postcondition of goal in_list_twin'vc.
+Prover result is: Timeout (10.00s, 8904698 steps).
+
+File "spike_r2b.mlw", line 199, characters 18-40:
+Sub-goal Loop invariant init of goal count_str_opaque'vc.
+Prover result is: Valid (0.00s, 1613 steps).
+
+File "spike_r2b.mlw", line 200, characters 16-26:
+Sub-goal Loop variant decrease of goal count_str_opaque'vc.
+Prover result is: Valid (0.01s, 19215 steps).
+
+File "spike_r2b.mlw", line 199, characters 18-40:
+Sub-goal Loop invariant preservation of goal count_str_opaque'vc.
+Prover result is: Valid (0.01s, 19111 steps).
+
+File "spike_r2b.mlw", line 193, characters 42-52:
+Sub-goal Postcondition of goal count_str_opaque'vc.
+Prover result is: Timeout (10.00s, 10837440 steps).
+
+File "spike_r2b.mlw", line 209, characters 18-40:
+Sub-goal Loop invariant init of goal count_str_sentinel'vc.
+Prover result is: Valid (0.00s, 1613 steps).
+
+File "spike_r2b.mlw", line 210, characters 16-26:
+Sub-goal Loop variant decrease of goal count_str_sentinel'vc.
+Prover result is: Valid (0.01s, 19164 steps).
+
+File "spike_r2b.mlw", line 209, characters 18-40:
+Sub-goal Loop invariant preservation of goal count_str_sentinel'vc.
+Prover result is: Valid (0.01s, 19060 steps).
+
+File "spike_r2b.mlw", line 203, characters 44-54:
+Sub-goal Postcondition of goal count_str_sentinel'vc.
+Prover result is: Timeout (10.00s, 11174135 steps).
+
+File "spike_r2b.mlw", line 214, characters 39-53:
+Sub-goal Postcondition of goal in_str_false'vc.
+Prover result is: Timeout (10.00s, 10563141 steps).
+
+File "spike_r2b.mlw", line 223, characters 57-77:
+Sub-goal Variant decrease of goal nth_in_range'vc.
+Prover result is: Valid (0.00s, 2436 steps).
+
+File "spike_r2b.mlw", line 223, characters 57-77:
+Sub-goal Precondition of goal nth_in_range'vc.
+Prover result is: Valid (0.00s, 9035 steps).
+
+File "spike_r2b.mlw", line 221, characters 14-148:
+Sub-goal Postcondition of goal nth_in_range'vc.
+Prover result is: Valid (0.00s, 11220 steps).
+
+File "spike_r2b.mlw", line 225, characters 43-55:
+Sub-goal Variant decrease of goal len_nonneg'vc.
+Prover result is: Valid (0.00s, 2822 steps).
+
+File "spike_r2b.mlw", line 224, characters 52-72:
+Sub-goal Postcondition of goal len_nonneg'vc.
+Prover result is: Valid (0.00s, 8765 steps).
+

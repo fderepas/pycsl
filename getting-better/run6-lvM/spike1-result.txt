@@ -1,0 +1,9 @@
+why3 prove -P z3 -t 20 spike1.mlw   (run6 lvM, heavy.sh NORMAL, 2026-11-08)
+  err'vc               Valid    (honest payload claim: m = msg ^ " (got " ^ ty)
+  err_false'vc         Unknown  (FALSE claim: m = msg)
+  caller'vc            Valid    (handler wildcard `with ContractSyntaxError _ ->`)
+  caller_read'vc       Valid    (honest handler read of the payload)
+  caller_read_false'vc Unknown  (false handler read)
+alt-ergo: err / caller Valid; the three others Timeout.
+Why3 also REJECTS `with E -> ...` for a payload exception ("exception argument expected"),
+so every arm over a payload tag must bind it (`E _`).

@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/9712_lvq_ext_path_receiver_refused.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+PYCSL-R7Q-EXT-PATH-RECEIVER: `n.mkdir(..)` is modelled as `pathlib.Path.mkdir` (the file imports `Path` from `pathlib`), but its receiver is not typed as a path / str here, so the call cannot be lowered to the open-world path model. Annotate the receiver as `Path` (or bind it from `<Path> / <str>`) and pass a `str`.
+rc=1

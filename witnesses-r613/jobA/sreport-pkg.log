@@ -1,0 +1,178 @@
+[*] Declared run mode: imported as a module of the package rooted at /home/fabrice/git/pycsl-u52-g2/src/self-annotate/src (--as-package-module; not a script)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/scc.py'...
+[*] Memory model: hoare
+=== SOUNDNESS REPORT (JSON) ===
+{
+  "file": "src/self-annotate/src/module6_whyml/scc.py",
+  "summary": {
+    "Modelled": 3,
+    "Specified": 2,
+    "Stubbed": 0,
+    "Confinement": 0
+  },
+  "vcs": [
+    {
+      "function": "find_calls_in_ir",
+      "bucket": "Modelled",
+      "has_contract": true,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    },
+    {
+      "function": "find_self_method_calls",
+      "bucket": "Modelled",
+      "has_contract": true,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    },
+    {
+      "function": "compute_sccs",
+      "bucket": "Specified",
+      "has_contract": true,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    },
+    {
+      "function": "emits_as_logic_symbol",
+      "bucket": "Modelled",
+      "has_contract": true,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    },
+    {
+      "function": "sort_functions_by_scc",
+      "bucket": "Specified",
+      "has_contract": true,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    }
+  ],
+  "model_assumptions": [
+    {
+      "name": "BUILTIN-EXACT",
+      "statement": "a value whose static type is a builtin (int/float/str/bool/bytes/tuple/list/dict/set) is an exact instance of it, not a subclass overriding a dunder",
+      "counterexample": "class I(int): __sub__ -> 7; x - x == 7 for x = I(5) (corpus 2506)",
+      "strict_mode": null,
+      "relied_on_by": [
+        "find_calls_in_ir: `in` on func_names_set: set",
+        "find_calls_in_ir: `|` on calls: set, func_names_set: set",
+        "find_self_method_calls: `in` on concrete_set: set",
+        "find_self_method_calls: `in` on func_names_set: set",
+        "find_self_method_calls: `not` on concrete_set: set",
+        "find_self_method_calls: `not` on self_type: str",
+        "find_self_method_calls: `|` on concrete_set: set, func_names_set: set, out: set, self_type: str"
+      ]
+    },
+    {
+      "name": "PARAM-DISJOINT",
+      "statement": "two distinct mutable parameters (list/dict/set/record-valued, or a parameter and the receiver self or one of its fields) hold distinct objects, and distinct elements of a list/dict parameter hold distinct objects, so a mutation through one is invisible through the other (ownership discipline rule R1; FIELD-DISJOINT for parameters and elements)",
+      "counterexample": "a = [1]; f(a, a): f writes xs[0] and claims ys[0] unchanged; r = [0]; f([r, r]): a write to xss[0][0] is seen at xss[1][0] (corpus 3180-3188)",
+      "strict_mode": null,
+      "relied_on_by": [
+        "find_calls_in_ir: writes through func_names_set, also accesses obj",
+        "find_calls_in_ir: writes through obj, also accesses func_names_set",
+        "find_self_method_calls: writes through concrete_set, also accesses func_names_set, obj",
+        "find_self_method_calls: writes through func_names_set, also accesses concrete_set, obj",
+        "find_self_method_calls: writes through obj, also accesses concrete_set, func_names_set"
+      ]
+    },
+    {
+      "name": "LATIN1-STR",
+      "statement": "every str value consists of code points 0..255 (str is modelled as the Why3 string of string.Char, whose codes are < 256): ord(c) < 256, and chr(n) is modelled only for 0 <= n < 256; str values in general rely on it (the str sort is the 8-bit string), ord/chr sites directly",
+      "counterexample": "s = '\u20ac': ord(s) == 8364, yet ord(s) < 256 proves; ord(chr(300)) != 300 proves (corpus 3020-3021)",
+      "strict_mode": "--strict-latin1",
+      "relied_on_by": [
+        "emits_as_logic_symbol: str values (8-bit string model) a string literal",
+        "find_calls_in_ir: str values (8-bit string model) a string literal",
+        "find_self_method_calls: str values (8-bit string model) a string literal, self_type"
+      ]
+    },
+    {
+      "name": "BARE-CONTAINER-INT",
+      "statement": "an element of a parameter annotated with a bare container (list / List / Sequence / tuple / ..., no element type) is an int: the element is lowered to the int sort, as if the annotation were List[int]; likewise a VALUE of a bare dict / Dict / Mapping parameter (as if Dict[K, int], route #334)",
+      "counterexample": "def g(xs: list): return xs[0] * 0 == 0 proves \\result == True; g(['a']) is False (corpus 4348-4349); def g(d: dict): return d['a'] % 1 == 0 proves; g({'a': 0.5}) is False (corpus 4443, strict twin 4427)",
+      "strict_mode": "--strict-bare-containers",
+      "relied_on_by": [
+        "sort_functions_by_scc: parameter functions: list"
+      ]
+    },
+    {
+      "name": "HVAL-STR-KEYS",
+      "statement": "every dict nested inside a PyVal value (Dict[str, PyVal]) has str keys: the hval model keys an HMap by string, so a key read off a nested dict (.items()/.keys() key, bare iteration of a dict carrier) is a str (the annotation constrains only the top-level keys)",
+      "counterexample": "xs = d['xs']; for k, v in xs.items(): return isinstance(k, str) proves \\result == True; f({'xs': {1: 2}}) is False (corpus 3550-3551)",
+      "strict_mode": "--strict-hval-keys",
+      "relied_on_by": [
+        "find_calls_in_ir: bare iteration over a nested PyVal value (line 28)",
+        "find_self_method_calls: bare iteration over a nested PyVal value (line 59)"
+      ]
+    },
+    {
+      "name": "AS-PACKAGE-MODULE",
+      "statement": "the program is never run as a script: it is imported as a module of the package rooted at /home/fabrice/git/pycsl-u52-g2/src/self-annotate/src, so sys.path[0] is that root (an entry script's directory), not the program's directory; route #613's closure check searches that root instead of the program's directory",
+      "counterexample": "src/pycsl/module6_whyml/scc.py run as a script: its directory is sys.path[0], and `typing`'s own `import types` loads the local module6_whyml/types.py (venv CPython 3.14: ImportError, witnesses-r613/cpython.txt)",
+      "strict_mode": "the default (omit --as-package-module: script mode)",
+      "relied_on_by": [
+        "src/self-annotate/src/module6_whyml/scc.py"
+      ]
+    }
+  ],
+  "cited_lemmas": []
+}
+
+=== SOUNDNESS REPORT (summary) ===
+file: src/self-annotate/src/module6_whyml/scc.py   functions/VCs: 5
+  Modelled    : 3
+  Specified   : 2
+  Stubbed     : 0
+  Confinement : 0
+  --- TCB entries (assumed, not body-verified) ---
+    compute_sccs  [Specified]  (axiomatic contract)
+    sort_functions_by_scc  [Specified]  (axiomatic contract)
+  --- declared model assumptions (not proved; see the reference docs) ---
+    BUILTIN-EXACT: a value whose static type is a builtin (int/float/str/bool/bytes/tuple/list/dict/set) is an exact instance of it, not a subclass overriding a dunder
+      counterexample: class I(int): __sub__ -> 7; x - x == 7 for x = I(5) (corpus 2506)
+      strict mode: none (always assumed)
+      relied on by find_calls_in_ir: `in` on func_names_set: set
+      relied on by find_calls_in_ir: `|` on calls: set, func_names_set: set
+      relied on by find_self_method_calls: `in` on concrete_set: set
+      relied on by find_self_method_calls: `in` on func_names_set: set
+      relied on by find_self_method_calls: `not` on concrete_set: set
+      relied on by find_self_method_calls: `not` on self_type: str
+      relied on by find_self_method_calls: `|` on concrete_set: set, func_names_set: set, out: set, self_type: str
+    PARAM-DISJOINT: two distinct mutable parameters (list/dict/set/record-valued, or a parameter and the receiver self or one of its fields) hold distinct objects, and distinct elements of a list/dict parameter hold distinct objects, so a mutation through one is invisible through the other (ownership discipline rule R1; FIELD-DISJOINT for parameters and elements)
+      counterexample: a = [1]; f(a, a): f writes xs[0] and claims ys[0] unchanged; r = [0]; f([r, r]): a write to xss[0][0] is seen at xss[1][0] (corpus 3180-3188)
+      strict mode: none (always assumed)
+      relied on by find_calls_in_ir: writes through func_names_set, also accesses obj
+      relied on by find_calls_in_ir: writes through obj, also accesses func_names_set
+      relied on by find_self_method_calls: writes through concrete_set, also accesses func_names_set, obj
+      relied on by find_self_method_calls: writes through func_names_set, also accesses concrete_set, obj
+      relied on by find_self_method_calls: writes through obj, also accesses concrete_set, func_names_set
+    LATIN1-STR: every str value consists of code points 0..255 (str is modelled as the Why3 string of string.Char, whose codes are < 256): ord(c) < 256, and chr(n) is modelled only for 0 <= n < 256; str values in general rely on it (the str sort is the 8-bit string), ord/chr sites directly
+      counterexample: s = '€': ord(s) == 8364, yet ord(s) < 256 proves; ord(chr(300)) != 300 proves (corpus 3020-3021)
+      strict mode: --strict-latin1
+      relied on by emits_as_logic_symbol: str values (8-bit string model) a string literal
+      relied on by find_calls_in_ir: str values (8-bit string model) a string literal
+      relied on by find_self_method_calls: str values (8-bit string model) a string literal, self_type
+    BARE-CONTAINER-INT: an element of a parameter annotated with a bare container (list / List / Sequence / tuple / ..., no element type) is an int: the element is lowered to the int sort, as if the annotation were List[int]; likewise a VALUE of a bare dict / Dict / Mapping parameter (as if Dict[K, int], route #334)
+      counterexample: def g(xs: list): return xs[0] * 0 == 0 proves \result == True; g(['a']) is False (corpus 4348-4349); def g(d: dict): return d['a'] % 1 == 0 proves; g({'a': 0.5}) is False (corpus 4443, strict twin 4427)
+      strict mode: --strict-bare-containers
+      relied on by sort_functions_by_scc: parameter functions: list
+    HVAL-STR-KEYS: every dict nested inside a PyVal value (Dict[str, PyVal]) has str keys: the hval model keys an HMap by string, so a key read off a nested dict (.items()/.keys() key, bare iteration of a dict carrier) is a str (the annotation constrains only the top-level keys)
+      counterexample: xs = d['xs']; for k, v in xs.items(): return isinstance(k, str) proves \result == True; f({'xs': {1: 2}}) is False (corpus 3550-3551)
+      strict mode: --strict-hval-keys
+      relied on by find_calls_in_ir: bare iteration over a nested PyVal value (line 28)
+      relied on by find_self_method_calls: bare iteration over a nested PyVal value (line 59)
+    AS-PACKAGE-MODULE: the program is never run as a script: it is imported as a module of the package rooted at /home/fabrice/git/pycsl-u52-g2/src/self-annotate/src, so sys.path[0] is that root (an entry script's directory), not the program's directory; route #613's closure check searches that root instead of the program's directory
+      counterexample: src/pycsl/module6_whyml/scc.py run as a script: its directory is sys.path[0], and `typing`'s own `import types` loads the local module6_whyml/types.py (venv CPython 3.14: ImportError, witnesses-r613/cpython.txt)
+      strict mode: the default (omit --as-package-module: script mode)
+      relied on by src/self-annotate/src/module6_whyml/scc.py

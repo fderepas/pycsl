@@ -1,0 +1,20 @@
+/home/fabrice/git/pycsl-u56/src/pycsl/frontend/Module3_Weaver.py:388: UserWarning: Function 'oracle' (line 9): \trusted has no reviewer — add `reviewer: <name>` to document who is accountable for this trust assumption.
+  self._dispatch_function_contracts(node, self.contracts_map[node.lineno])
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/2823_gen36_r267_trusted_consistent_on_one_branch_control.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_vop_ehcf.mlw", line 19, characters 11-21:
+Sub-goal precondition of goal g'vc.
+Prover result is: Valid (0.00s, 20 steps).
+
+File "/tmp/.pycsl_vop_ehcf.mlw", line 14, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.01s, 219 steps).
+
+File "/tmp/.pycsl_vop_ehcf.mlw", line 14, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 24 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

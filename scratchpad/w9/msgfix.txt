@@ -1,0 +1,42 @@
+MEASURE(#44): corrected classification — my classifier read the wrong file for duplicate basenames and invented a harness discrepancy
+
+`run-reference-tests.sh` reports a failure as `<suite>/<basename>`, and the
+python-reference corpus has SEVEN files sharing three basenames across
+`stdlib/` subdirectories (ast/json/marshal `dump_call_proves`, json/marshal
+`loads_call_proves`, base64/codecs `encode_call_proves`, and their `_fails`
+twins). The first classifier's `find ... | head -1` picked `ast/` and
+`marshal/` — which genuinely PASS — so it compared the wrong file and
+reported four phantom "PROVES-ALONE (suite harness/flag difference)" rows,
+which I had written up as an instrument discrepancy worth its own look.
+
+Fixed to resolve ALL matches. CORRECTED TALLY over 108 resolved rows:
+
+    64  IMPORT-DENYLIST        stdlib/ctypes (+ siblings)
+    11  ROCQ-LIB-ABSENT        0211-0220 + one
+     6  SMT-TIMEOUT
+     6  L3-TC-TYPE-ERROR
+     6  genuinely-passing duplicate-basename siblings (not failures)
+     4  unbound type symbol `array`   base64/codecs `encode` pairs
+     3  SMT-UNKNOWN
+     5  pipeline errors, five distinct causes
+
+TWO OF THOSE ARE ONE-LINE TEST DEFECTS, now diagnosed rather than guessed:
+`stdlib/json/dump_call_*` calls `json.dump(x)` with ONE argument while the
+stub's `fp` parameter has no default (arity 2 — the TEST is wrong,
+`json.dump` really does require a file object); and
+`stdlib/json/loads_call_*` fails with "this expression raises unlisted
+exception JSONDecodeError" — there the STUB is honest and the test driver
+is under-specified, needing a `#@ raises`. NOT FIXED, deliberately: they
+are corpus-test defects outside the soundness perimeter and each needs a
+judgement about what the stub should say. Recorded so the next window can
+take them cheaply.
+
+THE LESSON IS THE ONE THIS WINDOW KEEPS RE-LEARNING FROM A NEW DIRECTION.
+A refusal that never fires, a probe that deletes nothing, a pin that cannot
+trip, a plane aimed at the wrong directory — and now a classifier that read
+the wrong file and reported a clean bill for it. Every new instrument gets
+a negative test, INCLUDING the ones built to audit other instruments.
+
+Also: f_pycsl rc=0. Five of the six owed proofs are in.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

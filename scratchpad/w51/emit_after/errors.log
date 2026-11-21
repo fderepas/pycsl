@@ -1,0 +1,3 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-w51/src/self-annotate/src/errors.py'...
+[*] Memory model: hoare
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

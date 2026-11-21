@@ -153,8 +153,17 @@ def perm(n: int, k: int) -> int:
 #@ ensures \result < y
 #@ assigns \nothing
 def remainder(x: int, y: int) -> int:
-    """RST: 'Return the IEEE 754-style remainder of x with respect to y.'
-    For integers, same as x % y."""
+    """MODELS PYTHON'S `%`, NOT `math.remainder` — corrected in gen #30.
+
+    The RST line for `math.remainder` is 'Return the IEEE 754-style remainder of x with
+    respect to y', and this docstring used to add 'For integers, same as x % y.' THAT IS
+    FALSE: IEEE remainder rounds the quotient to NEAREST while `%` FLOORS it, so
+    `math.remainder(8, 5)` is -2.0 where `8 % 5` is 3. Measured by
+    `bin/check-stdlib-contract-fidelity.py`, which still carries this function in its
+    baseline because the NAME still cites a function this body does not compute.
+    What the body and contract really provide: Python's `%` on non-negative x and
+    positive y, whose result is in [0, y).
+    """
     return x % y
 
 

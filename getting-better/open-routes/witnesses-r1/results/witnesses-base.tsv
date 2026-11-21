@@ -1,0 +1,123 @@
+a566_display_with_entry	hoare	EMITTED
+a566_display_with_entry	typed	OTHER(rc=1):unbound type symbol 'array'
+a566_display_with_entry	store	OTHER(rc=1):unbound type symbol 'array'
+a566_separate_local_dict	hoare	EMITTED
+a566_separate_local_dict	typed	OTHER(rc=1):unbound type symbol 'array'
+a566_separate_local_dict	store	OTHER(rc=1):unbound type symbol 'array'
+c566_control_no_store	hoare	EMITTED
+c566_control_no_store	typed	OTHER(rc=1):unbound type symbol 'array'
+c566_control_no_store	store	OTHER(rc=1):unbound type symbol 'array'
+s566_stale_attr	hoare	REFUSED:PYCSL-R566-EMITIR-ITEM-STORE
+s566_stale_attr	typed	REFUSED:PYCSL-R566-EMITIR-ITEM-STORE
+s566_stale_attr	store	REFUSED:PYCSL-R566-EMITIR-ITEM-STORE
+s566_stale_lit	hoare	REFUSED:PYCSL-R566-EMITIR-ITEM-STORE
+s566_stale_lit	typed	REFUSED:PYCSL-R566-EMITIR-ITEM-STORE
+s566_stale_lit	store	REFUSED:PYCSL-R566-EMITIR-ITEM-STORE
+w566_dropped_tail_precond	hoare	REFUSED:PYCSL-R566-EMITIR-ITEM-STORE
+w566_dropped_tail_precond	typed	REFUSED:PYCSL-R566-EMITIR-ITEM-STORE
+w566_dropped_tail_precond	store	REFUSED:PYCSL-R566-EMITIR-ITEM-STORE
+a567_record_typed_param	hoare	EMITTED
+a567_record_typed_param	typed	OTHER(rc=1):variable int_mem does not occur in this expression
+a567_record_typed_param	store	OTHER(rc=1):variable store does not occur in this expression
+w567_kind_misproj	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+w567_kind_misproj	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+w567_kind_misproj	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b01_backward	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b01_backward	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b01_backward	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b02_chain2	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b02_chain2	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b02_chain2	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b03_sibling	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b03_sibling	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b03_sibling	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b04_rebind	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b04_rebind	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b04_rebind	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b05_ann	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b05_ann	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b05_ann	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b06_walrus	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b06_walrus	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b06_walrus	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b07_walrus_fwd	hoare	OTHER(rc=1):but is expected to have type int
+b07_walrus_fwd	typed	OTHER(rc=1):unbound type symbol 'array'
+b07_walrus_fwd	store	OTHER(rc=1):unbound type symbol 'array'
+b08_ifexp	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b08_ifexp	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b08_ifexp	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b09_tuple_unpack	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b09_tuple_unpack	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b09_tuple_unpack	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b10_for_literal	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b10_for_literal	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b10_for_literal	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b11_container	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b11_container	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b11_container	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b12_backward_name	hoare	EMITTED
+b12_backward_name	typed	OTHER(rc=1):unbound type symbol 'array'
+b12_backward_name	store	OTHER(rc=1):unbound type symbol 'array'
+b13_or	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b13_or	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b13_or	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b14_append	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b14_append	typed	PIPELINE:`xs.append(...)` MUTATES its receiver in place, and no certified lowering models
+b14_append	store	PIPELINE:`xs.append(...)` MUTATES its receiver in place, and no certified lowering models
+b15_itemstore	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b15_itemstore	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+b15_itemstore	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+c01_unrelated	hoare	EMITTED
+c01_unrelated	typed	OTHER(rc=1):unbound type symbol 'array'
+c01_unrelated	store	OTHER(rc=1):unbound type symbol 'array'
+h567_backward_alias	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+h567_backward_alias	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+h567_backward_alias	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+h567_ctl_forward	hoare	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+h567_ctl_forward	typed	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+h567_ctl_forward	store	REFUSED:PYCSL-R567-EMITIR-ATTR-ON-NONIR
+a579_record_typed_param	hoare	EMITTED
+a579_record_typed_param	typed	OTHER(rc=1):This function depends on external variables, it cannot be used as pure
+a579_record_typed_param	store	OTHER(rc=1):This function depends on external variables, it cannot be used as pure
+gg1609_user_cslfieldaccess	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gg1609_user_cslfieldaccess	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gg1609_user_cslfieldaccess	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gg1610_user_cslfieldaccess_noguard	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gg1610_user_cslfieldaccess_noguard	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gg1610_user_cslfieldaccess_noguard	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gg1617_imp_as_ast	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gg1617_imp_as_ast	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gg1617_imp_as_ast	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gl1600_plainclass_kind	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gl1600_plainclass_kind	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gl1600_plainclass_kind	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gl1602_not_isinst_early	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gl1602_not_isinst_early	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gl1602_not_isinst_early	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gl1605_name_attr	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gl1605_name_attr	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gl1605_name_attr	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gn1608_imp_as_ast_early_exit	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gn1608_imp_as_ast_early_exit	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+gn1608_imp_as_ast_early_exit	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579a_class_ast	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579a_class_ast	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579a_class_ast	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579b_rebind_ast	hoare	PIPELINE:a name's runtime value is not the one the model reads (imported name `ast` bound
+p579b_rebind_ast	typed	PIPELINE:a name's runtime value is not the one the model reads (imported name `ast` bound
+p579b_rebind_ast	store	PIPELINE:a name's runtime value is not the one the model reads (imported name `ast` bound
+p579c_param_ast	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579c_param_ast	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579c_param_ast	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579d_irm_ns	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579d_irm_ns	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579d_irm_ns	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579e_sysmodules	hoare	PIPELINE:a name's runtime value is not the one the model reads (an attribute or item writ
+p579e_sysmodules	typed	PIPELINE:a name's runtime value is not the one the model reads (an attribute or item writ
+p579e_sysmodules	store	PIPELINE:a name's runtime value is not the one the model reads (an attribute or item writ
+p579f_import_as_csl	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579f_import_as_csl	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579f_import_as_csl	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579g_tuple	hoare	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579g_tuple	typed	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED
+p579g_tuple	store	REFUSED:PYCSL-R579-IR-CLASS-NOT-RESOLVED

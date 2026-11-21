@@ -1,0 +1,30 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt30/c05_len_inv_self_pop_in_init.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_x2v5t1gb.mlw", line 16, characters 16-43:
+Sub-goal array creation size of goal cur'vc.
+Prover result is: Valid (0.00s, 330 steps).
+
+File "/tmp/.pycsl_x2v5t1gb.mlw", line 15, characters 16-42:
+Sub-goal type invariant of goal cur'vc.
+Prover result is: Valid (0.01s, 1002 steps).
+
+File "/tmp/.pycsl_x2v5t1gb.mlw", line 22, characters 19-59:
+Sub-goal assertion of goal cur__cur'vc.
+Prover result is: Valid (0.00s, 6718 steps).
+
+File "/tmp/.pycsl_x2v5t1gb.mlw", line 22, characters 63-75:
+Sub-goal index in array bounds of goal cur__cur'vc.
+Prover result is: Valid (0.00s, 6756 steps).
+
+File "/tmp/.pycsl_x2v5t1gb.mlw", line 19, characters 15-40:
+Sub-goal postcondition of goal cur__cur'vc.
+Prover result is: Valid (0.00s, 609 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_x2v5t1gb.mlw", line 19, characters 15-40: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

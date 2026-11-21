@@ -1,0 +1,6 @@
+== head_fstr_collapse Prover result is: Timeout 
+== head_in_map Prover result is: Valid 
+== ch31_fstr Prover result is: Timeout 
+== ch31_in_map Prover result is: Timeout 
+== head_fstr_collapse [compute] Prover result is: Timeout 
+== ch31_fstr [compute] Prover result is: Timeout 

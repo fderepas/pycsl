@@ -1,0 +1,10 @@
+2026-11-19T15:06:16Z oom=15 START spike=fdb9e6419 R=3fc8f5079
+2026-11-19T16:02:47Z oom=15 S1 spike sweep: start 2026-11-19T15:06:16Z oom=15 head=fdb9e64190815153cc36a969a8917e71ea0b14e3 bd rc=0 2026-11-19T15:55:06Z mir rc=0 2026-11-19T16:02:47Z end 2026-11-19T16:02:47Z oom=15 
+2026-11-19T17:10:53Z oom=15 S2 R sweep: start 2026-11-19T16:02:47Z oom=15 head=3fc8f50792052bd94926b6681f2f65747e61dc8c bd rc=0 2026-11-19T17:05:55Z mir rc=0 2026-11-19T17:10:53Z end 2026-11-19T17:10:53Z oom=15 
+2026-11-19T17:11:11Z oom=15 S3 census rows: 13 (     13 REFUSAL )
+2026-11-19T17:13:53Z oom=15 S4 witnesses:      39 FAIL	PIPELINE ERROR       2 PASS	Verification FAILED       4 PASS	Verification SUCCESS 
+2026-11-19T17:14:07Z oom=15 S5 fidelity sync=0 mirror-check=0 doc=0
+2026-11-19T17:50:58Z oom=15 S6 fast planes rc=0:     NOT CHECKED: 23 prover/emission plane(s) — among them     check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival     and check-stdlib-modules-verify. Re-run with --slow before a GATE. 
+2026-11-19T18:07:35Z oom=15 S7 planes: check-refusal-witness-coverage rc=0 check-getattr-erasure rc=0 check-claim-vacuity rc=0 check-assigns-writes-survival rc=0 check-trusted-frame-honesty rc=0 count-trusted-directives rc=0 
+2026-11-19T18:07:39Z oom=15 S8 conformance fe=0 core=0
+2026-11-19T18:07:39Z oom=15 BATTERY-DONE

@@ -1,0 +1,24 @@
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index de6da71e..dab00f13 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -875,7 +875,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+             # type-check, no self-field write). Gated by the emit_ir tags.
+             if (name in getattr(self, "_emit_ir_local_vars", set())
+                     or self._is_emit_ir_expr(ir_expr)):
+-                return "true"
++                self._add_abstract_op("val fh_any_bool (_u: unit) : bool")
++                return "(fh_any_bool ())"
+             # ROUTE #31, the last word: an array local that reached here has no
+             # modelled length at all, and the historical answer `true` is FALSE of an
+             # empty list. Refuse rather than invent a branch decision.
+@@ -5631,7 +5632,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                 _chk = f"(match {_es} with IrNone -> true | _ -> false end)"
+                 return _chk if raw_op == "==" else f"(not {_chk})"
+             if self._is_emit_ir_expr(_nn):
+-                return "false" if raw_op == "==" else "true"
++                self._add_abstract_op("val fh_any_bool (_u: unit) : bool")
++                return "(fh_any_bool ())"
+             # cf6.md M1.6: `<tuple-local> is None` — a tuple value (`union_info =
+             # self._match_subject_union_info(…)`) is always present in this model, so `is None`
+             # → false / `is not None` → true (sound always-present; both `if` arms type-check).

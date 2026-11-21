@@ -1,0 +1,63 @@
+3720a3721
+>     let _tc_sfx = ref "" in
+3734,3735c3735,3737
+<           if (!arity > 0) then begin
+<             raise (Return_str (str_concat_op (str_concat_op (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_")) (int_to_string !arity)) " r -> r end"))
+---
+>           _tc_sfx := (str_replace_op (str_replace_op (str_replace_op (str_replace_op return_type "(" "") ")" "") " " "") "," "_");
+>           if ((let __and_l = (let __and_l = (let __and_l = (let __and_l = (str_startswith_op return_type "(") in if __and_l <> 0 then (if (str_contains_op return_type ",") then 1 else 0) else __and_l) in if __and_l <> 0 then (if (not (str_contains_op (str_sub_op return_type 1 (((str_length_op return_type)) - (1))) "(")) then 1 else 0) else __and_l) in if __and_l <> 0 then (if (str_eq_op (str_replace_op (str_replace_op (str_replace_op (str_replace_op (str_replace_op !_tc_sfx "string" "") "bool" "") "real" "") "int" "") "_" "") "") then 1 else 0) else __and_l) in if __and_l <> 0 then (if (not (str_eq_op (str_replace_op (str_replace_op !_tc_sfx "int" "") "_" "") "")) then 1 else 0) else __and_l) <> 0) then begin
+>             raise (Return_str (str_concat_op (str_concat_op (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_tup_")) !_tc_sfx) " r -> r end"))
+3737,3738c3739,3740
+<             if (str_eq_op return_type "array int") then begin
+<               raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_seq s -> materialize s end")))
+---
+>             if (!arity > 0) then begin
+>               raise (Return_str (str_concat_op (str_concat_op (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_")) (int_to_string !arity)) " r -> r end"))
+3740,3742c3742,3743
+<               if (str_eq_op return_type "array string") then begin
+<                 let _ = (statementemissionmixin___materialize_str_bridge self) in ();
+<                 raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_seq_str s -> materialize_str s end")))
+---
+>               if (str_eq_op return_type "array int") then begin
+>                 raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_seq s -> materialize s end")))
+3744,3746c3745,3747
+<                 if (str_eq_op return_type "array emit_ir") then begin
+<                   let _ = (self__add_abstract_op_1 self (pystr_cat "val materialize_emit_ir (s: seq emit_ir) : array emit_ir" (pystr_cat (pystr_chr 10) (pystr_cat "    ensures { Array.length result = Seq.length s }" (pystr_cat (pystr_chr 10) "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }"))))) in ();
+<                   raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_seq_ir s -> materialize_emit_ir s end")))
+---
+>                 if (str_eq_op return_type "array string") then begin
+>                   let _ = (statementemissionmixin___materialize_str_bridge self) in ();
+>                   raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_seq_str s -> materialize_str s end")))
+3748,3749c3749,3751
+<                   if (str_eq_op return_type "string") then begin
+<                     raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_str r -> r end")))
+---
+>                   if (str_eq_op return_type "array emit_ir") then begin
+>                     let _ = (self__add_abstract_op_1 self (pystr_cat "val materialize_emit_ir (s: seq emit_ir) : array emit_ir" (pystr_cat (pystr_chr 10) (pystr_cat "    ensures { Array.length result = Seq.length s }" (pystr_cat (pystr_chr 10) "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }"))))) in ();
+>                     raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_seq_ir s -> materialize_emit_ir s end")))
+3751,3752c3753,3754
+<                     if (str_eq_op return_type "emit_ir") then begin
+<                       raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_emit_ir r -> r end")))
+---
+>                     if (str_eq_op return_type "string") then begin
+>                       raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_str r -> r end")))
+3754,3755c3756,3757
+<                       if (str_eq_op return_type "term") then begin
+<                         raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_term r -> r end")))
+---
+>                       if (str_eq_op return_type "emit_ir") then begin
+>                         raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_emit_ir r -> r end")))
+3757,3758c3759,3760
+<                         if ((str_startswith_op return_type "_union_") <> 0) then begin
+<                           raise (Return_str (str_concat_op (str_concat_op (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_")) return_type) " r -> r end"))
+---
+>                         if (str_eq_op return_type "term") then begin
+>                           raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_term r -> r end")))
+3760c3762,3766
+<                           raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return r -> r end")))
+---
+>                           if ((str_startswith_op return_type "_union_") <> 0) then begin
+>                             raise (Return_str (str_concat_op (str_concat_op (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return_")) return_type) " r -> r end"))
+>                           end else begin
+>                             raise (Return_str (str_concat_op (str_concat_op (pystr_cat "    try" (pystr_chr 10)) body_code) (pystr_cat (pystr_chr 10) "    with Return r -> r end")))
+>                           end

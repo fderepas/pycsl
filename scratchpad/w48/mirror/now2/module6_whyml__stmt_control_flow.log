@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl/src/self-annotate/src/module6_whyml/stmt_control_flow.py'...
+[*] Memory model: hoare
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident', 'safe_exc_name'] (trusted stubs)
+[*] Imported from 'exception_model': ['handler_catches'] (trusted stubs)
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

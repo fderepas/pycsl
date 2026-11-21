@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for 'f9.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "f9.mlw", line 14, characters 18-19:
+This expression has type int, but is expected to have type real
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

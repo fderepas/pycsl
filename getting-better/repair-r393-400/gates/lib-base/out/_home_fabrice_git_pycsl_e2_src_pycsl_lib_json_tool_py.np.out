@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/json/tool.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+a name's runtime binding is not the `def` the model resolves it to (`can_colorize` defined inside a compound statement at line 14 and bound elsewhere in the module; `get_theme` defined inside a compound statement at line 16 and bound elsewhere in the module). A decorator whose effect is not modelled is silently dropped (measured: a decorator returning `abs` proved the undecorated contract); a def inside `if`/`try` that competes with another binding is resolved to the textually last one; a star import after a def rebinds it. None of these is modelled: use a modelled decorator (or an identity decorator `def d(f): return f`), give each definition its own name, or move the star import above every definition.

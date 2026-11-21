@@ -1,0 +1,25 @@
+class C:
+    def __init__(self) -> None:
+        self.n: int = 0
+
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def chk(self, k: int) -> int:
+        if k > 0:
+            raise ValueError("bad")
+        return 0
+
+    #@ ensures \result == 7
+    #@ assigns \nothing
+    #@ no_exception \all
+    def m(self, k: int) -> int:
+        self.chk(k)
+        return 7
+
+
+if __name__ == "__main__":
+    try:
+        C().m(1)
+        print("no exception")
+    except ValueError:
+        print("ValueError raised")

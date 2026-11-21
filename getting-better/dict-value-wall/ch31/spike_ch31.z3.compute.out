@@ -1,0 +1,12 @@
+== sorted_t [] Postcondition of goal sorted_t'vc Prover result is: Out of memory 
+== sorted_t [-a compute_in_goal] Postcondition of goal sorted_t'vc Prover result is: Valid 
+== sorted_f [] Postcondition of goal sorted_f'vc Prover result is: Out of memory 
+== sorted_f [-a compute_in_goal] Postcondition of goal sorted_f'vc Prover result is: Timeout 
+== sorted_f2 [] Postcondition of goal sorted_f2'vc Prover result is: Timeout 
+== sorted_f2 [-a compute_in_goal] Postcondition of goal sorted_f2'vc Prover result is: Timeout 
+== keys_t [] Postcondition of goal keys_t'vc Prover result is: Unknown 
+== keys_t [-a compute_in_goal] Postcondition of goal keys_t'vc Prover result is: Valid  Postcondition of goal keys_t'vc Prover result is: Timeout 
+== keys_f [] Postcondition of goal keys_f'vc Prover result is: Unknown 
+== keys_f [-a compute_in_goal] Postcondition of goal keys_f'vc Prover result is: Unknown  Postcondition of goal keys_f'vc Prover result is: Timeout 
+== falsity [] Postcondition of goal falsity'vc Prover result is: Timeout 
+== falsity [-a compute_in_goal] Postcondition of goal falsity'vc Prover result is: Timeout 

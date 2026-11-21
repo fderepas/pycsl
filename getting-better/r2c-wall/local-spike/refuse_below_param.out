@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'refuse_below_param.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[module6-whyml]: r2c-local: the path mutation of `generics` (a heterogeneous `Dict[str, PyVal]` tree) is REFUSED — a store into the tree through a computed key (it could reach a STORED element: a store below a stored parameter element writes through a shared object — rule (iv)). A value-model write-back is faithful only for a locally built, non-escaping, unshared tree (getting-better/r2c-wall/r2c-wall-impl.md). Rewrite the mutation, or mark the enclosing function `#@ \trusted`.

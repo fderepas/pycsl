@@ -1,0 +1,10 @@
+[~] emitted-vacuity (KNOWN, gated): 8 verified function(s) ignore SOME parameters the live body uses:
+    src/self-annotate/src/core_ir_semantic.mlw::_cs_clause  erased=['ctx'] of ['clause', 'ctx', 'allow_result', 'symtab', 'mc']  (live `_cs_clause`)
+    src/self-annotate/src/core_ir_semantic.mlw::_check_span  erased=['stage'] of ['func', 'stage']  (live `_check_span`)
+    src/self-annotate/src/core_ir_semantic.mlw::_union_c11_check_dead_arms  erased=['fname'] of ['match_stmt', 'fname']  (live `_union_c11_check_dead_arms`)
+    src/self-annotate/src/frontend/Module3_Weaver.mlw::pycslweaver___const_int  erased=['var'] of ['node', 'var']  (live `_const_int`)
+    src/self-annotate/src/frontend/pure_ast.mlw::_parser___dict_rest  erased=['t'] of ['t', 'first_key']  (live `_dict_rest`)
+    src/self-annotate/src/frontend/pure_ast.mlw::_parser___sequence_pattern  erased=['t'] of ['openp', 'closep', 't']  (live `_sequence_pattern`)
+    src/self-annotate/src/module6_whyml/expr_ghost_spec_ops.mlw::ghostspecopsmixin___handle_mktuple_expr  erased=['lr'] of ['node', 'lr', '_ic', '_sub']  (live `_handle_mktuple_expr`)
+    src/self-annotate/src/module6_whyml/statements.mlw::statementemissionmixin___emit_new_ghost_ref  erased=['target'] of ['safe_target', 'target', 'binding', 'rest', 'local_refs', 'declared_refs', 'indent', 'in_loop']  (live `_emit_new_ghost_ref`)
+[+] emitted-vacuity: no NEW erasure (8 known param-erasures gated; 0 input-blind methods). NOTE: this probe is a LOWER BOUND — a whole-function test cannot see a function that erases one input while still using another.

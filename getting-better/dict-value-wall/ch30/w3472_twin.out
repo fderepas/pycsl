@@ -1,0 +1,58 @@
+[*] Parsing and Semantic Analysis for 'w3472_twin.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "w3472_twin.mlw", line 23, characters 63-83:
+Sub-goal variant decrease of goal hval_list_to_seq'vc.
+Prover result is: Valid (0.00s, 2348 steps).
+
+File "w3472_twin.mlw", line 37, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2842 steps).
+
+File "w3472_twin.mlw", line 58, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 3018 steps).
+
+File "w3472_twin.mlw", line 65, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2348 steps).
+
+File "w3472_twin.mlw", line 72, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2384 steps).
+
+File "w3472_twin.mlw", line 91, characters 20-32:
+Sub-goal loop invariant init of goal has_c'vc.
+Prover result is: Valid (0.00s, 822 steps).
+
+File "w3472_twin.mlw", line 86, characters 33-56:
+Sub-goal postcondition of goal has_c'vc.
+Prover result is: Valid (0.00s, 13968 steps).
+
+File "w3472_twin.mlw", line 92, characters 18-44:
+Sub-goal loop variant decrease of goal has_c'vc.
+Prover result is: Valid (0.01s, 15735 steps).
+
+File "w3472_twin.mlw", line 91, characters 20-32:
+Sub-goal loop invariant preservation of goal has_c'vc.
+Prover result is: Valid (0.01s, 15559 steps).
+
+File "w3472_twin.mlw", line 86, characters 33-56:
+Sub-goal postcondition of goal has_c'vc.
+Prover result is: Valid (0.00s, 486 steps).
+
+File "w3472_twin.mlw", line 103, characters 15-27:
+Sub-goal postcondition of goal empty_has_none'vc.
+Prover result is: Unknown (why3: Unknown
+(unknown)) (1.01s, 1614501 steps).
+
+File "w3472_twin.mlw", line 103, characters 15-27:
+Sub-goal postcondition of goal empty_has_none'vc.
+Prover result is: Valid (0.00s, 2134 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

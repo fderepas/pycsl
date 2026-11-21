@@ -1,0 +1,2 @@
+L3TC-FAIL            <module>.collect_module_constants  ['but is expected to have type int']
+L3TC-FAIL            <module>.collect_module_globals  ['but is expected to have type int']

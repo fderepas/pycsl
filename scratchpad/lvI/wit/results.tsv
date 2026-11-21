@@ -1,0 +1,6 @@
+base	9100	FAIL	# pycsl-expected: PASS
+base	9101	FAIL	# pycsl-expected: FAIL
+base	9102	FAIL	# pycsl-expected: FAIL
+st	9100	PASS	# pycsl-expected: PASS
+st	9101	FAIL	# pycsl-expected: FAIL
+st	9102	FAIL	# pycsl-expected: FAIL

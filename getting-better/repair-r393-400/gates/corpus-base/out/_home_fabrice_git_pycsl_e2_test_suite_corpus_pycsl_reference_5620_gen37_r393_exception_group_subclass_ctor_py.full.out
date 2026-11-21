@@ -1,0 +1,10 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5620_gen37_r393_exception_group_subclass_ctor.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_i5n35ixh.mlw", line 14, characters 8-9: unused variable e
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,349 @@
+{
+ "name": "controlflowstmtmixin___first_assign_value_ir",
+ "symbol_table": {
+  "var": "str",
+  "stmts": "list",
+  "stmt": "Any",
+  "key": "Any",
+  "h": "Any",
+  "r": "Any"
+ },
+ "param_annotations": {
+  "var": "str",
+  "stmts": "list"
+ },
+ "param_ast_node_types": {},
+ "param_list_elem_types": {
+  "stmts": "emit_ir"
+ },
+ "param_list_nested_elem": {},
+ "param_list_flat_elem": {},
+ "param_defaults": {},
+ "has_mutable_default": false,
+ "acts": [],
+ "dict_value_types": {},
+ "dict_key_types": {
+  "stmt": "string",
+  "h": "string"
+ },
+ "set_value_types": {},
+ "formal_params": [
+  "var",
+  "stmts"
+ ],
+ "return_annotation": "ExprIR",
+ "return_value_type": null,
+ "contracts": {
+  "requires": [
+   {
+    "type": "Bool",
+    "value": true
+   }
+  ],
+  "ensures": [
+   {
+    "type": "Bool",
+    "value": true
+   }
+  ],
+  "assigns": [
+   {
+    "type": "Nothing"
+   }
+  ],
+  "raises": [],
+  "no_exception": [],
+  "no_exception_all": false
+ },
+ "body": [
+  {
+   "stmt": "For",
+   "line": 298,
+   "target": "stmt",
+   "iter": {
+    "type": "Var",
+    "name": "stmts"
+   },
+   "invariants": [],
+   "variants": [],
+   "body": [
+    {
+     "stmt": "If",
+     "test": {
+      "type": "BinOp",
+      "op": "and",
+      "left": {
+       "type": "BinOp",
+       "op": "==",
+       "left": {
+        "type": "Call",
+        "func": "stmt.get",
+        "args": [
+         {
+          "type": "String",
+          "value": "stmt"
+         }
+        ]
+       },
+       "right": {
+        "type": "String",
+        "value": "Assign"
+       }
+      },
+      "right": {
+       "type": "BinOp",
+       "op": "==",
+       "left": {
+        "type": "Call",
+        "func": "stmt.get",
+        "args": [
+         {
+          "type": "String",
+          "value": "target"
+         }
+        ]
+       },
+       "right": {
+        "type": "Var",
+        "name": "var"
+       }
+      }
+     },
+     "body": [
+      {
+       "stmt": "Return",
+       "value": {
+        "type": "BinOp",
+        "op": "or",
+        "left": {
+         "type": "Call",
+         "func": "stmt.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "value"
+          },
+          {
+           "type": "DictLit",
+           "keys": [],
+           "values": []
+          }
+         ]
+        },
+        "right": {
+         "type": "DictLit",
+         "keys": [],
+         "values": []
+        }
+       }
+      }
+     ],
+     "orelse": []
+    },
+    {
+     "stmt": "For",
+     "line": 301,
+     "target": "key",
+     "iter": {
+      "type": "Tuple",
+      "elts": [
+       {
+        "type": "String",
+        "value": "body"
+       },
+       {
+        "type": "String",
+        "value": "orelse"
+       },
+       {
+        "type": "String",
+        "value": "finalbody"
+       }
+      ]
+     },
+     "invariants": [],
+     "variants": [],
+     "body": [
+      {
+       "stmt": "If",
+       "test": {
+        "type": "Call",
+        "func": "isinstance",
+        "args": [
+         {
+          "type": "Call",
+          "func": "stmt.get",
+          "args": [
+           {
+            "type": "Var",
+            "name": "key"
+           }
+          ]
+         },
+         {
+          "type": "Var",
+          "name": "list"
+         }
+        ]
+       },
+       "body": [
+        {
+         "stmt": "Assign",
+         "target": "r",
+         "value": {
+          "type": "Call",
+          "func": "self._first_assign_value_ir",
+          "args": [
+           {
+            "type": "Var",
+            "name": "var"
+           },
+           {
+            "type": "Subscript",
+            "value": {
+             "type": "Var",
+             "name": "stmt"
+            },
+            "index": {
+             "type": "Var",
+             "name": "key"
+            }
+           }
+          ]
+         }
+        },
+        {
+         "stmt": "If",
+         "test": {
+          "type": "Var",
+          "name": "r"
+         },
+         "body": [
+          {
+           "stmt": "Return",
+           "value": {
+            "type": "Var",
+            "name": "r"
+           }
+          }
+         ],
+         "orelse": []
+        }
+       ],
+       "orelse": []
+      }
+     ],
+     "allow_iteration_mutation": false,
+     "lineno": 301
+    },
+    {
+     "stmt": "For",
+     "line": 306,
+     "target": "h",
+     "iter": {
+      "type": "Call",
+      "func": "stmt.get",
+      "args": [
+       {
+        "type": "String",
+        "value": "handlers"
+       },
+       {
+        "type": "ArrayLit",
+        "elts": []
+       }
+      ]
+     },
+     "invariants": [],
+     "variants": [],
+     "body": [
+      {
+       "stmt": "Assign",
+       "target": "r",
+       "value": {
+        "type": "Call",
+        "func": "self._first_assign_value_ir",
+        "args": [
+         {
+          "type": "Var",
+          "name": "var"
+         },
+         {
+          "type": "Call",
+          "func": "h.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "body"
+           },
+           {
+            "type": "ArrayLit",
+            "elts": []
+           }
+          ]
+         }
+        ]
+       }
+      },
+      {
+       "stmt": "If",
+       "test": {
+        "type": "Var",
+        "name": "r"
+       },
+       "body": [
+        {
+         "stmt": "Return",
+         "value": {
+          "type": "Var",
+          "name": "r"
+         }
+        }
+       ],
+       "orelse": []
+      }
+     ],
+     "allow_iteration_mutation": false,
+     "lineno": 306
+    }
+   ],
+   "allow_iteration_mutation": false,
+   "lineno": 298
+  },
+  {
+   "stmt": "Return",
+   "value": {
+    "type": "DictLit",
+    "keys": [],
+    "values": []
+   }
+  }
+ ],
+ "function_variants": [],
+ "diverges": false,
+ "no_inline": false,
+ "sibling_concrete": false,
+ "verify_module": "",
+ "propagate_frame": false,
+ "fresh_globals": false,
+ "trusted": false,
+ "abstract": false,
+ "preserves": false,
+ "lemma": false,
+ "uses": [],
+ "interface": {},
+ "reveal": [],
+ "memoized": false,
+ "reviewer": "",
+ "bounded_int": null,
+ "proof": [],
+ "provides": [],
+ "method_deps": [],
+ "shared_state": [],
+ "touches_field": [],
+ "line": 297,
+ "col": 4,
+ "pure": true,
+ "kind": "method",
+ "self_type": "ControlFlowStmtMixin"
+}

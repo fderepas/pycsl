@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5633_gen37_r397_gd_for_target_attr.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+getattr(r, 'k', ...): 'k' is not an instance field of 'R', but it is not ABSENT either: a class body in its MRO or in any file subclass binds it (a class attribute, method, property, nested class, dataclass field, or an attribute store in any target form -- `for` / `with` / tuple / augmented, routes #396 / #397), `object` has it, or the MRO has a `__getattr__` / `__getattribute__`, a standard-library / builtin base (its class attributes are not read), or the file stores attributes dynamically (`setattr` / `delattr` / `vars` / `__dict__`, systematic rule GD, routes #388 / #389). CPython's lookup finds that binding before the default, while the model answered the default (route #376: `k = -1` in the class proved `getattr(r, "k", 0) >= 0`). The class attribute's value is not modelled, so this is refused: read the attribute directly, or rename it.

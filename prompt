@@ -1,0 +1,1 @@
+Delegate the driver loop for 96 hours; keep it running without stopping. Check each ten minutes it is working otherwise relaunch it. 

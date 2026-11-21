@@ -1,0 +1,44 @@
+gate(#44): NEW PLANE — bin/check-bespoke-model-drift.py, the one failure mode where every green light is real and the conclusion is still wrong
+
+25 converted mirror methods do NOT get their WhyML from the generic
+lowering. They get it from one of 23 `_emit_<X>_bespoke` functions in
+`module6_whyml/functions.py`, keyed on the METHOD NAME and written out by
+hand. That is legitimate — the generic lowering cannot express these
+bodies — but it breaks the assumption every other plane rests on: that the
+model is DERIVED FROM the body.
+
+For a bespoke-modelled method, editing the live body and dutifully syncing
+the mirror leaves check-self-annotate-sync GREEN (the two sources now
+agree), L3-tc GREEN (the OLD model still type-checks), the whole-file
+proof GREEN (it proves the OLD model), and the mirror emission
+BYTE-IDENTICAL. Route #28 walked into exactly this on `_py_stmt_assign`
+WITH the warning in front of it.
+
+THE TELL IS COUNTER-INTUITIVE, so the script says it out loud: THE
+BYTE-IDENTICAL EMISSION IS THE SYMPTOM. A real change to a body whose
+model is derived from it MUST move the emission. If it does not, the model
+is hand-written — go and find it.
+
+The gate drives the emission with `PYCSL_BESPOKE_CENSUS=1` (an env-gated
+stderr line at each of the 23 dispatch sites; nothing is emitted on a
+normal run — verified: mirror and corpus emissions both byte-identical
+with the hook in place), resolves each bespoke-modelled method back to
+where it is DEFINED (tree-wide, because an importing mirror re-emits an
+imported class's bespoke methods and reaches the same method through
+several files), and fingerprints that body with `ast.dump` so comments and
+formatting do not move it.
+
+It is deliberately a fingerprint, not a proof of correspondence: no
+mechanical check can decide that a hand-written model MEANS the same as a
+body. What it can guarantee is that nobody changes one without being told
+about the other — and it names the exact `_emit_..._bespoke` function to
+move.
+
+NEGATIVE-TESTED by replaying the route-#28 mistake: perturbing the mirror
+`_py_stmt_assign` body without touching its model gives
+
+    [-] BESPOKE-MODELLED BODY CHANGED in 1 method(s) ...
+          frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_stmt_assign
+              model written by  _emit_py_stmt_assign_bespoke
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

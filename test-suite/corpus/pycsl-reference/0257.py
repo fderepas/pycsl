@@ -14,6 +14,7 @@ b = 0
 #@ thread_entry
 #@ \diverges
 def worker() -> int:
+    global a, b
     #@ acquires lock_a
     with lock_a:
         #@ acquires lock_b

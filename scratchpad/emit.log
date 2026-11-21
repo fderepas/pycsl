@@ -1,0 +1,102 @@
+/home/fabrice.derepas@canonical.com/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_HappyProperty_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/Module2_Parser.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLParseError (record + 0 method stub(s) + 2 helper(s))
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 640, characters 19-21: unused variable x0
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 644, characters 14-38: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 657, characters 20-23: unused variable sep
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 657, characters 34-36: unused variable xs
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 662, characters 29-33: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 662, characters 53-56: unused variable msg
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 667, characters 42-46: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 671, characters 31-35: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 673, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 680, characters 41-45: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 686, characters 15-97: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 738, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 751, characters 8-17: unused variable names_len
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 748, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 764, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 762, character 43 to line 764, character 41: variable self is used under `old` but is not modified by the function
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 768, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 787, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 803, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 821, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 839, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 848, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 870, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 888, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 906, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 904, character 41 to line 906, character 41: variable self is used under `old` but is not modified by the function
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 910, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 919, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 930, characters 39-43: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 932, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 936, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 955, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 968, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 987, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1000, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1020, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1033, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1043, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1057, characters 46-50: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1061, characters 39-43: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1065, characters 39-43: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1069, characters 41-45: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1075, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1087, characters 8-17: unused variable names_len
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1084, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1104, characters 8-17: unused variable names_len
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1101, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1116, characters 40-44: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1120, characters 40-44: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1131, characters 8-16: unused variable args_len
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1126, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1153, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1171, characters 8-18: unused variable params_len
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1168, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1184, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1207, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1220, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1239, characters 8-17: unused variable paths_len
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1236, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1250, characters 41-45: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1256, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1268, characters 41-45: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1274, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1284, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1305, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1338, characters 37-41: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1342, characters 44-48: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1342, characters 68-72: unused variable name
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1346, characters 45-49: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1346, characters 69-73: unused variable name
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1350, characters 41-45: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1354, characters 47-51: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1360, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1383, characters 46-50: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1385, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1392, characters 8-17: unused variable names_len
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1389, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1406, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1426, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1435, characters 44-48: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1441, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1455, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1471, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1483, characters 15-39: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1494, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1513, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1526, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1537, characters 39-43: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1541, characters 43-47: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1545, characters 29-33: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1545, characters 53-55: unused variable fn
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1551, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1556, characters 30-34: unused variable self
+File "src/self-annotate/src/frontend/Module2_Parser.mlw", line 1566, characters 24-39:
+This expression has type int, but is expected to have type string

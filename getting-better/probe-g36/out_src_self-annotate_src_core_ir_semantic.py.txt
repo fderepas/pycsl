@@ -1,0 +1,5 @@
+L3TC-FAIL            <module>.run_ir_semantic_checks  ['This expression has type array.Array.array int @rho, but is expected to have type int']
+L3TC-FAIL            <module>._returns_literal_none  ["nested function 'walk' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads found from an enclosing function; another function in the file has the same name. A lifted body reads a captured name as ONE global opaque constant shared by every call, and two lifted helpers with the same name collapse to one. Pass the captured values as parameters and give the helper a unique name, or move it to module level."]
+L3TC-FAIL            <module>._typeddict_check_subscript  ['This expression has type int -> option.Option.option int, but is expected to have type string -> option.Option.option int']
+L3TC-FAIL            <module>._namedtuple_check_call  ['This expression has type int -> option.Option.option int, but is expected to have type int']
+L3TC-FAIL            <module>._namedtuple_check_subscript  ['This expression has type int -> option.Option.option int, but is expected to have type string -> option.Option.option int']

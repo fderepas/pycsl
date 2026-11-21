@@ -1,0 +1,92 @@
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1632: UserWarning: Function 'module6_whymltranspiler___sig_val_from_let': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+UNIONARMDECLINE	src/self-annotate/src/audit_proof.py	Path
+UNIONARMDECLINE	src/self-annotate/src/audit_proof.py	Path
+UNIONARMDECLINE	src/self-annotate/src/audit_proof.py	Path
+UNIONARMDECLINE	src/self-annotate/src/audit_proof.py	Path
+UNIONARMDECLINE	src/self-annotate/src/audit_proof.py	Path
+UNIONARMDECLINE	src/self-annotate/src/audit_proof.py	Path
+UNIONARMDECLINE	src/self-annotate/src/audit_proof.py	Path
+UNIONARMDECLINE	src/self-annotate/src/audit_proof.py	Path
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union__audit_one_prover_0'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_audit_rocq_1'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_audit_lean_2'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_audit_both_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+UNIONARMDECLINE	src/self-annotate/src/frontend/Module2_Parser.py	CSLNode
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_HappyProperty_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+UNIONARMDECLINE	src/self-annotate/src/frontend/Module3_Weaver.py	CSLNode
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1632: UserWarning: Function 'pycsltojsonemitter___collect_class_constants': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+UNIONARMDECLINE	src/self-annotate/src/frontend/Module5_IREmitter.py	CSLNode
+UNIONARMDECLINE	src/self-annotate/src/frontend/__init__.py	CSLNode
+UNIONARMDECLINE	src/self-annotate/src/frontend/ir_resolve.py	CSLNode
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_FunctionIR_16'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1629: UserWarning: Function 'autotrustmixin___has_set_op_on_map': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1604: UserWarning: Function 'expressionemissionmixin___dv_store_value': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union__dotted_ensures_suffix_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1604: UserWarning: Function 'statementemissionmixin___dv_store_value': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Term
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Term
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Term
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Term
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Term
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Term
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_IRCrossCheckResult_0'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_IRCrossCheckResult_1'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_IRCrossCheckResult_2'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_IRCrossCheckResult_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_IRCrossCheckResult_4'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_IRCrossCheckResult_5'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Path
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/crosscheck_ir.py	Path
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1604: UserWarning: Function '_parser__expect': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+UNIONARMDECLINE	src/self-annotate/src/proof2why3/sertop.py	Path
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_SertopSession_2'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union_SertopSession_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1630: UserWarning: Function '_function_body_eqs': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("orelse", []) or [], union_vars, fname)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1630: UserWarning: Function '_dispatch_provers': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("orelse", []) or [], union_vars, fname)
+UNIONARMDECLINE	src/self-annotate/src/pycsl.py	CSLNode
+UNIONARMDECLINE	src/self-annotate/src/pycsl.py	Path
+UNIONARMDECLINE	src/self-annotate/src/pycsl.py	Path
+UNIONARMDECLINE	src/self-annotate/src/pycsl.py	Path
+UNIONARMDECLINE	src/self-annotate/src/pycsl.py	Path
+UNIONARMDECLINE	src/self-annotate/src/pycsl.py	Path
+UNIONARMDECLINE	src/self-annotate/src/pycsl.py	Path
+UNIONARMDECLINE	src/self-annotate/src/pycsl.py	Path
+UNIONARMDECLINE	src/self-annotate/src/pycsl.py	Path

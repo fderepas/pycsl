@@ -1,0 +1,2 @@
+L3TC-FAIL            <module>.parse_lean_axioms_line  ['but is expected to have type array.Array.array int @rho1']
+L3TC-FAIL            <module>.parse_rocq_assumptions_block  ['but is expected to have type (int, int)']

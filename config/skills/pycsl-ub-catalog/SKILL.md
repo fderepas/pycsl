@@ -324,7 +324,22 @@ boundary — we do not fake it.
 `_check_memoization_soundness` rejects (`PyCSLIRError`, UB-7.7) unless the
 function is referentially transparent (RT): it must be **pure** (`#@ assigns
 \nothing`, not `\trusted`, not `\diverges` — `_detect_purity`) AND read no
-`#@ shared` mutable global (`_reads_any`). Module-level *constants* are fine.
+`#@ shared` mutable global (`_reads_any`) AND — **route #94** — read no
+`self.<field>` that is **assigned outside `__init__`**. Module-level
+*constants* are fine, and so is a field written only by the constructor.
+
+**Why the field clause was needed (route #94).** `_detect_purity` is about
+`assigns`, not reads, so a method that reads a mutable field and writes nothing
+counted as pure; and `_reads_any` matches only `type == "Var"`, so a field read
+(a `FieldGet`) could never be seen by the `#@ shared` clause whatever was
+declared. Measured: a `@cached_property` returning `self.a`, with `#@ assigns
+\nothing` and `#@ ensures \result == self.a`, **PROVED**, while running the
+same program under CPython gives `total = 0, self.a = 1` after one `bump()` —
+the proved postcondition is **false in the real language**, which is exactly
+this §7.7 divergence. The rule is deliberately *not* "reads any field": a
+`@cached_property` inherently reads `self`, and one over a construct-only field
+is genuinely RT (measured — it proves, and CPython agrees), so banning all field
+reads would remove a real capability.
 
 **Verification stance.** *Hard error*, no escape annotation. PyCSL verifies the
 function's **uncached** body and ignores the decorator. That is sound only when
@@ -337,7 +352,17 @@ an RT function no extra work is needed; this rule only gates the unsound case.)
 Note: contracts must be placed **above** the decorator to attach.
 
 **Corpus cross-reference:** `0515` (pure `@lru_cache` accepted + caller proof),
-`0516` (memoizing a non-RT function rejected).
+`0516` (memoizing a non-RT function rejected), `1257` (route #94: a
+`@cached_property` over a field mutated outside `__init__` — rejected), `1258`
+(route #94 control: a `@cached_property` over a construct-only field still
+PROVES, so the rule is not a blanket field-read ban).
+
+**Known confinement (route #94).** The false postcondition is confined to the
+memoized method itself: a `cached_property` read from *another* function emits
+`unbound function or predicate symbol`, so no caller can consume it. If
+`cached_property` ever becomes readable across functions this class escalates,
+and a ready-made value-differential driver is recorded in
+`getting-better/open-routes/route94-*.md`.
 
 ---
 
@@ -374,51 +399,69 @@ read-only, PURE-`seq`/`map` `array (seq τ)` model.
 
 ---
 
-## §7.9 in-place mutation of a dict/set PARAMETER
+## §7.9 in-place mutation of a dict/set PARAMETER — NARROWED (WL-05b: standalone now SUPPORTED)
 
-**Source pattern that triggers it.** An in-place mutation of a `Dict[...]` or
-`Set[...]` (or `frozenset`) **parameter** — i.e. a write that Python makes visible
-to the caller through the by-reference argument:
+**Source pattern.** An in-place mutation of a `Dict[...]` or `Set[...]` (or
+`frozenset`) **parameter** — a write Python makes visible to the caller through the
+by-reference argument:
 
 ```python
 def f(d: Dict[str, int]) -> int:
-    d["a"] = 5        # triggers (ArraySet on a dict param)
+    d["a"] = 5        # STANDALONE fn: now FAITHFULLY SUPPORTED (WL-05b) — proves
     return d["a"]
 
 def g(s: Set[int]) -> int:
-    s.add(5)          # triggers (also .discard / .remove on a set/dict param)
-    return 0
+    s.add(5)          # STANDALONE fn: now SUPPORTED (also .discard / .remove)
+    return 1 if 5 in s else 0
 ```
 
-**Detection mechanism.** Module 6's statement emitter
-(`module6_whyml/statements.py`). At the dict item-write site
-(`_handle_array_set_stmt`, the `is_dict` branch) and the set/dict method-call site
-(`.add`/`.discard`/`.remove`), a mutation whose target is a formal parameter
-(`_formal_params`) that is NOT a `ref`-bound LOCAL (`_dict_locals`), NOT a self-field
-(which HAS a mutation frame), and NOT the deliberate `@mutable_state` param no-op
-(typed-ir §13) is routed to `_reject_param_collection_mutation`, which raises
-`PyCSLSemanticError` (code `PYCSL-WHYML-PARAM-COLLECTION-MUT`).
+**Now SUPPORTED for STANDALONE functions (wrong-lowering-to-fix.md §WL-05b).** Python
+passes dicts/sets BY REFERENCE, so an inner-mutated dict/set param of a STANDALONE
+function is modelled as a caller-visible **mutable `ref (map κ (option ν))`** with a
+sound **`writes {d}`** frame. `d[k]=v` → `d := map_update_some !d k v`; reads → `!d` /
+`Map.get !d k` UNIFORMLY; the mutation ESCAPES to the caller (the call site passes the
+bare ref). USAGE-DRIVEN: only an inner-mutated param is promoted; a READ-ONLY dict/set
+param keeps the by-value `map …` type (BYTE-IDENTICAL). Detection is a module-level
+FIXPOINT (direct item-mutation + transitive param forwarding). SMT-feasibility proven
+on Alt-Ergo + Z3 (`test-suite/corpus/conformance/spikes/wl05b_param_mut_spike.mlw`).
 
-**Verification stance.** *Hard error*, no escape annotation. Python passes dicts/sets
-BY REFERENCE, so an item-mutation of a parameter must be VISIBLE to the caller — a
-faithful model needs a caller-visible mutation frame (`writes {d}`) on a mutable-map
-parameter. That is the SAME aliasing/frame problem for which RECORD-param mutation
-(static-ref ‡; static-semantics §Track 3) and nested-LIST inner mutation (§7.8) are
-out of scope. Modelling the by-value `map` param as a local `ref` would be UNFAITHFUL
-(the caller would not see the change) — a sound but silently-wrong lowering. Before
-the WL-05 fix the dict case emitted internally-inconsistent WhyML (`d := map_update_some
-!d k v; … Map.get d k` — a `ref`/non-`ref` mix that fails Why3's type-check) and the set
-case silently dropped the mutation to a no-op; both are now a clean rejection.
-**The faithful rework** is to RETURN the updated collection (`d = f(d)`) or mutate a
-LOCAL dict/set (a `ref`, with a genuine frame) — a local write-read-back is faithfully
-modelled and proves.
+**STILL a hard error (rejected) — the residual boundary.** The rejection
+(`_reject_param_collection_mutation`, code `PYCSL-WHYML-PARAM-COLLECTION-MUT`) is
+RETAINED for the cases the ref/writes model does not cover: a mutated dict/set **METHOD
+param** (its param types also feed the abstract-op cross-method call-contract map, which
+the ref promotion would desync — out of scope here), the deliberate `@mutable_state`
+param no-op (typed-ir §13), RECORD-param mutation (static-ref ‡; static-semantics
+§Track 3) and nested-LIST inner mutation (§7.8). For those, the faithful rework is to
+RETURN the updated collection (`d = f(d)`) or mutate a LOCAL dict/set (a `ref`).
 
-**Escape annotation.** None. (The boundary is the missing aliasing/frame model, not a
-trust gap — an annotation cannot make the caller see the by-value mutation.)
+**Detection mechanism.** Module 6: the promotion decision is the module-level fixpoint
+`_build_func_mutated_collection_params` (built in `Module6_WhyMLTranspiler`), consulted
+by `functions.py::_param_type_str` (ref param type), `_reset_function_state` (routes
+promoted params into `_dict_locals`), `_emit_function` (`writes {…}` frame) and
+`expressions.py::_handle_call_expr` (bare-ref argument pass). A mutation of a METHOD
+param / self-field is still routed to `_reject_param_collection_mutation`.
 
-**Corpus cross-reference:** `0820` (dict param `d[k]=v` rejected), `0821` (set param
-`s.add` rejected); positive guards `0822` (LOCAL dict write-read-back proves), `0823`
-(LOCAL set add-membership proves). Finding: wrong-lowering-to-fix.md §WL-05.
+**`del d[k]` (wrong-lowering-to-fix.md §WL-05c, T7).** `del d[k]` is now a first-class
+dict/set item deletion (`ir_schema.DelSubscriptStmt`), NOT the old blanket Module-5
+`Pass` no-op that silently dropped the deletion and let a read/claim of the deleted key
+unsoundly PROVE its old value (a severity-1 fail-OPEN, now FIXED). It clears the key via
+`map_update_none` for a LOCAL dict/set, on the caller-visible `ref (map …)` for a
+STANDALONE dict/set parameter (the WL-05b fixpoint seed now also detects `DelSubscript`),
+and is REJECTED on a dict/set METHOD parameter (the same boundary as `d[k]=v`). Locks
+`0854`/`0855` (POSITIVE local + standalone-param), `0856`/`0857` (NEGATIVE method-param
+rejection + caller-visible false-twin).
+
+**Escape annotation.** None needed for a standalone-fn mutation (now supported). A
+mutating callee should carry a postcondition on the param's post-state (e.g.
+`#@ ensures d["a"] == 5`) so a caller can rely on the escape (the `writes {d}` frame
+otherwise havocs the param).
+
+**Corpus cross-reference:** `0820` (POSITIVE — dict param `d[k]=v` write-read-back
+proves), `0821` (POSITIVE — set param `s.add` + membership proves), `0822`/`0823`
+(POSITIVE — LOCAL dict/set), `0832` (POSITIVE — dict param mutation ESCAPES to the
+caller), `0833` (POSITIVE — set twin caller-visibility), `0834` (NEGATIVE,
+`# pycsl-expected: FAIL` — a false post-mutation claim must FAIL). Finding:
+wrong-lowering-to-fix.md §WL-05 / §WL-05b.
 
 ---
 

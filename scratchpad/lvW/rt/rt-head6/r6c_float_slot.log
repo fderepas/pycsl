@@ -1,0 +1,14 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-head6/r6c_float_slot.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-head6/r6c_float_slot.mlw", line 15, characters 15-55:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 19 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rt-head6/r6c_float_slot.mlw", line 15, characters 15-55:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 23 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

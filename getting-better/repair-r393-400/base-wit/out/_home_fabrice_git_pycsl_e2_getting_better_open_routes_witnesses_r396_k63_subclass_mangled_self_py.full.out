@@ -1,0 +1,17 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/getting-better/open-routes/witnesses-r396/k63_subclass_mangled_self.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_f2x3fqkc.mlw", line 13, characters 15-27:
+Sub-goal postcondition of goal t__g'vc.
+Prover result is: Valid (0.01s, 6 steps).
+
+File "/tmp/.pycsl_f2x3fqkc.mlw", line 14, characters 15-38:
+Sub-goal postcondition of goal t__g'vc.
+Prover result is: Valid (0.00s, 7 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_f2x3fqkc.mlw", line 12, characters 22-23: unused variable r
+
+[+] Verification SUCCESS! All contracts formally proven.

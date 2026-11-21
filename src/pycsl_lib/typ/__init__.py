@@ -62,8 +62,12 @@
 #   checking, invisible to the runtime).
 
 
+# (#49) The identity shims below carry the INTEGER MODEL in their signature (`val: int`):
+# route #252 refuses an erased (unannotated) value flowing into the `-> int` return, since the
+# model would re-apply int laws to it. Every caller (src/pycsl_lib_test/formal_typ*.py) passes
+# an int, and on that domain `\result == val` is exactly what CPython does (no enforcement).
 #@ ensures \result == val
-def cast(typ, val) -> int:
+def cast(typ, val: int) -> int:
     return val
 
 
@@ -83,17 +87,17 @@ def get_args(tp) -> int:
 
 
 #@ ensures \result == val
-def Union(x0, x1, val) -> int:
+def Union(x0, x1, val: int) -> int:
     return val
 
 
 #@ ensures \result == val
-def Literal(x0, x1, val) -> int:
+def Literal(x0, x1, val: int) -> int:
     return val
 
 
 #@ ensures \result == val
-def Final(x0, x1, val) -> int:
+def Final(x0, x1, val: int) -> int:
     return val
 
 
@@ -112,7 +116,7 @@ NoReturn = None
 # static plane handles the record type_decl (T1/T5/T8); the runtime plane is
 # the plain-dict alias (D1/D4 no-blend).
 #@ ensures \result == val
-def TypedDict(typename, fields, val) -> int:
+def TypedDict(typename, fields, val: int) -> int:
     return val
 
 
@@ -124,7 +128,7 @@ def TypedDict(typename, fields, val) -> int:
 # plane handles the record type_decl (N1/N4/N5/N6); the runtime plane is the
 # plain-tuple alias (D1/D4 no-blend).
 #@ ensures \result == val
-def NamedTuple(typename, fields, val) -> int:
+def NamedTuple(typename, fields, val: int) -> int:
     return val
 
 
@@ -144,7 +148,7 @@ def NamedTuple(typename, fields, val) -> int:
 #   postcondition — the static guarded-postcondition family is NOT discharged
 #   by the shim (it is Why3 SMT over the guard, invisible to the runtime).
 #@ ensures \result == val
-def overload(func, val) -> int:
+def overload(func, val: int) -> int:
     return val
 
 
@@ -169,7 +173,7 @@ def overload(func, val) -> int:
 # runtime isinstance) but a NON-refining contract FAILS static conformance —
 # the runtime presence check cannot rescue the static refinement VC.
 #@ ensures \result == val
-def runtime_checkable(cls, val) -> int:
+def runtime_checkable(cls, val: int) -> int:
     return val
 
 

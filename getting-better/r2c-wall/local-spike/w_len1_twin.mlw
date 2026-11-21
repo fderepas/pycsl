@@ -1,0 +1,98 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use map.Map
+  use map.Const
+  use option.Option
+  use array.Array
+
+  (* hval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall): the faithful value carrier for a heterogeneous Python `Dict[str, Any]` — HStr/HInt/HArr/HMap/HNode. Proven axiom-free by the fable oracle (getting-better/pyval-oracle.mlw, Z3 Valid); co-landed with the Rocq/Lean Phase2f_PyVal cert. The `h*` names are DISJOINT from the older D1/R-A generic-fold `pyval`/`PStr` family (_pydict_theory_lines) so both value models can coexist in one scope. HArr recurses through the BESPOKE `hval_list` (HNil/HCons), NOT `seq hval` (Why3 rejects `seq` recursion as non-strictly-positive). R3: HMap's carrier is the BESPOKE assoc list `hpairs` (PNil/PCons), NOT a `map string (option hval)` — the map was non-iterable so `.values()` could not fold; the assoc list keeps the recursion structural and makes the read a terminating lookup fold (`pairs_get`). Structural mutual recursion, NO `variant` clause. Gated on `_uses_pyval` -> corpus byte-identical. The abstract-val insert point (`_find_abstract_val_insert_idx`, which skips `with`/`invariant`/`by` but NOT `|` arm lines) lands AFTER the whole mutual group + `pairs_get`. *)
+  type hval = HStr string | HInt int | HArr hval_list | HMap hpairs | HNode hval
+  with hval_list = HNil | HCons hval hval_list
+  with hpairs = PNil | PCons string hval hpairs
+
+  (* Abstract operations for unsupported Python patterns *)
+  val any_map (_u: unit) : map 'k (option 'v)
+  val function hstr_len (s: string) : int
+    ensures { result = String.length s }
+  val function hval_len_other (h: hval) : int
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+
+  (* R3 carrier read: `.values()`-foldable lookup over the assoc list (the map carrier was non-iterable). Build PREPENDS a binding (PCons). A `let rec function` (usable in program `let` bindings — where the reads occur); `variant { p }` gives structural termination over the assoc-list cons. The key test is `hpairs_key_eq` (disjoint from the str-set `pystr_eq`). ch27: a `val FUNCTION`, not a program `val`: a `let function` whose body calls a program `val` gets NO logic definition, so `pairs_get` / `hval_truthy` / `hval_list_str_mem` were logic-OPAQUE and `pairs_get PNil k = None` was unprovable (witness 3140 timed out). dict-value-wall R2a: its spec `result <-> a = b` is a realizable Why3 `val` specification (Why3 encodes it as a task axiom of this file, NOT a kernel axiom: ledger unchanged), same form as `str_eq_op` / `str_replace_op` / `map_nonempty` and the stdlib `String.(=)` (a program `val`, so not callable from a `let function`); it is realized by `string_dec` in the cert's `pairs_get` (Phase2f_PyVal.v). Without it a PRESENT key could never be read. *)
+  val function hpairs_key_eq (a b: string) : bool ensures { result <-> a = b }
+  let rec function pairs_get (p: hpairs) (k: string) : option hval
+    variant { p }
+    = match p with
+      | PNil -> None
+      | PCons k' v t -> if hpairs_key_eq k k' then Some v else pairs_get t k
+      end
+  (* hval-retype (self-tcb-reduction Tier-5): project the string carrier out of an `hval` — the `HStr s` payload, else the empty string. A `let function` (usable in program `let`/guard positions, where the record-registry scan's `info.get("whyml_name") == cls` compare + the Optional[str] return occur). Descends the REAL hval structure (non-vacuous), NOT an abstract reader. dict-value-wall (red-team round 7 R6): a NON-`HStr` carrier is NOT a Python string, so it projects to the UNINTERPRETED `hval_opaque_str h` (a `val function`, no spec, no axiom -- the `hval_len_other` precedent), never to "" (`5 or ""` PROVED `\result == ""`, CPython 5). *)
+  val function hval_opaque_str (h: hval) : string
+  let function hstr_of (h: hval) : string = match h with HStr s -> s | _ -> hval_opaque_str h end
+  (* self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): project the INT carrier out of an `hval` — the `HInt i` payload, else 0. The int twin of `hstr_of`, for the `ctor.get("arity") == 0` read in `_union_none_ctor_for` (`.get` on an hval local produces an `hval`; compared against an int literal it projects via `hint_of`). Total definitional `let function` over the certified hval ADT (`HInt` already exists), descends the REAL structure (non-vacuous), NO axiom -> ledger stays 3. *)
+  let function hint_of (h: hval) : int = match h with HInt i -> i | _ -> 0 end
+  (* self-tcb-reduction _typeddict_field_access (a): Python truthiness of an `hval` projected from a DOUBLED `.get` read used in a bool/if context (`if self._record_types[sym].get("is_typeddict"):`). Total definitional `let function` over the hval ADT — HStr non-empty / HInt non-zero / HArr,HMap non-empty / HNode present. The string-emptiness test reuses the specified key equality `hpairs_key_eq` (a `let function` cannot call the stdlib program `String.(=)`, same reason `pairs_get` uses it). Descends the REAL structure (non-vacuous), NO axiom -> ledger stays 3. *)
+  let function hval_truthy (h: hval) : bool =
+    match h with
+    | HStr s -> not (hpairs_key_eq s "")
+    | HInt i -> i <> 0
+    | HArr l -> (match l with HNil -> false | _ -> true end)
+    | HMap p -> (match p with PNil -> false | _ -> true end)
+    | HNode _ -> true
+    end
+  (* self-tcb-reduction _typeddict_field_access (d): faithful membership of a string in an hval collection (`field_name not in rec_info["fields"]`, an `HArr` of `HStr` field names). Total definitional recursion over the bespoke `hval_list` carrier via the certified `hpairs_key_eq` element test — descends the REAL structure (non-vacuous), NO axiom. *)
+  let rec function hval_list_str_mem (l: hval_list) (x: string) : bool
+    variant { l }
+    = match l with
+      | HNil -> false
+      | HCons h t -> if (match h with HStr s -> hpairs_key_eq s x | _ -> false end) then true else hval_list_str_mem t x
+      end
+  let function hval_str_mem (h: hval) (x: string) : bool =
+    match h with HArr l -> hval_list_str_mem l x | _ -> false end
+  (* self-tcb-reduction _namedtuple_positional_access: an hval collection (`rec_info["fields"]`, an `HArr` of `HStr`) viewed as an ordered SEQUENCE — its LENGTH (`len(fields)`) and its i-th element as a `string` (`fields[idx]`). Total definitional recursion over the bespoke `hval_list` carrier, descends the REAL structure (non-vacuous), NO axiom. *)
+  let rec function hval_list_len (l: hval_list) : int
+    variant { l }
+    = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end
+  let function hval_len (h: hval) : int =
+    match h with HArr l -> hval_list_len l | _ -> 0 end
+  let rec function hval_list_nth (l: hval_list) (i: int) : hval
+    variant { l }
+    = match l with
+      | HNil -> HInt 0
+      | HCons x t -> if i <= 0 then x else hval_list_nth t (i - 1)
+      end
+  let function hval_nth_str (h: hval) (i: int) : string =
+    match h with HArr l -> hstr_of (hval_list_nth l i) | _ -> "" end
+  (* hval-retype (self-tcb-reduction Tier-5): the abstract `.values()` iterator over a `map string (option hval)` field — a native Why3 `map` is not finitely iterable, so the ENUMERATION is over-approximated (arbitrary length, arbitrary element), but each element is a REAL `hval` whose `.get` reads descend the actual structure via `pairs_get` (non-vacuous). Declared in the theory (not late via `_add_abstract_op`) so the decl is always in scope before the loop use, across the proof + vacuity re-emission paths. *)
+  (* LOGIC `function`s (not program `val`s) so `hval_values_len` is usable in the loop `variant` term (a logic context) — exactly like the psl-loop `psl_len`. Uninterpreted + total + effect-free, so also usable in the program while-condition + element `let`. NO axiom (the variant's `0 <=` bound falls out of the loop condition `idx < len`) -> ledger stays 3. *)
+  val function hval_values_len (m: map string (option hval)) : int
+  val function hval_values_get (m: map string (option hval)) (i: int) : hval
+  (* self-tcb-reduction _namedtuple_positional_access: the `.items()` twin of the `.values()` walk — a `for k, v in <hval-field>.items()` loop binds the KEY `k` to an arbitrary `string` (over-approx enumeration, same length as the values) alongside the real `hval` value. Uninterpreted + total + effect-free; NO axiom. *)
+  val function hval_keys_get (m: map string (option hval)) (i: int) : string
+  (* self-tcb-reduction Tier-5 (union/match cluster C3): a NESTED `hval` viewed as its `map string (option hval)` carrier — the `.items()` twin over an hval LOCAL (`vinfo.get("constructors", {}).items()`), not a self-field. Total + uninterpreted (an `HMap` IS a `map string (option hval)`; a non-map hval views as the empty map), so `hval_values_len/get`/`hval_keys_get` apply to the view. NO axiom -> ledger stays 3. *)
+  val function hval_as_map (h: hval) : map string (option hval)
+  let rec function pairs_set (p: hpairs) (k: string) (v: hval) : hpairs
+    variant { p }
+    = match p with
+      | PNil -> PCons k v PNil
+      | PCons k' w t -> if hpairs_key_eq k k' then PCons k' v t else PCons k' w (pairs_set t k v)
+      end
+  let rec function hval_list_snoc (l: hval_list) (x: hval) : hval_list
+    variant { l }
+    = match l with HNil -> HCons x HNil | HCons h t -> HCons h (hval_list_snoc t x) end
+
+  let w_len1_twin (n: int) : int
+    ensures  { (result = 0) } (* linear *)
+  =
+    let generics = ref (const (None: option hval)) in
+    let t = ref "G" in
+    if (match Map.get (!generics) (!t) with | Some _ -> false | None -> true end) then begin
+      generics := map_update_some !generics !t (HMap (PCons "methods" (HArr HNil) (PCons "kind" (HStr "class") PNil)))
+    end;
+    (let r2c_k = !t in let r2c_e = (HMap (PCons "name" (HStr "m") PNil)) in generics := (match Map.get !generics r2c_k with Some r2c_h1 -> map_update_some !generics r2c_k (match r2c_h1 with HMap r2c_p1 -> (match pairs_get r2c_p1 "methods" with Some r2c_h2 -> HMap (pairs_set r2c_p1 "methods" (match r2c_h2 with HArr r2c_l -> HArr (hval_list_snoc r2c_l r2c_e) | _ -> r2c_h2 end)) | None -> r2c_h1 end) | _ -> r2c_h1 end) | None -> !generics end));
+    (let _hln = (match (match Map.get !generics !t with | Some v_ -> v_ | None -> (HInt 0) end) with HMap m_pcii -> (match pairs_get m_pcii "methods" with Some v_ -> v_ | None -> (HMap PNil) end) | _ -> (HMap PNil) end) in match _hln with HArr _lln -> hval_list_len _lln | HStr _sln -> hstr_len _sln | _ -> hval_len_other _hln end)
+
+end

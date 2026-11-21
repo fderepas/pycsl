@@ -1,0 +1,40 @@
+audit(#43): Module-5 field-coverage census — expression handlers are CLEAN, and all five statement candidates are already covered or not demonstrable
+
+A new mechanical surface, run with the method that found routes 1-12: enumerate the
+dispatch, then probe each survivor END-TO-END WITH A CONTRACT THAT IS FALSE OF THE PROGRAM.
+
+`scratchpad/w8/census_fields2.py` walks each `_PY_EXPR_HANDLERS` / `_PY_STMT_HANDLERS`
+entry, takes the TRANSITIVE closure of the same-module functions it calls (depth 3 — the
+depth-0 version is useless: `_py_stmt_for` is a one-line delegate to `_process_for` and
+reports all four of its fields missing), and compares the fields mentioned anywhere in that
+closure against `pure_ast._NODE_SPEC` for the dispatched node type.
+
+  EXPRESSION handlers: 0 unmentioned fields across all 23.
+  STATEMENT handlers: 5 candidates, every one resolved:
+
+  · `For.orelse`, `While.orelse` — REFUSED. Probed both ways with `#@ assert 1 == 2` in the
+    `else`; both give "`for ... else` / `while ... else` is not modelled ... the clause
+    would be silently DROPPED".
+  · `With.items` — the CTXBIND ratchet (50), already a tracked plane.
+  · `AnnAssign.annotation`, `.simple` — normalized in desugar before Module 5 reaches them
+    (`check-dropped-mutation` classifies a non-Name annotated store as NORMALIZED).
+  · `Raise.cause` and `Raise` arguments after the first — GENUINELY DROPPED
+    (`_py_stmt_raise` reads `exc.func.id` and `exc.args[0]` only), but NOT DEMONSTRABLE.
+    Four probe families were built — `-> int`, `-> None`, with and without
+    `#@ raises ValueError when True`, each with a violated precondition in the dropped
+    position and the SAME violated precondition in `args[0]` as the control — and all of
+    them, controls included, fail identically. The reason is upstream of the drop: a call
+    inside a `raise` expression emits an application Why3 rejects outright with
+    "This function has side effects, it cannot be used as pure", so NOTHING proves over
+    that position. A drop in a position where no proof can be obtained cannot produce a
+    false proof. REOPENING CONDITION, recorded rather than scoped: if a pure-call-in-raise
+    lowering ever lands, re-probe `cause` and `args[1:]` immediately.
+
+Also settled here, and it is the answer to an inviting-looking hazard: the
+`UnknownPyExpr -> 0` catch-all in `module6_whyml/expressions.py` does NOT erase CALLS.
+`xs.count(2)` emits `(xs_count_1 2)`, an opaque application, and three probes carrying a
+false `ensures \result == 0` over an unrecognized local call, a `math.floor` call and a
+list method all correctly FAIL. The `-> 0` path is reached by genexps and yields, each of
+which has its own plane.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

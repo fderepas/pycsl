@@ -1,0 +1,107 @@
+module CursorNest
+  use int.Int
+  use ref.Ref
+  use array.Array
+  use string.String
+  use list.List
+
+  val str_eq_op (a b: string) : bool
+    ensures { result <-> a = b }
+
+  type token = { kind: string; token_value: string }
+
+  type term =
+    | App string (list term)
+    | BinOp string term term
+    | BoolLit bool
+    | Exists (list string) string term
+    | Forall (list string) string term
+    | IntLit int
+    | UnaryOp string term
+    | Unsupported string string
+    | Var string
+
+  type _parser = { mutable toks: array token; mutable pos: int }
+    invariant { 0 <= pos <= Array.length toks }
+    by { toks = Array.make 1 { kind = ""; token_value = "" }; pos = 0 }
+
+  type _union_peek_0 = Arm_0_0 token | Arm_0_None
+
+  let peek (self: _parser) (offset: int) : _union_peek_0
+    requires { offset >= 0 }
+    ensures  { forall t. result = Arm_0_0 t -> self.pos + offset < Array.length self.toks }
+  = let idx = self.pos + offset in
+    if idx < Array.length self.toks then Arm_0_0 self.toks[idx] else Arm_0_None
+
+  let take (self: _parser) : token
+    requires { self.pos < Array.length self.toks }
+    writes   { self.pos }
+    ensures  { self.pos = old self.pos + 1 }
+  = let t = self.toks[self.pos] in
+    self.pos <- self.pos + 1;
+    t
+
+  (* ---- mutually recursive descent nest, LEXICOGRAPHIC variant ---- *)
+  let rec parse_implication (self: _parser) : term
+    writes  { self.pos }
+    ensures { self.pos >= old self.pos }
+    variant { Array.length self.toks - self.pos, 3 }
+  = let lhs = parse_disjunction self in
+    match peek self 0 with
+    | Arm_0_0 t ->
+        if str_eq_op t.kind "OP" && str_eq_op t.token_value "->" then begin
+          let _ = take self in
+          let rhs = parse_implication self in
+          BinOp "->" lhs rhs
+        end else lhs
+    | Arm_0_None -> lhs
+    end
+
+  with parse_disjunction (self: _parser) : term
+    writes  { self.pos }
+    ensures { self.pos >= old self.pos }
+    variant { Array.length self.toks - self.pos, 2 }
+  = let out = ref (parse_conjunction self) in
+    let continue_ = ref true in
+    while !continue_ do
+      invariant { 0 <= self.pos <= Array.length self.toks }
+      invariant { self.pos >= old self.pos }
+      variant   { Array.length self.toks - self.pos, (if !continue_ then 1 else 0) }
+      match peek self 0 with
+      | Arm_0_None -> continue_ := false
+      | Arm_0_0 t ->
+          if not (str_eq_op t.kind "OP") || not (str_eq_op t.token_value "\\/") then
+            continue_ := false
+          else begin
+            let op = (take self).token_value in
+            let rhs = parse_conjunction self in
+            out := BinOp op !out rhs
+          end
+      end
+    done;
+    !out
+
+  with parse_conjunction (self: _parser) : term
+    writes  { self.pos }
+    ensures { self.pos >= old self.pos }
+    variant { Array.length self.toks - self.pos, 1 }
+  = parse_atom self
+
+  with parse_atom (self: _parser) : term
+    writes  { self.pos }
+    ensures { self.pos >= old self.pos }
+    variant { Array.length self.toks - self.pos, 0 }
+  = match peek self 0 with
+    | Arm_0_None -> Unsupported "eof" ""
+    | Arm_0_0 t ->
+        if str_eq_op t.kind "LPAREN" then begin
+          let _ = take self in
+          (* recursion back to the TOP of the nest: the first variant component
+             strictly decreased because `take` consumed a token *)
+          parse_implication self
+        end else begin
+          let v = take self in
+          Var v.token_value
+        end
+    end
+end

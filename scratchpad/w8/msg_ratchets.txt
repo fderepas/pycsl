@@ -1,0 +1,27 @@
+audit(#43): the last two un-probed ratchets examined — one holds on a two-plane argument, one needs a mirror-internal probe
+
+  yield-erasure = 2       both entries are `pure_ast._Unparser.block` / `.delimit`,
+                          `@contextmanager` generators consumed as a BARE `with self.block():`.
+                          Route #20 deliberately does not refuse the bare form — that is the
+                          modelled CriticalSection shape — and the gap here is the ENTER/EXIT
+                          effects, not the binding. NOT demonstrable from a corpus program:
+                          the manager object is not bound, so no contract can read its state,
+                          and a module-global manager is not referenceable in a contract
+                          either (measured). Needs a MIRROR-INTERNAL probe, like the two
+                          `_uses_pyast_parser`-gated no-op candidates.
+
+  shadowed-selfcalls = 14 the gate's own docstring makes the soundness argument explicitly —
+                          an unconstrained result is an over-approximation, exactly like a
+                          trusted stub — and it HOLDS, but only because a COMPANION plane
+                          closes the hole it would otherwise leave. A receiver-less avatar is
+                          sound only if it hides no WRITE, and that is precisely what
+                          `check-avatar-frame-parity.py` measures, at 0 same-file /
+                          0 inherited. So this is a LOST CONVERSION, not an unsoundness —
+                          and it is lesson (bf) again: neither plane is sufficient alone.
+
+NET over the seven non-zero ratchets: five are now probed (dropped-mutation's CTXBIND and
+TRYFINAL each yielded a route; computed-rhs, clause-survival and shadowed-selfcalls hold),
+one needs a mirror-internal probe, and frame-honesty's 94 rests on its own MODEL-VISIBLE = 0
+— which #34 widened and route #13 then moved one member out of.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

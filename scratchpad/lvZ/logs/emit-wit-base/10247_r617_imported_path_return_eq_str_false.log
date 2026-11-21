@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ/test-suite/corpus/pycsl-reference/10247_r617_imported_path_return_eq_str_false.py'...
+[*] Memory model: hoare
+[*] Imported from 'multi_file_lib.r617_pathlib': ['mk'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+rc=0

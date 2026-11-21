@@ -14,6 +14,7 @@ c2 = 0
 #@ thread_entry
 #@ \diverges
 def update_both() -> int:
+    global c1, c2
     #@ acquires lock_c1
     #@ releases lock_c1
     with lock_c1:

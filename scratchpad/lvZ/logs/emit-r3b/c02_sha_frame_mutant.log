@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt65/c02_sha_frame_mutant.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+Subscript assignment to undefined variable 'G' in function 'f'.
+rc=1

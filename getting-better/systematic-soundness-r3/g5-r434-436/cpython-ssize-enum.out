@@ -1,0 +1,39 @@
+str.split OverflowError Python int too large to convert to C ssize_t
+str.split kw OverflowError Python int too large to convert to C ssize_t
+str.rsplit OverflowError Python int too large to convert to C ssize_t
+str.replace OverflowError Python int too large to convert to C ssize_t
+str.expandtabs 2**31 OverflowError Python int too large to convert to C int
+str.expandtabs -2**31-1 OverflowError Python int too large to convert to C int
+str.center OverflowError Python int too large to convert to C ssize_t
+str.ljust OverflowError Python int too large to convert to C ssize_t
+str.rjust OverflowError Python int too large to convert to C ssize_t
+str.zfill OverflowError Python int too large to convert to C ssize_t
+str.find start OK
+str.count OK
+str.startswith OK
+str.index OK
+str.splitlines OK
+bytes.split OverflowError Python int too large to convert to C ssize_t
+bytes.replace OverflowError Python int too large to convert to C ssize_t
+bytes.center OverflowError Python int too large to convert to C ssize_t
+bytes.zfill OverflowError Python int too large to convert to C ssize_t
+bytes.expandtabs OverflowError Python int too large to convert to C int
+bytes.find OK
+bytes.hex OverflowError Python int too large to convert to C int
+bytearray.insert OverflowError Python int too large to convert to C ssize_t
+bytearray.pop OverflowError Python int too large to convert to C ssize_t
+list.insert OverflowError Python int too large to convert to C ssize_t
+list.insert neg OverflowError Python int too large to convert to C ssize_t
+list.pop OverflowError Python int too large to convert to C ssize_t
+list.index OK
+tuple.index OK
+int.to_bytes OverflowError Python int too large to convert to C ssize_t
+round float OK
+enumerate start OK
+sum start OK
+str.split -2**63 OK
+str.split 2**63 OverflowError Python int too large to convert to C ssize_t
+str.split 2**63-1 OK
+bytes(N) OverflowError cannot fit 'int' into an index-sized integer
+bytearray(N) OverflowError cannot fit 'int' into an index-sized integer
+str*N OverflowError cannot fit 'int' into an index-sized integer

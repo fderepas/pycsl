@@ -1,0 +1,8 @@
+[!]   GONE audit_proof.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone audit_proof.
+[!]   GONE frontend__pure_ast.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone frontend__pure_ast.
+[!]   GONE module6_whyml__expressions.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone module6_whyml__expressions.
+[!]   GONE module6_whyml__statements.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone module6_whyml__statements.
+[!]   GONE module6_whyml__stmt_control_flow.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone module6_whyml__stmt_control_flow.
+[!]   GONE proof2why3__parser.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone proof2why3__parser.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 53 baseline / 47 candidate .mlw; 0 MOVED (0 unexpected), 6 GONE (6 unexpected), 0 APPEARED.

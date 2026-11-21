@@ -1,0 +1,1 @@
+[{"file": "proof_axiom_allowlist.py", "cls": null, "name": "parse_rocq_assumptions_block", "tc": false}, {"file": "proof_axiom_allowlist.py", "cls": null, "name": "parse_lean_axioms_line", "tc": false}]

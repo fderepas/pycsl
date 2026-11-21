@@ -1,0 +1,20 @@
+[!]   MOVED audit_proof.mlw — if that is an intended SOURCE repair, pass --expect-moved audit_proof.
+[!]   MOVED core_ir_semantic.mlw — if that is an intended SOURCE repair, pass --expect-moved core_ir_semantic.
+[!]   MOVED exception_model.mlw — if that is an intended SOURCE repair, pass --expect-moved exception_model.
+[!]   MOVED frontend__ConcurrencyChecker.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend__ConcurrencyChecker.
+[!]   MOVED frontend__Module1_Ingestor.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend__Module1_Ingestor.
+[!]   MOVED frontend__Module2_Parser.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend__Module2_Parser.
+[!]   MOVED frontend__Module5_IREmitter.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend__Module5_IREmitter.
+[!]   MOVED frontend__pure_ast.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend__pure_ast.
+[!]   MOVED module6_whyml__expressions.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__expressions.
+[!]   MOVED module6_whyml__functions.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__functions.
+[!]   MOVED module6_whyml__preamble.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__preamble.
+[!]   MOVED module6_whyml__statements.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__statements.
+[!]   MOVED module6_whyml__stmt_control_flow.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__stmt_control_flow.
+[!]   MOVED proof2why3__canonical.mlw — if that is an intended SOURCE repair, pass --expect-moved proof2why3__canonical.
+[!]   MOVED proof2why3__crosscheck_ir.mlw — if that is an intended SOURCE repair, pass --expect-moved proof2why3__crosscheck_ir.
+[!]   MOVED proof2why3__emit_why3.mlw — if that is an intended SOURCE repair, pass --expect-moved proof2why3__emit_why3.
+[!]   MOVED proof2why3__normalize.mlw — if that is an intended SOURCE repair, pass --expect-moved proof2why3__normalize.
+[!]   MOVED proof2why3__parser.mlw — if that is an intended SOURCE repair, pass --expect-moved proof2why3__parser.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 18 MOVED (18 unexpected), 0 GONE (0 unexpected), 0 APPEARED.

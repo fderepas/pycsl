@@ -1,0 +1,7 @@
+[START 21:18:06] src/self-annotate/src/frontend/pure_ast.py
+[DONE  21:53:06] src/self-annotate/src/frontend/pure_ast.py valid=1868 total=1868 success=1
+[START 21:53:06] src/self-annotate/src/module6_whyml/statements.py
+[DONE  22:15:18] src/self-annotate/src/module6_whyml/statements.py valid=894 total=894 success=1
+[START 22:15:18] src/self-annotate/src/Module6_WhyMLTranspiler.py
+[DONE  22:26:57] src/self-annotate/src/Module6_WhyMLTranspiler.py valid=706 total=706 success=1
+[ALLDONE 22:26:57]

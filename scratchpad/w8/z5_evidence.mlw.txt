@@ -1,0 +1,36 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use seq.Seq
+  use array.Array
+
+  type c = { mutable xs: array int }
+    invariant { ((Array.length xs) = 2) }
+    invariant { ((xs[0]) = 0) }
+    by { xs = (Array.make 2 0) }
+
+
+  (* Abstract operations for unsupported Python patterns *)
+  val self_go_0 () : unit
+  val self_xs_reverse_0 () : int
+  val subscript_get (x: int) (i: int) : int
+
+  let c__go (self: c) : unit
+    requires { true }
+    ensures  { true }
+    ensures  { self.xs = old self.xs }
+    writes {  }
+  =
+    let _ = (self_xs_reverse_0 ()) in ()
+
+  let c__run (self: c) : int
+    requires { true }
+    ensures  { (result = 0) }
+    ensures  { self.xs = old self.xs }
+    writes {  }
+  =
+    let _ = (self_go_0 ()) in ();
+    self.xs[0]
+
+end

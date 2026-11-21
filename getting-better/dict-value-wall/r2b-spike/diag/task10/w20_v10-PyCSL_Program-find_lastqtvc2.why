@@ -1,0 +1,1177 @@
+theory Task
+
+type int
+
+type real
+
+type string
+
+predicate infix_eq 'a 'a
+
+(* use why3.BuiltIn.BuiltIn *)
+
+type bool =
+  | True
+  | False
+
+(* use why3.Bool.Bool *)
+
+type tuple0 =
+  | Tuple0 [@builtin]
+
+(* use why3.Tuple0.Tuple01 *)
+
+type unit [@builtin] = unit
+
+(* use why3.Unit.Unit *)
+
+constant zero : int = 0
+
+constant one : int = 1
+
+function prefix_mn int : int
+
+function infix_pl int int : int
+
+function infix_as int int : int
+
+predicate infix_ls int int
+
+function infix_mn (x:int) (y:int) : int = infix_pl x (prefix_mn y)
+
+predicate infix_gt (x:int) (y:int) = infix_ls y x
+
+predicate infix_lseq (x:int) (y:int) = infix_ls x y \/ x = y
+
+predicate infix_gteq (x:int) (y:int) = infix_lseq y x
+
+axiom Assoc :
+  forall x:int, y:int, z:int.
+   infix_pl (infix_pl x y) z = infix_pl x (infix_pl y z)
+
+(* clone algebra.Assoc with type t = int, function op = infix_pl,
+  prop Assoc1 = Assoc,  *)
+
+axiom Unit_def_l : forall x:int. infix_pl zero x = x
+
+axiom Unit_def_r : forall x:int. infix_pl x zero = x
+
+(* clone algebra.Monoid with type t1 = int, constant unit = zero,
+  function op1 = infix_pl, prop Unit_def_r1 = Unit_def_r,
+  prop Unit_def_l1 = Unit_def_l, prop Assoc2 = Assoc,  *)
+
+axiom Inv_def_l : forall x:int. infix_pl (prefix_mn x) x = zero
+
+axiom Inv_def_r : forall x:int. infix_pl x (prefix_mn x) = zero
+
+(* clone algebra.Group with type t2 = int, function inv = prefix_mn,
+  constant unit1 = zero, function op2 = infix_pl,
+  prop Inv_def_r1 = Inv_def_r, prop Inv_def_l1 = Inv_def_l,
+  prop Unit_def_r2 = Unit_def_r, prop Unit_def_l2 = Unit_def_l,
+  prop Assoc3 = Assoc,  *)
+
+axiom Comm : forall x:int, y:int. infix_pl x y = infix_pl y x
+
+(* clone algebra.Comm with type t3 = int, function op3 = infix_pl,
+  prop Comm1 = Comm,  *)
+
+(* meta AC function infix_pl *)
+
+(* clone algebra.CommutativeGroup with type t4 = int,
+  function inv1 = prefix_mn, constant unit2 = zero, function op4 = infix_pl,
+  prop Comm2 = Comm, prop Inv_def_r2 = Inv_def_r,
+  prop Inv_def_l2 = Inv_def_l, prop Unit_def_r3 = Unit_def_r,
+  prop Unit_def_l3 = Unit_def_l, prop Assoc4 = Assoc,  *)
+
+axiom Assoc5 :
+  forall x:int, y:int, z:int.
+   infix_as (infix_as x y) z = infix_as x (infix_as y z)
+
+(* clone algebra.Assoc with type t = int, function op = infix_as,
+  prop Assoc1 = Assoc5,  *)
+
+axiom Mul_distr_l :
+  forall x:int, y:int, z:int.
+   infix_as x (infix_pl y z) = infix_pl (infix_as x y) (infix_as x z)
+
+axiom Mul_distr_r :
+  forall x:int, y:int, z:int.
+   infix_as (infix_pl y z) x = infix_pl (infix_as y x) (infix_as z x)
+
+(* clone algebra.Ring with type t5 = int, function infix_as1 = infix_as,
+  function prefix_mn1 = prefix_mn, function infix_pl1 = infix_pl,
+  constant zero1 = zero, prop Mul_distr_r1 = Mul_distr_r,
+  prop Mul_distr_l1 = Mul_distr_l, prop Assoc6 = Assoc5, prop Comm3 = Comm,
+  prop Inv_def_r3 = Inv_def_r, prop Inv_def_l3 = Inv_def_l,
+  prop Unit_def_r4 = Unit_def_r, prop Unit_def_l4 = Unit_def_l,
+  prop Assoc7 = Assoc,  *)
+
+axiom Comm4 : forall x:int, y:int. infix_as x y = infix_as y x
+
+(* clone algebra.Comm with type t3 = int, function op3 = infix_as,
+  prop Comm1 = Comm4,  *)
+
+(* meta AC function infix_as *)
+
+(* clone algebra.CommutativeRing with type t6 = int,
+  function infix_as2 = infix_as, function prefix_mn2 = prefix_mn,
+  function infix_pl2 = infix_pl, constant zero2 = zero, prop Comm5 = Comm4,
+  prop Mul_distr_r2 = Mul_distr_r, prop Mul_distr_l2 = Mul_distr_l,
+  prop Assoc8 = Assoc5, prop Comm6 = Comm, prop Inv_def_r4 = Inv_def_r,
+  prop Inv_def_l4 = Inv_def_l, prop Unit_def_r5 = Unit_def_r,
+  prop Unit_def_l5 = Unit_def_l, prop Assoc9 = Assoc,  *)
+
+axiom Unitary : forall x:int. infix_as one x = x
+
+axiom NonTrivialRing : not zero = one
+
+(* clone algebra.UnitaryCommutativeRing with type t7 = int,
+  constant one1 = one, function infix_as3 = infix_as,
+  function prefix_mn3 = prefix_mn, function infix_pl3 = infix_pl,
+  constant zero3 = zero, prop NonTrivialRing1 = NonTrivialRing,
+  prop Unitary1 = Unitary, prop Comm7 = Comm4,
+  prop Mul_distr_r3 = Mul_distr_r, prop Mul_distr_l3 = Mul_distr_l,
+  prop Assoc10 = Assoc5, prop Comm8 = Comm, prop Inv_def_r5 = Inv_def_r,
+  prop Inv_def_l5 = Inv_def_l, prop Unit_def_r6 = Unit_def_r,
+  prop Unit_def_l6 = Unit_def_l, prop Assoc11 = Assoc,  *)
+
+(* clone relations.EndoRelation with type t8 = int,
+  predicate rel = infix_lseq,  *)
+
+axiom Refl : forall x:int. infix_lseq x x
+
+(* clone relations.Reflexive with type t9 = int, predicate rel1 = infix_lseq,
+  prop Refl1 = Refl,  *)
+
+(* clone relations.EndoRelation with type t8 = int,
+  predicate rel = infix_lseq,  *)
+
+axiom Trans :
+  forall x:int, y:int, z:int.
+   infix_lseq x y -> infix_lseq y z -> infix_lseq x z
+
+(* clone relations.Transitive with type t10 = int,
+  predicate rel2 = infix_lseq, prop Trans1 = Trans,  *)
+
+(* clone relations.PreOrder with type t11 = int, predicate rel3 = infix_lseq,
+  prop Trans2 = Trans, prop Refl2 = Refl,  *)
+
+(* clone relations.EndoRelation with type t8 = int,
+  predicate rel = infix_lseq,  *)
+
+axiom Antisymm :
+  forall x:int, y:int. infix_lseq x y -> infix_lseq y x -> x = y
+
+(* clone relations.Antisymmetric with type t12 = int,
+  predicate rel4 = infix_lseq, prop Antisymm1 = Antisymm,  *)
+
+(* clone relations.PartialOrder with type t13 = int,
+  predicate rel5 = infix_lseq, prop Antisymm2 = Antisymm,
+  prop Trans3 = Trans, prop Refl3 = Refl,  *)
+
+(* clone relations.EndoRelation with type t8 = int,
+  predicate rel = infix_lseq,  *)
+
+axiom Total : forall x:int, y:int. infix_lseq x y \/ infix_lseq y x
+
+(* clone relations.Total with type t14 = int, predicate rel6 = infix_lseq,
+  prop Total1 = Total,  *)
+
+(* clone relations.TotalOrder with type t15 = int,
+  predicate rel7 = infix_lseq, prop Total2 = Total,
+  prop Antisymm3 = Antisymm, prop Trans4 = Trans, prop Refl4 = Refl,  *)
+
+axiom ZeroLessOne : infix_lseq zero one
+
+axiom CompatOrderAdd :
+  forall x:int, y:int, z:int.
+   infix_lseq x y -> infix_lseq (infix_pl x z) (infix_pl y z)
+
+axiom CompatOrderMult :
+  forall x:int, y:int, z:int.
+   infix_lseq x y ->
+   infix_lseq zero z -> infix_lseq (infix_as x z) (infix_as y z)
+
+(* meta remove_unused:dependency prop CompatOrderMult, function infix_as *)
+
+(* clone algebra.OrderedUnitaryCommutativeRing with type t16 = int,
+  predicate infix_lseq1 = infix_lseq, constant one2 = one,
+  function infix_as4 = infix_as, function prefix_mn4 = prefix_mn,
+  function infix_pl4 = infix_pl, constant zero4 = zero,
+  prop CompatOrderMult1 = CompatOrderMult,
+  prop CompatOrderAdd1 = CompatOrderAdd, prop ZeroLessOne1 = ZeroLessOne,
+  prop Total3 = Total, prop Antisymm4 = Antisymm, prop Trans5 = Trans,
+  prop Refl5 = Refl, prop NonTrivialRing2 = NonTrivialRing,
+  prop Unitary2 = Unitary, prop Comm9 = Comm4,
+  prop Mul_distr_r4 = Mul_distr_r, prop Mul_distr_l4 = Mul_distr_l,
+  prop Assoc12 = Assoc5, prop Comm10 = Comm, prop Inv_def_r6 = Inv_def_r,
+  prop Inv_def_l6 = Inv_def_l, prop Unit_def_r7 = Unit_def_r,
+  prop Unit_def_l7 = Unit_def_l, prop Assoc13 = Assoc,  *)
+
+(* meta remove_unused:keep function infix_pl *)
+
+(* meta remove_unused:keep function infix_mn *)
+
+(* meta remove_unused:keep function prefix_mn *)
+
+(* meta remove_unused:keep predicate infix_ls *)
+
+(* meta remove_unused:keep predicate infix_lseq *)
+
+(* meta remove_unused:keep predicate infix_gt *)
+
+(* meta remove_unused:keep predicate infix_gteq *)
+
+(* use int.Int *)
+
+function abs (x:int) : int = if infix_gteq x 0 then x else prefix_mn x
+
+axiom Abs_le :
+  forall x:int, y:int.
+   infix_lseq (abs x) y <-> infix_lseq (prefix_mn y) x /\ infix_lseq x y
+
+(* meta remove_unused:dependency prop Abs_le, function abs *)
+
+axiom Abs_pos : forall x:int. infix_gteq (abs x) 0
+
+(* meta remove_unused:dependency prop Abs_pos, function abs *)
+
+(* use int.Abs *)
+
+function div int int : int
+
+function mod int int : int
+
+axiom Div_mod [@useraxiom] :
+  forall x:int, y:int.
+   not y = 0 -> x = infix_pl (infix_as y (div x y)) (mod x y)
+
+(* meta remove_unused:dependency prop Div_mod, function div *)
+
+(* meta remove_unused:dependency prop Div_mod, function mod *)
+
+axiom Mod_bound [@useraxiom] :
+  forall x:int, y:int.
+   not y = 0 -> infix_lseq 0 (mod x y) /\ infix_ls (mod x y) (abs y)
+
+(* meta remove_unused:dependency prop Mod_bound, function mod *)
+
+axiom Div_unique :
+  forall x:int, y:int, q:int.
+   infix_gt y 0 ->
+   infix_lseq (infix_as q y) x /\ infix_ls x (infix_pl (infix_as q y) y) ->
+   div x y = q
+
+(* meta remove_unused:dependency prop Div_unique, function div *)
+
+axiom Div_bound :
+  forall x:int, y:int.
+   infix_gteq x 0 /\ infix_gt y 0 ->
+   infix_lseq 0 (div x y) /\ infix_lseq (div x y) x
+
+(* meta remove_unused:dependency prop Div_bound, function div *)
+
+axiom Mod_1 : forall x:int. mod x 1 = 0
+
+(* meta remove_unused:dependency prop Mod_1, function mod *)
+
+axiom Div_1 : forall x:int. div x 1 = x
+
+(* meta remove_unused:dependency prop Div_1, function div *)
+
+axiom Div_inf :
+  forall x:int, y:int. infix_lseq 0 x /\ infix_ls x y -> div x y = 0
+
+(* meta remove_unused:dependency prop Div_inf, function div *)
+
+axiom Div_inf_neg :
+  forall x:int, y:int.
+   infix_ls 0 x /\ infix_lseq x y -> div (prefix_mn x) y = (- 1)
+
+(* meta remove_unused:dependency prop Div_inf_neg, function div *)
+
+axiom Mod_0 : forall y:int. not y = 0 -> mod 0 y = 0
+
+(* meta remove_unused:dependency prop Mod_0, function mod *)
+
+axiom Div_1_left : forall y:int. infix_gt y 1 -> div 1 y = 0
+
+(* meta remove_unused:dependency prop Div_1_left, function div *)
+
+axiom Div_minus1_left : forall y:int. infix_gt y 1 -> div (- 1) y = (- 1)
+
+(* meta remove_unused:dependency prop Div_minus1_left, function div *)
+
+axiom Mod_1_left : forall y:int. infix_gt y 1 -> mod 1 y = 1
+
+(* meta remove_unused:dependency prop Mod_1_left, function mod *)
+
+axiom Mod_minus1_left :
+  forall y:int. infix_gt y 1 -> mod (- 1) y = infix_mn y 1
+
+(* meta remove_unused:dependency prop Mod_minus1_left, function mod *)
+
+axiom Div_mult :
+  forall x:int, y:int, z:int [div (infix_pl (infix_as x y) z) x].
+   infix_gt x 0 -> div (infix_pl (infix_as x y) z) x = infix_pl y (div z x)
+
+(* meta remove_unused:dependency prop Div_mult, function div *)
+
+axiom Mod_mult :
+  forall x:int, y:int, z:int [mod (infix_pl (infix_as x y) z) x].
+   infix_gt x 0 -> mod (infix_pl (infix_as x y) z) x = mod z x
+
+(* meta remove_unused:dependency prop Mod_mult, function mod *)
+
+(* use int.EuclideanDivision *)
+
+type ref 'a =
+  | Refqtmk [@builtin] (contents:'a)
+
+(* use why3.Ref.Ref *)
+
+function prefix_ex (r:ref 'a) : 'a = r.contents
+
+(* use ref.Ref1 *)
+
+constant empty : string = ("":string)
+
+function concat string string : string
+
+axiom concat_assoc [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   concat (concat s1 s2) s3 = concat s1 (concat s2 s3)
+
+axiom concat_empty [@useraxiom] :
+  forall s:string. concat s empty = concat empty s /\ concat empty s = s
+
+function length string : int
+
+axiom length_empty [@useraxiom] : length ("":string) = 0
+
+axiom length_concat [@useraxiom] :
+  forall s1:string, s2:string.
+   length (concat s1 s2) = infix_pl (length s1) (length s2)
+
+predicate lt string string
+
+axiom lt_empty [@useraxiom] : forall s:string. not s = empty -> lt empty s
+
+axiom lt_not_com [@useraxiom] :
+  forall s1:string, s2:string. lt s1 s2 -> not lt s2 s1
+
+axiom lt_ref [@useraxiom] : forall s1:string. not lt s1 s1
+
+axiom lt_trans [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   ([@asym_split] lt s1 s2) && lt s2 s3 -> lt s1 s3
+
+predicate le string string
+
+axiom le_empty [@useraxiom] : forall s:string. le empty s
+
+axiom le_ref [@useraxiom] : forall s1:string. le s1 s1
+
+axiom lt_le [@useraxiom] : forall s1:string, s2:string. lt s1 s2 -> le s1 s2
+
+axiom lt_le_eq [@useraxiom] :
+  forall s1:string, s2:string.
+   le s1 s2 -> ([@asym_split] lt s1 s2) || s1 = s2
+
+axiom le_trans [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   ([@asym_split] le s1 s2) && le s2 s3 -> le s1 s3
+
+function s_at string int : string
+
+axiom at_out_of_range [@useraxiom] :
+  forall s:string, i:int.
+   ([@asym_split] infix_ls i 0) || infix_gteq i (length s) ->
+   s_at s i = empty
+
+axiom at_empty [@useraxiom] : forall i:int. s_at empty i = empty
+
+axiom at_length [@useraxiom] :
+  forall s:string, i:int.
+   let j = s_at s i in
+   if infix_lseq 0 i /\ infix_ls i (length s) then length j = 1
+   else length j = 0
+
+axiom concat_at [@useraxiom] :
+  forall s1:string, s2:string.
+   let s = concat s1 s2 in
+   forall i:int.
+    ([@asym_split]
+     infix_lseq 0 i /\ infix_ls i (length s1) -> s_at s i = s_at s1 i) &&
+    (infix_lseq (length s1) i /\ infix_ls i (length s) ->
+     s_at s i = s_at s2 (infix_mn i (length s1)))
+
+function substring string int int : string
+
+axiom substring_out_of_range [@useraxiom] :
+  forall s:string, i:int, x:int.
+   ([@asym_split] infix_ls i 0) || infix_gteq i (length s) ->
+   substring s i x = empty
+
+axiom substring_of_length_zero_or_less [@useraxiom] :
+  forall s:string, i:int, x:int.
+   infix_lseq x 0 -> substring s i x = ("":string)
+
+axiom substring_of_empty [@useraxiom] :
+  forall i:int, x:int. substring ("":string) i x = ("":string)
+
+axiom substring_smaller [@useraxiom] :
+  forall s:string, i:int, x:int.
+   infix_lseq (length (substring s i x)) (length s)
+
+axiom substring_smaller_x [@useraxiom] :
+  forall s:string, i:int, x:int.
+   infix_gteq x 0 -> infix_lseq (length (substring s i x)) x
+
+axiom substring_length [@useraxiom] :
+  forall s:string, i:int, x:int.
+   ([@asym_split] infix_gteq x 0) && infix_lseq 0 i /\ infix_ls i (length s) ->
+   (if infix_gt (infix_pl i x) (length s)
+    then length (substring s i x) = infix_mn (length s) i
+    else length (substring s i x) = x)
+
+axiom substring_at [@useraxiom] :
+  forall s:string, i:int. s_at s i = substring s i 1
+
+axiom substring_substring [@useraxiom] :
+  forall s:string, ofs:int, len:int, ofsqt:int, lenqt:int.
+   infix_lseq 0 ofs /\ infix_lseq ofs (length s) ->
+   infix_lseq 0 len ->
+   infix_lseq (infix_pl ofs len) (length s) ->
+   infix_lseq 0 ofsqt /\ infix_lseq ofsqt len ->
+   infix_lseq 0 lenqt ->
+   infix_lseq (infix_pl ofsqt lenqt) len ->
+   substring (substring s ofs len) ofsqt lenqt =
+   substring s (infix_pl ofs ofsqt) lenqt
+
+axiom concat_substring [@useraxiom] :
+  forall s:string, ofs:int, len:int, lenqt:int.
+   infix_lseq 0 ofs /\ infix_lseq ofs (length s) ->
+   infix_lseq 0 len ->
+   infix_lseq (infix_pl ofs len) (length s) ->
+   infix_lseq 0 lenqt ->
+   infix_lseq 0 (infix_pl (infix_pl ofs len) lenqt) /\
+   infix_lseq (infix_pl (infix_pl ofs len) lenqt) (length s) ->
+   concat (substring s ofs len) (substring s (infix_pl ofs len) lenqt) =
+   substring s ofs (infix_pl len lenqt)
+
+predicate prefixof string string
+
+axiom prefixof_substring [@useraxiom] :
+  forall s1:string, s2:string.
+   prefixof s1 s2 <-> s1 = substring s2 0 (length s1)
+
+axiom prefixof_concat [@useraxiom] :
+  forall s1:string, s2:string. prefixof s1 (concat s1 s2)
+
+axiom prefixof_empty [@useraxiom] : forall s2:string. prefixof ("":string) s2
+
+axiom prefixof_empty2 [@useraxiom] :
+  forall s1:string. not s1 = empty -> not prefixof s1 ("":string)
+
+predicate suffixof string string
+
+axiom suffixof_substring [@useraxiom] :
+  forall s1:string, s2:string.
+   suffixof s1 s2 <->
+   s1 = substring s2 (infix_mn (length s2) (length s1)) (length s1)
+
+axiom suffixof_concat [@useraxiom] :
+  forall s1:string, s2:string. suffixof s2 (concat s1 s2)
+
+axiom suffixof_empty [@useraxiom] : forall s2:string. suffixof ("":string) s2
+
+axiom suffixof_empty2 [@useraxiom] :
+  forall s1:string. not s1 = empty -> not suffixof s1 ("":string)
+
+predicate contains string string
+
+axiom contains_prefixof [@useraxiom] :
+  forall s1:string, s2:string. prefixof s1 s2 -> contains s2 s1
+
+axiom contains_suffixof [@useraxiom] :
+  forall s1:string, s2:string. suffixof s1 s2 -> contains s2 s1
+
+axiom contains_empty [@useraxiom] :
+  forall s2:string. contains ("":string) s2 <-> s2 = empty
+
+axiom contains_empty2 [@useraxiom] :
+  forall s1:string. contains s1 ("":string)
+
+axiom contains_substring [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   substring s1 i (length s2) = s2 -> contains s1 s2
+
+axiom contains_concat [@useraxiom] :
+  forall s1:string, s2:string.
+   ([@asym_split] contains (concat s1 s2) s1) && contains (concat s1 s2) s2
+
+axiom contains_at [@useraxiom] :
+  forall s1:string, s2:string, i:int. s_at s1 i = s2 -> contains s1 s2
+
+function indexof string string int : int
+
+axiom indexof_empty [@useraxiom] :
+  forall s:string, i:int.
+   infix_lseq 0 i /\ infix_lseq i (length s) -> indexof s ("":string) i = i
+
+axiom indexof_empty1 [@useraxiom] :
+  forall s:string, i:int.
+   let j = indexof ("":string) s i in
+   ([@asym_split] j = (- 1)) ||
+   ([@asym_split] s = ("":string)) && i = j /\ j = 0
+
+axiom indexof_contains [@useraxiom] :
+  forall s1:string, s2:string.
+   let j = indexof s1 s2 0 in
+   contains s1 s2 ->
+   ([@asym_split] infix_lseq 0 j /\ infix_lseq j (length s1)) &&
+   substring s1 j (length s2) = s2
+
+axiom contains_indexof [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   infix_gteq (indexof s1 s2 i) 0 -> contains s1 s2
+
+axiom not_contains_indexof [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   not contains s1 s2 -> indexof s1 s2 i = (- 1)
+
+axiom substring_indexof [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   let j = indexof s1 s2 i in
+   infix_gteq j 0 -> substring s1 j (length s2) = s2
+
+axiom indexof_out_of_range [@useraxiom] :
+  forall i:int, s1:string, s2:string.
+   not (infix_lseq 0 i /\ infix_lseq i (length s1)) ->
+   indexof s1 s2 i = (- 1)
+
+axiom indexof_in_range [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   let j = indexof s1 s2 i in
+   infix_lseq 0 i /\ infix_lseq i (length s1) ->
+   ([@asym_split] j = (- 1)) || infix_lseq i j /\ infix_lseq j (length s1)
+
+axiom indexof_contains_substring [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   ([@asym_split] infix_lseq 0 i /\ infix_lseq i (length s1)) &&
+   contains (substring s1 i (infix_mn (length s1) i)) s2 ->
+   infix_lseq i (indexof s1 s2 i) /\ infix_lseq (indexof s1 s2 i) (length s1)
+
+function replace string string string : string
+
+axiom replace_empty [@useraxiom] :
+  forall s1:string, s3:string. replace s1 ("":string) s3 = concat s3 s1
+
+axiom replace_not_contains [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   not contains s1 s2 -> replace s1 s2 s3 = s1
+
+axiom replace_empty2 [@useraxiom] :
+  forall s2:string, s3:string.
+   let s4 = replace empty s2 s3 in if s2 = empty then s4 = s3 else s4 = empty
+
+axiom replace_substring_indexof [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   let j = indexof s1 s2 0 in
+   replace s1 s2 s3 =
+   (if infix_ls j 0 then s1
+    else concat (concat (substring s1 0 j) s3)
+         (substring s1 (infix_pl j (length s2))
+          (infix_mn (infix_mn (length s1) j) (length s2))))
+
+function replaceall string string string : string
+
+axiom replaceall_empty1 [@useraxiom] :
+  forall s1:string, s3:string. replaceall s1 ("":string) s3 = s1
+
+axiom not_contains_replaceall [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   not contains s1 s2 -> replaceall s1 s2 s3 = s1
+
+function to_int string : int
+
+axiom to_int_gt_minus_1 [@useraxiom] :
+  forall s:string. infix_gteq (to_int s) (- 1)
+
+axiom to_int_empty [@useraxiom] : to_int ("":string) = (- 1)
+
+predicate is_digit (s:string) =
+  ([@asym_split] infix_lseq 0 (to_int s) /\ infix_lseq (to_int s) 9) &&
+  length s = 1
+
+function from_int int : string
+
+axiom from_int_negative [@useraxiom] :
+  forall i:int. infix_ls i 0 <-> from_int i = empty
+
+axiom from_int_to_int [@useraxiom] :
+  forall i:int.
+   if infix_gteq i 0 then to_int (from_int i) = i
+   else to_int (from_int i) = (- 1)
+
+(* use string.String *)
+
+type (->) 'a 'b
+
+function infix_at ('a -> 'b) 'a : 'b
+
+(* use why3.HighOrd.HighOrd *)
+
+type map 'a 'b = 'a -> 'b
+
+function get (f:'a -> 'b) (x:'a) : 'b = infix_at f x
+
+function set (f:'a -> 'b) (x:'a) (v:'b) : 'a -> 'b =
+  fun (y:'a) -> if y = x then v else infix_at f y
+
+function mixfix_lbrb (f:'a -> 'b) (x:'a) : 'b = infix_at f x
+
+function mixfix_lblsmnrb (f:'a -> 'b) (x:'a) (v:'b) : 'a -> 'b = set f x v
+
+(* use map.Map *)
+
+function const (v:'b) : 'a -> 'b = fun (us [@__dummy__]:'a) -> v
+
+(* use map.Const *)
+
+type option 'a =
+  | None
+  | Some 'a
+
+predicate is_none (o:option 'a) =
+  match o with
+  | None -> true
+  | Some _ -> false
+  end
+
+axiom is_noneqtspec [@W:non_conservative_extension:N] :
+  forall o:option 'a. [@hyp_name:Ensures] is_none o <-> o = (None: option 'a)
+
+(* meta remove_unused:dependency prop is_noneqtspec, predicate is_none *)
+
+(* use option.Option *)
+
+type array [@extraction:array] 'a
+
+function elts [@is_field_id] [@builtin] (array 'a) : int -> 'a
+
+function length1 [@is_field_id] [@builtin] (array 'a) : int
+
+axiom arrayqtinvariant [@extraction:array] :
+  forall self:array 'a [self.length1].
+   [@hyp_name:TypeInvariant] infix_lseq 0 (self.length1)
+
+(* meta model_record function length1 *)
+
+(* meta model_record function elts *)
+
+function mixfix_lbrb1 (a:array 'a) (i:int) : 'a = infix_at (a.elts) i
+
+function mixfix_lblsmnrb1 (array 'a) int 'a : array 'a
+
+axiom mixfix_lblsmnrbqtspecqt0 [@W:non_conservative_extension:N] :
+  forall a:array 'a, i:int, v:'a.
+   [@hyp_name:Ensures] (mixfix_lblsmnrb1 a i v).length1 = a.length1
+
+axiom mixfix_lblsmnrbqtspec [@W:non_conservative_extension:N] :
+  forall a:array 'a, i:int, v:'a.
+   [@hyp_name:Ensures] (mixfix_lblsmnrb1 a i v).elts = set (a.elts) i v
+
+(* meta remove_unused:dependency prop mixfix_lblsmnrbqtspecqt0,
+  function mixfix_lblsmnrb1 *)
+
+(* meta remove_unused:dependency prop mixfix_lblsmnrbqtspec,
+  function mixfix_lblsmnrb1 *)
+
+function make int 'a : array 'a
+
+axiom make_spec [@useraxiom] :
+  forall n:int, v:'a.
+   infix_gteq n 0 ->
+   (forall i:int.
+     infix_lseq 0 i /\ infix_ls i n -> mixfix_lbrb1 (make n v) i = v) /\
+   (make n v).length1 = n
+
+(* use array.Array *)
+
+type hval =
+  | HStr string
+  | HInt int
+  | HArr hval_list
+  | HMap hpairs
+  | HNode hval
+  with hval_list =
+    | HNil
+    | HCons hval hval_list
+  with hpairs =
+    | PNil
+    | PCons string hval hpairs
+
+function hval_iter_get_other hval int : hval
+
+function hval_iter_len_other hval : int
+
+constant pycsl_none : int
+
+function hpairs_key_eq string string : bool
+
+axiom hpairs_key_eqqtspec [@W:non_conservative_extension:N] :
+  forall a:string, b:string.
+   [@hyp_name:Ensures] hpairs_key_eq a b = True <-> a = b
+
+(* meta remove_unused:dependency prop hpairs_key_eqqtspec,
+  function hpairs_key_eq *)
+
+function pairs_get (p1:hpairs) (k1:string) : option hval =
+  match p1 with
+  | PNil -> None: option hval
+  | PCons kqt v t ->
+      if hpairs_key_eq k1 kqt = True then Some v else pairs_get t k1
+  end
+
+function hval_opaque_str hval : string
+
+function hstr_of (h:hval) : string =
+  match h with
+  | HStr s -> s
+  | _ -> hval_opaque_str h
+  end
+
+function hint_of (h:hval) : int = match h with
+  | HInt i -> i
+  | _ -> 0
+  end
+
+function hval_truthy (h:hval) : bool =
+  match h with
+  | HStr s -> if not hpairs_key_eq s ("":string) = True then True else False
+  | HInt i -> if not i = 0 then True else False
+  | HArr l -> match l with
+      | HNil -> False
+      | _ -> True
+      end
+  | HMap p1 -> match p1 with
+      | PNil -> False
+      | _ -> True
+      end
+  | HNode _ -> True
+  end
+
+function hval_list_str_mem (l1:hval_list) (x6:string) : bool =
+  match l1 with
+  | HNil -> False
+  | HCons h t ->
+      if match h with
+      | HStr s -> hpairs_key_eq s x6 = True
+      | _ -> false
+      end then True else hval_list_str_mem t x6
+  end
+
+function hval_str_mem (h:hval) (x6:string) : bool =
+  match h with
+  | HArr l1 -> hval_list_str_mem l1 x6
+  | _ -> False
+  end
+
+function hval_list_len (l2:hval_list) : int =
+  match l2 with
+  | HNil -> 0
+  | HCons _ t -> infix_pl 1 (hval_list_len t)
+  end
+
+function hval_len (h:hval) : int =
+  match h with
+  | HArr l2 -> hval_list_len l2
+  | _ -> 0
+  end
+
+function hval_list_nth (l3:hval_list) (i1:int) : hval =
+  match l3 with
+  | HNil -> HInt 0
+  | HCons x10 t ->
+      if infix_lseq i1 0 then x10 else hval_list_nth t (infix_mn i1 1)
+  end
+
+function hval_nth_str (h:hval) (i1:int) : string =
+  match h with
+  | HArr l3 -> hstr_of (hval_list_nth l3 i1)
+  | _ -> ("":string)
+  end
+
+function hval_values_len (string -> option hval) : int
+
+function hval_values_get (string -> option hval) int : hval
+
+function hval_keys_get (string -> option hval) int : string
+
+function hval_as_map hval : string -> option hval
+
+constant fqtunused [@id:unused] [@introduced] [@model_trace:f] : ref int =
+  Refqtmk 0
+
+constant refqtresultqtunused [@id:unused] [@model_trace:result] [@introduced]
+  [@eid:2685] [@call_result:86:12:86:17:w20_v10.mlw] : ref int = Refqtmk 0
+
+constant HStrqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2716] [@call_result:87:195:87:205:w20_v10.mlw] : hval =
+  HStr ("c":string)
+
+constant PConsqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2719] [@call_result:87:181:87:211:w20_v10.mlw] :
+  hpairs = PCons ("name":string) (HStr ("c":string)) PNil
+
+constant HStrqtresultqtunused1 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2712] [@call_result:87:170:87:180:w20_v10.mlw] : hval =
+  HStr ("z":string)
+
+constant PConsqtresultqtunused1 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2723] [@call_result:87:159:87:212:w20_v10.mlw] :
+  hpairs =
+  PCons ("k":string) (HStr ("z":string))
+  (PCons ("name":string) (HStr ("c":string)) PNil)
+
+constant HMapqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2727] [@call_result:87:153:87:213:w20_v10.mlw] : hval =
+  HMap
+  (PCons ("k":string) (HStr ("z":string))
+   (PCons ("name":string) (HStr ("c":string)) PNil))
+
+constant HConsqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2730] [@call_result:87:146:87:219:w20_v10.mlw] :
+  hval_list =
+  HCons
+  (HMap
+   (PCons ("k":string) (HStr ("z":string))
+    (PCons ("name":string) (HStr ("c":string)) PNil)))
+  HNil
+
+constant HStrqtresultqtunused2 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2697] [@call_result:87:127:87:137:w20_v10.mlw] : hval =
+  HStr ("b":string)
+
+constant PConsqtresultqtunused2 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2700] [@call_result:87:113:87:143:w20_v10.mlw] :
+  hpairs = PCons ("name":string) (HStr ("b":string)) PNil
+
+constant HStrqtresultqtunused3 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2693] [@call_result:87:102:87:112:w20_v10.mlw] : hval =
+  HStr ("y":string)
+
+constant PConsqtresultqtunused3 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2704] [@call_result:87:91:87:144:w20_v10.mlw] :
+  hpairs =
+  PCons ("k":string) (HStr ("y":string))
+  (PCons ("name":string) (HStr ("b":string)) PNil)
+
+constant HMapqtresultqtunused1 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2708] [@call_result:87:85:87:145:w20_v10.mlw] : hval =
+  HMap
+  (PCons ("k":string) (HStr ("y":string))
+   (PCons ("name":string) (HStr ("b":string)) PNil))
+
+constant HConsqtresultqtunused1 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2733] [@call_result:87:78:87:220:w20_v10.mlw] :
+  hval_list =
+  HCons
+  (HMap
+   (PCons ("k":string) (HStr ("y":string))
+    (PCons ("name":string) (HStr ("b":string)) PNil)))
+  (HCons
+   (HMap
+    (PCons ("k":string) (HStr ("z":string))
+     (PCons ("name":string) (HStr ("c":string)) PNil)))
+   HNil)
+
+constant HArrqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2736] [@call_result:87:72:87:221:w20_v10.mlw] : hval =
+  HArr
+  (HCons
+   (HMap
+    (PCons ("k":string) (HStr ("y":string))
+     (PCons ("name":string) (HStr ("b":string)) PNil)))
+   (HCons
+    (HMap
+     (PCons ("k":string) (HStr ("z":string))
+      (PCons ("name":string) (HStr ("c":string)) PNil)))
+    HNil))
+
+constant constqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2688] [@call_result:87:38:87:65:w20_v10.mlw] : string
+  -> option hval = const (None: option hval): string -> option hval
+
+constant map_update_someqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2738] [@call_result:87:21:87:222:w20_v10.mlw] : string
+  -> option hval =
+  set (const (None: option hval): string -> option hval) ("fns":string)
+  (Some
+   (HArr
+    (HCons
+     (HMap
+      (PCons ("k":string) (HStr ("y":string))
+       (PCons ("name":string) (HStr ("b":string)) PNil)))
+     (HCons
+      (HMap
+       (PCons ("k":string) (HStr ("z":string))
+        (PCons ("name":string) (HStr ("c":string)) PNil)))
+      HNil))))
+
+constant py_recqtunused [@id:unused] [@introduced] [@model_trace:py_rec] :
+  ref (string -> option hval) =
+  Refqtmk
+  (set (const (None: option hval): string -> option hval) ("fns":string)
+   (Some
+    (HArr
+     (HCons
+      (HMap
+       (PCons ("k":string) (HStr ("y":string))
+        (PCons ("name":string) (HStr ("b":string)) PNil)))
+      (HCons
+       (HMap
+        (PCons ("k":string) (HStr ("z":string))
+         (PCons ("name":string) (HStr ("c":string)) PNil)))
+       HNil)))))
+
+constant refqtresultqtunused1 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2742] [@call_result:87:17:87:222:w20_v10.mlw] : ref
+  (string -> option hval) =
+  Refqtmk
+  (set (const (None: option hval): string -> option hval) ("fns":string)
+   (Some
+    (HArr
+     (HCons
+      (HMap
+       (PCons ("k":string) (HStr ("y":string))
+        (PCons ("name":string) (HStr ("b":string)) PNil)))
+      (HCons
+       (HMap
+        (PCons ("k":string) (HStr ("z":string))
+         (PCons ("name":string) (HStr ("c":string)) PNil)))
+       HNil)))))
+
+constant prefix_exqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2745] [@call_result:88:37:88:44:w20_v10.mlw] : string
+  -> option hval =
+  set (const (None: option hval): string -> option hval) ("fns":string)
+  (Some
+   (HArr
+    (HCons
+     (HMap
+      (PCons ("k":string) (HStr ("y":string))
+       (PCons ("name":string) (HStr ("b":string)) PNil)))
+     (HCons
+      (HMap
+       (PCons ("k":string) (HStr ("z":string))
+        (PCons ("name":string) (HStr ("c":string)) PNil)))
+      HNil))))
+
+constant getqtresultqtunused [@id:unused] [@model_trace:result] [@introduced]
+  [@eid:2747] [@call_result:88:29:88:50:w20_v10.mlw] : option hval =
+  get
+  (set (const (None: option hval): string -> option hval) ("fns":string)
+   (Some
+    (HArr
+     (HCons
+      (HMap
+       (PCons ("k":string) (HStr ("y":string))
+        (PCons ("name":string) (HStr ("b":string)) PNil)))
+      (HCons
+       (HMap
+        (PCons ("k":string) (HStr ("z":string))
+         (PCons ("name":string) (HStr ("c":string)) PNil)))
+       HNil)))))
+  ("fns":string)
+
+constant ushv_idx_f [@introduced] : hval
+
+constant HArrqtresultqtunused1 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2752] [@call_result:88:82:88:93:w20_v10.mlw] : hval
+
+axiom H8 [@introduced] :
+  [@case_split] [@split_goal: compiled match]
+  match get
+        (set (const (None: option hval): string -> option hval)
+         ("fns":string)
+         (Some
+          (HArr
+           (HCons
+            (HMap
+             (PCons ("k":string) (HStr ("y":string))
+              (PCons ("name":string) (HStr ("b":string)) PNil)))
+            (HCons
+             (HMap
+              (PCons ("k":string) (HStr ("z":string))
+               (PCons ("name":string) (HStr ("c":string)) PNil)))
+             HNil)))))
+        ("fns":string) with
+  | Some x10 -> ushv_idx_f = x10
+  | None -> ushv_idx_f = HArr HNil /\ HArrqtresultqtunused1 = ushv_idx_f
+  end
+
+constant usidx_fqtunused [@id:unused] [@introduced] [@model_trace:_idx_f] :
+  ref int = Refqtmk 0
+
+constant refqtresultqtunused2 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2756] [@call_result:89:19:89:24:w20_v10.mlw] : ref
+  int = Refqtmk 0
+
+constant usidx_f [@introduced] [@loop:w20_v10.mlw:90:6:98:10]
+  [@field:0:contents] : int
+
+constant usidx_fqtunused1 [@id:unused] [@introduced]
+  [@loop:w20_v10.mlw:90:6:98:10] [@model_trace:_idx_f] : ref int =
+  Refqtmk usidx_f
+
+axiom LoopInvariant [@introduced] :
+  [@vc:annotation] [@expl:loop invariant init] [@hyp_name:LoopInvariant]
+  [@loop:w20_v10.mlw:90:6:98:10] infix_lseq 0 usidx_f
+
+constant usidx_fqtunused2 [@id:unused] [@introduced] [@model_trace:_idx_f] :
+  ref int = Refqtmk usidx_f
+
+constant o1 [@mlw:proxy_symbol] [@introduced] : int
+
+constant hval_list_lenqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2762] [@call_result:90:56:90:73:w20_v10.mlw] : int
+
+constant hval_iter_len_otherqtresultqtunused [@id:unused]
+  [@model_trace:result] [@introduced] [@eid:2764]
+  [@call_result:90:81:90:110:w20_v10.mlw] : int
+
+axiom H9 [@introduced] :
+  [@case_split] [@split_goal: compiled match]
+  match ushv_idx_f with
+  | HArr x10 -> o1 = hval_list_len x10 /\ hval_list_lenqtresultqtunused = o1
+  | _ ->
+      o1 = hval_iter_len_other ushv_idx_f /\
+      hval_iter_len_otherqtresultqtunused = o1
+  end
+
+constant prefix_exqtresultqtunused1 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2759] [@call_result:90:12:90:19:w20_v10.mlw] : int =
+  usidx_f
+
+constant infix_lsqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2766] [@call_result:90:12:90:115:w20_v10.mlw] : bool =
+  if infix_ls usidx_f o1 then True else False
+
+axiom H10 [@introduced] : infix_ls usidx_f o1
+
+constant f [@introduced] : hval
+
+constant prefix_exqtresultqtunused2 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2772] [@call_result:93:69:93:76:w20_v10.mlw] : int
+
+constant hval_list_nthqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2773] [@call_result:93:51:93:76:w20_v10.mlw] : hval
+
+constant prefix_exqtresultqtunused3 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2777] [@call_result:93:114:93:121:w20_v10.mlw] : int
+
+constant hval_iter_get_otherqtresultqtunused [@id:unused]
+  [@model_trace:result] [@introduced] [@eid:2778]
+  [@call_result:93:84:93:121:w20_v10.mlw] : hval
+
+axiom H11 [@introduced] :
+  [@case_split] [@split_goal: compiled match]
+  match ushv_idx_f with
+  | HArr x10 ->
+      prefix_exqtresultqtunused2 = usidx_f /\
+      f = hval_list_nth x10 usidx_f /\ hval_list_nthqtresultqtunused = f
+  | _ ->
+      prefix_exqtresultqtunused3 = usidx_f /\
+      f = hval_iter_get_other ushv_idx_f usidx_f /\
+      hval_iter_get_otherqtresultqtunused = f
+  end
+
+constant o4 [@mlw:proxy_symbol] [@introduced] : bool
+
+constant o2 [@mlw:proxy_symbol] [@introduced] : option hval
+
+constant pairs_getqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2796] [@call_result:94:45:94:63:w20_v10.mlw] : option
+  hval
+
+constant hpairs_key_eqqtresultqtunused2 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2800] [@call_result:94:86:94:105:w20_v10.mlw] : bool
+
+axiom H12 [@introduced] :
+  [@case_split] [@split_goal: compiled match]
+  match f with
+  | HMap x10 ->
+      o2 = pairs_get x10 ("k":string) /\
+      pairs_getqtresultqtunused = o2 /\
+      ([@case_split] [@split_goal: compiled match]
+       match o2 with
+       | Some x11 ->
+           [@split_goal: compiled match]
+           match x11 with
+           | HStr x12 ->
+               o4 = hpairs_key_eq x12 ("z":string) /\
+               ([@stop_split] [@vc:annotation] [@expl:postcondition]
+                [@hyp_name:Ensures] o4 = True <-> x12 = ("z":string)) /\
+               hpairs_key_eqqtresultqtunused2 = o4
+           | _ -> o4 = False
+           end
+       | _ -> o4 = False
+       end)
+  | _ -> o4 = False
+  end
+
+axiom H14 [@introduced] : not o4 = True
+
+constant prefix_exqtresultqtunused4 [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2807] [@call_result:97:18:97:25:w20_v10.mlw] : int =
+  usidx_f
+
+constant infix_plqtresultqtunused [@id:unused] [@model_trace:result]
+  [@introduced] [@eid:2809] [@call_result:97:18:97:29:w20_v10.mlw] : int =
+  infix_pl usidx_f 1
+
+constant usidx_f1 [@introduced] [@field:0:contents] : int
+
+constant usidx_fqtunused3 [@id:unused] [@introduced] [@model_trace:_idx_f] :
+  ref int = Refqtmk usidx_f1
+
+axiom Ensures1 [@introduced] :
+  [@vc:annotation] [@expl:postcondition] [@hyp_name:Ensures]
+  usidx_f1 = infix_pl usidx_f 1
+
+(* meta syntax_type type int, "int", 0 *)
+
+(* meta syntax_type type real, "real", 0 *)
+
+(* meta syntax_logic predicate infix_eq, "(%1 = %2)", 0 *)
+
+(* meta encoding:ignore_polymorphism_ls predicate infix_eq *)
+
+goal find_lastqtvc [@expl:VC for find_last] :
+  [@vc:annotation] [@expl:loop variant decrease] [@hyp_name:Variant]
+  [@loop:w20_v10.mlw:90:6:98:10]
+  infix_lseq 0
+  ([@hyp_name:Variant]
+   infix_mn
+   match ushv_idx_f with
+   | HArr ushl -> hval_list_len ushl
+   | _ -> hval_iter_len_other ushv_idx_f
+   end usidx_f) /\
+  infix_ls
+  ([@hyp_name:Variant]
+   infix_mn
+   match ushv_idx_f with
+   | HArr ushl -> hval_list_len ushl
+   | _ -> hval_iter_len_other ushv_idx_f
+   end usidx_f1)
+  ([@hyp_name:Variant]
+   infix_mn
+   match ushv_idx_f with
+   | HArr ushl -> hval_list_len ushl
+   | _ -> hval_iter_len_other ushv_idx_f
+   end usidx_f)
+
+end

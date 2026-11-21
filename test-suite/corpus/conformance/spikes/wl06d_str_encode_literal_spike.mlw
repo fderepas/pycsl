@@ -1,0 +1,59 @@
+(* WL-06d SMT-feasibility spike. Two independent laws:
+
+   (P1-literal) str-literal `.encode()` content law. An ASCII string LITERAL
+   "abc".encode() lowers to the array-int literal [97,98,99] (the code points),
+   EXACTLY like a bytes literal (WL-06b). So the exact byte-content read PROVES
+   (b[0]=97,b[1]=98,b[2]=99), the byte-RANGE invariant 0<=b[i]<256 is derivable
+   (no axiom), and a FALSE content claim (b[0]=98) is NOT provable.
+
+   (P3) bytes/bytearray([...]) constructor ValueError-as-precondition. Python
+   `bytes([v])` raises ValueError if v is outside [0,256). Modelled as a REQUIRES
+   on the constructor `bytes_new`: an in-range source discharges (content law
+   holds); an out-of-range source does NOT discharge (fail-closed).
+
+   Native `array int` construction/read — must discharge on Alt-Ergo AND Z3. *)
+module Wl06dStrEncodeLiteral
+  use int.Int
+  use array.Array
+
+  (* --- "abc".encode() -> [97,98,99]: ascii content read + range --- *)
+  let test_ascii_encode ()
+    ensures { result = 97 }
+  = let b = (let _a = Array.make 3 97 in _a[1] <- 98; _a[2] <- 99; _a) in
+    assert { b[0] = 97 };
+    assert { b[1] = 98 };
+    assert { b[2] = 99 };
+    assert { forall i. 0 <= i < Array.length b -> 0 <= b[i] < 256 };
+    assert { not (b[0] = b[1]) };
+    b[0]
+
+  (* --- P3: constructor with the in-range range-precondition discharged --- *)
+  val bytes_new (x: array int) : array int
+    requires { forall i:int. 0 <= i < Array.length x -> 0 <= x[i] < 256 }
+    ensures  { Array.length result = Array.length x }
+    ensures  { forall i:int. 0 <= i < Array.length x -> result[i] = x[i] }
+
+  let test_ctor_inrange ()
+    ensures { result = 65 }
+  = (* bytes([65,66,67]) — literal source is in range, requires discharges *)
+    let src = (let _a = Array.make 3 65 in _a[1] <- 66; _a[2] <- 67; _a) in
+    let b = bytes_new src in
+    b[0]
+end
+
+(* SOUNDNESS floor: these goals must NOT be Valid (they are FALSE of real Python).
+   Run with the SAME provers; a Valid here is a severity-1 regression. *)
+module Wl06dFalseTwins
+  use int.Int
+  use array.Array
+
+  (* FALSE: for the "abc" encode-literal, cell 0 is 'a'=97, so claiming it is 98
+     is NOT derivable (hypotheses pin a[0]=97; the conclusion a[0]=98 contradicts). *)
+  goal g_encode_false :
+    forall a: array int.
+      Array.length a = 3 -> a[0] = 97 -> a[1] = 98 -> a[2] = 99 -> a[0] = 98
+
+  (* FALSE: 300 is not a valid byte; bytes([300]) raises ValueError, so the
+     `bytes_new` precondition on a 300-valued cell cannot be discharged. *)
+  goal g_ctor_oor_false : 0 <= 300 /\ 300 < 256
+end

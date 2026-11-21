@@ -1,0 +1,6 @@
+OK   src/self-annotate/src/core_ir_semantic.py  (1506 goals)
+OK   src/self-annotate/src/frontend/ir_resolve.py  (792 goals)
+OK   src/self-annotate/src/frontend/__init__.py  (683 goals)
+OK   src/self-annotate/src/pycsl.py  (731 goals)
+OK   src/self-annotate/src/frontend/Module5_IREmitter.py  (1198 goals)
+ALLDONE

@@ -1,0 +1,29 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt29/k17_dict_values_loop.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_4igg_enn.mlw", line 31, characters 18-30:
+Sub-goal loop invariant init of goal g'vc.
+Prover result is: Valid (0.00s, 279 steps).
+
+File "/tmp/.pycsl_4igg_enn.mlw", line 32, characters 16-36:
+Sub-goal loop variant decrease of goal g'vc.
+Prover result is: Valid (0.01s, 3421 steps).
+
+File "/tmp/.pycsl_4igg_enn.mlw", line 31, characters 18-30:
+Sub-goal loop invariant preservation of goal g'vc.
+Prover result is: Valid (0.00s, 3579 steps).
+
+File "/tmp/.pycsl_4igg_enn.mlw", line 25, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 297 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_4igg_enn.mlw", line 34, characters 10-11: unused variable s
+Warning, file "/tmp/.pycsl_4igg_enn.mlw", line 33, characters 10-11: unused variable v
+Warning, file "/tmp/.pycsl_4igg_enn.mlw", line 27, characters 8-9: unused variable v
+Warning, file "/tmp/.pycsl_4igg_enn.mlw", line 24, characters 9-10: unused variable m
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

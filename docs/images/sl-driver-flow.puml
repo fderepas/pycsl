@@ -1,0 +1,75 @@
+@startuml sl-driver-flow
+' Driver SL: the Phase-1 drain / Phase-2 break cycle + gates W→R→P→S→B/C
+skinparam backgroundColor #FDFDFD
+skinparam defaultFontName Helvetica
+skinparam shadowing false
+skinparam ActivityBorderColor #888888
+skinparam ActivityBackgroundColor #F4F8FF
+skinparam ActivityDiamondBackgroundColor #FFF6D6
+skinparam ArrowColor #555555
+
+title self-tcb-reduction-driver — DRAIN CHEAP FIRST, then break ONE wall (gates W · R · P · S · B/C)
+
+start
+partition "PHASE 1 — DRAIN (default)" {
+  repeat
+    :run the BASE LOOP as a sub-agent (non-interactive):
+    "convert the next stub your triage rates cheap_win==true";
+    if (cheap stub converted?) then (yes)
+      :driver-verifier re-checks the 3 L-planes;
+      :COMMIT the increment;
+    else (no_cheap_remaining)
+    endif
+  repeat while (base loop returned a cheap stub?) is (yes) not (no_cheap_remaining)
+}
+
+partition "PHASE 2 — BREAK ONE WALL" {
+  if (Gate W: attempts>=budget AND cheap_win==false\nAND not already CERTIFIED-BOUNDARY AND cheap queue empty?) then (no)
+    :base loop handles it inline / skip;
+    stop
+  else (ESCALATE — name the wall XXX)
+  endif
+
+  :report-author -> XXX.md  (self-contained SOTA statement);
+
+  :fable reviewer (independent, sub-loop-blind) -> XXX-response.md;
+  if (Gate R: authored blind to sub-loop\nAND cites >=1 ORACLE ARTIFACT?) then (no)
+    :REJECT as rubber-stamp -> re-spawn fable;
+    stop
+  else (accept)
+  endif
+
+  :impl-planner -> XXX-impl.md;
+  if (Gate P: FIRST action is a make-or-break spike\nWITH a refutation exit + 3-L battery + costed scope?) then (no)
+    :REJECT build-first plan -> re-plan;
+    stop
+  else (accept)
+  endif
+
+  :executor(s) run XXX-impl.md (no commit);
+
+  if (Gate S — run the make-or-break spike) then (REFUTE)
+    :CERTIFIED-BOUNDARY
+    (record report+response+impl+spike,
+    \trusted UNCHANGED, wall recorded);
+  elseif (REFINE) then
+    :re-plan the residual (do not sprawl);
+    stop
+  else (PASS)
+    :BUILD the increment;
+    if (Gate B: 3 L-planes FRESH AND ledger==3 AND count down AND no smuggle?\nGate C: no-blend AND non-vacuity AND section-10.4 re-port?) then (fail)
+      :REVERT to clean -> record a gap;
+      stop
+    else (pass)
+      :BROKEN
+      (commit conversions, \trusted DOWN);
+    endif
+  endif
+
+  :Gate S-lesson -> wall-lessons.md
+  (trigger/validity test -> PASS or CARVE-OUT, never keep-whole);
+}
+:RETURN to Phase 1
+(a BROKEN wall may unlock new cheap stubs);
+stop
+@enduml

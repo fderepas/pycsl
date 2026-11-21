@@ -1,0 +1,11 @@
+part 3/4 done: 2435 root, 2192 pyref so far
+rc=0
+[!]   GONE 4694_gen37_r349_ctl_explicit_hash.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 4694_gen37_r349_ctl_explicit_hash.
+[!]   GONE 4940_gen37_r364_ctl_eq_and_hash_defs.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 4940_gen37_r364_ctl_eq_and_hash_defs.
+[!]   GONE 5043_gen37_r371_ctl_mro_first_hash_wins.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 5043_gen37_r371_ctl_mro_first_hash_wins.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 2438 baseline / 2435 candidate .mlw; 0 MOVED (0 unexpected), 3 GONE (3 unexpected), 0 APPEARED.
+[*] byte-diff-compare: 2192 baseline / 2192 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+
+[exited with code 0]

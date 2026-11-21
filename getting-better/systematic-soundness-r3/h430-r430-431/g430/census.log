@@ -1,0 +1,20 @@
+new 9
+NEW 6460_r430_claimed_caller_unclaimed_hash_callee.py REFUSAL `h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element
+NEW 6461_r430_claimed_caller_transitive.py REFUSAL `mid(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set eleme
+NEW 6462_r430_claimed_caller_membership_callee.py REFUSAL `h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element
+NEW 6470_rgate_set_display_get_under_claim.py REFUSAL [ir-semantic]: 'f' line 10: `m.get('a')` is HASHED by `{m.get('a')}` (a set element, a dict key, a membership 
+NEW 6471_rgate_set_add_get_under_claim.py REFUSAL [ir-semantic]: 'g' line 10: `f2.get('name')` is HASHED by `seen.add(f2.get('name'))` (a set element, a dict ke
+NEW 6472_rgate_local_from_get_under_claim.py REFUSAL [ir-semantic]: 'h' line 11: `v` is HASHED by `{v}` (a set element, a dict key, a membership test or subscript 
+NEW 6473_rgate_loop_set_add_under_claim.py REFUSAL [ir-semantic]: 'names' line 12: `f.get('name')` is HASHED by `seen.add(f.get('name'))` (a set element, a dict 
+NEW 6474_rgate_values_in_set_under_claim.py REFUSAL [ir-semantic]: 'f' line 11: `v` is HASHED by `v in seen` (a set element, a dict key, a membership test or subs
+NEW 6475_rgate_dict_key_get_under_claim.py REFUSAL [ir-semantic]: 'f' line 10: `m.get('a')` is HASHED by `{m.get('a'): 1}` (a set element, a dict key, a membersh
+OLD 5069_gen37_r375_star_set_erased.py	VERIFY-FAIL	
+NEW 5069_gen37_r375_star_set_erased.py	REFUSAL	[ir-semantic]: 'm' line 7: `*self` is HASHED by `{*self}` (a set element, a dict key, a membership test or subscript 
+OLD 3341_gen37_r287_sorted_key_dict_subscript.py	REFUSAL	a lambda's body contains a subscript (IndexError / KeyError), and this function claims (or, through an exce
+NEW 3341_gen37_r287_sorted_key_dict_subscript.py	REFUSAL	[ir-semantic]: 'f' line 10: `v` is HASHED by `d[v]` (a set element, a dict key, a membership test or subscr
+OLD 3342_gen37_r287_sorted_key_list_subscript.py	REFUSAL	a lambda's body contains a subscript (IndexError / KeyError), and this function claims (or, through an exce
+NEW 3342_gen37_r287_sorted_key_list_subscript.py	REFUSAL	[ir-semantic]: 'f' line 10: `v` is HASHED by `xs[v]` (a set element, a dict key, a membership test or subsc
+OLD 5069_gen37_r375_star_set_erased.py	REFUSAL	[ir-semantic]: 'm' line 7: `*self` is HASHED by `{*self}` (a set element, a dict key, a membership test or subscript 
+NEW 5069_gen37_r375_star_set_erased.py	REFUSAL	[ir-semantic]: 'm' line 7: `*self` is HASHED by `{*self}` (a set element, a dict key, a membership test or subscript 
+OLD 6462_r430_claimed_caller_membership_callee.py	REFUSAL	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set ele
+NEW 6462_r430_claimed_caller_membership_callee.py	REFUSAL	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set ele

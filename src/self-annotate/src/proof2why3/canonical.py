@@ -8,103 +8,394 @@ the source. The mirror-check gate enforces signature parity.
 from __future__ import annotations
 from typing import Dict, List, Tuple
 from proof2why3.ir import App, BinOp, BoolLit, Exists, Forall, IntLit, Term, UnaryOp, Unsupported, Var, flatten_arrow_chain, mk_arrow_chain
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def substitute(t: Term, mapping: int) -> Term:
-    return None
+def substitute(t: Term, mapping: Dict[str, str]) -> Term:
+    if isinstance(t, Var):
+        return Var(mapping.get(t.name, t.name))
+    if isinstance(t, (IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(
+            head=mapping.get(t.head, t.head),
+            args=tuple(substitute(a, mapping) for a in t.args),
+        )
+    if isinstance(t, BinOp):
+        return BinOp(t.op, substitute(t.lhs, mapping), substitute(t.rhs, mapping))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, substitute(t.arg, mapping))
+    if isinstance(t, (Forall, Exists)):
+        # Restrict mapping: bound binders shadow it.
+        inner_map = {k: v for k, v in mapping.items() if k not in t.binders}
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty,
+                    body=substitute(t.body, inner_map))
+    raise TypeError(f"substitute: unknown {type(t)}")
 
 _NAT_TYPES = {'nat', 'Nat'}
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _expand_nat_to_int(t: Term) -> Term:
-    return None
+    if isinstance(t, Forall):
+        new_body = _expand_nat_to_int(t.body)
+        if t.ty in _NAT_TYPES:
+            side: List[Term] = [
+                BinOp(">=", Var(b), IntLit(0)) for b in t.binders
+            ]
+            conclusion_with_side = mk_arrow_chain(side, new_body)
+            return Forall(binders=t.binders, ty="int",
+                          body=conclusion_with_side)
+        return Forall(binders=t.binders, ty=t.ty, body=new_body)
+    if isinstance(t, Exists):
+        new_body = _expand_nat_to_int(t.body)
+        if t.ty in _NAT_TYPES:
+            return Exists(binders=t.binders, ty="int", body=new_body)
+        return Exists(binders=t.binders, ty=t.ty, body=new_body)
+    if isinstance(t, App):
+        return App(head=t.head, args=tuple(_expand_nat_to_int(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _expand_nat_to_int(t.lhs), _expand_nat_to_int(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _expand_nat_to_int(t.arg))
+    return t
 
-#@ \trusted reviewer: pycsl-self-annotate
-#@ requires True
+#@ requires len(counter) >= 1
 #@ ensures True
-#@ assigns \nothing
+#@ assigns counter
 def _alpha_rename(t: Term, counter: List[int]) -> Term:
-    return None
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_alpha_rename(a, counter) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op,
+                     _alpha_rename(t.lhs, counter),
+                     _alpha_rename(t.rhs, counter))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _alpha_rename(t.arg, counter))
+    if isinstance(t, (Forall, Exists)):
+        # Assign fresh names to this binder group.
+        new_names = []
+        mapping: Dict[str, str] = {}
+        for old in t.binders:
+            new = f"v{counter[0]}"
+            counter[0] += 1
+            new_names.append(new)
+            mapping[old] = new
+        renamed_body = substitute(t.body, mapping)
+        renamed_body = _alpha_rename(renamed_body, counter)
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=tuple(new_names), ty=t.ty, body=renamed_body)
+    raise TypeError(f"_alpha_rename: unknown {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def alpha_normalize(t: Term) -> Term:
-    return None
+    """Alpha-rename all bound variables to v0, v1, … left-to-right.
+    Top-level entry that initializes the counter."""
+    counter = [0]
+    return _alpha_rename(t, counter)
 
 _FLIP_COMPARISON = {'<=': '>=', '<': '>'}
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _flip_comparisons(t: Term) -> Term:
-    return None
+    """Rewrite `a <= b` → `b >= a` and `a < b` → `b > a` recursively."""
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_flip_comparisons(a) for a in t.args))
+    if isinstance(t, BinOp):
+        if t.op in _FLIP_COMPARISON:
+            return BinOp(
+                _FLIP_COMPARISON[t.op],
+                _flip_comparisons(t.rhs),
+                _flip_comparisons(t.lhs),
+            )
+        return BinOp(t.op, _flip_comparisons(t.lhs), _flip_comparisons(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _flip_comparisons(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty, body=_flip_comparisons(t.body))
+    raise TypeError(f"_flip_comparisons: unknown {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _dedup_arrow_chain(t: Term) -> Term:
-    return None
+    if isinstance(t, BinOp) and t.op == "->":
+        hyps, conclusion = flatten_arrow_chain(t)
+        seen: List[Term] = []
+        for h in hyps:
+            recursed = _dedup_arrow_chain(h)
+            if recursed not in seen:
+                seen.append(recursed)
+        return mk_arrow_chain(seen, _dedup_arrow_chain(conclusion))
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_dedup_arrow_chain(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _dedup_arrow_chain(t.lhs), _dedup_arrow_chain(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _dedup_arrow_chain(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty, body=_dedup_arrow_chain(t.body))
+    raise TypeError(f"_dedup_arrow_chain: unknown {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _ac_normalize(t: Term) -> Term:
-    return None
+    if isinstance(t, BinOp) and t.op in (r"\/", r"/\\"):
+        # Collect all conjuncts/disjuncts at this level.
+        operands: List[Term] = []
 
-#@ \trusted reviewer: pycsl-self-annotate
+        def collect(node: Term) -> None:
+            if isinstance(node, BinOp) and node.op == t.op:
+                collect(node.lhs)
+                collect(node.rhs)
+            else:
+                operands.append(_ac_normalize(node))
+
+        collect(t)
+        operands_sorted = sorted(operands, key=lambda x: x.pp())
+        # Re-fold as right-leaning chain so structural equality holds.
+        out = operands_sorted[-1]
+        for o in reversed(operands_sorted[:-1]):
+            out = BinOp(t.op, o, out)
+        return out
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head, args=tuple(_ac_normalize(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _ac_normalize(t.lhs), _ac_normalize(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _ac_normalize(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty, body=_ac_normalize(t.body))
+    raise TypeError(f"_ac_normalize: unknown {type(t)}")
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _sort_arrow_hypotheses(t: Term) -> Term:
-    return None
+    if isinstance(t, BinOp) and t.op == "->":
+        hyps, conclusion = flatten_arrow_chain(t)
+        hyps_normalized = [_sort_arrow_hypotheses(h) for h in hyps]
+        conclusion_normalized = _sort_arrow_hypotheses(conclusion)
+        # NOTE: we DON'T sort here because sorting changes the meaning
+        # of dependent hypotheses (e.g., `b > 0 -> mod a b = 0` —
+        # the order matters if `mod a b` requires `b != 0`).
+        # For first-order Hoare contracts the order is usually
+        # independent, but we'd need a dependency analysis to confirm.
+        # Keep source order for v1.
+        return mk_arrow_chain(hyps_normalized, conclusion_normalized)
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_sort_arrow_hypotheses(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _sort_arrow_hypotheses(t.lhs),
+                     _sort_arrow_hypotheses(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _sort_arrow_hypotheses(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty,
+                    body=_sort_arrow_hypotheses(t.body))
+    raise TypeError(f"_sort_arrow_hypotheses: unknown {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _flatten_foralls(t: Term) -> Term:
-    return None
+    if isinstance(t, Forall):
+        new_body = _flatten_foralls(t.body)
+        # Walk through any leading arrow chain hyps, gathering them
+        # alongside subsequent Foralls of the same type.
+        binders = list(t.binders)
+        cur = new_body
+        gathered_hyps: List[Term] = []
+        while True:
+            if isinstance(cur, Forall) and cur.ty == t.ty:
+                # Fold this binder in.
+                binders.extend(cur.binders)
+                cur = cur.body
+                continue
+            if isinstance(cur, BinOp) and cur.op == "->":
+                # Look ahead: is there another same-type Forall later?
+                # If yes, gather this hypothesis; the binder dependency
+                # is independent (gcd-family assumption).
+                inner = cur.rhs
+                while isinstance(inner, BinOp) and inner.op == "->":
+                    inner = inner.rhs
+                if isinstance(inner, Forall) and inner.ty == t.ty:
+                    # The hypotheses bind to v0; they stay where they
+                    # are. Continue scanning past them.
+                    gathered_hyps.append(cur.lhs)
+                    cur = cur.rhs
+                    continue
+            break
+        # Re-emit: forall binders : ty, hyps -> ... -> remaining body.
+        body_out = cur
+        if gathered_hyps:
+            body_out = mk_arrow_chain(gathered_hyps, cur)
+        return Forall(binders=tuple(binders), ty=t.ty, body=body_out)
+    if isinstance(t, Exists):
+        return Exists(binders=t.binders, ty=t.ty,
+                      body=_flatten_foralls(t.body))
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_flatten_foralls(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _flatten_foralls(t.lhs), _flatten_foralls(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _flatten_foralls(t.arg))
+    raise TypeError(f"_flatten_foralls: unknown {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _camel_to_snake(name: str) -> str:
-    return ""
+    """Convert camelCase / PascalCase identifier to snake_case.
 
-#@ \trusted reviewer: pycsl-self-annotate
+    Used for cross-prover name normalization: Lean's `wpGenCorrect`
+    canonicalizes to the same `wp_gen_correct` as Rocq's snake_case.
+    """
+    import re as _re
+    # Insert underscore before any uppercase letter that follows a
+    # lowercase or digit.
+    s = _re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
+    # And before uppercase letter that's followed by lowercase.
+    s = _re.sub(r"([A-Z])([A-Z][a-z])", r"\1_\2", s)
+    return s.lower()
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _normalize_names(t: Term) -> Term:
-    return None
+    if isinstance(t, Var):
+        return Var(_camel_to_snake(t.name))
+    if isinstance(t, (IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=_camel_to_snake(t.head),
+                   args=tuple(_normalize_names(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _normalize_names(t.lhs), _normalize_names(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _normalize_names(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        # Normalize binder names too (consistent with Var refs in the
+        # body). Lean's `preEs` → `pre_es`, etc. Without this the body's
+        # Vars and the binders would have mismatched casing after
+        # alpha_normalize is skipped on the type string side.
+        new_binders = tuple(_camel_to_snake(b) for b in t.binders)
+        # Substitute the renamed binders into the body so Var refs match.
+        mapping = {old: new for old, new in zip(t.binders, new_binders)
+                   if old != new}
+        body_renamed = substitute(t.body, mapping) if mapping else t.body
+        ty_normalized = _normalize_type_string(t.ty)
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=new_binders, ty=ty_normalized,
+                     body=_normalize_names(body_renamed))
+    raise TypeError(f"_normalize_names: unknown {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _normalize_type_string(ty: str) -> str:
-    return ""
+    if ty in ("int", "nat", "Prop", "Type", "Bool", "bool"):
+        return ty  # base types stay as-is
+    low = ty.strip().lower()
+    # Integer-like base types unify to `int` (Rocq `Z`, Lean `Int`).
+    # `nat`/`Nat` is intentionally NOT mapped here — `_expand_nat_to_int`
+    # handles it earlier (adding `>= 0` side conditions).
+    if low in ("z", "integer"):
+        return "int"
+    # Sequence-like types unify to `seq` (Rocq `list T`, Lean `List T`,
+    # WhyML `array int`) — the element type is irrelevant to the
+    # round-trip statement's shape.
+    head = low.split()[0] if low.split() else low
+    if head in ("list", "array", "seq"):
+        return "seq"
+    import re as _re
+    # Walk the string, lowercasing each identifier token; preserve
+    # operator/paren punctuation.
+    out_parts = []
+    for token in _re.split(r"(\W+)", ty):
+        if token and token[0].isalpha():
+            out_parts.append(_camel_to_snake(token))
+        else:
+            out_parts.append(token)
+    return "".join(out_parts)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _iff_app_to_binop(t: Term) -> Term:
-    return None
+    if isinstance(t, App) and t.head == "iff" and len(t.args) == 2:
+        return BinOp("iff", _iff_app_to_binop(t.args[0]),
+                     _iff_app_to_binop(t.args[1]))
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_iff_app_to_binop(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _iff_app_to_binop(t.lhs),
+                     _iff_app_to_binop(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _iff_app_to_binop(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty,
+                     body=_iff_app_to_binop(t.body))
+    raise TypeError(f"_iff_app_to_binop: unknown {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
+# TERM CARRIER, MODULE-LEVEL (self-tcb-reduction, relaunch #17): CONVERTED, and FULLY
+# FAITHFUL. Verbatim body port of the LIVE `canonicalize`. The `val` it replaces was
+# `val canonicalize (t: int) : int` — BOTH ends erased — even though this file already
+# carries the certified 9-constructor `term` inductive and proves `_flip_comparisons`
+# and `alpha_normalize` over it. What blocked it was not the value model: the `-> Term`
+# type carrier existed but was TRIPLE-gated, and one of its gates was `@mutable_state`
+# CLASS membership, which a plain module-level function can never satisfy. The emitted
+# body is now `let canonicalize (t: term) : term`, the guard is the REAL constructor
+# discriminant `(match t with Unsupported _ _ -> true | _ -> false end)`, and every
+# pipeline step is a real application over `term`. Nothing is erased.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def canonicalize(t: Term) -> Term:
-    return None
+    """Apply the full canonicalization pipeline to a Term.
+
+    Idempotent: a second call returns the same Term."""
+    if isinstance(t, Unsupported):
+        return t
+    out = t
+    out = _expand_nat_to_int(out)
+    out = _flatten_foralls(out)
+    out = _flip_comparisons(out)
+    out = _dedup_arrow_chain(out)
+    out = _ac_normalize(out)
+    out = _sort_arrow_hypotheses(out)
+    out = _iff_app_to_binop(out)
+    out = _normalize_names(out)
+    out = alpha_normalize(out)
+    return out
 

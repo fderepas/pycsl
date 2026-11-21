@@ -1,0 +1,285 @@
+diff --git a/src/pycsl/frontend/Module5_IREmitter.py b/src/pycsl/frontend/Module5_IREmitter.py
+index d0b7a0dd..76af44cf 100644
+--- a/src/pycsl/frontend/Module5_IREmitter.py
++++ b/src/pycsl/frontend/Module5_IREmitter.py
+@@ -3477,9 +3477,6 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+             return False
+         if node.name.startswith('__') and node.name.endswith('__'):
+             return True
+-        if any(isinstance(d, ast.Name) and d.id == 'property'
+-               for d in node.decorator_list):
+-            return True
+         return False
+ 
+     # --- refactor.md B-final wedge: Module5 builds the IR symbol_table itself ---
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 8ba603e4..60dd31e9 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -5024,6 +5024,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                 _ob = _ob.get("name")
+             if _fn in _raf and _ob == "self":
+                 return f"(Array.length {args[0]})"
++        # relaunch #16: `len(self.<f>)` where `<f>` is a STRING-ELEMENT list field
++        # (`array string`, e.g. `StructFormat.slots`) is the ARRAY length — the opaque
++        # `iter_length : int -> int` fallback mistypes against it. Same shape as the
++        # W8/W1 `_record_array_fields` branch above; `_str_array_record_fields` is
++        # populated only for such a field -> corpus byte-inert.
++        _sarf = getattr(self, "_str_array_record_fields", None)
++        if _sarf and atype in ("FieldGet", "Attribute"):
++            _sfn = arg_ir.get("field") or arg_ir.get("attr")
++            _sob = arg_ir.get("object") or arg_ir.get("value")
++            if isinstance(_sob, dict):
++                _sob = _sob.get("name")
++            if _sfn in _sarf and _sob == "self":
++                return f"(Array.length {args[0]})"
+         _a2d = getattr(self, "_array2d_params", set())
+         if atype == "Var" and arg_ir.get("name") in _a2d:
+             return f"({arg_ir['name']}.rows)"
+diff --git a/src/pycsl/module6_whyml/functions.py b/src/pycsl/module6_whyml/functions.py
+index 5c1479e5..26edc45a 100644
+--- a/src/pycsl/module6_whyml/functions.py
++++ b/src/pycsl/module6_whyml/functions.py
+@@ -2774,19 +2774,18 @@ class FunctionEmissionMixin:
+                     return False
+                 if node.name.startswith('__') and node.name.endswith('__'):
+                     return True
+-                if any(isinstance(d, ast.Name) and d.id == 'property'
+-                       for d in node.decorator_list):
+-                    return True
+                 return False
+ 
+         The dunder test lowers to the FAITHFUL `str_startswith_op`/`str_endswith_op`
+         (substring-based ensures) over `func_name_ast node` — the accessor APPLIED TO the
+-        node, NOT a node-free hashed stub. The `@property` decorator existence test lowers
+-        to the CONCRETE `decorator_has_name_prog "property" (func_decorator_list_ast node)`
+-        fold (a decorator matches iff it is a Name whose head name = "property", reusing
+-        is_var/name_of). `self._current_class` truthiness -> the opaque `m5_current_class_
+-        present` abstract reader (a sound abstraction of genuine instance state, like
+-        symtab_mem). isinstance_op = 0, `assigns \nothing` (pure bool). Corpus-inert."""
++        node, NOT a node-free hashed stub. `self._current_class` truthiness -> the opaque
++        `m5_current_class_present` abstract reader (a sound abstraction of genuine instance
++        state, like symtab_mem). `assigns \nothing` (pure bool). Corpus-inert.
++
++        `@property` SUPPORT (relaunch #16): the decorator-existence disjunct is GONE from
++        BOTH producers — the live/mirror source AND this synthesized body (lesson (am):
++        a SYNTHESIZED body is a second producer, and editing only the source leaves the
++        emitted theory silently stating the OLD behaviour)."""
+         name = whyml_ident(func["name"])
+         cls = whyml_ident(func["self_type"].lower())
+         self._add_abstract_op(
+@@ -2810,8 +2809,6 @@ class FunctionEmissionMixin:
+             "    if not m5_current_class_present then false",
+             "    else if (str_startswith_op (func_name_ast node) \"__\" = 1)"
+             " && (str_endswith_op (func_name_ast node) \"__\" = 1) then true",
+-            "    else if decorator_has_name_prog \"property\""
+-            " (func_decorator_list_ast node) then true",
+             "    else false",
+         ]
+ 
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index 9d219796..11eae523 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -1840,6 +1840,17 @@ class PreambleEmissionMixin:
+                 # array emit_ir`) → needs Array. Byte-inert (`_uses_tparam` False
+                 # for the whole corpus).
+                 or self._uses_tparam()
++                # relaunch #16: a STRING-ELEMENT LIST FIELD (`StructFormat.slots:
++                # List[str]`) lowers to `array string` in the record type decl, which is
++                # emitted whether or not any BODY uses an array op — so the `use
++                # array.Array` must be pulled from the FIELD, not only from the bodies.
++                # Without it the record decl itself is `unbound type symbol 'array'`.
++                # Exactly the condition the field-type branch uses -> corpus byte-inert
++                # (measured 0 of 813; no reference program declares such a field).
++                or any(_fd.get("type") in ("list", "tuple")
++                       and _fd.get("value_type") == "string"
++                       for _td in (self.ir.get("type_decls", []) or [])
++                       for _fd in (_td.get("fields", []) or []))
+             )
+         else:
+             needs_array = False
+@@ -2032,7 +2043,16 @@ class PreambleEmissionMixin:
+           or any(f.get("vararg_str_param") for f in functions) \
+           or bool(getattr(self, "_module_str_list_constants", None)) \
+           or any(self._body_uses_str_literal_for(body) for body in all_bodies) \
+-          or self._uses_stmt_ir()
++          or self._uses_stmt_ir() \
++          or any(_fd.get("type") in ("list", "tuple")
++                 and _fd.get("value_type") == "string"
++                 for _td in (self.ir.get("type_decls", []) or [])
++                 for _fd in (_td.get("fields", []) or []))
++        # ^ relaunch #16: a STRING-ELEMENT LIST FIELD is `array string` — or, on a record
++        #   PINNED as a list ELEMENT (Why3 forbids a mutable field inside `array`),
++        #   `seq string`. Either way the record decl itself needs the theory in scope, and
++        #   the decl is emitted whether or not any BODY touches a seq. Same condition as
++        #   the field-type branch and the `needs_array` disjunct -> corpus byte-inert.
+         # ^ faithful for-over-literal (self-tcb-reduction): a `for k in ("body", "orelse")`
+         #   / `for p in <str-literal local>` loop materialises a `seq string` (Seq.cons/get/
+         #   length), so `use seq.Seq` must be present. Scoped to the SAME all-string-literal
+@@ -8574,8 +8594,17 @@ class PreambleEmissionMixin:
+                             self._pyval_seq_fields.add(f["name"])
+                             self._pyval_seq_append_targets.add(
+                                 ("self." + f["name"]).replace(".", "_"))
++                        # i-feel-good.md I-E, WIDENED (relaunch #16): a `List[str]` field is
++                        # `array string` in EVERY module, not only a @mutable_state /
++                        # IR-node one. The narrower gate left `StructFormat.slots`
++                        # (`List[str]`, the per-slot WhyML TYPE NAMES) as `array int`, so
++                        # `_short_type(self.slots[0])` was an int applied to a `string`
++                        # parameter — an L3-tc error that blocked the whole class. Measured
++                        # CORPUS-INERT (0 of 813): no reference program declares a
++                        # string-element list FIELD. `emit_ir` keeps its original gate.
+                         elif (f.get("value_type") in ("string", "emit_ir")
+-                                and (getattr(self, "_mutable_state_classes", None)
++                                and (f.get("value_type") == "string"
++                                     or getattr(self, "_mutable_state_classes", None)
+                                      or getattr(self, "_uses_ir_node_param", False))):
+                             if td.get("name") in getattr(
+                                     self, "_list_element_record_types", set()):
+@@ -8595,6 +8624,16 @@ class PreambleEmissionMixin:
+                                 ftype = f"seq {f.get('value_type')}"
+                             else:
+                                 ftype = f"array {f.get('value_type')}"
++                                if f.get("value_type") == "string":
++                                    # relaunch #16: remember the STRING-ELEMENT list
++                                    # fields so `len(self.<f>)` lowers to `Array.length`
++                                    # and an element read is a `string`, instead of the
++                                    # opaque `iter_length : int -> int` (which mistypes
++                                    # against `array string`). Empty for every file with
++                                    # no such field -> corpus byte-inert.
++                                    if not hasattr(self, "_str_array_record_fields"):
++                                        self._str_array_record_fields = set()
++                                    self._str_array_record_fields.add(f["name"])
+                         elif (f.get("value_type") in self._record_types
+                                 and (getattr(self, "_mutable_state_classes", None)
+                                      or getattr(self, "_uses_ir_node_param", False))):
+diff --git a/src/self-annotate/src/Module6_WhyMLTranspiler.py b/src/self-annotate/src/Module6_WhyMLTranspiler.py
+index 31013136..7495279d 100644
+--- a/src/self-annotate/src/Module6_WhyMLTranspiler.py
++++ b/src/self-annotate/src/Module6_WhyMLTranspiler.py
+@@ -151,7 +151,6 @@ class Module6_WhyMLTranspiler(
+         self._module_func_param_names: Dict[str, List[str]] = {}
+ 
+     @property
+-    #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+diff --git a/src/self-annotate/src/audit_proof_reverify.py b/src/self-annotate/src/audit_proof_reverify.py
+index be0ef365..21d8de83 100644
+--- a/src/self-annotate/src/audit_proof_reverify.py
++++ b/src/self-annotate/src/audit_proof_reverify.py
+@@ -61,7 +61,6 @@ class ReverifyReport:
+     qualname_results: List[tuple[str, bool, List[str]]] = field(default_factory=list)
+     cached: bool = False
+ 
+-    #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+diff --git a/src/self-annotate/src/frontend/Module5_IREmitter.py b/src/self-annotate/src/frontend/Module5_IREmitter.py
+index 0aaabd76..b59576a6 100644
+--- a/src/self-annotate/src/frontend/Module5_IREmitter.py
++++ b/src/self-annotate/src/frontend/Module5_IREmitter.py
+@@ -2240,14 +2240,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+     def visit_ClassDef(self, node: ast.ClassDef) -> None:
+         pass
+ 
+-    # functiondef-node wall (self-tcb-reduction M5, C-bucket): the dunder / @property
+-    # skip test over an `ast.FunctionDef` -> the CONCRETE faithful lowering:
++    # functiondef-node wall (self-tcb-reduction M5, C-bucket): the dunder skip test over
++    # an `ast.FunctionDef` -> the CONCRETE faithful lowering:
+     # `node.name.startswith('__')`/`endswith('__')` -> str_startswith_op/str_endswith_op
+-    # (substring-based ensures) over `func_name_ast node`; the `@property` decorator
+-    # existence test -> `decorator_has_name "property" (func_decorator_list_ast node)`
+-    # (is_var/name_of, no length-only law); `self._current_class` -> the opaque
+-    # m5_current_class_present abstract reader. isinstance_op = 0, assigns nothing.
+-    # Verbatim body port of the LIVE `_should_skip_method`.
++    # (substring-based ensures) over `func_name_ast node`; `self._current_class` -> the
++    # opaque m5_current_class_present abstract reader. assigns nothing.
++    # `@property` SUPPORT (relaunch #16): the decorator-existence disjunct is GONE — a
++    # `@property` getter is now emitted as an ordinary nullary method, which is what
++    # retires the recorded [UNEMITTABLE @property] boundary. Verbatim body port of the
++    # LIVE `_should_skip_method`.
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+@@ -2257,9 +2258,6 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+             return False
+         if node.name.startswith('__') and node.name.endswith('__'):
+             return True
+-        if any(isinstance(d, ast.Name) and d.id == 'property'
+-               for d in node.decorator_list):
+-            return True
+         return False
+ 
+     _UNION_ARM_TAGS = {'int', 'bool', 'str', 'bytes', 'float', 'list', 'dict', 'set'}
+diff --git a/src/self-annotate/src/module6_whyml/struct_format.py b/src/self-annotate/src/module6_whyml/struct_format.py
+index 3a43f9d1..7226e2a1 100644
+--- a/src/self-annotate/src/module6_whyml/struct_format.py
++++ b/src/self-annotate/src/module6_whyml/struct_format.py
+@@ -17,14 +17,17 @@ class StructFormat:
+     "Parsed `struct` format-string descriptor.\n\n    Attributes\n    ----------\n    raw : str\n        Original format string (no prefix-strip).\n    prefix : str\n        Byte-order prefix or '' if absent.\n    slots : list[str]\n        WhyML type per packed/unpacked slot, in order. Pad bytes are\n        excluded.  E.g. for `'>IHHHHHII10Ixx'` this is\n        `['int', 'int', 'int', 'int', 'int', 'int', 'int', 'int',\n         'int', 'int', 'int', 'int', 'int', 'int', 'int', 'int',\n         'int', 'int']` (18 ints).\n    "
+     raw: str
+     prefix: str
+-    slots: int
+-    #@ \trusted reviewer: pycsl-self-annotate
++    slots: List[str]
++    # CONVERTED (relaunch #16), the first `@property` in the mirror to become a real
++    # definition. Verbatim body port of the LIVE `arity`; `len(self.slots)` over the
++    # `array int` slot field is `Array.length self.slots`.
+     #@ requires True
+     #@ ensures True
++    #@ ensures \result >= 0
+     #@ assigns \nothing
+     @property
+     def arity(self) -> int:
+-        return 0
++        return len(self.slots)
+ 
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+diff --git a/src/self-annotate/src/proof2why3/crosscheck.py b/src/self-annotate/src/proof2why3/crosscheck.py
+index 235fdebb..38c84c77 100644
+--- a/src/self-annotate/src/proof2why3/crosscheck.py
++++ b/src/self-annotate/src/proof2why3/crosscheck.py
+@@ -35,6 +35,21 @@ class CrossCheckResult:
+             return False
+         return all(n == present[0] for n in present)
+ 
++    # CERTIFIED-BOUNDARY (relaunch #16) — [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP].
++    # `@property` support now EMITS this getter (the old [UNEMITTABLE @property] boundary
++    # is gone), and the body ports and type-checks. It is NOT converted anyway, because
++    # converting it would make the model STRICTLY WORSE: a `map`-returning dict LITERAL
++    # declines to `(const (None: option int))` — the EMPTY map — so the `let` would CLAIM
++    # that `pairwise` has no keys, a positive FALSE statement, where the `val` it replaces
++    # is an unconstrained (havoc) map that claims nothing. A conversion that trades a havoc
++    # for a wrong definite value is a faithfulness REGRESSION, not count progress.
++    # REOPENING CAPABILITY: lower a string-keyed dict literal to the `map_update_some`
++    # chain (`map_update_some (… (const None) "k1" v1 …) "k3" v3`) — `map_update_some` is
++    # already declared with `ensures result = Map.set m k v`, so no axiom is involved. Its
++    # blast radius is CORPUS-WIDE (every `(const (None: option int))` decline in an 813-file
++    # emission), so it owes its own gated increment and its own byte-diff measurement.
++    # The twin `crosscheck_ir.pairwise` is co-blocked, and additionally carries a NESTED
++    # `def cmp(...)` and `Optional[bool]` values.
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+diff --git a/src/self-annotate/src/proof2why3/crosscheck_ir.py b/src/self-annotate/src/proof2why3/crosscheck_ir.py
+index df404b94..4bae76be 100644
+--- a/src/self-annotate/src/proof2why3/crosscheck_ir.py
++++ b/src/self-annotate/src/proof2why3/crosscheck_ir.py
+@@ -46,6 +46,13 @@ class IRCrossCheckResult:
+             return False
+         return all(c == canons[0] for c in canons)
+ 
++    # CERTIFIED-BOUNDARY (relaunch #16) — [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP],
++    # co-blocked with `crosscheck.pairwise` (see the full record there). `@property`
++    # support EMITS this getter now, so the old [UNEMITTABLE @property] boundary is gone,
++    # but converting it would replace an unconstrained (havoc) `val` with a definite EMPTY
++    # map — a positive FALSE claim. This twin additionally carries a NESTED `def cmp(a, b)`
++    # and `Optional[bool]` values, so it needs the dict-literal capability AND a nested-def
++    # lowering.
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True

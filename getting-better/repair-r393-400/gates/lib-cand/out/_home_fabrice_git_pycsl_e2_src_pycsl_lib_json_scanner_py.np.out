@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/json/scanner.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+nested function '_scan_once' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads match_number, memo, object_hook, object_pairs_hook, parse_array, parse_constant, parse_float, parse_int, parse_object, parse_string, strict from an enclosing function. A lifted body reads a captured name as ONE global opaque constant shared by every call, and two lifted helpers with the same name collapse to one. Pass the captured values as parameters and give the helper a unique name, or move it to module level.

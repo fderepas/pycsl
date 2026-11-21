@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10296_lvz2_r614_imported_keep_str_ctl.py'...
+[*] Memory model: store
+[*] Imported from 'multi_file_lib.lvz2r_tat': ['keep'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_oos1dqqh.mlw", line 28, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 489 steps).
+
+File "/tmp/.pycsl_oos1dqqh.mlw", line 28, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 252 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_oos1dqqh.mlw", line 17, characters 19-20: unused variable m
+
+[+] Verification SUCCESS! All contracts formally proven.

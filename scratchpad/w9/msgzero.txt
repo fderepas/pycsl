@@ -1,0 +1,49 @@
+GATE-INTEGRITY(#44): four planes could report GREEN after looking at NOTHING — and one of them already had, for a whole relaunch
+
+`bin/check-avatar-frame-parity.py`'s INHERITED ratchet was lowered 7 -> 1
+in a3e74638 on the strength of three measurements, "twice at HEAD, once
+at 13c4860b, all three agreeing". They agreed because all three
+`--emit-dir` arguments pointed at directories containing NO MIRROR
+EMISSIONS: `scratchpad/w8/emit_head3` holds 820 CORPUS `.mlw` files (a
+corpus emission contains no `self__` avatar at all) and `mirror43b` /
+`mirror_now` hold ZERO `.mlw` files. The gate scanned 0 avatars, correctly
+found 0 frameless ones, and printed a green 0 — which reads exactly like a
+tightening.
+
+Emitted properly — all 53 mirrors, `--import-path src/pycsl` — it scans 83
+avatars and measures 0 SAME-FILE / 7 INHERITED, identically at HEAD and at
+the pre-#44 tree. So that plane has been RED since the commit that
+"tightened" it, while the handoff carried it forward as 1. Restored to the
+MEASURED 7, with the seven sites listed.
+
+THE INSTRUMENT FIX MATTERS MORE THAN THE CONSTANT. Swept the whole
+`--emit-dir` gate family against an empty directory:
+
+    check-clause-survival        rc=1  already guarded ("a FALSE GREEN, not a pass")
+    check-shadowed-selfcalls     rc=1  already guarded
+    check-trusted-frame-honesty  rc=1  fails, but on an unrelated ratchet
+    check-avatar-frame-parity    rc=0  FALSE GREEN
+    check-yield-erasure          rc=0  FALSE GREEN
+    check-computed-rhs-erasure   rc=0  FALSE GREEN — and its line then reads
+                                       "0 < ratchet 1 — lower the constant",
+                                       i.e. it INVITES the exact mistake above
+    check-emitted-vacuity        rc=0  FALSE GREEN — and its line reads
+                                       "8 known erasure(s) NO LONGER erased —
+                                       remove from KNOWN_ERASURES", i.e. it
+                                       invites DELETING the record that makes
+                                       the plane mean anything
+
+All four now REFUSE (exit 2) when they find fewer emitted mirrors than a
+real sweep produces, naming what they found and what to do. Each was
+negative-tested: empty dir -> 2, real dir -> 0. `check-emitted-vacuity`'s
+guard also makes the "without --emit it is a false green" instrument fact
+MECHANICAL instead of something a driver has to remember.
+
+This is the window's recurring lesson in its most general form. A refusal
+that never fires (#43), a probe that deletes nothing (#44), a pin that
+cannot trip (#44), and now a plane aimed at the wrong directory: every one
+of them is indistinguishable from success. A gate must be able to tell
+"nothing is wrong" from "I looked at nothing", and that has to be a check
+in the gate, not a habit in the operator.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

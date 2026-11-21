@@ -1,0 +1,14 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt28/n22_ignore_append_later.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_k44377fw.mlw", line 13, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_k44377fw.mlw", line 15, characters 8-9: unused variable x
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

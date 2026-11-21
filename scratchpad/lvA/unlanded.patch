@@ -1,0 +1,248 @@
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -3554,7 +3554,7 @@
+         #       PLAIN `val` (not a `val function`: no determinism is claimed either);
+         #   (3) a receiver `<v>.sub(..)` where `<v>` is a local bound EXACTLY ONCE in the
+         #       function, by `<v> = re.compile(<str literal>)`, and named nowhere else
+-        #       (`_re_compiled_locals`, computed in `_reset_function_state`).
++        #       (`_re_compiled_locals`, computed in `_emit_body_code`).
+         # `re` must RESOLVE to the stdlib module (route #323 import test, as for
+         # `unicodedata`). Everything else keeps the opaque-int lowering.
+         if not isinstance(fn, str) or expr.get("receiver") is not None:
+@@ -3591,12 +3591,58 @@
+             return False
+         if self._is_string_expr(_rrep):
+             return True
+-        if not (isinstance(_rrep, dict) and _rrep.get("type") == "Lambda"
++        # The callable is a closed pure one-parameter `lambda` (its body expression), or
++        #   (2b) the NAME of a one-parameter `def` (a nested `def repl(m): ...` is lifted to
++        #   a program function of that name): exactly one function of that name, not a
++        #   method, no name collision, no capture / global / nonlocal / with binding, no
++        #   default / keyword-only / variadic parameter, a body of plain local `Assign`s
++        #   and `Return`s only, whose expressions pass the same closed-pure walk below
++        #   (with its locals bound). The function's own emission is verified on its own.
++        _rbody = None
++        _rparam = None
++        if (isinstance(_rrep, dict) and _rrep.get("type") == "Lambda"
+                 and len(_rrep.get("params") or []) == 1
+                 and isinstance(_rrep["params"][0], str)):
++            _rbody = _rrep.get("body")
++            _rparam = _rrep["params"][0]
++            _bound = {_rparam}
++        elif (isinstance(_rrep, dict) and _rrep.get("type") == "Var"
++              and _rrep.get("name") not in (getattr(self, "_re_bound_names", None) or set())
++              and _rrep.get("name") not in (getattr(self, "_current_symbol_table", {}) or {})):
++            _rfs = [_f for _f in (((self.ir.get("functions") or [])
++                                   if isinstance(getattr(self, "ir", None), dict) else []))
++                    if isinstance(_f, dict) and _f.get("name") == _rrep.get("name")]
++            if len(_rfs) != 1:
++                return False
++            _rf = _rfs[0]
++            if (_rf.get("kind") == "method" or _rf.get("self_type")
++                    or any(_rf.get(_k) for _k in (
++                        "closure_captures", "lifted_name_collision", "global_writes",
++                        "nonlocal_writes", "with_bindings", "kwonly_params",
++                        "posonly_params", "kwarg_param", "vararg_str_param",
++                        "param_defaults", "has_mutable_default", "kwarg_read"))
++                    or not isinstance(_rf.get("formal_params"), list)
++                    or len(_rf["formal_params"]) != 1
++                    or not isinstance(_rf["formal_params"][0], str)):
++                return False
++            _rparam = _rf["formal_params"][0]
++            _bound = {_rparam}
++            _rbody = []
++            for _rs in (_rf.get("body") or []):
++                if not isinstance(_rs, dict):
++                    return False
++                if (_rs.get("stmt") == "Assign" and isinstance(_rs.get("target"), str)
++                        and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", _rs["target"])):
++                    _bound.add(_rs["target"])
++                    _rbody.append(_rs.get("value"))
++                elif _rs.get("stmt") == "Return" and isinstance(_rs.get("value"), dict):
++                    _rbody.append(_rs["value"])
++                else:
++                    return False
++            if not _rbody:
++                return False
++        else:
+             return False
+-        _rbody = _rrep.get("body")
+-        _bound = {_rrep["params"][0]}
+         _rbound0 = frozenset(_bound)
+         _pure_fns = {"re.search", "re.match", "re.fullmatch", "re.escape", "re.sub",
+                      "len", "str"}
+@@ -10921,9 +10967,9 @@
+             except Exception:
+                 _pt_for_args = []
+         args = []
+-        # lvA: the CALLABLE (lambda) repl of a recognized `re` substitution is never
+-        # lowered: its value is not part of the model (`_handle_re_str_call`), exactly as
+-        # the dropped `sorted(key=<lambda>)` body (route #275).
++        # lvA: the CALLABLE repl of a recognized `re` substitution is never lowered (its
++        # value is not part of the model, `_handle_re_str_call`): lowering a callable's
++        # NAME would declare a spurious `val constant <name> : int` beside the lifted def.
+         _rcs_idx = -1
+         if self._is_re_str_call(expr) and isinstance(func_name, str):
+             _rcs_i = 1 if func_name in ("re.sub", "_re.sub") else 0
+--- a/src/pycsl/module6_whyml/functions.py
++++ b/src/pycsl/module6_whyml/functions.py
+@@ -359,6 +359,88 @@
+                     _cpl_w.extend((_v, _cpl_enc) for _v in _cpl_x)
+                 elif isinstance(_cpl_x, str) and _cpl_x.split(".")[0] not in _cpl_enc:
+                     self._cpl_outside_names.add(_cpl_x.split(".")[0])
++        # lvA (proof2why3 `normalize_surface`): a SENTINEL local -- `prev = None` then
++        # only re-bound by other plain `Assign`s (each must be a string at lowering, else
++        # refused) and READ only as an operand of `==` / `!=` -- is an `option string`
++        # local (`_collect_option_str_return_locals` adds it): `None` / `Some <str>`, the
++        # existing option-str compare arm decides `prev != out` exactly as CPython (`None
++        # != str` is True). Fail-closed: any other occurrence of the name string (another
++        # binding form, any other read, a parameter) disqualifies it.
++        self._optstr_sentinel_locals = set()
++        _ss_assigns = {}
++        _ss_w = [body_stmts]
++        while _ss_w:
++            _ss_x = _ss_w.pop()
++            if isinstance(_ss_x, dict):
++                if (_ss_x.get("stmt") == "Assign" and isinstance(_ss_x.get("target"), str)):
++                    _ss_assigns.setdefault(_ss_x["target"], []).append(_ss_x)
++                _ss_w.extend(_ss_x.values())
++            elif isinstance(_ss_x, (list, tuple)):
++                _ss_w.extend(_ss_x)
++        for _ss_n, _ss_as in _ss_assigns.items():
++            if not (any(isinstance(_a.get("value"), dict) and _a["value"].get("type") == "None"
++                        for _a in _ss_as) and len(_ss_as) >= 2):
++                continue
++            _ss_ok = True
++            _ss_w = [body_stmts] + [func.get(_ss_pk) for _ss_pk in (
++                "formal_params", "kwonly_params", "posonly_params", "kwarg_param",
++                "vararg_param", "params", "args", "nonlocal_writes", "global_writes",
++                "with_bindings")]
++            while _ss_w and _ss_ok:
++                _ss_x = _ss_w.pop()
++                if isinstance(_ss_x, dict):
++                    if _ss_x.get("stmt") == "Assign" and _ss_x.get("target") == _ss_n:
++                        _ss_w.append(_ss_x.get("value"))
++                        continue
++                    if (_ss_x.get("type") == "BinOp" and _ss_x.get("op") in ("==", "!=")):
++                        for _ss_side in ("left", "right"):
++                            _ss_v = _ss_x.get(_ss_side)
++                            if not (isinstance(_ss_v, dict) and _ss_v.get("type") == "Var"
++                                    and _ss_v.get("name") == _ss_n):
++                                _ss_w.append(_ss_v)
++                        continue
++                    _ss_w.extend(_ss_x.values())
++                elif isinstance(_ss_x, (list, tuple)):
++                    _ss_w.extend(_ss_x)
++                elif isinstance(_ss_x, str) and (_ss_x == _ss_n
++                                                 or _ss_x.startswith(_ss_n + ".")):
++                    _ss_ok = False
++            if _ss_ok:
++                self._optstr_sentinel_locals.add(_ss_n)
++        # lvA: names BOUND in this function by any form (assignment / loop / with / except
++        # targets, parameters, any non-`Var` dict's `name`): a callable `re.sub` repl given
++        # by NAME is resolved to the program function of that name only if the name is not
++        # rebound here (`_is_re_str_call`). Over-collecting is fail-closed.
++        self._re_bound_names = set()
++        _rb_w = [body_stmts] + [func.get(_rb_pk) for _rb_pk in (
++            "formal_params", "kwonly_params", "posonly_params", "kwarg_param",
++            "vararg_param", "params", "args", "nonlocal_writes", "global_writes",
++            "with_bindings")]
++        while _rb_w:
++            _rb_x = _rb_w.pop()
++            if isinstance(_rb_x, dict):
++                for _rb_k, _rb_v in _rb_x.items():
++                    if (_rb_k in ("target", "targets", "tuple_targets", "var", "as_name",
++                                  "asname", "optional_vars", "names")
++                            or (_rb_k == "name" and _rb_x.get("type") != "Var")):
++                        _rb_s = [_rb_v]
++                        while _rb_s:
++                            _rb_y = _rb_s.pop()
++                            if isinstance(_rb_y, str):
++                                self._re_bound_names.add(_rb_y)
++                            elif isinstance(_rb_y, (list, tuple)):
++                                _rb_s.extend(_rb_y)
++                            elif isinstance(_rb_y, dict):
++                                _rb_s.extend(_rb_y.values())
++                    _rb_w.append(_rb_v)
++            elif isinstance(_rb_x, (list, tuple)):
++                _rb_w.extend(_rb_x)
++            elif isinstance(_rb_x, str):
++                pass
++        for _rb_pk in ("formal_params", "kwonly_params", "posonly_params"):
++            for _rb_p in (func.get(_rb_pk) or []):
++                if isinstance(_rb_p, str):
++                    self._re_bound_names.add(_rb_p)
+         self._re_compiled_locals = {}
+         _rc_cand = {}
+         for _rc_s in body_stmts:
+--- a/src/pycsl/module6_whyml/statements.py
++++ b/src/pycsl/module6_whyml/statements.py
+@@ -565,6 +565,32 @@
+         safe_target = whyml_ident(target)
+         val_ir = stmt.value.to_dict()
+         vt = val_ir.get("type", "")
++        # lvA: an `option string` SENTINEL local (`_optstr_sentinel_locals`): `v = None`
++        # stores `None`, `v = <str expr>` stores `Some <str>`; any other value is refused
++        # (the local's model is `option string` only).
++        if target in (getattr(self, "_optstr_sentinel_locals", None) or ()):
++            if vt == "None":
++                _ss_val = "(None: option string)"
++            elif self._is_string_expr(val_ir):
++                _ss_val = f"(Some ({self._expr_to_whyml(val_ir, local_refs)}))"
++            else:
++                raise PyCSLIRError(
++                    f"`{target}` is modelled as an Optional[str] sentinel (bound to None and "
++                    f"compared with `==`/`!=`), but this assignment's value is not a string "
++                    f"expression the model can type; refused rather than erased.")
++            if target in declared_refs:
++                code = f"{indent}{safe_target} := {_ss_val}"
++                if rest:
++                    code += ";\n" + self._stmts_to_whyml(
++                        rest, local_refs, declared_refs, indent, in_loop)
++                return code
++            declared_refs.add(target)
++            local_refs.add(target)
++            code = f"{indent}let {safe_target} = ref {_ss_val} in\n"
++            rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
++            if not rest_code:
++                rest_code = f"{indent}()"
++            return code + rest_code
+         # (#49) ROUTE #81 — A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES `append`, AND THAT
+         # REFUTES A SENTENCE IN ROUTE #59's OWN FILE. To localise itself, #59 states — as a
+         # section heading — "WHAT MAKES THIS SHARP: THE LIST CARRIER IS CORRECT", concluding
+--- a/src/pycsl/module6_whyml/stmt_control_flow.py
++++ b/src/pycsl/module6_whyml/stmt_control_flow.py
+@@ -94,6 +94,20 @@
+             inner = loop_code
+             if rest_code:
+                 inner += ";\n" + rest_code
++            # lvA: in a `string`-returning function a `return` inside the loop raises the
++            # typed `Return_str` (`_handle_return_stmt`), which the FUNCTION-level wrap
++            # catches (`_has_early_ret` is always set by an in-loop return). This inner
++            # catch of the int-payload `Return` could never type-check there (its payload
++            # is not a string, and the exception is undeclared in such a file), so it is
++            # omitted -- the same `not self._has_early_ret` guard the `for` arm applies.
++            # A `while True:` with no `break` and nothing after it never completes
++            # normally (Python: the only exits are the in-loop returns / raises), so the
++            # block ends in `absurd` -- its own VC (the loop exit condition `not true` is
++            # false), never an assumption -- giving it the function's `string` type.
++            if self._has_early_ret and self._func_return_type == "string":
++                if not rest_code and not has_break and test.strip() == "true":
++                    inner += f";\n{loop_indent}absurd"
++                return f"{indent}begin\n{inner}\n{indent}end"
+             return (f"{indent}try\n{inner}\n"
+                     f"{indent}with Return r -> r end")
+ 
+--- a/src/pycsl/module6_whyml/types.py
++++ b/src/pycsl/module6_whyml/types.py
+@@ -754,7 +754,9 @@
+         from the `\\trusted`-mirrored `_typed_local_vars`, so it needs no mirror body.
+         Byte-inert: no corpus method's abstract self-call return is registered `option
+         string` (only the lever-#1 emitter-internal helpers are)."""
+-        found: Set[str] = set()
++        # lvA: the `None`-initialised sentinel locals (`_reset_function_state`) are
++        # `option string` locals too.
++        found: Set[str] = set(getattr(self, "_optstr_sentinel_locals", None) or ())
+         rets = getattr(self, "_module_method_return_types", {})
+         for s in stmts:
+             if s.get("stmt") == "Assign":

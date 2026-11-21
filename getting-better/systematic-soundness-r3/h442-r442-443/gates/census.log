@@ -1,0 +1,46 @@
+OLD 4812_gen37_r358_object_attr_noexc.py	VERIFY-FAIL	
+NEW 4812_gen37_r358_object_attr_noexc.py	REFUSAL	[ir-semantic]: 'f' line 6: the receiver `x` of the attribute `.foo` has an UNDERIVABLE class here (derived: ['object'] -- an 
+OLD 4813_gen37_r358_any_attr_noexc.py	VERIFY-FAIL	
+NEW 4813_gen37_r358_any_attr_noexc.py	REFUSAL	[ir-semantic]: 'f' line 8: the receiver `x` of the attribute `.foo` has an UNDERIVABLE class here (derived: ['Any'] -- an elemen
+OLD 4825_gen37_r358_any_result_attr_noexc.py	VERIFY-FAIL	
+NEW 4825_gen37_r358_any_result_attr_noexc.py	REFUSAL	[ir-semantic]: 'f' line 11: the receiver `mk()` of the attribute `.foo` has an UNDERIVABLE class here (derived: ['#UND'] 
+OLD 4765_gen37_r356_members_values_loop.py	REFUSAL	[ir-semantic] /home/fabrice/git/pycsl/test-suite/corpus/pycsl/4765_gen37_r356_members_values_loop.py: 'f' uses a member of 
+NEW 4765_gen37_r356_members_values_loop.py	REFUSAL	[ir-semantic]: 'f' line 12: the receiver `C.__members__` of the attribute `.values` has an UNDERIVABLE class here (derived:
+OLD 4766_gen37_r356_value2member_map_loop.py	REFUSAL	[ir-semantic] /home/fabrice/git/pycsl/test-suite/corpus/pycsl/4766_gen37_r356_value2member_map_loop.py: 'f' uses a member
+NEW 4766_gen37_r356_value2member_map_loop.py	REFUSAL	[ir-semantic]: 'f' line 12: the receiver `C._value2member_map_` of the attribute `.values` has an UNDERIVABLE class here 
+OLD 5013_gen37_r370_partial_value.py	REFUSAL	[ir-semantic] /home/fabrice/git/pycsl/test-suite/corpus/pycsl/5013_gen37_r370_partial_value.py: 'f' uses a member of the enum cla
+NEW 5013_gen37_r370_partial_value.py	REFUSAL	[ir-semantic]: 'f' line 14: the receiver `C.B` of the attribute `.value` has an UNDERIVABLE class here (derived: ['#UNK'] -- an e
+OLD 5018_gen37_r370_partial_by_value.py	REFUSAL	[ir-semantic] /home/fabrice/git/pycsl/test-suite/corpus/pycsl/5018_gen37_r370_partial_by_value.py: 'f' uses a member of the en
+NEW 5018_gen37_r370_partial_by_value.py	REFUSAL	[ir-semantic]: 'f' line 14: the receiver `C.B` of the attribute `.name` has an UNDERIVABLE class here (derived: ['#UNK'] -- an
+new 31
+NEW 6750_r442_w007_isinstance_alias_type.py REFUSAL [ir-semantic]: 'f' line 12: the attribute `x.upper` is read on `x`, which may be an instance of ['None', 'str'
+NEW 6751_r442_c000_isinst_alias_O.py REFUSAL [ir-semantic]: 'f' line 11: the attribute `x.upper` is read on `x`, which may be an instance of ['None', 'str'
+NEW 6752_r442_c001_isinst_tuple_alias.py REFUSAL [ir-semantic]: 'f' line 11: the attribute `x.upper` is read on `x`, which may be an instance of ['None', 'str'
+NEW 6753_r442_c007_isinst_hashable.py REFUSAL [ir-semantic]: 'f' line 11: the attribute `x.upper` is read on `x`, which may be an instance of ['None', 'str'
+NEW 6754_r442_c008_isinst_typing_hashable.py REFUSAL [ir-semantic]: 'f' line 11: the attribute `x.upper` is read on `x`, which may be an instance of ['None', 'str'
+NEW 6755_r442_c021_isinst_cls_var.py REFUSAL [ir-semantic]: 'f' line 12: the attribute `x.upper` is read on `x`, which may be an instance of ['None', 'str'
+NEW 6756_r443_b000_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `xs[0]` of the attribute `.strip` has an UNDERIVABLE class here (deriv
+NEW 6757_r443_b001_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `xs[0]` of the attribute `.bit_length` has an UNDERIVABLE class here (
+NEW 6758_r443_b002_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `xs[0]` of the attribute `.get` has an UNDERIVABLE class here (derived
+NEW 6759_r443_b004_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `xs[0]` of the attribute `.split` has an UNDERIVABLE class here (deriv
+NEW 6760_r443_b006_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `d['a']` of the attribute `.upper` has an UNDERIVABLE class here (deri
+NEW 6761_r443_b007_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `d['a']` of the attribute `.bit_length` has an UNDERIVABLE class here 
+NEW 6762_r443_b008_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `d[1]` of the attribute `.lower` has an UNDERIVABLE class here (derive
+NEW 6763_r443_b011_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `xs[0]` of the attribute `.upper` has an UNDERIVABLE class here (deriv
+NEW 6764_r443_b012_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `d[1]` of the attribute `.upper` has an UNDERIVABLE class here (derive
+NEW 6765_r443_b015_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `xs[0]` of the attribute `.bit_length` has an UNDERIVABLE class here (
+NEW 6766_r443_b016_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `xs[0][0]` of the attribute `.upper` has an UNDERIVABLE class here (de
+NEW 6767_r443_b017_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `xs[-1]` of the attribute `.upper` has an UNDERIVABLE class here (deri
+NEW 6768_r443_b019_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `d.get('a', '')` of the attribute `.upper` has an UNDERIVABLE class he
+NEW 6769_r443_b020_any_elem_recv.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `v` of the attribute `.upper` has an UNDERIVABLE class here (derived: 
+NEW 6770_r443_m034_strip_dictval_any.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `d['a']` of the attribute `.strip` has an UNDERIVABLE class here (deri
+NEW 6771_r443_m035_upper_listelem_any.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `xs[0]` of the attribute `.upper` has an UNDERIVABLE class here (deriv
+NEW 6772_r443_m037_upper_tuple_any.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `t[0]` of the attribute `.upper` has an UNDERIVABLE class here (derive
+NEW 6773_r443_m038_upper_bare_list.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `xs[0]` of the attribute `.upper` has an UNDERIVABLE class here (deriv
+NEW 6774_r443_x010_any_elem_realistic.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `row[0]` of the attribute `.strip` has an UNDERIVABLE class here (deri
+NEW 6775_r443_alias_any_param.py REFUSAL [ir-semantic]: 'f' line 11: the receiver `x` of the attribute `.upper` has an UNDERIVABLE class here (derived:
+NEW 6776_r443_typevar_elem.py REFUSAL [ir-semantic]: 'f' line 13: the receiver `xs[0]` of the attribute `.upper` has an UNDERIVABLE class here (deri
+NEW 6777_r443_for_target_any.py REFUSAL [ir-semantic]: 'f' line 11: the receiver `v` of the attribute `.strip` has an UNDERIVABLE class here (derived:
+NEW 6778_r443_direct_any_param.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `x` of the attribute `.strip` has an UNDERIVABLE class here (derived: 
+NEW 6779_r443_direct_object_param.py REFUSAL [ir-semantic]: 'f' line 8: the receiver `x` of the attribute `.strip` has an UNDERIVABLE class here (derived: 
+NEW 6784_r443_any_elem_narrowed_erased.py VERIFY-FAIL 

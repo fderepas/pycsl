@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3e_named_typeerror.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+function 'f' (line 5): no_exception names unknown exception 'TypeError'. Known: ['IndexError', 'KeyError', 'StopIteration', 'ValueError', 'ZeroDivisionError'].

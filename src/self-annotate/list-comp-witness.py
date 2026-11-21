@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from typing import List
 def mutable_state(cls): return cls
 def whyml_ident(s: str) -> str:
-    #@ ensures True
     return s
 
 

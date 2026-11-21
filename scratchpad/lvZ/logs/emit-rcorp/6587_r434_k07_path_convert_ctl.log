@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/6587_r434_k07_path_convert_ctl.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+rc=0

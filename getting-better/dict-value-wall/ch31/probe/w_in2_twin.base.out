@@ -1,0 +1,30 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/base_w_in2_twin.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_rcbl761x.mlw", line 30, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2672 steps).
+
+File "/tmp/.pycsl_rcbl761x.mlw", line 51, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 2848 steps).
+
+File "/tmp/.pycsl_rcbl761x.mlw", line 58, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2200 steps).
+
+File "/tmp/.pycsl_rcbl761x.mlw", line 65, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 2236 steps).
+
+File "/tmp/.pycsl_rcbl761x.mlw", line 79, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (1.05s, 1289558 steps).
+
+File "/tmp/.pycsl_rcbl761x.mlw", line 79, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.01s, 1453 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for 'getting-better/r2c-wall/review-spikes/r294_false_proof_hval_alias_dictcopy.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/tmp/.pycsl_wpun8wcw.mlw", line 79, characters 24-28:
+This expression has type string -> option.Option.option PyCSL_Program.hval,
+but is expected to have type int
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

@@ -1,0 +1,18 @@
+from __future__ import annotations
+import hashlib
+from pathlib import Path
+
+
+#@ ensures \result == 1
+#@ assigns \nothing
+def f(s: str) -> int:
+    p = Path(s)
+    try:
+        hashlib.sha256(p.read_bytes()).hexdigest()
+        return 1
+    except UnicodeError:
+        return 0
+
+
+if __name__ == "__main__":
+    print("result", f("\ud800"))

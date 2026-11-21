@@ -1,0 +1,7 @@
+it0   pycsltojsonemitter___csl_mktuple                        -> self._fresh_var_counter 
+it1   pycsltojsonemitter___csl_mktuple                        -> raises ADD PyCSLIRError 
+it2   pycsltojsonemitter___csl_mktuple                        -> raises ADD PyCSLSemanticError 
+it3   pycsltojsonemitter___csl_call_expr                      -> self._fresh_var_counter 
+it4   pycsltojsonemitter___csl_call_expr                      -> raises ADD PyCSLIRError 
+it5   pycsltojsonemitter___csl_call_expr                      -> raises ADD PyCSLSemanticError 
+FIXPOINT after 6 iterations

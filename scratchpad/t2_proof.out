@@ -1,0 +1,3345 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/t2/module6_whyml/ir_scanner.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl__fis4481.mlw", line 80, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 16714 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 81, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 16770 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 78, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.19s, 335996 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 85, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4362 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 85, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5069 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 84, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 16453 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 88, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4366 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 88, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5430 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 87, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.02s, 17688 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 95, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5512 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 91, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 24584 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 122, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 7926 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 122, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30059 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 118, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.58s, 701921 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 163, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8084 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 174, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8058 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 184, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 185, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 181, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.02s, 30308 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 189, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 28310 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 189, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.15s, 372464 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 189, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.13s, 332285 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 208, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8058 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 245, characters 70-111:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__gstmt'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 246, characters 24-65:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__gstmt'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 251, characters 24-64:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__gtgt'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 256, characters 24-65:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__gtype'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 263, characters 84-125:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__Lbody'vc.
+Prover result is: Valid (0.01s, 8478 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 258, characters 14-45:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__Lbody'vc.
+Prover result is: Timeout (30.00s, 23104393 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 271, characters 86-129:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__Lorelse'vc.
+Prover result is: Valid (0.01s, 8478 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 266, characters 14-45:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__Lorelse'vc.
+Prover result is: Timeout (30.00s, 23361276 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.02s, 29665 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2937 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 274, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2937 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.02s, 33537 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2985 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 274, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2985 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.02s, 32962 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 274, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.02s, 32990 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2925 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 274, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2925 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.02s, 33537 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2985 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 274, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2985 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.02s, 32962 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 282, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 274, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 283, characters 18-63:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.02s, 32962 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 283, characters 18-63:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 274, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 274, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 2960 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 286, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 2903 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 290, characters 8-55:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.02s, 31222 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 290, characters 8-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 2911 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 286, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 2911 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 289, characters 67-110:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.02s, 31270 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 289, characters 67-110:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 290, characters 8-55:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.02s, 31250 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 290, characters 8-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 286, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 289, characters 118-161:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.02s, 32818 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 289, characters 118-161:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 2992 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 290, characters 8-55:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.02s, 32859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 290, characters 8-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 2992 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 286, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 2992 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 292, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.01s, 2846 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 293, characters 42-85:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 293, characters 42-85:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 293, characters 87-131:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.02s, 30405 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 293, characters 87-131:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 292, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2855 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2885 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 30863 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2885 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2885 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2933 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32311 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2933 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2933 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2864 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 31736 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2864 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2864 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 305, characters 58-119:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32124 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 305, characters 58-119:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2896 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2896 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32030 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2896 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2896 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 306, characters 52-129:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32154 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 306, characters 52-129:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2905 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2905 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32060 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2905 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2905 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 307, characters 50-127:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32184 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 307, characters 50-127:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2914 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 307, characters 129-208:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32446 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 307, characters 129-208:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2925 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2925 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32352 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2925 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2925 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 308, characters 156-233:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32265 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 308, characters 156-233:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2944 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2944 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32175 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2944 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2944 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 308, characters 156-233:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32817 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 308, characters 156-233:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2992 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2992 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32723 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2992 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2992 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 308, characters 156-233:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32214 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 308, characters 156-233:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2923 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2923 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2923 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2923 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 309, characters 51-128:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32244 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 309, characters 51-128:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2932 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 309, characters 130-192:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32506 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 309, characters 130-192:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2943 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2943 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2943 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2943 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 310, characters 52-111:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32274 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 310, characters 52-111:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2941 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2941 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32180 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2941 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2941 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2937 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 33141 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2937 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2937 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2932 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 32310 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2932 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2932 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 313, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.00s, 2863 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 31735 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2863 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.00s, 2863 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 32122 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 315, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2928 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 2928 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 318, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.01s, 2855 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 320, characters 83-125:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.02s, 30661 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 320, characters 83-125:
+Sub-goal precondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.01s, 2884 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 318, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.01s, 2884 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 320, characters 83-125:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.02s, 32122 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 320, characters 83-125:
+Sub-goal precondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.01s, 2928 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 318, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.01s, 2928 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 322, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 2846 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 324, characters 47-125:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.02s, 30668 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 324, characters 47-125:
+Sub-goal precondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 2867 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 324, characters 142-184:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.02s, 30576 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 324, characters 142-184:
+Sub-goal precondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 2867 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 322, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 2867 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 324, characters 142-184:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.02s, 28560 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 324, characters 142-184:
+Sub-goal precondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 2919 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 322, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 2919 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 2846 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 328, characters 47-125:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.03s, 30668 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 328, characters 47-125:
+Sub-goal precondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 2867 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 328, characters 142-184:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.02s, 30576 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 328, characters 142-184:
+Sub-goal precondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 2867 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 2867 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 328, characters 142-184:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.02s, 28560 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 328, characters 142-184:
+Sub-goal precondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 2919 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 2919 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 332, characters 4-46:
+Sub-goal precondition of goal irscanner__find_assigned_vars'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 330, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 330, characters 15-19:
+Sub-goal precondition of goal irscanner__find_assigned_vars'refn'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 227, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars'refn'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 362, characters 24-56:
+Sub-goal variant decrease of goal irscanner___check__get_type'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 362, characters 24-56:
+Sub-goal variant decrease of goal irscanner___check__get_type'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 371, characters 24-54:
+Sub-goal variant decrease of goal irscanner___check__get_op'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 371, characters 24-54:
+Sub-goal variant decrease of goal irscanner___check__get_op'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 379, characters 171-193:
+Sub-goal variant decrease of goal irscanner___check'vc.
+Prover result is: Valid (0.03s, 34414 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 379, characters 171-193:
+Sub-goal precondition of goal irscanner___check'vc.
+Prover result is: Valid (0.01s, 2982 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 380, characters 18-41:
+Sub-goal variant decrease of goal irscanner___check'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 380, characters 18-41:
+Sub-goal precondition of goal irscanner___check'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 377, characters 32-36:
+Sub-goal postcondition of goal irscanner___check'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 384, characters 51-70:
+Sub-goal variant decrease of goal irscanner___check__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 384, characters 51-70:
+Sub-goal precondition of goal irscanner___check__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 384, characters 74-99:
+Sub-goal variant decrease of goal irscanner___check__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 384, characters 74-99:
+Sub-goal precondition of goal irscanner___check__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 383, characters 32-36:
+Sub-goal postcondition of goal irscanner___check__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 387, characters 45-64:
+Sub-goal variant decrease of goal irscanner___check__l'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 387, characters 45-64:
+Sub-goal precondition of goal irscanner___check__l'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 387, characters 68-90:
+Sub-goal variant decrease of goal irscanner___check__l'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 387, characters 68-90:
+Sub-goal precondition of goal irscanner___check__l'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 386, characters 32-36:
+Sub-goal postcondition of goal irscanner___check__l'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 395, characters 77-114:
+Sub-goal variant decrease of goal irscanner___has_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 396, characters 24-61:
+Sub-goal variant decrease of goal irscanner___has_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 396, characters 24-61:
+Sub-goal variant decrease of goal irscanner___has_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 403, characters 48-75:
+Sub-goal variant decrease of goal irscanner___has_return'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 403, characters 48-75:
+Sub-goal precondition of goal irscanner___has_return'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 403, characters 79-103:
+Sub-goal variant decrease of goal irscanner___has_return'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 403, characters 79-103:
+Sub-goal precondition of goal irscanner___has_return'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 402, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 407, characters 63-90:
+Sub-goal variant decrease of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.02s, 29152 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 407, characters 63-90:
+Sub-goal precondition of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 408, characters 18-43:
+Sub-goal variant decrease of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 408, characters 18-43:
+Sub-goal precondition of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 405, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 413, characters 24-51:
+Sub-goal variant decrease of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 413, characters 24-51:
+Sub-goal precondition of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 413, characters 55-85:
+Sub-goal variant decrease of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 413, characters 55-85:
+Sub-goal precondition of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 411, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 417, characters 77-125:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 418, characters 24-72:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 418, characters 24-72:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 425, characters 48-86:
+Sub-goal variant decrease of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 425, characters 48-86:
+Sub-goal precondition of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 425, characters 90-125:
+Sub-goal variant decrease of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 425, characters 90-125:
+Sub-goal precondition of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 424, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 429, characters 74-112:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.02s, 29152 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 429, characters 74-112:
+Sub-goal precondition of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.00s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 430, characters 18-54:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 430, characters 18-54:
+Sub-goal precondition of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 427, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 435, characters 24-62:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 435, characters 24-62:
+Sub-goal precondition of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 435, characters 66-107:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 435, characters 66-107:
+Sub-goal precondition of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 433, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 444, characters 70-123:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 445, characters 24-77:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 451, characters 74-131:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__get_dyn_exc_type'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 452, characters 24-81:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__get_dyn_exc_type'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 468, characters 70-108:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.02s, 30405 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 468, characters 70-108:
+Sub-goal precondition of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 468, characters 28-69:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.02s, 31506 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 468, characters 28-69:
+Sub-goal precondition of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 464, characters 32-36:
+Sub-goal postcondition of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 472, characters 71-112:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 472, characters 71-112:
+Sub-goal precondition of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 473, characters 18-55:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 473, characters 18-55:
+Sub-goal precondition of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 470, characters 32-36:
+Sub-goal postcondition of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 478, characters 76-120:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.02s, 32199 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 478, characters 76-120:
+Sub-goal precondition of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 478, characters 34-75:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.02s, 33276 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 478, characters 34-75:
+Sub-goal precondition of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 476, characters 32-36:
+Sub-goal postcondition of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 492, characters 77-137:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__get_dyn_binder_type'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 493, characters 24-84:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__get_dyn_binder_type'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 503, characters 71-115:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 503, characters 71-115:
+Sub-goal precondition of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 504, characters 18-61:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 504, characters 18-61:
+Sub-goal precondition of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 500, characters 32-63:
+Sub-goal postcondition of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.06s, 180 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 511, characters 73-120:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.02s, 32199 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 511, characters 73-120:
+Sub-goal precondition of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 511, characters 34-72:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.02s, 33276 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 511, characters 34-72:
+Sub-goal precondition of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 507, characters 32-36:
+Sub-goal postcondition of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 517, characters 67-111:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.02s, 30405 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 517, characters 67-111:
+Sub-goal precondition of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 517, characters 28-66:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.02s, 31506 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 517, characters 28-66:
+Sub-goal precondition of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 514, characters 32-36:
+Sub-goal postcondition of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 521, characters 77-119:
+Sub-goal variant decrease of goal irscanner__ends_with_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 522, characters 24-66:
+Sub-goal variant decrease of goal irscanner__ends_with_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 522, characters 24-66:
+Sub-goal variant decrease of goal irscanner__ends_with_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 529, characters 48-80:
+Sub-goal variant decrease of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 529, characters 48-80:
+Sub-goal precondition of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 529, characters 84-113:
+Sub-goal variant decrease of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 529, characters 84-113:
+Sub-goal precondition of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 528, characters 32-36:
+Sub-goal postcondition of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 533, characters 115-147:
+Sub-goal variant decrease of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.02s, 29408 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 533, characters 115-147:
+Sub-goal precondition of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.01s, 2933 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 534, characters 18-48:
+Sub-goal variant decrease of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 534, characters 18-48:
+Sub-goal precondition of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 531, characters 32-36:
+Sub-goal postcondition of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.00s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 539, characters 24-56:
+Sub-goal variant decrease of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 539, characters 24-56:
+Sub-goal precondition of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 539, characters 60-95:
+Sub-goal variant decrease of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 539, characters 60-95:
+Sub-goal precondition of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 537, characters 32-36:
+Sub-goal postcondition of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 544, characters 70-119:
+Sub-goal variant decrease of goal irscanner__find_append_targets__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 545, characters 24-73:
+Sub-goal variant decrease of goal irscanner__find_append_targets__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 552, characters 24-72:
+Sub-goal variant decrease of goal irscanner__find_append_targets__get_K_value'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 559, characters 24-71:
+Sub-goal variant decrease of goal irscanner__find_append_targets__get_K_func'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 578, characters 66-100:
+Sub-goal variant decrease of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.02s, 30405 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 578, characters 66-100:
+Sub-goal precondition of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 578, characters 28-65:
+Sub-goal variant decrease of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.02s, 31506 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 578, characters 28-65:
+Sub-goal precondition of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 574, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 582, characters 67-104:
+Sub-goal variant decrease of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 582, characters 67-104:
+Sub-goal precondition of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 583, characters 18-51:
+Sub-goal variant decrease of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 583, characters 18-51:
+Sub-goal precondition of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 580, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 588, characters 72-112:
+Sub-goal variant decrease of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.02s, 32199 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 588, characters 72-112:
+Sub-goal precondition of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 588, characters 34-71:
+Sub-goal variant decrease of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.02s, 33276 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 588, characters 34-71:
+Sub-goal precondition of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 586, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 597, characters 70-115:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 598, characters 24-69:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 605, characters 24-69:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__get_K_target'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 621, characters 62-92:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.02s, 30405 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 621, characters 62-92:
+Sub-goal precondition of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 621, characters 28-61:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.03s, 31506 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 621, characters 28-61:
+Sub-goal precondition of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 617, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 625, characters 63-96:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 625, characters 63-96:
+Sub-goal precondition of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 626, characters 18-47:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 626, characters 18-47:
+Sub-goal precondition of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 623, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 631, characters 68-104:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.02s, 32199 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 631, characters 68-104:
+Sub-goal precondition of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 631, characters 34-67:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.02s, 33276 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 631, characters 34-67:
+Sub-goal precondition of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 629, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 640, characters 70-116:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 641, characters 24-70:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 648, characters 24-69:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__get_K_value'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 655, characters 24-68:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__get_K_type'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 662, characters 24-70:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__get_K_target'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 684, characters 63-94:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.02s, 30405 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 684, characters 63-94:
+Sub-goal precondition of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 684, characters 28-62:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.03s, 31506 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 684, characters 28-62:
+Sub-goal precondition of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 680, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 688, characters 64-98:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 688, characters 64-98:
+Sub-goal precondition of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 689, characters 18-48:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.03s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 689, characters 18-48:
+Sub-goal precondition of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 686, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 694, characters 69-106:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.02s, 32199 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 694, characters 69-106:
+Sub-goal precondition of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 694, characters 34-68:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.02s, 33276 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 694, characters 34-68:
+Sub-goal precondition of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 692, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.00s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 700, characters 24-75:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__get_K_type'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 707, characters 24-77:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__get_K_target'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 725, characters 68-118:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 725, characters 68-118:
+Sub-goal precondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 722, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 726, characters 18-69:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 726, characters 18-69:
+Sub-goal precondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 722, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 722, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.01s, 2951 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 729, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 2903 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 735, characters 8-61:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.02s, 31251 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 735, characters 8-61:
+Sub-goal precondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 729, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 734, characters 68-112:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.02s, 33395 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 734, characters 68-112:
+Sub-goal precondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 2929 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 735, characters 8-61:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.02s, 33436 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 735, characters 8-61:
+Sub-goal precondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 2929 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 729, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 2929 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 738, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.01s, 2846 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 740, characters 42-86:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 740, characters 42-86:
+Sub-goal precondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 740, characters 88-138:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.02s, 30405 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 740, characters 88-138:
+Sub-goal precondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 738, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 745, characters 70-123:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 746, characters 24-77:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 753, characters 24-77:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__get_K_target'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 760, characters 24-76:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__get_K_value'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 767, characters 24-75:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__get_K_func'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 789, characters 83-134:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.02s, 30405 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 789, characters 83-134:
+Sub-goal precondition of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 789, characters 26-82:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 789, characters 26-82:
+Sub-goal precondition of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 785, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 795, characters 82-139:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 795, characters 82-139:
+Sub-goal precondition of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 796, characters 18-68:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 796, characters 18-68:
+Sub-goal precondition of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 792, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 804, characters 89-149:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.03s, 32199 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 804, characters 89-149:
+Sub-goal precondition of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 804, characters 32-88:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 804, characters 32-88:
+Sub-goal precondition of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 800, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 810, characters 70-116:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 811, characters 24-70:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 818, characters 24-69:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_K_value'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 825, characters 24-68:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_K_type'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 832, characters 24-68:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_K_func'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 839, characters 24-70:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_K_target'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 864, characters 76-120:
+Sub-goal variant decrease of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.02s, 30405 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 864, characters 76-120:
+Sub-goal precondition of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 864, characters 28-75:
+Sub-goal variant decrease of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.02s, 31506 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 864, characters 28-75:
+Sub-goal precondition of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 860, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 868, characters 77-124:
+Sub-goal variant decrease of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 868, characters 77-124:
+Sub-goal precondition of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 869, characters 18-61:
+Sub-goal variant decrease of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 869, characters 18-61:
+Sub-goal precondition of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 866, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 874, characters 82-132:
+Sub-goal variant decrease of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.02s, 32199 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 874, characters 82-132:
+Sub-goal precondition of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 874, characters 34-81:
+Sub-goal variant decrease of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.02s, 33276 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 874, characters 34-81:
+Sub-goal precondition of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 872, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 878, characters 77-119:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 879, characters 24-66:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 879, characters 24-66:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 887, characters 24-67:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_value'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 891, characters 51-93:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_type'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 891, characters 51-93:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_type'vc.
+Prover result is: Valid (0.01s, 8586 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 895, characters 75-117:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_elts'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 896, characters 24-66:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_elts'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 896, characters 24-66:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_elts'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 899, characters 45-80:
+Sub-goal variant decrease of goal irscanner__find_return_type__llen'vc.
+Prover result is: Valid (0.01s, 7849 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 898, characters 14-25:
+Sub-goal postcondition of goal irscanner__find_return_type__llen'vc.
+Prover result is: Valid (0.02s, 27492 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 912, characters 80-101:
+Sub-goal array creation size of goal irscanner__find_return_type__value_tail'vc.
+Prover result is: Valid (0.01s, 2925 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 921, characters 11-41:
+Sub-goal precondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 922, characters 16-57:
+Sub-goal precondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 923, characters 9-50:
+Sub-goal variant decrease of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.01s, 2918 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 923, characters 9-50:
+Sub-goal precondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 920, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 931, characters 20-59:
+Sub-goal variant decrease of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.02s, 30328 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 931, characters 20-59:
+Sub-goal precondition of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 932, characters 79-119:
+Sub-goal variant decrease of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.02s, 30380 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 932, characters 79-119:
+Sub-goal precondition of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.01s, 2868 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 925, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 938, characters 17-55:
+Sub-goal variant decrease of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 938, characters 17-55:
+Sub-goal precondition of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.00s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 939, characters 18-48:
+Sub-goal variant decrease of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.02s, 29444 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 939, characters 18-48:
+Sub-goal precondition of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 936, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 945, characters 16-52:
+Sub-goal variant decrease of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 945, characters 16-52:
+Sub-goal precondition of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 946, characters 75-116:
+Sub-goal variant decrease of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.02s, 32271 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 946, characters 75-116:
+Sub-goal precondition of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 942, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 950, characters 77-115:
+Sub-goal variant decrease of goal irscanner__has_continue__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 951, characters 24-62:
+Sub-goal variant decrease of goal irscanner__has_continue__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 951, characters 24-62:
+Sub-goal variant decrease of goal irscanner__has_continue__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 958, characters 48-76:
+Sub-goal variant decrease of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 958, characters 48-76:
+Sub-goal precondition of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 958, characters 80-105:
+Sub-goal variant decrease of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 958, characters 80-105:
+Sub-goal precondition of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 957, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 962, characters 66-94:
+Sub-goal variant decrease of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.02s, 29255 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 962, characters 66-94:
+Sub-goal precondition of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 963, characters 18-44:
+Sub-goal variant decrease of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 963, characters 18-44:
+Sub-goal precondition of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 960, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 968, characters 24-52:
+Sub-goal variant decrease of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 968, characters 24-52:
+Sub-goal precondition of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 968, characters 56-87:
+Sub-goal variant decrease of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 968, characters 56-87:
+Sub-goal precondition of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 966, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 972, characters 77-120:
+Sub-goal variant decrease of goal irscanner__has_direct_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 973, characters 24-67:
+Sub-goal variant decrease of goal irscanner__has_direct_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 973, characters 24-67:
+Sub-goal variant decrease of goal irscanner__has_direct_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 980, characters 48-81:
+Sub-goal variant decrease of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 980, characters 48-81:
+Sub-goal precondition of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 980, characters 85-115:
+Sub-goal variant decrease of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 980, characters 85-115:
+Sub-goal precondition of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 979, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 984, characters 166-199:
+Sub-goal variant decrease of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.03s, 29684 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 984, characters 166-199:
+Sub-goal precondition of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.01s, 2946 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 985, characters 18-49:
+Sub-goal variant decrease of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 985, characters 18-49:
+Sub-goal precondition of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 982, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 990, characters 24-57:
+Sub-goal variant decrease of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 990, characters 24-57:
+Sub-goal precondition of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 990, characters 61-97:
+Sub-goal variant decrease of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 990, characters 61-97:
+Sub-goal precondition of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 988, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 994, characters 77-119:
+Sub-goal variant decrease of goal irscanner__has_early_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 995, characters 24-66:
+Sub-goal variant decrease of goal irscanner__has_early_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 995, characters 24-66:
+Sub-goal variant decrease of goal irscanner__has_early_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1002, characters 48-80:
+Sub-goal variant decrease of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1002, characters 48-80:
+Sub-goal precondition of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1002, characters 84-113:
+Sub-goal variant decrease of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1002, characters 84-113:
+Sub-goal precondition of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1001, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1006, characters 210-242:
+Sub-goal variant decrease of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.02s, 29940 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1006, characters 210-242:
+Sub-goal precondition of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.01s, 2959 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1007, characters 18-48:
+Sub-goal variant decrease of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1007, characters 18-48:
+Sub-goal precondition of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1004, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1012, characters 24-56:
+Sub-goal variant decrease of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1012, characters 24-56:
+Sub-goal precondition of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1012, characters 60-95:
+Sub-goal variant decrease of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1012, characters 60-95:
+Sub-goal precondition of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1010, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1016, characters 77-121:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1017, characters 24-68:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__get_stmt'vc.
+Prover result is: Valid (0.02s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1017, characters 24-68:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1024, characters 48-82:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1024, characters 48-82:
+Sub-goal precondition of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1024, characters 86-117:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1024, characters 86-117:
+Sub-goal precondition of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.00s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1023, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1028, characters 218-252:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.02s, 29940 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1028, characters 218-252:
+Sub-goal precondition of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.01s, 2959 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1029, characters 18-50:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1029, characters 18-50:
+Sub-goal precondition of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1026, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1034, characters 24-58:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1034, characters 24-58:
+Sub-goal precondition of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1034, characters 62-99:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1034, characters 62-99:
+Sub-goal precondition of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.00s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1032, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1039, characters 24-62:
+Sub-goal variant decrease of goal irscanner__is_recursive__get_type'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1039, characters 24-62:
+Sub-goal variant decrease of goal irscanner__is_recursive__get_type'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1048, characters 24-62:
+Sub-goal variant decrease of goal irscanner__is_recursive__get_func'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1048, characters 24-62:
+Sub-goal variant decrease of goal irscanner__is_recursive__get_func'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1056, characters 109-142:
+Sub-goal variant decrease of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.02s, 33576 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1056, characters 109-142:
+Sub-goal precondition of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.01s, 2942 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1057, characters 18-52:
+Sub-goal variant decrease of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1057, characters 18-52:
+Sub-goal precondition of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1054, characters 32-36:
+Sub-goal postcondition of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1061, characters 51-81:
+Sub-goal variant decrease of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1061, characters 51-81:
+Sub-goal precondition of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1061, characters 85-121:
+Sub-goal variant decrease of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1061, characters 85-121:
+Sub-goal precondition of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1060, characters 32-36:
+Sub-goal postcondition of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1064, characters 45-75:
+Sub-goal variant decrease of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1064, characters 45-75:
+Sub-goal precondition of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1064, characters 79-112:
+Sub-goal variant decrease of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1064, characters 79-112:
+Sub-goal precondition of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1063, characters 32-36:
+Sub-goal postcondition of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1069, characters 24-64:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__get_type'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1069, characters 24-64:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__get_type'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1078, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__get_op'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1078, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__get_op'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1087, characters 24-65:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__getp_left'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1095, characters 233-263:
+Sub-goal variant decrease of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.02s, 31498 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1095, characters 233-263:
+Sub-goal precondition of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.01s, 2975 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1096, characters 18-49:
+Sub-goal variant decrease of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1096, characters 18-49:
+Sub-goal precondition of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1093, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.00s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1100, characters 51-78:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1100, characters 51-78:
+Sub-goal precondition of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1100, characters 82-115:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1100, characters 82-115:
+Sub-goal precondition of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1099, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1103, characters 45-72:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1103, characters 45-72:
+Sub-goal precondition of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1103, characters 76-106:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1103, characters 76-106:
+Sub-goal precondition of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1102, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1107, characters 77-116:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1108, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1108, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1115, characters 48-77:
+Sub-goal variant decrease of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.03s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1115, characters 48-77:
+Sub-goal precondition of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1115, characters 81-107:
+Sub-goal variant decrease of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1115, characters 81-107:
+Sub-goal precondition of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.00s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1114, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1119, characters 67-96:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.02s, 29255 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1119, characters 67-96:
+Sub-goal precondition of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1120, characters 18-45:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1120, characters 18-45:
+Sub-goal precondition of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1117, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1125, characters 24-53:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1125, characters 24-53:
+Sub-goal precondition of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1125, characters 57-89:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1125, characters 57-89:
+Sub-goal precondition of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1123, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1129, characters 77-113:
+Sub-goal variant decrease of goal irscanner__uses_break__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1130, characters 24-60:
+Sub-goal variant decrease of goal irscanner__uses_break__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1130, characters 24-60:
+Sub-goal variant decrease of goal irscanner__uses_break__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1137, characters 48-74:
+Sub-goal variant decrease of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1137, characters 48-74:
+Sub-goal precondition of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1137, characters 78-101:
+Sub-goal variant decrease of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1137, characters 78-101:
+Sub-goal precondition of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1136, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1141, characters 61-87:
+Sub-goal variant decrease of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.02s, 29069 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1141, characters 61-87:
+Sub-goal precondition of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.02s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1142, characters 18-42:
+Sub-goal variant decrease of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1142, characters 18-42:
+Sub-goal precondition of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1139, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1147, characters 24-50:
+Sub-goal variant decrease of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1147, characters 24-50:
+Sub-goal precondition of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1147, characters 54-83:
+Sub-goal variant decrease of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1147, characters 54-83:
+Sub-goal precondition of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1145, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1151, characters 77-116:
+Sub-goal variant decrease of goal irscanner__uses_continue__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1152, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_continue__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1152, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_continue__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1159, characters 48-77:
+Sub-goal variant decrease of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1159, characters 48-77:
+Sub-goal precondition of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1159, characters 81-107:
+Sub-goal variant decrease of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1159, characters 81-107:
+Sub-goal precondition of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1158, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1163, characters 67-96:
+Sub-goal variant decrease of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.02s, 29255 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1163, characters 67-96:
+Sub-goal precondition of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1164, characters 18-45:
+Sub-goal variant decrease of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.03s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1164, characters 18-45:
+Sub-goal precondition of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1161, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1169, characters 24-53:
+Sub-goal variant decrease of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1169, characters 24-53:
+Sub-goal precondition of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.00s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1169, characters 57-89:
+Sub-goal variant decrease of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1169, characters 57-89:
+Sub-goal precondition of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1167, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1172, characters 15-19:
+Sub-goal postcondition of goal irscanner__uses_divmod'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1179, characters 77-111:
+Sub-goal variant decrease of goal irscanner__uses_for__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1180, characters 24-58:
+Sub-goal variant decrease of goal irscanner__uses_for__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1180, characters 24-58:
+Sub-goal variant decrease of goal irscanner__uses_for__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1187, characters 48-72:
+Sub-goal variant decrease of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1187, characters 48-72:
+Sub-goal precondition of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1187, characters 76-97:
+Sub-goal variant decrease of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1187, characters 76-97:
+Sub-goal precondition of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1186, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1191, characters 57-81:
+Sub-goal variant decrease of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.02s, 28903 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1191, characters 57-81:
+Sub-goal precondition of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1192, characters 18-40:
+Sub-goal variant decrease of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1192, characters 18-40:
+Sub-goal precondition of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1189, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1197, characters 24-48:
+Sub-goal variant decrease of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1197, characters 24-48:
+Sub-goal precondition of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1197, characters 52-79:
+Sub-goal variant decrease of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1197, characters 52-79:
+Sub-goal precondition of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1195, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1201, characters 77-118:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__get_stmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1202, characters 24-65:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__get_stmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1202, characters 24-65:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__get_stmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1209, characters 48-85:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1209, characters 48-85:
+Sub-goal precondition of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1209, characters 89-123:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1209, characters 89-123:
+Sub-goal precondition of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1208, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1213, characters 72-109:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.02s, 29441 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1213, characters 72-109:
+Sub-goal precondition of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1214, characters 18-53:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1214, characters 18-53:
+Sub-goal precondition of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1211, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1219, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1219, characters 24-61:
+Sub-goal precondition of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1219, characters 65-105:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1219, characters 65-105:
+Sub-goal precondition of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1217, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1226, characters 24-77:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__g_K_type'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1233, characters 24-77:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__g_K_func'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1244, characters 67-113:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.02s, 29440 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1244, characters 67-113:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1245, characters 18-65:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1245, characters 18-65:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1241, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1252, characters 24-64:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1252, characters 24-64:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1252, characters 68-117:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1252, characters 68-117:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1248, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1258, characters 18-58:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1258, characters 18-58:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1258, characters 62-108:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1258, characters 62-108:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.00s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1255, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1263, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_minmax__get_type'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1263, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_minmax__get_type'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1272, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_minmax__get_func'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1272, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_minmax__get_func'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1280, characters 155-182:
+Sub-goal variant decrease of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.02s, 34142 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1280, characters 155-182:
+Sub-goal precondition of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.01s, 2964 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1281, characters 18-46:
+Sub-goal variant decrease of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1281, characters 18-46:
+Sub-goal precondition of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1278, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1285, characters 51-75:
+Sub-goal variant decrease of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1285, characters 51-75:
+Sub-goal precondition of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1285, characters 79-109:
+Sub-goal variant decrease of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1285, characters 79-109:
+Sub-goal precondition of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1284, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1288, characters 45-69:
+Sub-goal variant decrease of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1288, characters 45-69:
+Sub-goal precondition of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1288, characters 73-100:
+Sub-goal variant decrease of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1288, characters 73-100:
+Sub-goal precondition of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1287, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1293, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__get_type'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1293, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__get_type'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1302, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__get_func'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1302, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__get_func'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1310, characters 158-186:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.02s, 34205 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1310, characters 158-186:
+Sub-goal precondition of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.01s, 2964 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1311, characters 18-47:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1311, characters 18-47:
+Sub-goal precondition of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1308, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1315, characters 51-76:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1315, characters 51-76:
+Sub-goal precondition of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1315, characters 80-111:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1315, characters 80-111:
+Sub-goal precondition of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1314, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1318, characters 45-70:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1318, characters 45-70:
+Sub-goal precondition of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.00s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1318, characters 74-102:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1318, characters 74-102:
+Sub-goal precondition of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1317, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1323, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_set_card__get_type'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1323, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_set_card__get_type'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1331, characters 68-97:
+Sub-goal variant decrease of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.02s, 29235 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1331, characters 68-97:
+Sub-goal precondition of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1332, characters 18-48:
+Sub-goal variant decrease of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1332, characters 18-48:
+Sub-goal precondition of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1329, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1336, characters 51-77:
+Sub-goal variant decrease of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1336, characters 51-77:
+Sub-goal precondition of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1336, characters 81-113:
+Sub-goal variant decrease of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1336, characters 81-113:
+Sub-goal precondition of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1335, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1339, characters 45-71:
+Sub-goal variant decrease of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1339, characters 45-71:
+Sub-goal precondition of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1339, characters 75-104:
+Sub-goal variant decrease of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1339, characters 75-104:
+Sub-goal precondition of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1338, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1344, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_string__get_type'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1344, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_string__get_type'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1352, characters 65-92:
+Sub-goal variant decrease of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.02s, 29152 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1352, characters 65-92:
+Sub-goal precondition of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1353, characters 18-46:
+Sub-goal variant decrease of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1353, characters 18-46:
+Sub-goal precondition of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1350, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1357, characters 51-75:
+Sub-goal variant decrease of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1357, characters 51-75:
+Sub-goal precondition of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1357, characters 79-109:
+Sub-goal variant decrease of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1357, characters 79-109:
+Sub-goal precondition of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1356, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1360, characters 45-69:
+Sub-goal variant decrease of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1360, characters 45-69:
+Sub-goal precondition of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1360, characters 73-100:
+Sub-goal variant decrease of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1360, characters 73-100:
+Sub-goal precondition of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1359, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1365, characters 24-64:
+Sub-goal variant decrease of goal irscanner__uses_subscript__get_type'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1365, characters 24-64:
+Sub-goal variant decrease of goal irscanner__uses_subscript__get_type'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1373, characters 71-101:
+Sub-goal variant decrease of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.02s, 29401 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1373, characters 71-101:
+Sub-goal precondition of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1374, characters 18-49:
+Sub-goal variant decrease of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.01s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1374, characters 18-49:
+Sub-goal precondition of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1371, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1378, characters 51-78:
+Sub-goal variant decrease of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1378, characters 51-78:
+Sub-goal precondition of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1378, characters 82-115:
+Sub-goal variant decrease of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1378, characters 82-115:
+Sub-goal precondition of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1377, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1381, characters 45-72:
+Sub-goal variant decrease of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1381, characters 45-72:
+Sub-goal precondition of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1381, characters 76-106:
+Sub-goal variant decrease of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1381, characters 76-106:
+Sub-goal precondition of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1380, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1386, characters 24-58:
+Sub-goal variant decrease of goal irscanner__uses_sum__get_type'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1386, characters 24-58:
+Sub-goal variant decrease of goal irscanner__uses_sum__get_type'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1394, characters 59-83:
+Sub-goal variant decrease of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.02s, 28903 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1394, characters 59-83:
+Sub-goal precondition of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.01s, 2920 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1395, characters 18-43:
+Sub-goal variant decrease of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1395, characters 18-43:
+Sub-goal precondition of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1392, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1399, characters 51-72:
+Sub-goal variant decrease of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1399, characters 51-72:
+Sub-goal precondition of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1399, characters 76-103:
+Sub-goal variant decrease of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1399, characters 76-103:
+Sub-goal precondition of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1398, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1402, characters 45-66:
+Sub-goal variant decrease of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1402, characters 45-66:
+Sub-goal precondition of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1402, characters 70-94:
+Sub-goal variant decrease of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1402, characters 70-94:
+Sub-goal precondition of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl__fis4481.mlw", line 1401, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 226, characters 37-42: unused variable stmts
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 227, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 330, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 334, characters 8-18: cloned theory .VarsModSig does not contain any abstract symbol; it should be used instead
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 355, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 355, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 361, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 370, characters 26-30: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 386, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 383, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 377, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 388, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 388, characters 55-60: unused variable stmts
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 388, characters 74-85: unused variable target_name
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 388, characters 96-99: unused variable out
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 411, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 405, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 402, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 433, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 427, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 424, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 436, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 436, characters 64-69: unused variable stmts
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 438, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 476, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 470, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 464, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 514, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 507, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 537, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 531, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 528, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 586, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 580, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 574, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 589, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 589, characters 61-66: unused variable stmts
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 591, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 629, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 623, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 617, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 632, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 632, characters 61-66: unused variable stmts
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 634, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 692, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 686, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 680, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 800, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 792, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 785, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 872, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 866, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 860, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 942, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 936, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 925, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 920, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 966, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 960, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 957, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 988, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 982, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 979, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1010, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1004, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1001, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1032, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1026, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1023, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1038, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1047, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1063, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1060, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1054, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1068, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1077, characters 26-30: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1086, characters 21-25: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1102, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1099, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1093, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1123, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1117, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1114, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1145, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1139, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1136, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1167, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1161, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1158, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1170, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1172, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1195, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1189, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1186, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1217, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1211, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1208, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1255, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1248, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1241, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1262, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1271, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1287, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1284, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1278, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1292, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1301, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1317, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1314, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1308, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1322, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1338, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1335, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1329, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1343, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1359, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1356, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1350, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1364, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1380, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1377, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1371, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1385, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1401, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1398, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1392, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 226, characters 37-42: unused variable stmts
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 227, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 330, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 334, characters 8-18: cloned theory .VarsModSig does not contain any abstract symbol; it should be used instead
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 355, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 355, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 361, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 370, characters 26-30: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 386, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 383, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 377, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 388, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 388, characters 55-60: unused variable stmts
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 388, characters 74-85: unused variable target_name
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 388, characters 96-99: unused variable out
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 411, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 405, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 402, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 433, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 427, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 424, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 436, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 436, characters 64-69: unused variable stmts
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 438, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 476, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 470, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 464, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 514, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 507, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 537, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 531, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 528, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 586, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 580, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 574, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 589, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 589, characters 61-66: unused variable stmts
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 591, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 629, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 623, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 617, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 632, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 632, characters 61-66: unused variable stmts
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 634, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 692, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 686, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 680, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 800, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 792, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 785, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 872, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 866, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 860, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 942, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 936, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 925, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 920, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 966, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 960, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 957, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 988, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 982, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 979, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1010, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1004, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1001, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1032, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1026, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1023, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1038, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1047, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1063, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1060, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1054, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1068, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1077, characters 26-30: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1086, characters 21-25: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1102, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1099, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1093, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1123, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1117, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1114, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1145, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1139, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1136, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1167, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1161, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1158, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1170, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1172, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1195, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1189, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1186, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1217, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1211, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1208, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1255, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1248, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1241, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1262, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1271, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1287, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1284, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1278, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1292, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1301, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1317, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1314, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1308, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1322, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1338, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1335, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1329, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1343, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1359, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1356, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1350, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1364, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1380, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1377, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1371, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1385, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1401, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1398, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__fis4481.mlw", line 1392, characters 32-36: unused variable result
+
+[-] 2 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 23104393 steps).
+    Prover result is: Timeout (30.00s, 23361276 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
+DONE rc=1 1785794821

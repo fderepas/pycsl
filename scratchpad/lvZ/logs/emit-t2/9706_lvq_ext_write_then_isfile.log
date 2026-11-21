@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/9706_lvq_ext_write_then_isfile.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+function 'wrote': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: the `return` of a function declared `-> bool`. Python does not enforce the annotation (a user `__sub__`/`__eq__`/... runs), but the model would treat the value as that builtin and re-apply its laws (route #252) -- refused fail-closed. Annotate the source value with the builtin type, or declare the slot `Any`.
+rc=1

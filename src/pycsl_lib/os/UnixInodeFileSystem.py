@@ -343,13 +343,16 @@ def _pad_name(name: str) -> list:
     `i < m` is established at each store and is what the fixed-width namespace
     consequence (`formal_os_namespace.py`) recovers and compares.
     """
-    #@ assigns \nothing
-    #@ ensures \length(\result) == 30
-    # ROUTE 1 byte-VALUE ensures (the loop invariants already prove these at exit;
-    # surfaced as top-level ensures so _blit_dir_entry can chain them into the
-    # dirent name-field byte facts the marker intro needs).
-    #@ ensures \forall j: int; (0 <= j and j < \str_length(name) and j < 30) ==> \result[j] == ord(name[j])
-    #@ ensures \forall j: int; (\str_length(name) <= j and j < 30) ==> \result[j] == 0
+    # (#34) FOUR `#@` CLAUSES USED TO SIT HERE — an `assigns` and three `ensures`, with a
+    # comment saying they were "surfaced as top-level ensures so _blit_dir_entry can chain
+    # them". They were NOT top-level anything: a `#@` block binds to the node that FOLLOWS
+    # it, and the follower here is `out = [0] * 30`, a SimpleStatement anchor whose
+    # attachment site consumes only `label`/`assert`/`check`/`ghost`. All four were
+    # silently DISCARDED while the run still printed "All contracts formally proven".
+    # They were also REDUNDANT: the identical contract is on the `def` above (with `len`
+    # where these used `\str_length`), which is the copy that has been doing the work all
+    # along. Deleted rather than duplicated; `Module3_Weaver._reject_misplaced_directives`
+    # now makes this placement a hard error instead of a silent drop.
     out = [0] * 30
     n = len(name)
     m = n

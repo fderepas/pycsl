@@ -1,0 +1,179 @@
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 21455866..c8d8a0ce 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -6721,8 +6721,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+             # (return type + result-only ensures), not the abstract int default.
+             gv_classes = getattr(self, "_module_global_classes", {})
+             parts = func_name.split(".")
+-            if len(parts) == 2 and (parts[0] in rv_classes or parts[0] in gv_classes):
+-                cls = (rv_classes.get(parts[0]) or gv_classes.get(parts[0])).lower()
++            # (#49) ROUTE #189 — an AMBIGUOUS receiver (one name, two classes) is recorded
++            # as the empty class by `find_record_var_classes`, so membership is no longer
++            # enough: resolve on a TRUTHY class, and leave the call an uninterpreted stub
++            # when the receiver's class is not single-valued.
++            _cls189 = (rv_classes.get(parts[0]) or gv_classes.get(parts[0]) or "")
++            if len(parts) == 2 and _cls189:
++                cls = _cls189.lower()
+                 lookup_key = f"{cls}__{parts[1]}"
+                 rens = getattr(self, "_module_method_result_ensures", {})
+                 prens = getattr(self, "_module_method_param_result_ensures", {})
+diff --git a/src/pycsl/module6_whyml/ir_scanner.py b/src/pycsl/module6_whyml/ir_scanner.py
+index ccbf09e0..fcd6e95e 100644
+--- a/src/pycsl/module6_whyml/ir_scanner.py
++++ b/src/pycsl/module6_whyml/ir_scanner.py
+@@ -330,24 +330,67 @@ class IRScanner:
+                                 record_types: Set[str]) -> Dict[str, str]:
+         """Map each local assigned from a record constructor (`c = C()`) to its
+         class name `C`. Lets method calls `c.method(...)` resolve the callee's
+-        contract (`<class>__<method>`), the same way `self.method(...)` does."""
++        contract (`<class>__<method>`), the same way `self.method(...)` does.
++
++        (#49) ROUTE #189 — ONE NAME, TWO CLASSES. The walk used to `update()` every
++        nested scope into one flat map, so the LAST branch scanned won: for
++        `if flag > 0: o = D() else: o = C()` the name `o` resolved to `C`, and the
++        single call site `o.get()` was emitted as one stub carrying `C.get`'s
++        contract. MEASURED (gen #29): that file PROVED `\\result == 1` for every
++        `flag` while CPython returns 2 on the `D` branch. A name bound MORE THAN ONCE
++        in the walk is now recorded as the EMPTY class — every consumer resolves on a
++        truthy class, so such a receiver reads as UNRESOLVED and no callee contract is
++        attached. Binding-count rather than class-inequality is deliberate: it is the
++        test that needs no READ of the map's values, and this function is MIRRORED —
++        its emission types those values as `string` from the `Dict[str, str]`
++        annotation while `val.get("func", "")` is the int-typed abstract dict read,
++        and the two do not type together. The cost is completeness only: a name bound
++        twice to the SAME class also loses its contract.
++
++        The empty marker is spelled `stmt.get("__pycsl_r189_ambiguous__", "")` — a
++        `.get` of a key no IR statement carries, i.e. `""` — for the same reason: a
++        bare `""` literal would type the stored values as strings."""
+         out: Dict[str, str] = {}
++        seen: Dict[str, str] = {}
+         for stmt in stmts:
++            amb = stmt.get("__pycsl_r189_ambiguous__", "")
+             if stmt.get("stmt") == "Assign":
+                 val = stmt.get("value", {})
+                 if (isinstance(val, dict) and val.get("type") == "Call" and
+                         val.get("func", "") in record_types):
+                     tgt = stmt.get("target", "")
+                     if tgt:
+-                        out[tgt] = val.get("func", "")
++                        if tgt in seen:
++                            out[tgt] = amb
++                        else:
++                            out[tgt] = val.get("func", "")
++                        seen[tgt] = amb
+             for key in ("body", "orelse"):
+                 if key in stmt and isinstance(stmt[key], list):
+-                    out.update(IRScanner.find_record_var_classes(stmt[key], record_types))
++                    sub = IRScanner.find_record_var_classes(stmt[key], record_types)
++                    for n1 in sub:
++                        if n1 in seen:
++                            out[n1] = amb
++                        else:
++                            out[n1] = sub[n1]
++                        seen[n1] = amb
+             if stmt.get("stmt") in ("While", "For"):
+-                out.update(IRScanner.find_record_var_classes(stmt.get("body", []), record_types))
++                sub2 = IRScanner.find_record_var_classes(stmt.get("body", []), record_types)
++                for n2 in sub2:
++                    if n2 in seen:
++                        out[n2] = amb
++                    else:
++                        out[n2] = sub2[n2]
++                    seen[n2] = amb
+             if stmt.get("stmt") == "Match":
+                 for c in stmt.get("cases", []):
+-                    out.update(IRScanner.find_record_var_classes(c.get("body", []), record_types))
++                    sub3 = IRScanner.find_record_var_classes(c.get("body", []), record_types)
++                    for n3 in sub3:
++                        if n3 in seen:
++                            out[n3] = amb
++                        else:
++                            out[n3] = sub3[n3]
++                        seen[n3] = amb
+         return out
+ 
+     @staticmethod
+diff --git a/src/self-annotate/src/module6_whyml/ir_scanner.py b/src/self-annotate/src/module6_whyml/ir_scanner.py
+index 614dff4e..33f2ef7d 100644
+--- a/src/self-annotate/src/module6_whyml/ir_scanner.py
++++ b/src/self-annotate/src/module6_whyml/ir_scanner.py
+@@ -303,29 +303,69 @@ class IRScanner:
+                                 record_types: Set[str]) -> Dict[str, str]:
+         """Map each local assigned from a record constructor (`c = C()`) to its
+         class name `C`. Lets method calls `c.method(...)` resolve the callee's
+-        contract (`<class>__<method>`), the same way `self.method(...)` does."""
++        contract (`<class>__<method>`), the same way `self.method(...)` does.
++
++        (#49) ROUTE #189 — ONE NAME, TWO CLASSES. The walk used to `update()` every
++        nested scope into one flat map, so the LAST branch scanned won: for
++        `if flag > 0: o = D() else: o = C()` the name `o` resolved to `C`, and the
++        single call site `o.get()` was emitted as one stub carrying `C.get`'s
++        contract. MEASURED (gen #29): that file PROVED `\\result == 1` for every
++        `flag` while CPython returns 2 on the `D` branch. A name bound MORE THAN ONCE
++        in the walk is now recorded as the EMPTY class — every consumer resolves on a
++        truthy class, so such a receiver reads as UNRESOLVED and no callee contract is
++        attached. Binding-count rather than class-inequality is deliberate: it is the
++        test that needs no READ of the map's values, and this function is MIRRORED —
++        its emission types those values as `string` from the `Dict[str, str]`
++        annotation while `val.get("func", "")` is the int-typed abstract dict read,
++        and the two do not type together. The cost is completeness only: a name bound
++        twice to the SAME class also loses its contract.
++
++        The empty marker is spelled `stmt.get("__pycsl_r189_ambiguous__", "")` — a
++        `.get` of a key no IR statement carries, i.e. `""` — for the same reason: a
++        bare `""` literal would type the stored values as strings."""
+         out: Dict[str, str] = {}
++        seen: Dict[str, str] = {}
+         for stmt in stmts:
++            amb = stmt.get("__pycsl_r189_ambiguous__", "")
+             if stmt.get("stmt") == "Assign":
+                 val = stmt.get("value", {})
+                 if (isinstance(val, dict) and val.get("type") == "Call" and
+                         val.get("func", "") in record_types):
+                     tgt = stmt.get("target", "")
+                     if tgt:
+-                        out[tgt] = val.get("func", "")
++                        if tgt in seen:
++                            out[tgt] = amb
++                        else:
++                            out[tgt] = val.get("func", "")
++                        seen[tgt] = amb
+             for key in ("body", "orelse"):
+                 if key in stmt and isinstance(stmt[key], list):
+-                    out.update(IRScanner.find_record_var_classes(stmt[key], record_types))
++                    sub = IRScanner.find_record_var_classes(stmt[key], record_types)
++                    for n1 in sub:
++                        if n1 in seen:
++                            out[n1] = amb
++                        else:
++                            out[n1] = sub[n1]
++                        seen[n1] = amb
+             if stmt.get("stmt") in ("While", "For"):
+-                out.update(IRScanner.find_record_var_classes(stmt.get("body", []), record_types))
++                sub2 = IRScanner.find_record_var_classes(stmt.get("body", []), record_types)
++                for n2 in sub2:
++                    if n2 in seen:
++                        out[n2] = amb
++                    else:
++                        out[n2] = sub2[n2]
++                    seen[n2] = amb
+             if stmt.get("stmt") == "Match":
+                 for c in stmt.get("cases", []):
+-                    out.update(IRScanner.find_record_var_classes(c.get("body", []), record_types))
++                    sub3 = IRScanner.find_record_var_classes(c.get("body", []), record_types)
++                    for n3 in sub3:
++                        if n3 in seen:
++                            out[n3] = amb
++                        else:
++                            out[n3] = sub3[n3]
++                        seen[n3] = amb
+         return out
+ 
+-    #@ requires True
+-    #@ ensures True
+-    #@ assigns \nothing
+     @staticmethod
+     def has_continue(stmts: List[Dict[str, Any]]) -> bool:
+         for stmt in stmts:

@@ -1,0 +1,9 @@
+diff --git a/bin/getattr-erasure-sites.tsv b/bin/getattr-erasure-sites.tsv
+index 888c37e40..5dcb0cab7 100644
+--- a/bin/getattr-erasure-sites.tsv
++++ b/bin/getattr-erasure-sites.tsv
+@@ -29,3 +29,4 @@ test-suite/corpus/pycsl-reference/5464_gen37_gd_ctl_absent_default_file_mro.py	1
+ test-suite/corpus/pycsl-reference/5465_gen37_gd_ctl_mangled_other_name_absent.py	1	0
+ test-suite/corpus/pycsl-reference/5681_gen37_r396_ctl_gd_absent_in_subclass_closure.py	1	0
+ test-suite/corpus/pycsl-reference/6023_gen37_r406_ctl_call_sets_attr.py	1	0
++test-suite/corpus/pycsl-reference/6337_r428_ctl_stdlib_function_on_self.py	1	0

@@ -1,0 +1,15 @@
+r"""Test 5299 -- gen #37 route #386 (expected FAIL): MODULE-level `from operator import sub as max`, `max(3, 1) == 3`; PROVED at base (CPython 2). REFUSED (route #386).
+"""
+# pycsl-expected: FAIL
+from operator import sub as max
+
+
+#@ ensures \result == 3
+#@ assigns \nothing
+def m() -> int:
+    return max(3, 1)
+
+
+if __name__ == "__main__":
+    r = m()
+    print("VIOLATION m() =", r) if r != 3 else print("no violation")

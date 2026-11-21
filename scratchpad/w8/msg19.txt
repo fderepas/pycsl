@@ -1,0 +1,38 @@
+FOUND(#43): ROUTE #19 — `@mutable_state` turns a REJECTION into a silent no-op for a mutated collection parameter
+
+The first of the four no-op candidates handed over one commit ago, and it fails in exactly
+the place its own comment claims safety. `statements.py:2670`:
+
+    # the mutation is on a value param, so it does NOT escape for an
+    # `assigns \nothing` / type-safety contract: a sound no-op. (A Python set param IS
+    # mutated, but no contract here reads it — the recursion's `declared_refs` is a
+    # trusted sibling arg.)
+
+"no contract here reads it" is a claim about the corpus as it stands, not a property of the
+lowering. Write a contract that does read it:
+
+    @mutable_state
+    class C:
+        #@ requires 1 not in s
+        #@ ensures 1 not in s          <-- FALSE OF THE PROGRAM
+        #@ assigns \nothing
+        def m(self, s: Set[int]) -> None:
+            s.add(1)
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+THE CONTROL IS WHAT MAKES THIS SHARP: the IDENTICAL class WITHOUT `@mutable_state` is
+REJECTED outright — the WL-05 caller-visible-mutation boundary fires and the file does not
+compile. So the decorator does not merely change the model, it converts a hard refusal into
+a silent no-op.
+
+PLANNED FIX, and it is unusually clean: turn the comment's own justification into a MACHINE
+CHECK. Keep the no-op only while the enclosing function's contract clauses do not MENTION
+the mutated parameter; refuse when they do. That preserves every existing mirror use — the
+reflecting handlers' `declared_refs.add(target)` sibling arguments are never named in a
+contract — while closing the route for anything that actually depends on it.
+
+Nothing is changed by this commit; it records the reproduction. Probes under
+`scratchpad/w8/probes/r19/`.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

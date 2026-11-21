@@ -15,6 +15,7 @@ failed = 0
 #@ thread_entry
 #@ \diverges
 def handler() -> int:
+    global failed, processed
     #@ critical lock_proc
     with lock_proc:
         processed += 1

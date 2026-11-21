@@ -8,6 +8,8 @@ module PyCSL_Program
     invariant { ((Array.length disk) >= 8) }
     by { disk = (Array.make 8 0) }
 
+  goal _check_class_inv_disk : forall disk : array int. (Array.length disk) = 8 -> (((Array.length disk) >= 8))
+
   let d : disk = { disk = (Array.make 8 0) }
 
   let poke (i: int) (v: int) : int

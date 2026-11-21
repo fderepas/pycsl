@@ -1,0 +1,19 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt25/l06_self_in_int_list.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_bhfhqz6y.mlw", line 15, characters 26-45:
+Sub-goal array creation size of goal p__m'vc.
+Prover result is: Valid (0.01s, 279 steps).
+
+File "/tmp/.pycsl_bhfhqz6y.mlw", line 16, characters 20-53:
+Sub-goal assertion of goal p__m'vc.
+Prover result is: Valid (0.00s, 6749 steps).
+
+File "/tmp/.pycsl_bhfhqz6y.mlw", line 16, characters 57-62:
+Sub-goal index in array bounds of goal p__m'vc.
+Prover result is: Valid (0.00s, 918 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

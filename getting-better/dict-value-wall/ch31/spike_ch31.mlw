@@ -1,0 +1,217 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use map.Map
+  use map.Const
+  use option.Option
+  use array.Array
+  use seq.Seq
+
+  exception Return_str string
+  exception Return int
+
+  type hval = HStr string | HInt int | HArr hval_list | HMap hpairs | HNode hval
+  with hval_list = HNil | HCons hval hval_list
+  with hpairs = PNil | PCons string hval hpairs
+
+  val any_map (_u: unit) : map 'k (option 'v)
+  val function hval_iter_get_other (h: hval) (i: int) : hval
+  val function hval_iter_len_other (h: hval) : int
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+  val function pycsl_none : int
+
+  val function hpairs_key_eq (a b: string) : bool ensures { result <-> a = b }
+  let rec function pairs_get (p: hpairs) (k: string) : option hval
+    variant { p }
+    = match p with
+      | PNil -> None
+      | PCons k' v t -> if hpairs_key_eq k k' then Some v else pairs_get t k
+      end
+  val function hval_opaque_str (h: hval) : string
+  let function hstr_of (h: hval) : string = match h with HStr s -> s | _ -> hval_opaque_str h end
+  let function hint_of (h: hval) : int = match h with HInt i -> i | _ -> 0 end
+  let function hval_truthy (h: hval) : bool =
+    match h with
+    | HStr s -> not (hpairs_key_eq s "")
+    | HInt i -> i <> 0
+    | HArr l -> (match l with HNil -> false | _ -> true end)
+    | HMap p -> (match p with PNil -> false | _ -> true end)
+    | HNode _ -> true
+    end
+  let rec function hval_list_str_mem (l: hval_list) (x: string) : bool
+    variant { l }
+    = match l with
+      | HNil -> false
+      | HCons h t -> if (match h with HStr s -> hpairs_key_eq s x | _ -> false end) then true else hval_list_str_mem t x
+      end
+  let function hval_str_mem (h: hval) (x: string) : bool =
+    match h with HArr l -> hval_list_str_mem l x | _ -> false end
+  let rec function hval_list_len (l: hval_list) : int
+    variant { l }
+    = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end
+  let function hval_len (h: hval) : int =
+    match h with HArr l -> hval_list_len l | _ -> 0 end
+  let rec function hval_list_nth (l: hval_list) (i: int) : hval
+    variant { l }
+    = match l with
+      | HNil -> HInt 0
+      | HCons x t -> if i <= 0 then x else hval_list_nth t (i - 1)
+      end
+  let function hval_nth_str (h: hval) (i: int) : string =
+    match h with HArr l -> hstr_of (hval_list_nth l i) | _ -> "" end
+  val function hval_values_len (m: map string (option hval)) : int
+  val function hval_values_get (m: map string (option hval)) (i: int) : hval
+  val function hval_keys_get (m: map string (option hval)) (i: int) : string
+  val function hval_as_map (h: hval) : map string (option hval)
+
+  let rec function hval_list_to_seq (l: hval_list) : seq hval
+    variant { l }
+    = match l with HNil -> Seq.empty | HCons x t -> Seq.cons x (hval_list_to_seq t) end
+  val function hval_as_seq_other (h: hval) : seq hval
+  let function hval_to_seq (h: hval) : seq hval =
+    match h with HArr l -> hval_list_to_seq l | _ -> hval_as_seq_other h end
+  let rec ghost function hpairs_to_map (p: hpairs) : map string (option hval)
+    variant { p }
+    = match p with PNil -> Const.const None | PCons k v t -> Map.set (hpairs_to_map t) k (Some v) end
+  let rec hpairs_to_map_p (p: hpairs) : map string (option hval)
+    variant { p }
+    ensures { result = hpairs_to_map p }
+    = match p with PNil -> const (None: option hval) | PCons k v t -> map_update_some (hpairs_to_map_p t) k v end
+  val function hval_as_map_other (h: hval) : map string (option hval)
+  let hval_to_map (h: hval) : map string (option hval)
+    ensures { result = match h with HMap p -> hpairs_to_map p | _ -> hval_as_map_other h end }
+  = match h with HMap p -> hpairs_to_map_p p | _ -> hval_as_map_other h end
+
+  let is_valid (rec_: map string (option hval)) : int
+    ensures { result <> 0 <-> (match Map.get rec_ "answer" with Some (HStr s) -> s = "Valid" | _ -> false end) }
+  = match Map.get rec_ "answer" with Some v -> (match v with HStr s -> if hpairs_key_eq s "Valid" then 1 else 0 | _ -> 0 end) | None -> 0 end
+
+  (* ===== ch31: builtins on an hval value, by carrier (faithful; unknown carrier -> uninterpreted) ===== *)
+  val function hstr_len (s: string) : int ensures { result = String.length s }
+  val function hstr_lt (a b: string) : bool ensures { result <-> String.lt a b }
+
+  (* bool(h): Python truthiness = the existing hval_truthy *)
+  let function hval_bool (h: hval) : int = if hval_truthy h then 1 else 0
+
+  (* len(h) *)
+  val function hval_len_other (h: hval) : int
+  let rec function hpairs_nkeys (p: hpairs) : int
+    variant { p }
+    = match p with PNil -> 0
+      | PCons k _ t -> (match pairs_get t k with None -> 1 | Some _ -> 0 end) + hpairs_nkeys t end
+  let function hval_pylen (h: hval) : int =
+    match h with
+    | HArr l -> hval_list_len l
+    | HMap p -> hpairs_nkeys p
+    | HStr s -> hstr_len s
+    | _ -> hval_len_other h
+    end
+
+  (* f"{h}" / str(h): only an HStr is known; HInt conflates int/bool/None *)
+  val function hval_fmt_other (h: hval) : string
+  let function hval_fmt (h: hval) : string =
+    match h with HStr s -> s | _ -> hval_fmt_other h end
+
+  (* x in set(h), x a str *)
+  val function hval_set_mem_other (h: hval) (x: string) : bool
+  let function hval_set_mem (h: hval) (x: string) : bool =
+    match h with
+    | HArr l -> hval_list_str_mem l x
+    | HMap p -> (match pairs_get p x with Some _ -> true | None -> false end)
+    | _ -> hval_set_mem_other h x
+    end
+
+  (* list(h) = hval_to_seq h (ch30) *)
+
+  (* sorted(h): an HArr of HStr only *)
+  let rec function hval_list_all_str (l: hval_list) : bool
+    variant { l }
+    = match l with HNil -> true | HCons (HStr _) t -> hval_list_all_str t | HCons _ _ -> false end
+  let rec function hval_list_ins (x: string) (l: hval_list) : hval_list
+    variant { l }
+    = match l with
+      | HNil -> HCons (HStr x) HNil
+      | HCons (HStr y) t -> if hstr_lt y x then HCons (HStr y) (hval_list_ins x t) else HCons (HStr x) l
+      | HCons y t -> HCons y (hval_list_ins x t)
+      end
+  let rec function hval_list_sort (l: hval_list) : hval_list
+    variant { l }
+    = match l with
+      | HNil -> HNil
+      | HCons (HStr x) t -> hval_list_ins x (hval_list_sort t)
+      | HCons y t -> HCons y (hval_list_sort t)
+      end
+  val function hval_sorted_other (h: hval) : seq hval
+  let function hval_sorted (h: hval) : seq hval =
+    match h with
+    | HArr l -> if hval_list_all_str l then hval_list_to_seq (hval_list_sort l) else hval_sorted_other h
+    | _ -> hval_sorted_other h
+    end
+
+  (* h.keys() over a nested HMap, Python insertion order, deduplicated *)
+  let rec function hpairs_keys (p: hpairs) : seq string
+    variant { p }
+    = match p with
+      | PNil -> Seq.empty
+      | PCons k _ t -> (match pairs_get t k with None -> Seq.snoc (hpairs_keys t) k | Some _ -> hpairs_keys t end)
+      end
+  val function hval_keys_other (h: hval) : seq string
+  let function hval_keys (h: hval) : seq string =
+    match h with HMap p -> hpairs_keys p | _ -> hval_keys_other h end
+
+  (* ---- claims: TRUE then FALSE twin per builtin ---- *)
+  let bool_t (h: hval) : int requires { h = HStr "x" } ensures { result = 1 } = hval_bool h
+  let bool_f (h: hval) : int requires { h = HStr "x" } ensures { result = 0 } = hval_bool h
+  let bool_t2 (h: hval) : int requires { h = HArr HNil } ensures { result = 0 } = hval_bool h
+  let bool_f2 (h: hval) : int requires { h = HInt pycsl_none } ensures { result = 0 } = hval_bool h
+
+  let len_t (h: hval) : int requires { h = HStr "abc" } ensures { result = 3 } = hval_pylen h
+  let len_f (h: hval) : int requires { h = HStr "abc" } ensures { result = 0 } = hval_pylen h
+  let len_t2 (h: hval) : int requires { h = HMap (PCons "a" (HInt 3) (PCons "b" (HInt 2) (PCons "a" (HInt 1) PNil))) } ensures { result = 2 } = hval_pylen h
+  let len_f2 (h: hval) : int requires { h = HMap (PCons "a" (HInt 3) (PCons "b" (HInt 2) (PCons "a" (HInt 1) PNil))) } ensures { result = 3 } = hval_pylen h
+  let len_f3 (h: hval) : int requires { h = HInt 5 } ensures { result = 0 } = hval_pylen h
+
+  let fmt_t (a b: hval) : bool requires { a = HStr "x" /\ b = HStr "y" } ensures { result = false } = hpairs_key_eq (hval_fmt a) (hval_fmt b)
+  let fmt_f (a b: hval) : bool requires { a = HStr "x" /\ b = HStr "y" } ensures { result = true } = hpairs_key_eq (hval_fmt a) (hval_fmt b)
+  let fmt_f2 (a: hval) : bool requires { a = HInt 1 } ensures { result = true } = hpairs_key_eq (hval_fmt a) "1"
+
+  let set_t (h: hval) : bool requires { h = HArr (HCons (HStr "a") (HCons (HStr "b") HNil)) } ensures { result = true } = hval_set_mem h "a"
+  let set_f (h: hval) : bool requires { h = HArr (HCons (HStr "a") (HCons (HStr "b") HNil)) } ensures { result = false } = hval_set_mem h "a"
+  let set_t2 (h: hval) : bool requires { h = HMap (PCons "k" (HInt 0) PNil) } ensures { result = true } = hval_set_mem h "k"
+  let set_f2 (h: hval) : bool requires { h = HStr "abc" } ensures { result = false } = hval_set_mem h "a"
+
+  let list_t (h: hval) : int requires { h = HArr (HCons (HStr "a") (HCons (HStr "b") HNil)) } ensures { result = 2 } = Seq.length (hval_to_seq h)
+  let list_f (h: hval) : int requires { h = HArr (HCons (HStr "a") (HCons (HStr "b") HNil)) } ensures { result = 1 } = Seq.length (hval_to_seq h)
+
+  let sorted_t () : hval ensures { result = HStr "a" }
+    = let s = hval_sorted (HArr (HCons (HStr "b") (HCons (HStr "a") HNil))) in if Seq.length s > 0 then s[0] else HInt 0
+  let sorted_f () : hval ensures { result = HStr "b" }
+    = let s = hval_sorted (HArr (HCons (HStr "b") (HCons (HStr "a") HNil))) in if Seq.length s > 0 then s[0] else HInt 0
+  let sorted_f2 () : int ensures { result = 2 }
+    = Seq.length (hval_sorted (HArr (HCons (HStr "b") (HCons (HInt 1) HNil))))
+
+  let keys_t () : string ensures { result = "a" }
+    = let s = hval_keys (HMap (PCons "a" (HInt 3) (PCons "b" (HInt 2) (PCons "a" (HInt 1) PNil)))) in if Seq.length s = 2 then s[0] else ""
+  let keys_f () : string ensures { result = "b" }
+    = let s = hval_keys (HMap (PCons "a" (HInt 3) (PCons "b" (HInt 2) (PCons "a" (HInt 1) PNil)))) in if Seq.length s = 2 then s[0] else ""
+
+
+  (* ---- HEAD-model claims that are FALSE in CPython (soundness probes of the current lowering) ---- *)
+  val int_to_string (n: int) : string
+  (* f"{a}" with a = "x" vs f"{b}" with b = "y": HEAD lowers both via int_to_string (hint_of _) *)
+  let head_fstr_collapse () : bool ensures { result = true }
+    = hpairs_key_eq (int_to_string (hint_of (HStr "x"))) (int_to_string (hint_of (HStr "y")))
+  (* `"a" in rec["fields"]` with rec["fields"] = {"a": 1}: HEAD lowers via hval_str_mem *)
+  let head_in_map () : bool ensures { result = false }
+    = hval_str_mem (HMap (PCons "a" (HInt 1) PNil)) "a"
+  (* the ch31 lowering of the same two: twins must NOT prove *)
+  let ch31_fstr () : bool ensures { result = true }
+    = hpairs_key_eq (hval_fmt (HStr "x")) (hval_fmt (HStr "y"))
+  let ch31_in_map () : bool ensures { result = false }
+    = hval_set_mem (HMap (PCons "a" (HInt 1) PNil)) "a"
+
+  let falsity () : unit ensures { false } = ()
+end

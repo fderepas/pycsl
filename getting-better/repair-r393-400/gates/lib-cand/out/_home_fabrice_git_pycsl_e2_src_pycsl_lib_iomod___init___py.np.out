@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/iomod/__init__.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: class 'StringIO' line 26: its `__init__` stores or deletes the invariant field `self._size` by a form other than a top-level `self._size = ...` statement (a `for` / `with` / tuple / augmented / `del` target, or a store inside control flow or a comprehension). 'StringIO' carries (or its constructor runs for) a `#@ class invariant` over ['_size'], and the constructor's obligation (route #226) is computed from top-level `self.f = e` stores only, so the invariant would be ASSUMED for every instance although the constructor's real effect is not checked against it (route #342). Store each invariant field by a top-level `self.f = e` statement whose value is a literal or an `__init__` parameter (the shapes the constructor goal states), and keep `self` out of calls and aliases in the constructor.

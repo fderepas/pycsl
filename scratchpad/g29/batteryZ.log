@@ -1,0 +1,7 @@
+SUITE-START 06:03:37Z
+ Results: 3786/3804 passed
+XPASS lines: 0
+PLANES-START 06:58:25Z
+[+] soundness-planes: OK — all 34 plane(s) green.
+rc=0
+BATTERY-DONE 07:40:10Z

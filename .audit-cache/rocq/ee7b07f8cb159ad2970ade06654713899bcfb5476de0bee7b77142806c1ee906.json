@@ -1,0 +1,18 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "Section Variables:\nrd\n: Z -> Z\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.5459403290878981,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.slot_name_byte_decode",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.slot_name_byte_decode",
+      true,
+      []
+    ]
+  ]
+}

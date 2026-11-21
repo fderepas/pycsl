@@ -1,0 +1,1 @@
+CALLERASE	src/self-annotate/src/frontend/pure_ast.py	{'type': 'Var', 'name': 'self'}

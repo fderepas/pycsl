@@ -1,0 +1,153 @@
+(* W-IPM S-D re-spike (gen #36, ch17): dict/set IN-PLACE mutators on the pure-map carrier
+   `map 'k (option 'v)`, AFTER route #243/#244 made aliasing a refusal.
+   Axiom-free: every new abstract `val` is paired with a `function` REALIZER and a proved
+   `lemma` that the realizer meets the val's postcondition (so the val contract is
+   satisfiable -- it adds no assumption a model cannot meet). No `axiom` anywhere. *)
+
+module Ops
+  use int.Int
+  use map.Map
+  use option.Option
+
+  (* existing emitter ops (unchanged) *)
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+  val map_update_none (m: map 'k (option 'v)) (k: 'k) : map 'k (option 'v)
+    ensures { result = Map.set m k None }
+
+  (* NEW: clear -- the empty map *)
+  function r_clear (m: map 'k (option 'v)) : map 'k (option 'v) = fun _ -> None
+  lemma r_clear_ok : forall m: map int (option int), k: int. (r_clear m)[k] = None
+  val map_clear (m: map 'k (option 'v)) : map 'k (option 'v)
+    ensures { forall k. result[k] = None }
+
+  (* NEW: update(other) -- right-biased merge *)
+  function r_merge (a b: map 'k (option 'v)) : map 'k (option 'v) =
+    fun k -> match b[k] with None -> a[k] | Some v -> Some v end
+  lemma r_merge_ok : forall a b: map int (option int), k: int.
+    (r_merge a b)[k] = match b[k] with None -> a[k] | Some v -> Some v end
+  val map_update_all (a b: map 'k (option 'v)) : map 'k (option 'v)
+    ensures { forall k. result[k] = match b[k] with None -> a[k] | Some v -> Some v end }
+
+  (* NEW: value of an option, arbitrary on None (the AMBIENT optimistic read: without a
+     `no_exception KeyError` the raising run is over-approximated by a continuing one) *)
+  val opt_get (o: option 'v) : 'v
+    ensures { match o with Some v -> result = v | None -> true end }
+end
+
+module Controls
+  use int.Int
+  use map.Map
+  use option.Option
+  use ref.Ref
+  use Ops
+
+  type c = { mutable d: map int (option int); mutable s: map int (option int); mutable n: int }
+
+  (* clear on a field *)
+  let c1 (self: c) : bool
+    writes { self.d }
+    ensures { result = false }
+    ensures { self.s = old self.s /\ self.n = old self.n }
+  = self.d <- map_clear self.d;
+    match self.d[1] with None -> false | Some _ -> true end
+
+  (* add / discard / remove on a set field and a set local *)
+  let c2 (self: c) : bool
+    writes { self.s }
+    ensures { result = true }
+  = self.s <- map_update_some self.s 3 0;
+    match self.s[3] with None -> false | Some _ -> true end
+
+  let c3 () : bool ensures { result = false }
+  = let s = ref (map_clear (fun _ -> None)) in
+    s := map_update_some !s 1 0;
+    s := map_update_none !s 1;
+    match (!s)[1] with None -> false | Some _ -> true end
+
+  (* update(other) *)
+  let c4 (self: c) (o: map int (option int)) : int
+    requires { o[2] = Some 7 }
+    writes { self.d }
+    ensures { result = 7 }
+  = self.d <- map_update_all self.d o;
+    match self.d[2] with None -> 0 | Some v -> v end
+
+  (* pop(k) with `no_exception KeyError`: the obligation is `m[k] <> None` *)
+  let c5 (self: c) : int
+    requires { self.d[4] = Some 9 }
+    writes { self.d }
+    ensures { result = 9 /\ self.d[4] = None }
+  = assert { self.d[4] <> None };
+    let v = opt_get self.d[4] in
+    self.d <- map_update_none self.d 4; v
+
+  (* pop(k, default) -- total *)
+  let c6 (self: c) : int
+    requires { self.d[4] = None }
+    writes { self.d }
+    ensures { result = -1 }
+  = let v = match self.d[4] with None -> -1 | Some v -> v end in
+    self.d <- map_update_none self.d 4; v
+
+  (* setdefault(k, v) *)
+  let c7 (self: c) : int
+    requires { self.d[5] = None }
+    writes { self.d }
+    ensures { result = 11 /\ self.d[5] = Some 11 }
+  = let v = match self.d[5] with Some v -> v | None -> self.d <- map_update_some self.d 5 11; 11 end in v
+end
+
+module FalseClaims
+  use int.Int
+  use map.Map
+  use option.Option
+  use ref.Ref
+  use Ops
+
+  type c = { mutable d: map int (option int); mutable s: map int (option int); mutable n: int }
+
+  (* F1 non-vacuity: clear really empties *)
+  let f1 (self: c) : bool
+    requires { self.d[1] = Some 0 }
+    writes { self.d }
+    ensures { result = true }
+  = self.d <- map_clear self.d;
+    match self.d[1] with None -> false | Some _ -> true end
+
+  (* F2 THE STALE ALIAS: the carrier is a pure map, so a second name is a COPY and does NOT
+     see the clear. CPython: the alias is the same object and IS cleared. EXPECTED TO PROVE
+     -- this is why the emitter may only lower a dict/set mutator in a unit the route
+     #243 rule (PYCSL-WHYML-COLLECTION-ALIAS) and the #59 local-alias guard admit. *)
+  let f2 (self: c) : bool
+    requires { self.d[1] = Some 0 }
+    writes { self.d }
+    ensures { result = true }
+  = let a = self.d in
+    self.d <- map_clear self.d;
+    match a[1] with None -> false | Some _ -> true end
+
+  (* F3 pop without the KeyError obligation discharged: assert fails on an empty map *)
+  let f3 (self: c) : int
+    requires { forall k. self.d[k] = None }
+    writes { self.d }
+    ensures { true }
+  = assert { self.d[4] <> None };
+    let v = opt_get self.d[4] in
+    self.d <- map_update_none self.d 4; v
+
+  (* F4 update is not a no-op *)
+  let f4 (self: c) (o: map int (option int)) : int
+    requires { o[2] = Some 7 /\ self.d[2] = Some 1 }
+    writes { self.d }
+    ensures { result = 1 }
+  = self.d <- map_update_all self.d o;
+    match self.d[2] with None -> 0 | Some v -> v end
+
+  (* F5 frame: a clear of d does not license a claim that d is unchanged *)
+  let f5 (self: c) : unit
+    requires { self.d[1] = Some 0 }
+    writes { self.d }
+    ensures { self.d = old self.d }
+  = self.d <- map_clear self.d
+end

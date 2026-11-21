@@ -1,0 +1,15 @@
+5780_gen37_r402_own_hash_raises.py	rc=1	[ir-semantic]: 'f' line 16: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(.
+5781_gen37_r402_own_hash_requires.py	rc=1	[ir-semantic]: 'f' line 18: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(.
+5782_gen37_r402_inherited_hash_raises.py	rc=1	[ir-semantic]: 'f' line 20: `d` (an instance of ['D']) is HASHED by `{d}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(.
+5783_gen37_r402_tuple_elem_hash_raises.py	rc=1	[ir-semantic]: 'f' line 16: `(a, 1)` (an instance of ['D']) is HASHED by `{(a, 1)}` (a set element, a dict key, a membership test or subscript of a set / dict, 
+5784_gen37_r402_frozen_field_hash_raises.py	rc=1	[ir-semantic]: 'f' line 24: `r` (an instance of ['R']) is HASHED by `{r}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(.
+5785_gen37_r402_eq_collision_raises.py	rc=1	[ir-semantic]: 'f' line 20: `a` (an instance of ['D']) is COMPARED by `{a, b}`: a set / dict calls `__eq__` between a value and an element of equal hash, and th
+5786_gen37_r402_tuple_eq_collision_raises.py	rc=1	[ir-semantic]: 'f' line 20: `(a, 1)` (an instance of ['D']) is COMPARED by `{(a, 1), (b, 1)}`: a set / dict calls `__eq__` between a value and an element of equ
+5787_gen37_r402_dataclass_eq_field_raises.py	rc=1	[ir-semantic]: 'f' line 28: `a` (an instance of ['R']) is COMPARED by `{a, b}`: a set / dict calls `__eq__` between a value and an element of equal hash, and th
+5788_gen37_r402_subclass_eq_raises.py	rc=1	[ir-semantic]: 'f' line 22: `a` (an instance of ['B']) is COMPARED by `{a, b}`: a set / dict calls `__eq__` between a value and an element of equal hash, and th
+5789_gen37_r402_starred_eq_collision_raises.py	rc=1	[ir-semantic]: 'f' line 20: `*(a, b)` (an instance of ['D']) is COMPARED by `{*(a, b)}`: a set / dict calls `__eq__` between a value and an element of equal has
+5800_gen37_r402_ctl_verified_hash_eq.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5801_gen37_r402_ctl_eq_unverified_no_compare.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+4694_gen37_r349_ctl_explicit_hash.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+4940_gen37_r364_ctl_eq_and_hash_defs.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5043_gen37_r371_ctl_mro_first_hash_wins.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 

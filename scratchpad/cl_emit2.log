@@ -1,0 +1,121 @@
+/home/fabrice.derepas@canonical.com/git/pycsl/src/pycsl/core_ir_semantic.py:1632: UserWarning: Function 'pycsltojsonemitter___collect_class_constants': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/Module5_IREmitter.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLIRError (record + 0 method stub(s) + 2 helper(s))
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ContractWrapper (record + 0 method stub(s) + 81 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Requires (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Ensures (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LoopInvariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LoopVariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLBinOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLUnaryOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLVar (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLNumber (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLResult (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLOld (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Nothing (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLFieldAccess (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLFieldSubscript (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLGlobalFieldSubscript (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Forall (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Exists (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ArrayLength (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': InGlobals (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': InScope (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SubscriptAccess (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': AssignsRegion (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Valid (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Separated (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLAt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Length2D (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Valid2D (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FunctionVariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLStringLiteral (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CallExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': IsSorted (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ArrayEq (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Permutation (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Sum (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLBool (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLNone (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLIn (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLNotIn (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLSlice (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': DictView (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ForallItems (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ChainedSubscript (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': GhostArraySetDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MkTupleExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FstExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SndExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ProjExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CtorTest (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CtorPayload (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': StrConcatExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': StrLengthExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': StrSubExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': GhostCopyExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': GhostCopyRangeExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': GhostMakeExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MapEmptyExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MapGetExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MapSetExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MapEqExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': HasKeyExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MapRemoveExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SetEmptyExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SetAddExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SetRemoveExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SetMemExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SetUnionExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SetInterExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SetDiffExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SetCardExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SetSubsetExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SetEqExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': NilExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ConsExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': HdExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': TlExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ListLengthExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': NthExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MemExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': AppendExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Act (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Given (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Complete (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Disjoint (record + 0 method stub(s) + 0 helper(s))
+[*] --fun filter: verifying ['pycsltojsonemitter___classify_literal_value'], trusting ['_contractparser___err', '_contractparser___grab_reviewer_id', '_contractparser___mk_in', '_contractparser___parse_act_block', '_contractparser___parse_act_names', '_contractparser___parse_and_rhs', '_contractparser___parse_assigns', '_contractparser___parse_assigns_region', '_contractparser___parse_assigns_target', '_contractparser___parse_assumes', '_contractparser___parse_atom', '_contractparser___parse_atom_bs', '_contractparser___parse_atom_name', '_contractparser___parse_atom_primary', '_contractparser___parse_class_invariant', '_contractparser___parse_comparison', '_contractparser___parse_compose_from', '_contractparser___parse_conforms_to', '_contractparser___parse_contract', '_contractparser___parse_datatype', '_contractparser___parse_depends_method', '_contractparser___parse_dotted_path', '_contractparser___parse_dotted_path_list', '_contractparser___parse_equality', '_contractparser___parse_expr', '_contractparser___parse_expr_list', '_contractparser___parse_factor', '_contractparser___parse_footprint', '_contractparser___parse_for_block', '_contractparser___parse_function_variant', '_contractparser___parse_ghost', '_contractparser___parse_happy', '_contractparser___parse_happy_region', '_contractparser___parse_happy_targets', '_contractparser___parse_impl_rhs', '_contractparser___parse_implication', '_contractparser___parse_inductive', '_contractparser___parse_inductive_rules', '_contractparser___parse_interface', '_contractparser___parse_lock_order', '_contractparser___parse_logical_and', '_contractparser___parse_logical_or', '_contractparser___parse_loop', '_contractparser___parse_membership', '_contractparser___parse_mixin_method_sig', '_contractparser___parse_mixin_param', '_contractparser___parse_mixin_params', '_contractparser___parse_mixin_type', '_contractparser___parse_mutex_expr_str', '_contractparser___parse_mutex_invariant', '_contractparser___parse_no_exception', '_contractparser___parse_opt_except', '_contractparser___parse_or_rhs', '_contractparser___parse_proof', '_contractparser___parse_qualname', '_contractparser___parse_quantifier', '_contractparser___parse_raises', '_contractparser___parse_shared', '_contractparser___parse_shared_state', '_contractparser___parse_term', '_contractparser___parse_touches_field', '_contractparser___parse_trusted', '_contractparser___parse_unary', '_contractparser___parse_variant_def', '_contractparser___try', '_contractparser__accept_op', '_contractparser__advance', '_contractparser__at_bs', '_contractparser__at_eof', '_contractparser__at_name', '_contractparser__at_op', '_contractparser__cur', '_contractparser__expect_bs', '_contractparser__expect_name', '_contractparser__expect_op', '_contractparser__parse', '_contractparser__peek', '_csl_to_str', '_lex_contract', 'module2_parser__parse_contract', 'module2_parser__parse_node_contracts', 'module5_iremitter__generate_json', 'mutable_state', 'pycslerror__as_dict', 'pycslerror__message', 'pycsltojsonemitter___array_init_size', 'pycsltojsonemitter___build_function_ir', 'pycsltojsonemitter___build_function_symbol_table', 'pycsltojsonemitter___build_overload_param_guard', 'pycsltojsonemitter___callable_type_tag', 'pycsltojsonemitter___collect_2d_params', 'pycsltojsonemitter___collect_class_constants', 'pycsltojsonemitter___collect_class_fields', 'pycsltojsonemitter___collect_final_registry', 'pycsltojsonemitter___collect_str_decode_locals', 'pycsltojsonemitter___collect_type_params', 'pycsltojsonemitter___collect_typevar_registry', 'pycsltojsonemitter___collect_union_arms', 'pycsltojsonemitter___comprehension_generators_to_ir', 'pycsltojsonemitter___const_int_value', 'pycsltojsonemitter___csl_append', 'pycsltojsonemitter___csl_array_eq', 'pycsltojsonemitter___csl_array_length', 'pycsltojsonemitter___csl_assigns_region', 'pycsltojsonemitter___csl_at', 'pycsltojsonemitter___csl_binop', 'pycsltojsonemitter___csl_bool', 'pycsltojsonemitter___csl_call_expr', 'pycsltojsonemitter___csl_chained_subscript', 'pycsltojsonemitter___csl_cons', 'pycsltojsonemitter___csl_contract_wrapper', 'pycsltojsonemitter___csl_ctor_payload', 'pycsltojsonemitter___csl_ctor_test', 'pycsltojsonemitter___csl_exists', 'pycsltojsonemitter___csl_field_access', 'pycsltojsonemitter___csl_field_subscript', 'pycsltojsonemitter___csl_forall', 'pycsltojsonemitter___csl_forall_items', 'pycsltojsonemitter___csl_fst', 'pycsltojsonemitter___csl_function_variant', 'pycsltojsonemitter___csl_ghost_copy', 'pycsltojsonemitter___csl_ghost_copy_range', 'pycsltojsonemitter___csl_ghost_make', 'pycsltojsonemitter___csl_global_field_subscript', 'pycsltojsonemitter___csl_has_key', 'pycsltojsonemitter___csl_hd', 'pycsltojsonemitter___csl_in', 'pycsltojsonemitter___csl_in_globals', 'pycsltojsonemitter___csl_in_scope', 'pycsltojsonemitter___csl_is_sorted', 'pycsltojsonemitter___csl_length2d', 'pycsltojsonemitter___csl_list_length', 'pycsltojsonemitter___csl_list_to_ir', 'pycsltojsonemitter___csl_map_empty', 'pycsltojsonemitter___csl_map_eq', 'pycsltojsonemitter___csl_map_get', 'pycsltojsonemitter___csl_map_remove', 'pycsltojsonemitter___csl_map_set', 'pycsltojsonemitter___csl_mem', 'pycsltojsonemitter___csl_mktuple', 'pycsltojsonemitter___csl_nil', 'pycsltojsonemitter___csl_none', 'pycsltojsonemitter___csl_not_in', 'pycsltojsonemitter___csl_nothing', 'pycsltojsonemitter___csl_nth', 'pycsltojsonemitter___csl_number', 'pycsltojsonemitter___csl_old', 'pycsltojsonemitter___csl_permutation', 'pycsltojsonemitter___csl_proj', 'pycsltojsonemitter___csl_result', 'pycsltojsonemitter___csl_separated', 'pycsltojsonemitter___csl_set_add', 'pycsltojsonemitter___csl_set_card', 'pycsltojsonemitter___csl_set_diff', 'pycsltojsonemitter___csl_set_empty', 'pycsltojsonemitter___csl_set_eq', 'pycsltojsonemitter___csl_set_inter', 'pycsltojsonemitter___csl_set_mem', 'pycsltojsonemitter___csl_set_remove', 'pycsltojsonemitter___csl_set_subset', 'pycsltojsonemitter___csl_set_union', 'pycsltojsonemitter___csl_slice', 'pycsltojsonemitter___csl_snd', 'pycsltojsonemitter___csl_str_length', 'pycsltojsonemitter___csl_str_sub', 'pycsltojsonemitter___csl_strconcat', 'pycsltojsonemitter___csl_string', 'pycsltojsonemitter___csl_subscript', 'pycsltojsonemitter___csl_sum', 'pycsltojsonemitter___csl_tl', 'pycsltojsonemitter___csl_to_ir', 'pycsltojsonemitter___csl_unaryop', 'pycsltojsonemitter___csl_valid', 'pycsltojsonemitter___csl_valid2d', 'pycsltojsonemitter___csl_var', 'pycsltojsonemitter___detect_array_dimensions', 'pycsltojsonemitter___detect_seq_promotion', 'pycsltojsonemitter___emit_ghost_assign', 'pycsltojsonemitter___emit_namedtuple_record', 'pycsltojsonemitter___emit_protocol_interface', 'pycsltojsonemitter___emit_typeddict_record', 'pycsltojsonemitter___encode_callable_annotation', 'pycsltojsonemitter___extract_generic_arg_names', 'pycsltojsonemitter___field_type_from_annotation', 'pycsltojsonemitter___field_type_from_annotation_inst', 'pycsltojsonemitter___fresh_var', 'pycsltojsonemitter___get_mutex_invariant_ir', 'pycsltojsonemitter___is_decode_call', 'pycsltojsonemitter___is_final_annotation', 'pycsltojsonemitter___is_namedtuple_class', 'pycsltojsonemitter___is_overload_stub', 'pycsltojsonemitter___is_protocol_class', 'pycsltojsonemitter___is_typeddict_class', 'pycsltojsonemitter___m5_get_dict_key_type', 'pycsltojsonemitter___m5_get_dict_value_type', 'pycsltojsonemitter___m5_get_type_name', 'pycsltojsonemitter___m5_get_type_name_legacy', 'pycsltojsonemitter___match_pattern_to_ir', 'pycsltojsonemitter___mixin_field_type', 'pycsltojsonemitter___normalize_final_annotation', 'pycsltojsonemitter___normalize_literal_annotation', 'pycsltojsonemitter___normalize_union_annotation', 'pycsltojsonemitter___overload_type_name', 'pycsltojsonemitter___populate_protocol_conformance', 'pycsltojsonemitter___process_for', 'pycsltojsonemitter___process_if', 'pycsltojsonemitter___process_while', 'pycsltojsonemitter___py_expr_attribute', 'pycsltojsonemitter___py_expr_binop', 'pycsltojsonemitter___py_expr_boolop', 'pycsltojsonemitter___py_expr_call', 'pycsltojsonemitter___py_expr_compare', 'pycsltojsonemitter___py_expr_constant', 'pycsltojsonemitter___py_expr_dict', 'pycsltojsonemitter___py_expr_dictcomp', 'pycsltojsonemitter___py_expr_fstring', 'pycsltojsonemitter___py_expr_genexp', 'pycsltojsonemitter___py_expr_ifexp', 'pycsltojsonemitter___py_expr_lambda', 'pycsltojsonemitter___py_expr_list', 'pycsltojsonemitter___py_expr_listcomp', 'pycsltojsonemitter___py_expr_name', 'pycsltojsonemitter___py_expr_set', 'pycsltojsonemitter___py_expr_setcomp', 'pycsltojsonemitter___py_expr_slice', 'pycsltojsonemitter___py_expr_starred', 'pycsltojsonemitter___py_expr_subscript', 'pycsltojsonemitter___py_expr_to_ir', 'pycsltojsonemitter___py_expr_tuple', 'pycsltojsonemitter___py_expr_unaryop', 'pycsltojsonemitter___py_expr_walrus', 'pycsltojsonemitter___py_op_to_str', 'pycsltojsonemitter___py_stmt_annassign', 'pycsltojsonemitter___py_stmt_assert', 'pycsltojsonemitter___py_stmt_assign', 'pycsltojsonemitter___py_stmt_augassign', 'pycsltojsonemitter___py_stmt_break', 'pycsltojsonemitter___py_stmt_continue', 'pycsltojsonemitter___py_stmt_delete', 'pycsltojsonemitter___py_stmt_expr', 'pycsltojsonemitter___py_stmt_for', 'pycsltojsonemitter___py_stmt_if', 'pycsltojsonemitter___py_stmt_match', 'pycsltojsonemitter___py_stmt_pass', 'pycsltojsonemitter___py_stmt_raise', 'pycsltojsonemitter___py_stmt_return', 'pycsltojsonemitter___py_stmt_try', 'pycsltojsonemitter___py_stmt_while', 'pycsltojsonemitter___py_stmt_with', 'pycsltojsonemitter___py_stmts_to_ir', 'pycsltojsonemitter___scan_2d_in_expr', 'pycsltojsonemitter___scan_2d_in_stmt', 'pycsltojsonemitter___should_skip_method', 'pycsltojsonemitter___synthesize_namedtuple_functional', 'pycsltojsonemitter___synthesize_overload_guard', 'pycsltojsonemitter___synthesize_typeddict_functional', 'pycsltojsonemitter___typeddict_field_type', 'pycsltojsonemitter___union_arm_tag', 'pycsltojsonemitter___wrap_optional', 'pycsltojsonemitter__rec', 'pycsltojsonemitter__visit_ClassDef', 'pycsltojsonemitter__visit_FunctionDef', 'pycsltojsonemitter__visit_Module']
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1220, characters 29-33: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1220, characters 53-56: unused variable msg
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1245, characters 41-45: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1334, characters 42-46: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1379, characters 21-27: unused variable source
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1382, characters 38-42: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1382, characters 61-73: unused variable contract_str
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1382, characters 84-95: unused variable line_number
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1387, characters 40-44: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1387, characters 66-72: unused variable indent
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1389, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1397, characters 44-48: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1397, characters 71-74: unused variable rhs
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1399, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1401, characters 46-50: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1401, characters 73-77: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1403, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1405, characters 56-60: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1405, characters 83-87: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1407, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1409, characters 55-59: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1409, characters 82-86: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1411, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1413, characters 46-50: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1413, characters 73-77: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1415, characters 15-19: unused variable result
+File "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1429, characters 24-50:
+This expression has type (string, PyCSL_Program.pyconst_val, PyCSL_Program.
+emit_ir), but is expected to have type (int, int, int)

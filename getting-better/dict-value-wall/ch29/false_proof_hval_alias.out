@@ -1,0 +1,37 @@
+[*] Parsing and Semantic Analysis for 'false_proof_hval_alias.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_0wjtv5nf.mlw", line 26, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.00s, 2672 steps).
+
+File "/tmp/.pycsl_0wjtv5nf.mlw", line 47, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 2848 steps).
+
+File "/tmp/.pycsl_0wjtv5nf.mlw", line 54, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 2200 steps).
+
+File "/tmp/.pycsl_0wjtv5nf.mlw", line 61, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.01s, 2236 steps).
+
+File "/tmp/.pycsl_0wjtv5nf.mlw", line 76, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.01s, 10941 steps).
+
+File "/tmp/.pycsl_0wjtv5nf.mlw", line 76, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.01s, 1118 steps).
+
+File "/tmp/.pycsl_0wjtv5nf.mlw", line 83, characters 21-37:
+Sub-goal precondition of goal main'vc.
+Prover result is: Valid (0.00s, 1015 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_0wjtv5nf.mlw", line 74, characters 9-13: unused variable func
+
+[+] Verification SUCCESS! All contracts formally proven.

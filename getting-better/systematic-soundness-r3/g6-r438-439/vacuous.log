@@ -1,0 +1,6 @@
+[*] vacuous-drivers: pycsl-reference       9 of 1893 annotated function(s) are TRIVIALLY DISCHARGED by their tail `return` (ratchet 9).
+[*] vacuous-drivers: pycsl-reference       8 of them are EMPTY PLACEHOLDERS — a docstring and a single `return <literal>` UNDER a contract the tail return alone discharges, so the body exercises nothing (ratchet 8).
+[*] vacuous-drivers: python-reference     80 of 2175 annotated function(s) are TRIVIALLY DISCHARGED by their tail `return` (ratchet 81).
+[*] vacuous-drivers: python-reference     54 of them are EMPTY PLACEHOLDERS — a docstring and a single `return <literal>` UNDER a contract the tail return alone discharges, so the body exercises nothing (ratchet 54).
+    python-reference is BELOW its ratchet (80 < 81) — lower the constant in this script.
+[+] vacuous-drivers: OK — every suite at or below its ratchet.

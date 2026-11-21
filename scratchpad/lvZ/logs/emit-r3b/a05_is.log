@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt65/a05_is.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+
+[!] PIPELINE ERROR:
+[ir-semantic] scratchpad/lvZ/probes/rt65/a05_is.py line 6: scratchpad/lvZ/probes/rt65/a05_is.py (function 'f'): an IDENTITY test (`is` / `is not`) whose operand may be a FRESHLY COMPUTED value is refused: the call `Path(...)` may return a newly built value (route #498). PyCSL lowers `is` as VALUE equality, but a value computed at run time is a NEW object, so CPython's `(n + 1) is (n + 1)` is False for n = 1000 while the model decides it True. Write `==` if you mean equality; compare identity only against `None` / a singleton, or between one name and an alias of it.
+rc=1

@@ -1,0 +1,26 @@
+BANKED(#43): the ARRAY/MAP frame extension is fully gated — the 13-file mirror battery is 13 of 13
+
+`a_pure` closes it: rc=0, `Verification SUCCESS`, 3373 Valid, ZERO bad goals. Every one of
+the thirteen mirrors whose emission the extension changed now has an rc=0 verdict with no
+Unknown, Timeout or Failure anywhere:
+
+    struct_format · ConcurrencyChecker · audit_proof · audit_proof_reverify ·
+    proof2why3/parser · module6_whyml/types · Module6_WhyMLTranspiler · Module2_Parser ·
+    module6_whyml/stmt_control_flow · module6_whyml/statements ·
+    module6_whyml/expressions (20125 Valid) · frontend/Module5_IREmitter (2088 Valid) ·
+    frontend/pure_ast (3373 Valid)
+
+This relaunch inherited that battery described as COMPLETE. It was at 10 of 13, with one
+run killed at its timeout and two never started. The other planes were likewise re-derived
+rather than inherited: the changed corpus set was recomputed from an 820-vs-820 emission
+diff against 13c4860b and is EXACTLY the 26 recorded files; all 26 were re-proved fresh
+(26/26); and every non-proof plane was re-run from the surface with the opam bin on PATH.
+
+ONE HONEST QUALIFIER, recorded rather than buried. Twelve of the thirteen emissions are
+byte-identical at HEAD. `pure_ast`'s moved AFTERWARDS, under route #20 — an independent,
+later change, landed while this proof was in flight. `o_pure2` re-proves `pure_ast` at HEAD
+and is queued. So the extension is fully gated at the emission that contained it, and its
+HEAD confirmation is one queued proof away; the banking rule in the handoff says so
+explicitly rather than treating the two emissions as interchangeable.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

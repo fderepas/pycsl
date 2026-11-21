@@ -1,0 +1,142 @@
+(* callinternals-oracle.mlw
+   Gate-R oracle for the emit_ir Call-internals value model (keyword-node list +
+   Name/Attribute-distinguishing kwval). Models the faithful
+   _collect_typevar_registry bound-extraction:
+       for kw in call.keywords:
+           if kw.arg == "bound":
+               if isinstance(kw.value, ast.Name):      kw.value.id
+               elif isinstance(kw.value, ast.Attribute): kw.value.attr
+   Constructive only: NO axiom, NO abstract val (ledger 3 stays clean). *)
+
+module CallInternalsOracle
+
+  use int.Int
+  use option.Option
+  use string.String   (* native string literals + LOGIC string equality *)
+
+  (* ---- 1. kwval: the minimal Name/Attribute value-node distinction --------- *)
+  (* KwName carries the ast.Name node's `.id`; KwAttr carries the ast.Attribute
+     node's `.attr`. This is exactly the distinction emit_ir currently COLLAPSES
+     to a bare string. *)
+  type kwval = KwName string | KwAttr string
+
+  (* discriminant *)
+  predicate is_name (v: kwval) =
+    match v with KwName _ -> true | KwAttr _ -> false end
+
+  function kwval_kind (v: kwval) : int =
+    match v with KwName _ -> 0 | KwAttr _ -> 1 end
+
+  (* projectors: name_id reads a Name node's id, attr_of reads an Attribute's
+     attr. Each ctor carries exactly ONE string (its faithful field); the driver
+     guards by is_name so each guarded projector reads the intended field. The
+     "other" arm just keeps the function total. *)
+  function name_id (v: kwval) : string =
+    match v with KwName s -> s | KwAttr s -> s end
+  function attr_of (v: kwval) : string =
+    match v with KwAttr s -> s | KwName s -> s end
+
+  (* ---- 2. keyword node + bespoke cons-list (NOT seq) ----------------------- *)
+  type keyword = { kw_arg: string; kw_value: kwval }
+  type keyword_list = KWNil | KWCons keyword keyword_list
+
+  (* ---- 3. call repr carrying the keyword_list ------------------------------ *)
+  type call_repr = { call_kws: keyword_list }
+  function call_keywords (c: call_repr) : keyword_list = c.call_kws
+
+  (* ---- 4. the faithful bound-extraction driver ----------------------------- *)
+  (* Recursive LOGIC function: structural recursion on the bespoke cons-list
+     (the irlist precedent). Why3 auto-checks structural termination; `variant`
+     is stated explicitly to document the decreasing measure. Fully constructive
+     — no abstract val, no axiom. *)
+  function extract_bound (kws: keyword_list) : option string
+  = match kws with
+    | KWNil -> None
+    | KWCons k rest ->
+        if k.kw_arg = "bound" then
+          if is_name k.kw_value then Some (name_id k.kw_value)
+          else Some (attr_of k.kw_value)
+        else extract_bound rest
+    end
+
+  (* ---- GOALS --------------------------------------------------------------- *)
+
+  (* G1: Name arm — kw.value is ast.Name => project .id. The string VARIABLE v
+     projects faithfully (a variable, not a concrete constant: a genuine
+     value-carrying proof, not a ground-term rewrite). *)
+  goal G1_name_projects : forall v: string.
+    extract_bound (KWCons { kw_arg = "bound"; kw_value = KwName v } KWNil) = Some v
+
+  (* G2: Attribute arm — kw.value is ast.Attribute => project .attr. *)
+  goal G2_attr_projects : forall a: string.
+    extract_bound (KWCons { kw_arg = "bound"; kw_value = KwAttr a } KWNil) = Some a
+
+  (* G3: evil twin #1 — no "bound" keyword => None (a DIFFERENT result: the
+     driver genuinely discriminates on the arg name; not vacuous). *)
+  goal G3_no_bound_none : forall v: string.
+    extract_bound (KWCons { kw_arg = "other"; kw_value = KwName v } KWNil) = None
+
+  (* G4: multi-element iteration — "bound" found AFTER a non-bound head (the
+     for-loop actually iterates the cons-list). *)
+  goal G4_iterate_finds : forall v a: string.
+    extract_bound
+      (KWCons { kw_arg = "notit"; kw_value = KwAttr a }
+        (KWCons { kw_arg = "bound"; kw_value = KwName v } KWNil)) = Some v
+
+  (* G5 (EVIL TWIN — MUST be non-Valid): asserting a WRONG projected value.
+     For a universally-quantified v, Some v = Some "wrong" is FALSE, so a sound
+     prover MUST report this Unknown/Timeout. If it were Valid the whole model
+     would be vacuous. This is the non-vacuity witness. *)
+  goal G5_evil_wrong_value : forall v: string.
+    extract_bound (KWCons { kw_arg = "bound"; kw_value = KwName v } KWNil) = Some "wrong"
+
+  (* G6: concrete DISCRIMINATION (clean non-vacuity, provably Valid): the model
+     produces a SPECIFIC value, distinguishable from a wrong constant. If the
+     theory were vacuous, the disequality could not be proved. *)
+  goal G6_concrete_discriminates :
+    extract_bound (KWCons { kw_arg = "bound"; kw_value = KwName "aaa" } KWNil) = Some "aaa"
+    /\ extract_bound (KWCons { kw_arg = "bound"; kw_value = KwName "aaa" } KWNil) <> Some "bbb"
+
+end
+
+(* ==========================================================================
+   Program-driver variant: honors the "let extract_bound + variant discharges"
+   shape (WhyML PROGRAM function). String equality in programs needs a bool-
+   returning op; string.OCaml provides a SPEC'd `val (=)` (ensures result <->
+   x=y). This is used ONLY to show the program `let rec` + `variant` termination
+   discharges; the MAIN constructive proof above uses none of it.
+   ========================================================================== *)
+module CallInternalsOracleProg
+
+  use int.Int
+  use option.Option
+  use string.String
+  use string.OCaml   (* program-level (=) : string -> string -> bool, spec'd *)
+
+  type kwval = KwName string | KwAttr string
+  (* `let function`/`let predicate`: usable in BOTH logic and program contexts *)
+  let predicate is_name (v: kwval) =
+    match v with KwName _ -> true | KwAttr _ -> false end
+  let function name_id (v: kwval) : string =
+    match v with KwName s -> s | KwAttr s -> s end
+  let function attr_of (v: kwval) : string =
+    match v with KwAttr s -> s | KwName s -> s end
+  type keyword = { kw_arg: string; kw_value: kwval }
+  type keyword_list = KWNil | KWCons keyword keyword_list
+
+  (* PROGRAM let rec: termination via structural `variant { kws }`. *)
+  let rec extract_bound (kws: keyword_list) : option string
+    variant { kws }
+    ensures { forall v: string.
+                kws = KWCons { kw_arg = "bound"; kw_value = KwName v } KWNil
+                -> result = Some v }
+  = match kws with
+    | KWNil -> None
+    | KWCons k rest ->
+        if OCaml.(=) k.kw_arg "bound" then
+          if is_name k.kw_value then Some (name_id k.kw_value)
+          else Some (attr_of k.kw_value)
+        else extract_bound rest
+    end
+
+end

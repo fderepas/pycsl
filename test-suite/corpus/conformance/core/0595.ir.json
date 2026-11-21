@@ -1,5 +1,5 @@
 {
-  "ir_version": "1.2",
+  "ir_version": "1.4",
   "source_language": "python",
   "type_decls": [
     {
@@ -12,6 +12,7 @@
           "mutable": true
         }
       ],
+      "mutable_state": false,
       "class_invariants": [
         {
           "type": "BinOp",
@@ -50,16 +51,26 @@
         "x": "Any",
         "y": "Any"
       },
+      "param_annotations": {
+        "i": "int",
+        "v": "int"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
       "dict_value_types": {},
       "dict_key_types": {},
+      "set_value_types": {},
       "formal_params": [
         "i",
         "v"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [
           {
@@ -228,5 +239,10 @@
         "args": []
       }
     }
-  ]
+  ],
+  "skipped_dunder_writes": {
+    "disk____init__": [
+      "disk"
+    ]
+  }
 }

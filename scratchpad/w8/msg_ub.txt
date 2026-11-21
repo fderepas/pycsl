@@ -1,0 +1,21 @@
+fix(#43): widen UB-7.1's `_MUTATING_METHODS` — a fail-open that route #14 was accidentally masking
+
+`IRScanner._MUTATING_METHODS` drives the UB-7.1 mutation-during-iteration detector, and it
+omitted `sort`, `reverse`, `popitem` and the three set-difference updaters. So
+`for x in xs: xs.sort()` was not flagged.
+
+It never showed up as a live defect for a reason worth recording: route #14 refuses those
+calls at EMISSION, before the detector is ever consulted. Measured directly — the `.sort()`
+form died with the route-#14 diagnostic while the `.append()` form died with UB-7.1. That is
+a HIDDEN COUPLING between two independent mechanisms, and retiring route #14 with the
+length-carrying sequence capability would have silently reopened UB-7.1.
+
+Widened in BOTH the live source and the mirror, so the detector stands on its own. Both
+probes now hit UB-7.1.
+
+GATES: `pycsl-reference` 820/820 and `python-reference` 2142/2142 BYTE-IDENTICAL · mirror
+L3-tc 53/53 · mirror-field-parity OK (the mirror's `_MUTATING_METHODS: int` is the
+pre-existing INT_ERASED entry and its annotation is unchanged) · fidelity no NEW divergence.
+One mirror emission moved — `ir_scanner` — and its re-proof is queued.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

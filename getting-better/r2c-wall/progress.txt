@@ -1,0 +1,6 @@
+2026-10-22T10:30:21Z start
+2026-10-22T10:30:52Z read ch29/dict-value-wall/refusals; starting live-body + probe
+2026-10-22T10:32:23Z classified 11 markers; writing hand spike
+2026-10-22T10:36:19Z spike done 37 Valid/1 twin Timeout; alias hole proves; probing ra
+2026-10-22T10:37:09Z measured footprint; drafting report
+2026-10-22T10:40:03Z report written; committing

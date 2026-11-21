@@ -1,0 +1,19 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt28/h18_list_index_not_hash.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_wef4l1zb.mlw", line 24, characters 26-42:
+Sub-goal array creation size of goal g'vc.
+Prover result is: Valid (0.00s, 279 steps).
+
+File "/tmp/.pycsl_wef4l1zb.mlw", line 22, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 631 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_wef4l1zb.mlw", line 25, characters 8-9: unused variable s
+Warning, file "/tmp/.pycsl_wef4l1zb.mlw", line 24, characters 8-10: unused variable xs
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

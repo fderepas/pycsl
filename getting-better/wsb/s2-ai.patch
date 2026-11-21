@@ -1,0 +1,79 @@
+diff --git a/src/pycsl/frontend/Module5_IREmitter.py b/src/pycsl/frontend/Module5_IREmitter.py
+index c8c8153a..e202540b 100644
+--- a/src/pycsl/frontend/Module5_IREmitter.py
++++ b/src/pycsl/frontend/Module5_IREmitter.py
+@@ -6734,6 +6734,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+         list cannot be both growable-seq and 2-D-array. Results are stored as IR metadata
+         (`seq_promoted_vars`, `seq_promotion_conflicts`) for P3's lowering to consume;
+         until P3 lands, the keys are inert and emission is byte-identical."""
++        # (#49) W-SB S2 A(i): the transient declared-`List[str]` set (popped FIRST, on
++        # every path, so it never reaches the emitted IR).
++        _decl_str_lists = set(func_ir.pop("_decl_str_list_locals", None) or [])
+         symbol_table = func_ir.get("symbol_table", {})
+         list_vars = {k for k, v in symbol_table.items()
+                      if v in ("list", "bytes", "bytearray")}
+@@ -6860,6 +6863,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+                 elems = append_elems.get(v, [])
+                 if elems and all(_is_str_elem(e) for e in elems):
+                     seq_value_types[v] = "string"
++                # (#49) W-SB S2 A(i): a DECLARED `List[str]` seq local is `seq string`
++                # whatever its appended element expressions look like (the annotation is
++                # the type; an element the emitter int-erases then fails L3-tc LOUDLY).
++                elif v in _decl_str_lists:
++                    seq_value_types[v] = "string"
+             # Propagate string-ness across `b = a` unification edges (both directions),
+             # so a seq aliased to a string seq is also `seq string`.
+             changed = True
+@@ -6972,6 +6980,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+         self._detect_purity(func_ir)
+         self._check_memoization_soundness(func_ir)
+         self._detect_array_dimensions(func_ir)
++        # (#49) W-SB S2 A(i): DECLARED `List[str]` locals (`out: List[str] = []`) carry
++        # their element type into the seq-promotion analysis below, so an `.append`-grown
++        # builder is `seq string` (not the int-erased default) OUTSIDE @mutable_state too.
++        # Handed over through a TRANSIENT func_ir key that `_detect_seq_promotion` pops
++        # first thing, so the emitted IR gains no key (only `seq_value_types` can move).
++        _dsl: Set[str] = set()
++        _dsl_other: Set[str] = set()
++        for _dn in ast.walk(node):
++            if isinstance(_dn, ast.AnnAssign) and isinstance(_dn.target, ast.Name):
++                if (_dn.annotation is not None
++                        and self._m5_get_list_flat_elem_whyml(_dn.annotation) == "string"):
++                    _dsl.add(_dn.target.id)
++                else:
++                    _dsl_other.add(_dn.target.id)
++        if _dsl - _dsl_other:
++            func_ir["_decl_str_list_locals"] = sorted(_dsl - _dsl_other)
+         self._detect_seq_promotion(func_ir)   # 07-1705-rev4 P2 (diagnostics-only metadata)
+         if getattr(node, 'csl_thread_entry', False):
+             func_ir["thread_entry"] = True
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 977b15c8..399930b6 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -6911,6 +6911,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                 return True
+             if getattr(self, "_seq_value_types", {}).get(_n) == "string":
+                 return True
++            # (#49) W-SB S2 A(i): a DECLARED `xs: List[str]` PARAM (Module5
++            # `param_list_flat_elem == "string"`, already emitted `array string`) joins
++            # as a string, outside @mutable_state too (was the int `join_array`, an
++            # L3-tc error). Join-consumer only; `len`/indexing/`in` are untouched.
++            if (getattr(self, "_param_list_flat_elem", {}) or {}).get(_n) == "string":
++                return True
+             # self-ir-schema.md IR4: a @mutable_state seq local (`seq_parts = []; .append`)
+             # holds emitted CODE strings — join it as a string seq (str_join_seq). If it
+             # were an int seq the WhyML would fail to type-check (loud, never silent).
+diff --git a/src/pycsl/module6_whyml/identifiers.py b/src/pycsl/module6_whyml/identifiers.py
+index 53e83ce2..9610bccb 100644
+--- a/src/pycsl/module6_whyml/identifiers.py
++++ b/src/pycsl/module6_whyml/identifiers.py
+@@ -143,7 +143,7 @@ def whyml_ident(name: str) -> str:
+     # Replace dots with underscores for valid WhyML identifiers
+     name = name.replace(".", "_")
+     # Sanitize non-ASCII characters to ASCII equivalents
+-    sanitized = []
++    sanitized: List[str] = []
+     for ch in name:
+         if ord(ch) > 127:
+             decomp = unicodedata.normalize('NFD', ch)

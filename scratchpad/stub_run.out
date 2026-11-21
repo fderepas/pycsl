@@ -1,0 +1,712 @@
+File scratchpad/cm_stub.mlw:
+Goal size_pos'vc.
+Prover result is: Valid (0.10s, 498 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal size_list_nonneg'vc.
+Prover result is: Valid (0.06s, 239 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal size_dict_nonneg'vc.
+Prover result is: Valid (0.07s, 246 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal size_dict_mem'vc.
+Prover result is: Valid (0.09s, 338 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal wf_ir_binds'vc.
+Prover result is: Valid (0.10s, 428 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal set_union'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal slookup'vc.
+Prover result is: Valid (0.04s, 93 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal sappend'vc.
+Prover result is: Valid (0.06s, 93 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal pget_dyn'vc.
+Prover result is: Valid (0.24s, 1544 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal pget_list'vc.
+Prover result is: Valid (0.07s, 208 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal pdict_to_sdict'vc.
+Prover result is: Valid (0.04s, 98 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal eq'refn'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___check__get_type'vc.
+Prover result is: Valid (0.19s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___check__get_op'vc.
+Prover result is: Valid (0.18s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___check'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___check__d'vc.
+Prover result is: Valid (0.08s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___check__l'vc.
+Prover result is: Valid (0.07s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___has_return__get_stmt'vc.
+Prover result is: Valid (0.16s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___has_return'vc.
+Prover result is: Valid (0.07s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.06s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.07s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___has_return_with_value__get_stmt'vc.
+Prover result is: Valid (0.20s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.05s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.06s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__collect_user_exceptions__get_dyn_stmt'vc.
+Prover result is: Valid (0.14s, 638 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__collect_user_exceptions__get_dyn_exc_type'vc.
+Prover result is: Valid (0.13s, 638 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.05s, 125 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.07s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.07s, 139 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__collection_binder_kinds__get_dyn_binder_type'vc.
+Prover result is: Valid (0.13s, 638 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.09s, 458 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.07s, 139 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__ends_with_return__get_stmt'vc.
+Prover result is: Valid (0.21s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.06s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.07s, 137 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_append_targets__get_dyn_stmt'vc.
+Prover result is: Valid (0.12s, 638 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_append_targets__get_K_value'vc.
+Prover result is: Valid (0.10s, 599 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_append_targets__get_K_func'vc.
+Prover result is: Valid (0.14s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.05s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.06s, 139 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__gstmt'vc.
+Prover result is: Valid (0.11s, 638 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__gtgt'vc.
+Prover result is: Valid (0.12s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__gtype'vc.
+Prover result is: Valid (0.11s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__Lbody'vc.
+Prover result is: Valid (0.14s, 859 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__Lorelse'vc.
+Prover result is: Valid (0.18s, 867 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.07s, 291 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.08s, 224 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.07s, 122 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.14s, 599 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.07s, 239 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.07s, 261 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.07s, 261 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_assigned_vars'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_ghost_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.15s, 638 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_ghost_vars__get_K_target'vc.
+Prover result is: Valid (0.15s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.07s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.09s, 139 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_lambda_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.13s, 638 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_lambda_vars__get_K_value'vc.
+Prover result is: Valid (0.11s, 599 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_lambda_vars__get_K_type'vc.
+Prover result is: Valid (0.13s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_lambda_vars__get_K_target'vc.
+Prover result is: Valid (0.11s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.07s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.07s, 139 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_named_expr_targets__get_K_type'vc.
+Prover result is: Valid (0.13s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_named_expr_targets__get_K_target'vc.
+Prover result is: Valid (0.14s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.08s, 191 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.06s, 122 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_var_classes__get_dyn_stmt'vc.
+Prover result is: Valid (0.13s, 638 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_var_classes__get_K_target'vc.
+Prover result is: Valid (0.13s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_var_classes__get_K_value'vc.
+Prover result is: Valid (0.11s, 599 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_var_classes__get_K_func'vc.
+Prover result is: Valid (0.10s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.06s, 139 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.12s, 638 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_vars__get_K_value'vc.
+Prover result is: Valid (0.18s, 599 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_vars__get_K_type'vc.
+Prover result is: Valid (0.14s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_vars__get_K_func'vc.
+Prover result is: Valid (0.12s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_vars__get_K_target'vc.
+Prover result is: Valid (0.12s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.05s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.07s, 139 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_return_type__get_stmt'vc.
+Prover result is: Valid (0.21s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_return_type__get_value'vc.
+Prover result is: Valid (0.12s, 599 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_return_type__get_type'vc.
+Prover result is: Valid (0.57s, 3516 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_return_type__get_elts'vc.
+Prover result is: Valid (0.20s, 1052 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_return_type__llen'vc.
+Prover result is: Valid (0.07s, 176 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_return_type__value_tail'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.07s, 139 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.05s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.08s, 151 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_continue__get_stmt'vc.
+Prover result is: Valid (0.21s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_continue'vc.
+Prover result is: Valid (0.05s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.06s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_direct_return__get_stmt'vc.
+Prover result is: Valid (0.20s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.08s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.07s, 135 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_early_return__get_stmt'vc.
+Prover result is: Valid (0.16s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.07s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.05s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.05s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_in_loop_return__get_stmt'vc.
+Prover result is: Valid (0.21s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.06s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__is_recursive__get_type'vc.
+Prover result is: Valid (0.16s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__is_recursive__get_func'vc.
+Prover result is: Valid (0.19s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.06s, 132 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.07s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.05s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_array_lit__get_type'vc.
+Prover result is: Valid (0.17s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_array_lit__get_op'vc.
+Prover result is: Valid (0.15s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_array_lit__getp_left'vc.
+Prover result is: Valid (0.12s, 599 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.06s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_arrayset__get_stmt'vc.
+Prover result is: Valid (0.17s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.06s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.06s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.07s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_break__get_stmt'vc.
+Prover result is: Valid (0.19s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_break'vc.
+Prover result is: Valid (0.06s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.07s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.08s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_continue__get_stmt'vc.
+Prover result is: Valid (0.17s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.05s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.07s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.05s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_divmod'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_for__get_stmt'vc.
+Prover result is: Valid (0.22s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_for'vc.
+Prover result is: Valid (0.06s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.06s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_ghost_type__get_stmt'vc.
+Prover result is: Valid (0.19s, 1036 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.07s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.07s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_inline_set_or_dict_ops__g_K_type'vc.
+Prover result is: Valid (0.12s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_inline_set_or_dict_ops__g_K_func'vc.
+Prover result is: Valid (0.13s, 597 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.07s, 132 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.07s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.06s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_minmax__get_type'vc.
+Prover result is: Valid (0.19s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_minmax__get_func'vc.
+Prover result is: Valid (0.17s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.05s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.07s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_ord_chr__get_type'vc.
+Prover result is: Valid (0.16s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_ord_chr__get_func'vc.
+Prover result is: Valid (0.19s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.07s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.07s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.07s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_set_card__get_type'vc.
+Prover result is: Valid (0.18s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.06s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.05s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_string__get_type'vc.
+Prover result is: Valid (0.18s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_string'vc.
+Prover result is: Valid (0.07s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.06s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_subscript__get_type'vc.
+Prover result is: Valid (0.17s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.04s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.05s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.06s, 123 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_sum__get_type'vc.
+Prover result is: Valid (0.20s, 992 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.07s, 133 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.05s, 134 steps).
+
+File scratchpad/cm_stub.mlw:
+Goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.06s, 123 steps).
+

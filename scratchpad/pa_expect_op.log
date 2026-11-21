@@ -1,0 +1,1132 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/pure_ast.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_jfmxegbk.mlw", line 151, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23358 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 151, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23380 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 152, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23374 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 152, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23396 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 153, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23346 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 153, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23368 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 154, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23350 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 154, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23372 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 155, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23306 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 156, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23340 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 157, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 23386 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 157, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23408 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 157, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23430 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 158, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 23376 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 159, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23380 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 160, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 23398 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 161, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23416 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 161, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23438 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 162, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23416 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 162, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23438 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 163, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23420 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 163, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23442 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 164, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23424 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 164, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23446 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 165, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23424 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 165, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23446 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 166, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23428 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 166, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23450 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 167, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23436 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 167, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23458 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 168, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23440 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 168, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23462 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 169, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23442 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 170, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23450 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 170, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23472 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 171, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23462 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 171, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23484 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 171, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23506 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 172, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23458 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 172, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23480 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 173, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23462 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 173, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23484 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 174, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 23466 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 174, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23488 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 175, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23476 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 175, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23498 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 176, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23480 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 176, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23502 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 177, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23484 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 177, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23506 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 178, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23488 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 178, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23510 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 179, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23492 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 179, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23514 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 180, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 23496 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 180, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23518 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 181, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23508 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 181, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23530 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 181, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23552 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 182, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23504 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 182, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23526 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 183, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23508 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 183, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 23530 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 184, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 23518 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 184, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23540 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 185, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23512 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 186, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23516 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 187, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23520 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 188, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23534 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 188, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23556 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 189, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23538 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 189, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23560 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 190, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 23542 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 190, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23564 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 191, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23536 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 192, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23540 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 193, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23564 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 193, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23586 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 194, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23558 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 195, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23580 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 195, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23602 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 195, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23624 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 196, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23586 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 196, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 23608 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 197, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23586 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 197, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23608 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 198, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23590 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 198, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23612 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 199, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23594 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 199, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 23616 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 200, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23602 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 201, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23610 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 202, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23640 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 203, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23644 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 204, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23642 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 148, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.03s, 116956 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 209, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.03s, 27353 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 210, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.03s, 28170 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 213, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.03s, 28993 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 214, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.02s, 29810 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 217, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.02s, 30706 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 218, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.03s, 31508 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 219, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.03s, 32336 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 268, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.03s, 32998 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 269, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.03s, 33815 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 270, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.03s, 34563 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 271, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.02s, 35486 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 272, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.03s, 36473 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 273, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.03s, 37290 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 279, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.02s, 11442 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 277, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.03s, 39801 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 283, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.01s, 11478 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 310, characters 16-137:
+Sub-goal array creation size of goal _parser'vc.
+Prover result is: Valid (0.01s, 4514 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 307, characters 16-24:
+Sub-goal type invariant of goal _parser'vc.
+Prover result is: Valid (0.01s, 4874 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 308, characters 16-41:
+Sub-goal type invariant of goal _parser'vc.
+Prover result is: Valid (0.01s, 6711 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 309, characters 16-42:
+Sub-goal type invariant of goal _parser'vc.
+Prover result is: Valid (0.01s, 6728 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 382, characters 15-19:
+Sub-goal postcondition of goal _N'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 416, characters 15-19:
+Sub-goal postcondition of goal _is_aug'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 430, characters 15-19:
+Sub-goal postcondition of goal _new'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 430, characters 15-19:
+Sub-goal postcondition of goal _new'vc.
+Prover result is: Valid (0.01s, 4639 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 539, characters 45-58:
+Sub-goal index in array bounds of goal _parser__peek'vc.
+Prover result is: Valid (0.03s, 43152 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 539, characters 64-105:
+Sub-goal index in array bounds of goal _parser__peek'vc.
+Prover result is: Valid (0.03s, 43112 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 534, characters 15-19:
+Sub-goal postcondition of goal _parser__peek'vc.
+Prover result is: Valid (0.01s, 4665 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 547, characters 11-33:
+Sub-goal precondition of goal _parser___looks_like_type_alias'vc.
+Prover result is: Valid (0.01s, 4653 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 543, characters 15-19:
+Sub-goal postcondition of goal _parser___looks_like_type_alias'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 587, characters 4-21:
+Sub-goal index in array bounds of goal _parser__cur'vc.
+Prover result is: Valid (0.03s, 42975 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 584, characters 15-19:
+Sub-goal postcondition of goal _parser__cur'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 595, characters 9-28:
+Sub-goal precondition of goal _parser__at_op'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 591, characters 15-19:
+Sub-goal postcondition of goal _parser__at_op'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 603, characters 23-42:
+Sub-goal precondition of goal _parser___stmt_end'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 603, characters 85-104:
+Sub-goal precondition of goal _parser___stmt_end'vc.
+Prover result is: Valid (0.01s, 4662 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 603, characters 135-195:
+Sub-goal precondition of goal _parser___stmt_end'vc.
+Prover result is: Valid (0.01s, 5673 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 600, characters 15-19:
+Sub-goal postcondition of goal _parser___stmt_end'vc.
+Prover result is: Valid (0.01s, 4690 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 618, characters 23-42:
+Sub-goal precondition of goal _parser___testlist_end'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 618, characters 85-104:
+Sub-goal precondition of goal _parser___testlist_end'vc.
+Prover result is: Valid (0.01s, 4662 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 618, characters 135-270:
+Sub-goal precondition of goal _parser___testlist_end'vc.
+Prover result is: Valid (0.01s, 6188 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 615, characters 15-19:
+Sub-goal postcondition of goal _parser___testlist_end'vc.
+Prover result is: Valid (0.02s, 4690 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 634, characters 9-26:
+Sub-goal index in array bounds of goal _parser__advance'vc.
+Prover result is: Valid (0.03s, 42975 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 633, characters 4-6:
+Sub-goal type invariant of goal _parser__advance'vc.
+Prover result is: Valid (0.03s, 43995 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 633, characters 4-6:
+Sub-goal type invariant of goal _parser__advance'vc.
+Prover result is: Valid (0.01s, 4951 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 633, characters 4-6:
+Sub-goal type invariant of goal _parser__advance'vc.
+Prover result is: Valid (0.03s, 43738 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 630, characters 15-19:
+Sub-goal postcondition of goal _parser__advance'vc.
+Prover result is: Valid (0.01s, 4928 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 630, characters 15-19:
+Sub-goal postcondition of goal _parser__advance'vc.
+Prover result is: Valid (0.01s, 4932 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 646, characters 9-28:
+Sub-goal precondition of goal _parser__at_kw'vc.
+Prover result is: Valid (0.01s, 4658 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 642, characters 15-19:
+Sub-goal postcondition of goal _parser__at_kw'vc.
+Prover result is: Valid (0.01s, 4845 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 655, characters 8-71:
+Sub-goal precondition of goal _parser__accept_kw'vc.
+Prover result is: Valid (0.01s, 5625 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 656, characters 48-71:
+Sub-goal precondition of goal _parser__accept_kw'vc.
+Prover result is: Valid (0.01s, 5634 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 651, characters 15-19:
+Sub-goal postcondition of goal _parser__accept_kw'vc.
+Prover result is: Valid (0.01s, 5655 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 651, characters 15-19:
+Sub-goal postcondition of goal _parser__accept_kw'vc.
+Prover result is: Valid (0.01s, 5630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 668, characters 8-71:
+Sub-goal precondition of goal _parser__accept_op'vc.
+Prover result is: Valid (0.01s, 5625 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 669, characters 48-71:
+Sub-goal precondition of goal _parser__accept_op'vc.
+Prover result is: Valid (0.01s, 5634 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 664, characters 15-19:
+Sub-goal postcondition of goal _parser__accept_op'vc.
+Prover result is: Valid (0.01s, 5655 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 664, characters 15-19:
+Sub-goal postcondition of goal _parser__accept_op'vc.
+Prover result is: Valid (0.01s, 5630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 693, characters 9-28:
+Sub-goal precondition of goal _parser__at_name'vc.
+Prover result is: Valid (0.01s, 4658 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 689, characters 15-19:
+Sub-goal postcondition of goal _parser__at_name'vc.
+Prover result is: Valid (0.01s, 4658 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 761, characters 13-76:
+Sub-goal precondition of goal _parser__expect_op'vc.
+Prover result is: Valid (0.01s, 5625 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 764, characters 4-27:
+Sub-goal precondition of goal _parser__expect_op'vc.
+Prover result is: Valid (0.01s, 5710 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 758, characters 15-19:
+Sub-goal postcondition of goal _parser__expect_op'vc.
+Prover result is: Valid (0.02s, 5731 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 972, characters 15-19:
+Sub-goal postcondition of goal _unparser___fstring_Constant'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 978, characters 15-19:
+Sub-goal postcondition of goal _unparser___fstring_FormattedValue'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 984, characters 15-19:
+Sub-goal postcondition of goal _unparser___fstring_JoinedStr'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1006, characters 15-19:
+Sub-goal postcondition of goal _unparser___write_docstring'vc.
+Prover result is: Valid (0.02s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1024, characters 15-19:
+Sub-goal postcondition of goal _unparser___write_str_avoiding_backslashes'vc.
+Prover result is: Valid (0.01s, 4640 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1045, characters 15-19:
+Sub-goal postcondition of goal _unparser__delimit'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1065, characters 15-19:
+Sub-goal postcondition of goal _unparser__get_precedence'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1087, characters 15-19:
+Sub-goal postcondition of goal _unparser__maybe_newline'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1107, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit'vc.
+Prover result is: Valid (0.00s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1127, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_AsyncFor'vc.
+Prover result is: Valid (0.02s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1133, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_AsyncFunctionDef'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1163, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_Break'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1185, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_Continue'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1203, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_Ellipsis'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1213, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_Expr'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1221, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_For'vc.
+Prover result is: Valid (0.02s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1231, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_FunctionDef'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1305, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_MatchSingleton'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1315, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_MatchValue'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1321, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_Module'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1329, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_Name'vc.
+Prover result is: Valid (0.02s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1347, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_Pass'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1373, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_Starred'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1393, characters 15-19:
+Sub-goal postcondition of goal _unparser__visit_Tuple'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+File "/tmp/.pycsl_jfmxegbk.mlw", line 1459, characters 15-19:
+Sub-goal postcondition of goal _unparser__write'vc.
+Prover result is: Valid (0.01s, 4630 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 382, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 386, characters 20-29: unused variable namespace
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 394, characters 27-32: unused variable value
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 398, characters 23-27: unused variable body
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 398, characters 35-43: unused variable is_bytes
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 402, characters 30-34: unused variable text
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 402, characters 42-48: unused variable is_raw
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 406, characters 22-25: unused variable tok
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 410, characters 27-39: unused variable start_string
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 416, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 420, characters 12-18: unused variable source
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 424, characters 28-34: unused variable values
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 424, characters 42-52: unused variable drop_empty
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 430, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 440, characters 23-29: unused variable source
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 444, characters 21-22: unused variable s
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 448, characters 23-27: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 448, characters 39-47: unused variable min_prec
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 452, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 452, characters 43-48: unused variable close
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 456, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 456, characters 46-49: unused variable ctx
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 460, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 464, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 464, characters 43-44: unused variable t
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 464, characters 52-61: unused variable first_key
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 468, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 472, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 476, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 480, characters 21-25: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 480, characters 37-41: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 480, characters 49-58: unused variable start_tok
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 480, characters 66-73: unused variable end_tok
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 484, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 484, characters 43-47: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 484, characters 55-64: unused variable start_tok
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 488, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 488, characters 41-45: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 488, characters 53-62: unused variable start_tok
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 488, characters 70-77: unused variable end_tok
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 492, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 496, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 500, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 500, characters 53-59: unused variable is_raw
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 504, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 504, characters 53-59: unused variable is_raw
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 508, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 512, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 516, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 520, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 524, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 528, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 534, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 543, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 550, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 554, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 554, characters 41-44: unused variable obj
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 554, characters 52-55: unused variable cur
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 558, characters 26-30: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 562, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 566, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 570, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 574, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 574, characters 50-55: unused variable openp
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 574, characters 63-69: unused variable closep
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 574, characters 77-78: unused variable t
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 578, characters 23-27: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 578, characters 39-44: unused variable start
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 578, characters 52-58: unused variable py_end
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 584, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 591, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 600, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 605, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 609, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 615, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 620, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 624, characters 36-40: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 630, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 642, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 651, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 664, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 675, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 679, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 683, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 689, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 696, characters 21-25: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 700, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 704, characters 26-30: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 708, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 712, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 716, characters 22-26: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 720, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 724, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 724, characters 41-51: unused variable decorators
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 728, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 732, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 736, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 740, characters 26-30: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 744, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 748, characters 22-26: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 748, characters 38-41: unused variable msg
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 752, characters 26-30: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 752, characters 42-48: unused variable py_val
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 758, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 766, characters 21-25: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 770, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 774, characters 26-30: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 778, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 782, characters 23-27: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 786, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 786, characters 41-47: unused variable async_
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 790, characters 24-28: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 790, characters 40-50: unused variable decorators
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 790, characters 58-64: unused variable async_
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 790, characters 72-77: unused variable start
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 794, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 794, characters 44-48: unused variable kind
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 798, characters 24-28: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 802, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 806, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 810, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 814, characters 24-28: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 818, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 822, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 826, characters 21-25: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 826, characters 37-41: unused variable name
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 826, characters 49-58: unused variable start_tok
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 830, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 834, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 838, characters 24-28: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 842, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 846, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 850, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 854, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 854, characters 49-54: unused variable close
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 858, characters 24-28: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 862, characters 22-26: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 866, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 870, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 874, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 878, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 882, characters 26-30: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 886, characters 24-28: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 890, characters 21-25: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 894, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 898, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 902, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 906, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 910, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 914, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 918, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 918, characters 41-45: unused variable atom
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 922, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 926, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 930, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 934, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 934, characters 44-48: unused variable what
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 938, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 942, characters 26-30: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 942, characters 42-48: unused variable async_
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 946, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 950, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 954, characters 18-23: unused variable limit
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 958, characters 16-20: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 958, characters 28-31: unused variable ctx
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 962, characters 25-31: unused variable source
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 966, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 966, characters 48-52: unused variable fill
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 966, characters 60-64: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 970, characters 36-40: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 976, characters 42-46: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 982, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 988, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 988, characters 53-57: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 988, characters 65-76: unused variable fill_suffix
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 992, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 992, characters 56-62: unused variable string
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 996, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 996, characters 56-67: unused variable type_params
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1000, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1000, characters 52-57: unused variable value
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1004, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1014, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1014, characters 71-75: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1018, characters 39-43: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1018, characters 57-61: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1022, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1035, characters 24-28: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1039, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1039, characters 45-51: unused variable buffer
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1043, characters 26-30: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1051, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1051, characters 47-52: unused variable start
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1051, characters 60-66: unused variable py_end
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1051, characters 74-83: unused variable condition
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1055, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1055, characters 49-53: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1059, characters 23-27: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1059, characters 41-45: unused variable text
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1063, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1065, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1069, characters 36-40: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1069, characters 54-58: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1073, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1073, characters 53-57: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1077, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1077, characters 47-52: unused variable inter
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1077, characters 60-61: unused variable f
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1077, characters 69-72: unused variable seq
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1081, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1081, characters 47-56: unused variable traverser
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1081, characters 64-69: unused variable items
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1093, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1093, characters 51-61: unused variable precedence
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1093, characters 69-73: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1097, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1097, characters 51-61: unused variable precedence
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1101, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1101, characters 45-49: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1107, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1113, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1113, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1117, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1117, characters 49-53: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1121, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1121, characters 49-53: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1125, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1131, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1137, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1137, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1141, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1141, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1145, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1145, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1149, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1149, characters 48-52: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1153, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1153, characters 48-52: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1157, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1157, characters 49-53: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1161, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1161, characters 48-52: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1167, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1167, characters 47-51: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1171, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1171, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1175, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1175, characters 50-54: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1179, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1179, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1183, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1183, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1189, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1189, characters 49-53: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1193, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1193, characters 47-51: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1197, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1197, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1201, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1201, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1207, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1207, characters 56-60: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1211, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1219, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1225, characters 39-43: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1225, characters 57-61: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1229, characters 36-40: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1235, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1235, characters 55-59: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1239, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1239, characters 55-59: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1243, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1243, characters 49-53: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1247, characters 27-31: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1247, characters 45-49: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1251, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1251, characters 48-52: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1255, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1255, characters 49-53: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1259, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1259, characters 53-57: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1263, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1263, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1267, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1267, characters 49-53: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1271, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1271, characters 47-51: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1275, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1275, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1279, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1279, characters 48-52: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1283, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1283, characters 50-54: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1287, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1287, characters 53-57: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1291, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1291, characters 55-59: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1295, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1295, characters 50-54: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1299, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1299, characters 56-60: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1303, characters 39-43: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1309, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1309, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1313, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1327, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1333, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1333, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1337, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1337, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1341, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1341, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1345, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1345, characters 47-51: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1351, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1351, characters 48-52: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1355, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1355, characters 49-53: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1359, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1359, characters 46-50: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1363, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1363, characters 50-54: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1367, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1367, characters 48-52: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1371, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1379, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1379, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1383, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1383, characters 46-50: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1387, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1387, characters 50-54: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1397, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1397, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1401, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1401, characters 50-54: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1405, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1405, characters 55-59: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1409, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1409, characters 50-54: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1413, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1413, characters 48-52: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1417, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1417, characters 47-51: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1421, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1421, characters 48-52: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1425, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1425, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1429, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1429, characters 48-52: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1433, characters 28-32: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1433, characters 46-50: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1437, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1437, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1441, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1441, characters 56-60: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1445, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1445, characters 50-54: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1449, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1449, characters 53-57: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1453, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1453, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1457, characters 24-28: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1463, characters 16-22: unused variable source
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1467, characters 21-29: unused variable new_node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1467, characters 37-45: unused variable old_node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1471, characters 12-16: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1471, characters 24-39: unused variable annotate_fields
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1471, characters 47-65: unused variable include_attributes
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1475, characters 29-33: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1479, characters 21-25: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1479, characters 33-38: unused variable clean
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1483, characters 26-32: unused variable source
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1483, characters 40-44: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1487, characters 24-28: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1487, characters 36-37: unused variable n
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1491, characters 24-28: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1495, characters 19-23: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1499, characters 20-34: unused variable node_or_string
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1503, characters 12-16: unused variable args
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1511, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1511, characters 62-66: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1515, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1515, characters 54-58: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1519, characters 26-30: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1519, characters 46-50: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1523, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1523, characters 55-59: unused variable node
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1527, characters 13-19: unused variable source
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1527, characters 27-35: unused variable filename
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1527, characters 43-47: unused variable mode
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1531, characters 15-22: unused variable ast_obj
+Warning, file "/tmp/.pycsl_jfmxegbk.mlw", line 1535, characters 12-16: unused variable node
+
+[+] Verification SUCCESS! All contracts formally proven.

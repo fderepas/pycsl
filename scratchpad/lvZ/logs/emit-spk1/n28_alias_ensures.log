@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/lvZ/probes/rt67/n28_alias_ensures.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+File "scratchpad/lvZ/probes/rt67/n28_alias_ensures.mlw", line 13, characters 16-22:
+This term has type string, but is expected to have type PyCSL_Program.py_path
+rc=1

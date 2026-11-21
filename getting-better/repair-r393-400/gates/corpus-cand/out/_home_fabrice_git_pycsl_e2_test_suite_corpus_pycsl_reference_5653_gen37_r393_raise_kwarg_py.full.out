@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5653_gen37_r393_raise_kwarg.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'f' line 9: the construction `D(k=1)` got an unexpected keyword argument 'k' — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succeeding (route #369). Call the constructor with exactly its parameters (for a `@dataclass`: its fields in declaration order, `InitVar`s included, `ClassVar` / `init=False` members excluded, keyword-only fields by keyword).

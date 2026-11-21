@@ -1,0 +1,9 @@
+6200_r411_latin1_literal_index_exc rc=1 FAIL
+6201_r411_latin1_contract_index rc=1 FAIL
+6202_r411_latin1_index_eq rc=1 FAIL
+6203_r411_latin1_contract_len rc=1 FAIL
+6204_r411_latin1_concat_len rc=1 FAIL
+6205_r411_newline_contract_len rc=1 FAIL
+6206_r411_tab_index_exc rc=1 FAIL
+6207_r411_quote_contract_len rc=1 FAIL
+6208_r411_ctl_latin1_literal rc=0 PROVED

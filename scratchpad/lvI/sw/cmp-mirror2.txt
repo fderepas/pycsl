@@ -1,0 +1,7 @@
+[!]   MOVED Module6_WhyMLTranspiler.mlw — if that is an intended SOURCE repair, pass --expect-moved Module6_WhyMLTranspiler.
+[!]   MOVED frontend__pure_ast.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend__pure_ast.
+[!]   MOVED module6_whyml__expressions.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__expressions.
+[!]   MOVED module6_whyml__statements.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__statements.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 4 MOVED (4 unexpected), 0 GONE (0 unexpected), 0 APPEARED.
+rc=1

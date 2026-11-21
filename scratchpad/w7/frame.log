@@ -1,0 +1,3 @@
+[*] trusted-frame-honesty: 252 method(s) declare `#@ assigns \nothing`; 0 stand for a live body that transitively writes `self` state (0 write DIRECTLY); 0 of those are MODEL-VISIBLE (`@mutable_state` class).
+[*] converted-frame-honesty: 500 method(s) declare `#@ assigns \nothing`; 96 stand for a live body that transitively writes `self` state (12 write DIRECTLY); 0 of those are MODEL-VISIBLE (`@mutable_state` class).
+[+] frame-honesty: OK (trusted ratchets 0/0, converted ratchets 0/96).

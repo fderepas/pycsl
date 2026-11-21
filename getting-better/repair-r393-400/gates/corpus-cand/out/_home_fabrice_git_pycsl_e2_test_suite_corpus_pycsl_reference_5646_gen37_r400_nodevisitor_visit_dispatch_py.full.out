@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5646_gen37_r400_nodevisitor_visit_dispatch.py'...
+[*] Memory model: hoare
+[*] Import 'ast.parse': external module, no local source found — skipping
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'f' line 20: `v.visit(ast.parse('1'))` calls `ast.NodeVisitor.visit`, which dispatches to the `visit_*` methods of the receiver's class (here `V`) or rewrites the tree in place (`NodeTransformer`). The verifier has no model of that dispatch: the call is an abstract operation with no effect on the visitor or the tree (route #400: a `visit_Constant` doing `self.n += 1`, then `v.visit(..)`; `v.n == 0` PROVED, CPython 1). Call the `visit_*` method directly, or walk the tree with `ast.walk`.

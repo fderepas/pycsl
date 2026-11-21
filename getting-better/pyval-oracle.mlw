@@ -1,0 +1,110 @@
+(* pyval-value-model-wall oracle — Gate R independent spike
+   Tests §7 make-or-break: faithful heterogeneous Dict[str,Any] as a
+   pyval value-variant + `map string (option pyval)` dict + typed field read.
+   Constructive only: NO `axiom`, NO abstract `val`. *)
+
+(* ============================================================= *)
+(* 1+2. the value variant + a well-founded `size` measure         *)
+(* ============================================================= *)
+module PyVal
+
+  use int.Int
+  use option.Option
+  use map.Map
+  use string.String
+
+  (* PArr recurses through a BESPOKE cons-list (NOT `seq`, which Why3
+     rejects as non-strictly-positive — see probe module A_seq).
+     PMap recurses through `map string (option pyval)`: `map a b = a -> b`
+     puts pyval in the (positive) codomain, so Why3 accepts it. *)
+  type pyval =
+    | PStr string
+    | PInt int
+    | PArr pyval_list
+    | PMap (map string (option pyval))
+    | PNode pyval
+  with pyval_list =
+    | PNil
+    | PCons pyval pyval_list
+
+  (* size : pyval -> int, mutually recursive with list_size.
+     PMap's map has an INFINITE domain -> cannot structurally fold its
+     values; size counts the node only (documented deferral). *)
+  function size (v: pyval) : int =
+    match v with
+    | PStr _  -> 1
+    | PInt _  -> 1
+    | PArr l  -> 1 + list_size l
+    | PMap _  -> 1
+    | PNode n -> 1 + size n
+    end
+  with list_size (l: pyval_list) : int =
+    match l with
+    | PNil        -> 0
+    | PCons h t   -> size h + list_size t
+    end
+
+  lemma size_pos: forall v: pyval. size v >= 1
+
+end
+
+(* ============================================================= *)
+(* 3+4. heterogeneous dict + the make-or-break field read         *)
+(* ============================================================= *)
+module PyValDict
+
+  use int.Int
+  use option.Option
+  use map.Map
+  use string.String
+  use PyVal
+
+  function empty_dict : map string (option pyval) =
+    (fun (_: string) -> (None: option pyval))
+
+  function build (arm_ctor: string) : map string (option pyval) =
+    Map.set
+      (Map.set
+        (Map.set empty_dict "pattern"  (Some (PStr "Constructor")))
+                             "ctor"     (Some (PStr arm_ctor)))
+                             "captures" (Some (PArr (PCons (PStr "x") PNil)))
+
+  goal read_variable_faithful:
+    forall arm_ctor: string.
+      Map.get (build arm_ctor) "ctor" = Some (PStr arm_ctor)
+
+  goal read_literal_faithful:
+    forall arm_ctor: string.
+      Map.get (build arm_ctor) "pattern" = Some (PStr "Constructor")
+
+  goal keys_distinct:
+    forall arm_ctor: string.
+      arm_ctor <> "Constructor" ->
+      Map.get (build arm_ctor) "ctor" <> Map.get (build arm_ctor) "pattern"
+
+  goal read_list_faithful:
+    forall arm_ctor: string.
+      Map.get (build arm_ctor) "captures" = Some (PArr (PCons (PStr "x") PNil))
+
+end
+
+(* ============================================================= *)
+(* evil twin — non-vacuity. This goal MUST NOT be Valid.          *)
+(* ============================================================= *)
+module PyValEvilTwin
+
+  use int.Int
+  use option.Option
+  use map.Map
+  use string.String
+  use PyVal
+
+  function empty_dict : map string (option pyval) =
+    (fun (_: string) -> (None: option pyval))
+
+  goal evil_wrong_literal:
+    forall arm_ctor: string.
+      Map.get (Map.set empty_dict "ctor" (Some (PStr arm_ctor))) "ctor"
+        = Some (PStr "wrong")
+
+end

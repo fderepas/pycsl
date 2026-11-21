@@ -1,0 +1,7 @@
+new 6
+NEW 6450_r431_finally_return_swallows_hash.py REFUSAL [whyml-emit]: a `return` inside a `finally:` block of 'f' (ROUTE #431): when the try body raises, CPython runs
+NEW 6451_r431_finally_return_swallows_keyerror.py REFUSAL [whyml-emit]: a `return` inside a `finally:` block of 'f' (ROUTE #431): when the try body raises, CPython runs
+NEW 6452_r431_caller_finally_swallows_callee_hash.py REFUSAL [whyml-emit]: a `return` inside a `finally:` block of 'caller' (ROUTE #431): when the try body raises, CPython
+NEW 6453_r431_finally_continue_swallows.py REFUSAL [whyml-emit]: a `continue` inside a `finally:` block of 'f' (ROUTE #431): when the try body raises, CPython ru
+NEW 6454_r431_finally_break_swallows.py REFUSAL [whyml-emit]: a `break` inside a `finally:` block of 'f' (ROUTE #431): when the try body raises, CPython runs 
+NEW 6457_r431_nested_def_finally_return.py REFUSAL [whyml-emit]: a `return` inside a `finally:` block of 'inner' (ROUTE #431): when the try body raises, CPython 

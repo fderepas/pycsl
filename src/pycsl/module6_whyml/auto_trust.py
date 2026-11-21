@@ -22,25 +22,39 @@ class AutoTrustMixin:
     @staticmethod
     def _build_witness_str(field_names: List[str], vals: Dict[str, Any],
                            field_types: Optional[Dict[str, str]] = None,
-                           array_lengths: Optional[Dict[str, int]] = None) -> str:
+                           array_lengths: Optional[Dict[str, int]] = None,
+                           array_elem_witnesses: Optional[Dict[str, str]] = None) -> str:
         """Build a WhyML record literal witness string.
 
         Array-typed fields (`array int`) cannot take an int witness; they
         get `Array.make N 0`, where N is the length pinned by a class
         invariant `\\length(self.f) == N` (defaulting to 0 — an empty
-        array — when no length invariant constrains the field)."""
+        array — when no length invariant constrains the field). A
+        `List[<record>]` field (`array <record>`, parser-primitives-wall-impl-2.md
+        Gate S) instead gets `Array.make N <record-literal>` from
+        `array_elem_witnesses` — the int `0` element would mistype against the
+        record element."""
         field_types = field_types or {}
         array_lengths = array_lengths or {}
+        array_elem_witnesses = array_elem_witnesses or {}
         parts: List[str] = []
         for fn in field_names:
             ft = field_types.get(fn, "int")
             if ft in ("list", "tuple", "bytes", "bytearray") or ft.startswith("array "):
                 n = array_lengths.get(fn, 0)
-                parts.append(f"{fn} = (Array.make {n} 0)")
+                elem = array_elem_witnesses.get(fn, "0")
+                parts.append(f"{fn} = (Array.make {n} {elem})")
             elif ft in ("dict", "set", "frozenset") or ft.startswith("map "):
                 # Empty map witness (all keys → None); `const` is from
                 # map.Const, matching the empty-dict idiom in expressions.py.
                 parts.append(f"{fn} = (const (None: option int))")
+            elif ft in ("real", "float"):
+                # wrong-lowering-to-fix.md §WL-03b: a `real`-typed field (a faithful
+                # `float` slot) needs a real witness literal — `0` is int-typed and
+                # would mistype the record `by` clause. Additive: no pre-existing
+                # corpus record has a real field, so this branch is only reached by a
+                # float-field record that ALSO carries a class invariant.
+                parts.append(f"{fn} = 0.0")
             elif ft in ("str", "string") or ft == "string":
                 # b14 B1 prerequisite: a `str`-annotated field is Why3 `string`
                 # (preamble.py `str`→`string`), so its witness must be the empty
@@ -52,6 +66,69 @@ class AutoTrustMixin:
             else:
                 parts.append(f"{fn} = {vals.get(fn, 0)}")
         return "; ".join(parts)
+
+    @staticmethod
+    def _extract_elem_field_pins(invs: List[Any]) -> Dict[str, Dict[str, str]]:
+        """Contract self-field subscript projection: scan class invariants for
+        `self.<f>[<idx>].<sub> == "<literal>"` and return
+        `{f: {sub: "<literal>"}}` — the STRING value the `array <record>` field
+        `f`'s witness ELEMENT must carry for that invariant to hold.
+
+        Sound because the `by` witness builds the array with `Array.make N <lit>`:
+        every element is the SAME literal, so pinning `<sub>` to the required
+        constant satisfies the invariant at every index, whatever `<idx>` is.
+        Conflicting pins on the same `<sub>` are dropped (first wins is unsound),
+        leaving the pre-existing empty-string default and an honestly failing
+        inhabitance goal rather than a bogus witness.
+
+        The matched IR is exactly what `Module5_IREmitter._csl_subscript_field`
+        emits for the `self.`-prefixed base: `Attribute(Subscript(FieldGet(self,
+        f), idx), sub)`. Absent (hence byte-inert) for every contract that does
+        not use the form."""
+        out: Dict[str, Dict[str, str]] = {}
+        conflicts: Dict[str, set] = {}
+
+        def _proj_of(node: Any):
+            if not isinstance(node, dict) or node.get("type") != "Attribute":
+                return None
+            sub = node.get("attr")
+            base = node.get("object")
+            if not isinstance(base, dict) or base.get("type") != "Subscript":
+                return None
+            coll = base.get("value")
+            if (not isinstance(coll, dict) or coll.get("type") != "FieldGet"
+                    or coll.get("object") != "self"):
+                return None
+            if not isinstance(sub, str) or not isinstance(coll.get("field"), str):
+                return None
+            return coll["field"], sub
+
+        def _str_of(node: Any):
+            if isinstance(node, dict) and node.get("type") == "String":
+                v = node.get("value")
+                return v if isinstance(v, str) else None
+            return None
+
+        for inv in invs:
+            if not isinstance(inv, dict) or inv.get("type") != "BinOp":
+                continue
+            if inv.get("op") not in ("==", "="):
+                continue
+            for a, b in ((inv.get("left"), inv.get("right")),
+                         (inv.get("right"), inv.get("left"))):
+                proj = _proj_of(a)
+                lit = _str_of(b)
+                if proj is None or lit is None:
+                    continue
+                fld, sub = proj
+                prev = out.setdefault(fld, {}).get(sub)
+                if prev is not None and prev != lit:
+                    conflicts.setdefault(fld, set()).add(sub)
+                out[fld][sub] = lit
+        for fld, subs in conflicts.items():
+            for sub in subs:
+                out[fld].pop(sub, None)
+        return {f: d for f, d in out.items() if d}
 
     @staticmethod
     def _extract_array_lengths(invs: List[Any]) -> Dict[str, int]:

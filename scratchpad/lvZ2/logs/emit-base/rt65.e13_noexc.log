@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/probes/rt65/e13_noexc.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'f' line 8: `', '.join([Path(s)])` joins elements that may be ['#UND'], not all ['str']: `', '.join` raises TypeError on any other element, while this function claims `#@ no_exception` covering TypeError and the model lowers the elements as opaque values (route #433; measured: `xs: List[int]; len("".join(xs))` under `#@ no_exception \all` proved). Join elements DERIVED str (parameters, fields or container elements annotated so -- e.g. a display `[a, b]` of such parameters), or drop the claim.
+rc=1

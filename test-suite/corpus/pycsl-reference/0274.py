@@ -13,6 +13,7 @@ config_flag = 1
 #@ thread_entry
 #@ \diverges
 def worker() -> int:
+    global counter
     #@ critical lock_c
     with lock_c:
         counter += 1

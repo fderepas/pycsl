@@ -1,0 +1,8 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/re/__init__.py'...
+[*] Memory model: hoare
+[*] Imported class from '_engine': RePattern (record + 2 method stub(s) + 21 helper(s))
+[*] Imported class from '_engine': ReMatch (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from '_engine': PatternError (record + 0 method stub(s) + 0 helper(s))
+
+[!] PIPELINE ERROR:
+PYCSL-VAL-ARG-UNFRAMED: `_scan_json_string` is emitted as a bodyless `val` (`\trusted` or imported) with no `#@ assigns`, and its body may write the parameter `i`, which is not a list, so no `writes` clause can name it. Without one every caller would assume the argument UNCHANGED (route #317). Declare the frame with `#@ assigns`, or verify the function instead of trusting it.

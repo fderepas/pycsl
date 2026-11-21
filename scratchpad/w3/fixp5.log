@@ -1,0 +1,4 @@
+it0   pycsltojsonemitter___py_stmt_for                        -> self._fresh_var_counter 
+it1   pycsltojsonemitter___py_stmt_if                         -> self._fresh_var_counter 
+it2   pycsltojsonemitter___py_stmt_while                      -> self._fresh_var_counter 
+FIXPOINT after 3 iterations

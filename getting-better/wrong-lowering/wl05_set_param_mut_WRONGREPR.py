@@ -1,4 +1,7 @@
-"""WL-05 (set twin) — an in-place mutation `s.add(x)` of a Set PARAMETER is the
+"""WL-05b FIXED (was WL-05 set twin) — now PROVEN: an in-place `s.add(x)` on a Set
+PARAMETER is modelled as a caller-visible mutable `ref (map …)` with a `writes {s}`
+frame, so the mutation escapes and proves faithfully. Historical note (repro record):
+an in-place mutation `s.add(x)` of a Set PARAMETER is the
 same class as the dict `d[k]=v` param write: Python mutates the set BY REFERENCE,
 so the caller must see it, but PyCSL's by-value `map int (option int)` param carries
 no `writes {s}` frame. The old lowering silently DROPPED the mutation to a no-op

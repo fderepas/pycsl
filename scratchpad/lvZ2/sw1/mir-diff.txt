@@ -1,0 +1,13 @@
+diff -r /home/fabrice/git/pycsl/scratchpad/run8/v69/mir-int/pycsl.mlw /home/fabrice/git/pycsl-lvZ2/scratchpad/lvZ2/sw1/mir/pycsl.mlw
+1337a1338
+>   type py_path
+1349,1350c1350,1351
+<   val function ext_path_of_str_op (s: string) : string
+<   val ext_path_read_bytes_op (p: string) : array int raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, ValueError }
+---
+>   val function ext_path_of_str_op (s: string) : py_path
+>   val ext_ppath_read_bytes_op (p: py_path) : array int raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, ValueError }
+1554c1555
+<     (ext_sha256_hexdigest_op (ext_path_read_bytes_op !_p))
+---
+>     (ext_sha256_hexdigest_op (ext_ppath_read_bytes_op !_p))

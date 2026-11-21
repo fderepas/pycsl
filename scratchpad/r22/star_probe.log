@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/r22/star_probe.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+File "scratchpad/r22/star_probe.mlw", line 16, characters 52-72:
+This expression has type seq.Seq.seq int, but is expected to have type seq.
+Seq.seq (array.Array.array int @rho)

@@ -1,0 +1,17 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10252_r617_alias_str_compare_ctl.py'...
+[*] Memory model: typed
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_h43rl53u.mlw", line 25, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 488 steps).
+
+File "/tmp/.pycsl_h43rl53u.mlw", line 26, characters 15-38:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 489 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_h43rl53u.mlw", line 17, characters 19-20: unused variable m
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,51 @@
+FOUND(#43): ROUTE #15 — a constructor's `#@ requires` and `#@ ensures` are silently discarded
+
+Found by a new mechanical instrument rather than by reading code, and the instrument is
+the part worth keeping. `scratchpad/w8/census_clauses.py` compares, for each of the 820
+corpus files, the number of SOURCE `#@ requires` / `#@ ensures` clauses (real COMMENT
+tokens) against the number of `requires {` / `ensures {` lines in the emitted `.mlw`. The
+emitter only ever ADDS clauses — frame preservation, exception triggers, class invariants —
+so **emitted < source is a dropped clause**. 25 files flagged. The sharpest was 0706
+(`ensures 1 -> 0`), whose emitted module contains no constructor at all.
+
+    class C:
+        #@ assigns self.x
+        #@ ensures self.x == 99          <-- FALSE OF THE PROGRAM
+        def __init__(self) -> None:
+            self.x: int = 0
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+`#@ requires 1 == 2` on `__init__` is discarded the same way: the class is constructed
+anyway and the file proves.
+
+MECHANISM, and it is why this is a DISHONESTY rather than a demonstrated unsoundness:
+`__init__` is never emitted as a function. It is INLINED at every allocation site
+(`let c = { x = 7 }`), and that inlining is FAITHFUL — a caller-side claim that relies on
+the false constructor postcondition correctly FAILS, single-file and cross-file (both
+checked, `--import-path`). So nothing believes the discarded clause; the tool simply
+reports success for work it did not do. That is exactly the category #33 assigned to its
+dangling-contract-block finding.
+
+There IS machinery for this and it is half-wired: `init_ensures` is collected by
+`frontend/module5/construction_synth.py::_collect_init_ensures` and re-checked as a GOAL —
+but only by `module6_whyml/preamble.py:4670`, for classes that have a MODULE-GLOBAL
+singleton. Every other class's constructor contract goes nowhere.
+
+CENSUS — 61 `__init__` methods carry a `#@ requires` or `#@ ensures`: 20 in `src/pycsl_lib`
+(including `os/UnixInodeFileSystem`, the flagship body-verified stub), ~24 in the mirror
+(`_Unparser`, `_Parser`, `Module5_IREmitter`, `Module6_WhyMLTranspiler`, …) and 17 in the
+reference corpus. **So the refusal that closed routes 12/13/14 is the wrong instrument
+here** — it would reject 61 places at once, most of them honest annotations their authors
+had every reason to think were being checked.
+
+THE FIX IS A BUILD, and it is small in principle: emit a CHECKING-ONLY
+`let <class>__init (self: <class>) (…) : unit` carrying the declared `requires` / `ensures`
+over the constructor's field stores, IN ADDITION to the existing inlining, which stays
+exactly as it is so no call site moves. Additive to every emission that has a constructor
+contract, so it owes those files a re-proof. COST/SCALE per §A.3, NOT a floor — recorded as
+the top ladder item.
+
+Evidence probes kept under `scratchpad/w8/probes/r15/`.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

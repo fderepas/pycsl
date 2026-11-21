@@ -1,0 +1,3 @@
+[START 06:50:15] src/self-annotate/src/frontend/pure_ast.py
+[DONE  06:55:43] src/self-annotate/src/frontend/pure_ast.py valid=2330 total=2332 success=0
+[ALLDONE 06:55:43]

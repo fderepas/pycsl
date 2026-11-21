@@ -44,7 +44,6 @@ LEAN_KERNEL_AXIOM_ALLOWLIST: Set[str] = {
 ROCQ_NO_AXIOMS_MARKER = "Closed under the global context"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -53,7 +52,6 @@ def is_rocq_assumption_allowed(name: str) -> bool:
     return name.strip() in ROCQ_KERNEL_AXIOM_ALLOWLIST
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -62,7 +60,6 @@ def is_lean_axiom_allowed(name: str) -> bool:
     return name.strip() in LEAN_KERNEL_AXIOM_ALLOWLIST
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -87,7 +84,6 @@ def parse_lean_axioms_line(line: str) -> list[str]:
     return [name.strip() for name in inner.split(",")]
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -98,20 +94,25 @@ def parse_rocq_assumptions_block(block: str) -> tuple[bool, list[str]]:
     theorem has zero assumptions ("Closed under the global context").
     Otherwise assumption_names lists each Axiom: / Variable: / etc.
     """
-    if ROCQ_NO_AXIOMS_MARKER in block:
-        return True, []
+    closed = ROCQ_NO_AXIOMS_MARKER in block
     names: list[str] = []
-    for raw in block.splitlines():
-        line = raw.strip()
-        # Coq's output looks like:
-        #   Axioms:
-        #   propext : ...
-        #   Quot.sound : ...
-        # We accept any non-empty identifier on a line containing ` : `.
-        if " : " in line and not line.startswith(("Axioms:", "Section Variables:",
-                                                   "Constants:", "Parameters:",
-                                                   "Print", "Closed")):
-            name = line.split(" : ", 1)[0].strip()
-            if name:
-                names.append(name)
-    return False, names
+    if not closed:
+        for raw in block.splitlines():
+            line: str = raw.strip()
+            # Coq's output looks like:
+            #   Axioms:
+            #   propext : ...
+            #   Quot.sound : ...
+            # We accept any non-empty identifier on a line containing ` : `.
+            if " : " in line and not (line.startswith("Axioms:")
+                                      or line.startswith("Section Variables:")
+                                      or line.startswith("Constants:")
+                                      or line.startswith("Parameters:")
+                                      or line.startswith("Print")
+                                      or line.startswith("Closed")):
+                # `line.split(" : ", 1)[0]`, spelled as the prefix before the first " : "
+                # (identical: this branch is entered only when " : " occurs in `line`).
+                name = line[:line.find(" : ")].strip()
+                if name:
+                    names.append(name)
+    return closed, names

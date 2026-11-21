@@ -1,0 +1,20 @@
+r"""Test 3960 -- gen #37 route #310 (expected FAIL): `t = (inc(xs), 0)`: the erased tuple binding replaced the lowered display by `(any int)` and inc's write vanished; the display is now evaluated (`let _ = <display> in (any int)`).
+"""
+# pycsl-expected: FAIL
+from typing import List, Tuple, Any, Set, Dict
+
+#@ requires len(a) >= 1
+#@ assigns a[0]
+#@ ensures a[0] == \old(a[0]) + 1 and \result == a[0]
+def inc(a: List[int]) -> int:
+    a[0] = a[0] + 1
+    return a[0]
+
+#@ ensures \result == 0
+def f() -> int:
+    xs = [0]
+    t = (inc(xs), 0)
+    return xs[0]
+
+if __name__ == "__main__":
+    assert f() == 0

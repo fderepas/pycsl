@@ -1,0 +1,5 @@
+driver repro on a9eac4a08 2026-10-29T15:31:24Z
+r473_local_empty_list_to_callee rc=0 succ=1 | VIOLATION IndexError list index out of range
+r473b_annotated_empty_list rc=0 succ=1 | VIOLATION IndexError list index out of range
+r473c_list_ctor_empty rc=1 succ=0 | VIOLATION IndexError list index out of range
+DONE

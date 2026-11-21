@@ -1,0 +1,28 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use map.Map
+  use map.Const
+  use option.Option
+  use array.Array
+
+
+  (* Abstract operations for unsupported Python patterns *)
+  val any_map (_u: unit) : map 'k (option 'v)
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+
+  let setk (d: ref (map string (option int))) : unit
+    writes { d }
+  =
+    d := map_update_some !d "k" 5
+
+  let caller () : int
+    ensures  { (result = 5) } (* linear *)
+  =
+    let d = ref (map_update_some (const (None: option int)) "k" 1) in
+    let _ = (setk d) in ();
+    (match Map.get !d "k" with | Some v_ -> v_ | None -> 0 end)
+
+end

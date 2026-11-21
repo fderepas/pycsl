@@ -1,0 +1,68 @@
+[*] soundness-planes: shared mirror emission ready (53 .mlw) — the conversion tier and the --slow emit-dir plane(s) will use it
+[*] soundness-planes: running 61 driver-run lower bound(s)
+    ok       check-self-annotate-mirror-sync.py        
+    ok       count-trusted-directives.py               
+    ok       check-mirror-coverage.py                  
+    ok       check-sibling-concrete-fidelity.py        
+    ok       self-annotate-mirror-check.sh             
+    ok       check-sibling-concrete-field-decls.py     
+    ok       check-stable-hash-fold-injectivity.py     
+    ok       check-assigns-underdeclaration.py         
+    ok       check-abstract-op-clash-resolution.py     
+    ok       check-mirror-field-parity.py              
+    ok       check-mirror-loop-annotations.py          
+    ok       check-mirror-signature-drift.py           
+    ok       check-refusal-reachability.py             
+    ok       check-trigger-rows-live.py                
+    ok       check-trusted-raises-honesty.py           
+    ok       check-type-keyed-constant-answers.py      
+    ok       check-emit-ir-arm-postconditions.py       
+    ok       check-bespoke-contract-discard.py         
+    ok       check-mirror-clause-survival.py           
+    ok       check-singleton-constant-lowering.py      
+    ok       check-argument-coercion.py                
+    ok       check-trusted-reasons.py                  
+    ok       check-type-keyed-value-sentinels.py       
+    ok       check-collapsed-option-reads.py           
+    ok       check-constant-fallthrough.py             
+    ok       check-dropped-mutation.py                 
+    ok       check-ir-field-coverage.py                
+    ok       check-statement-block-coverage.py         
+    ok       check-vacuous-drivers.py                  
+    ok       check-return-boundary-substitutions.py    
+    ok       check-fstring-lowering.py                 
+    ok       check-coercion-exits.py                   
+    ok       check-corpus-contract-truth.py            
+    ok       check-class-invariant-establishment.py    
+    ok       check-corpus-executes.py                  
+    ok       check-corpus-contract-truth-args.py       
+    ok       check-trust-blast-radius.py               
+    ok       check-claim-vacuity.py                    
+    ok       check-mirror-claim-strength.py            
+    ok       check-trusted-termination-honesty.py      
+    ok       check-happy-trust-boundaries.py           
+    ok       os-cpython-differential.py                
+    ok       check-refusal-witness-coverage.py         
+    ok       check-stdlib-contract-fidelity.py         
+    ok       check-stdlib-pinned-facades.py            
+    ok       check-stdlib-identity-stubs.py            
+    ok       check-stub-import-resolution.py           
+    ok       core-only-conformance.py                  
+    ok       frontend-only-conformance.py              
+    ok       check-stdlib-trusted-markers.py           
+    ok       check-docstring-contract-disagreement.py  
+    ok       check-ir-schema-refusals.py               
+    ok       check-frontend-ir-backstop-refusals.py    
+    ok       check-refusal-advice-audited.py           
+    ok       check-artifact-cleanup.sh                 
+    ok       check-directive-enforcement.py            
+    ok       check-untrusted-emitted.py                
+    ok       check-yield-erasure.py                    
+    ok       check-shadowed-selfcalls.py               
+    ok       check-emitted-vacuity.py                  
+    ok       check-cross-module-contract-parity.py     
+[+] soundness-planes: OK — all 61 plane(s) green (fast + the CONVERSION TIER).
+    NOT CHECKED: 23 prover/emission plane(s) — among them
+    check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival
+    and check-stdlib-modules-verify. Re-run with --slow before a GATE.
+rc=0

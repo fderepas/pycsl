@@ -1,0 +1,6 @@
+[!]   GONE 3289_gen37_dvw_hval_doubled_get_nonmap_noexc_false_claim.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 3289_gen37_dvw_hval_doubled_get_nonmap_noexc_false_claim.
+[!]   GONE 4812_gen37_r358_object_attr_noexc.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 4812_gen37_r358_object_attr_noexc.
+[!]   GONE 4813_gen37_r358_any_attr_noexc.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 4813_gen37_r358_any_attr_noexc.
+[!]   GONE 4825_gen37_r358_any_result_attr_noexc.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 4825_gen37_r358_any_result_attr_noexc.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 2563 baseline / 2566 candidate .mlw; 0 MOVED (0 unexpected), 4 GONE (4 unexpected), 0 APPEARED, 7 new source file(s) ignored.

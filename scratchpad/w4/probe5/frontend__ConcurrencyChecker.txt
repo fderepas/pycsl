@@ -1,0 +1,6 @@
+L3TC-FAIL            ConcurrencyChecker.check  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            ConcurrencyChecker._check_function  ['This expression has type string -> option.Option.option int, but is expected to have type int']
+L3TC-FAIL            ConcurrencyChecker._walk_body  ['This expression has type int -> option.Option.option int, but is expected to have type int']
+L3TC-FAIL            ConcurrencyChecker._walk_stmt  ['This expression has type int -> option.Option.option int, but is expected to have type int']
+L3TC-FAIL            ConcurrencyChecker._warn_if_unprotected  ['This expression has type string, but is expected to have type int']
+L3TC-FAIL            ConcurrencyChecker.summary  ['This expression has type array.Array.array int @rho, but is expected to have type int']

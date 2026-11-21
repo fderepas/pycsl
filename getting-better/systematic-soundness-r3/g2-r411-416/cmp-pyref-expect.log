@@ -1,0 +1,2 @@
+[*] byte-diff-compare: 2186 baseline / 2186 candidate .mlw; 1 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions apart from 1 DECLARED mover(s) and 0 declared refusal(s), each named on the command line.

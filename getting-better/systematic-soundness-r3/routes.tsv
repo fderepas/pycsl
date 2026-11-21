@@ -1,0 +1,106 @@
+# route	round	family	subfamily	title
+277	6	d	subtyping	user-class value assumed exact; override refinement opt-in
+278	6	d	subtyping	behavioral-subtyping ignores raises / MRO-inherited overrides
+279	6	e	alias	list alias lost by += / chained assignment
+280	6	e	effect	mutator on subscripted / call-result receiver dropped
+281	6	b	builtin	int->str > 4300 digits ValueError unmodelled
+283	7	e	alias	list from user-function return: append slot 0, alias lost
+284	7	b	builtin	f-string format specs unchecked
+285	7	a	construct	comprehension raise check covers only division/subscript
+287	8	b	builtin	sorted key-lambda raises dropped
+288	8	e	alias	element store through list returned by a call
+289	8	e	alias	tuple holding a list opaque; writes no-op
+290	8	b	builtin	mutation via operator.i*/dunders/getattr/partial/methodcaller
+291	8	b	builtin	bool f-string rendered as int
+292	8	b	builtin	cited struct axiom applied to '?' formats
+293	8	b	builtin	os.path.relpath pure but cwd-dependent
+297	9	a	construct	collection-literal fold ignores non-literal keys / starred
+299	10	a	construct	starred element in hval list literal
+300	10	a	construct	literal rebinding after non-literal first binding fold size
+303	11	e	alias	dict aliased via tuple-unpacking assignment is a copy
+304	12	f	contract	own explicit raise escapes no_exception (auto raises clause)
+305	13	g	names	user exception named like a builtin conflated with builtin
+306	13	b	builtin	d.get(k, default) default evaluated lazily
+307	14	a	construct	effectful operands evaluated right-to-left
+308	14	a	construct	c[k] op= v lowers the index twice
+309	14	b	builtin	getattr(o, name, default) -> shared constant
+311	15	a	construct	slice bounds evaluated right-to-left
+312	15	c	erasure	slice/sorted/list_new operand coerced to any int drops calls
+313	15	c	erasure	dict/set values lowered to any_map drop effects
+314	15	b	builtin	str-method keyword arguments dropped
+315	15	d	ctor	__init__ bodies never emitted / verified
+316	16	e	frame	method writes to arguments invisible to callers
+317	16	e	frame	imported function without contract assumed to write nothing
+318	17	a	construct	range bound re-read every iteration
+319	17	a	construct	list parameter rebound in nested block lost after block
+320	17	a	construct	literal rebind of local list overwrites same array
+321	18	b	builtin	Counter/OrderedDict/defaultdict model
+322	18	c	erasure	float literals truncated in abs/sum; float module consts as ints
+323	18	b	builtin	itertools length model
+324	18	f	contract	contract-side str slice raw substring
+325	19	c	erasure	every unmodelled value falls back to an opaque int
+326	19	g	names	module resolution differs from CPython
+327	20	g	names	identifier collisions (case fold / reserved prefixes)
+328	20	c	erasure	#325 taint bypasses
+329	20	a	construct	is-refusals skipped in if-expression tests / under not
+330	20	c	erasure	fields / model-op results / annotations typed int
+331	20	c	erasure	no_exception over None/str field arithmetic
+333	21	g	names	safe_exc_name merges user exceptions; generated names shadow
+334	21	c	erasure	field-origin gaps of #330/#331
+335	22	d	ctor	inherited invariant assumes base ctor values (no super().__init__)
+336	23	c	erasure	unrecognised annotations default to int
+337	23	c	erasure	fieldless user class = int
+338	23	d	subtyping	override return types not compared; external field stores
+339	24	d	enum	Enum members as ints
+340	24	a	construct	nested def bare-name default evaluated at call time
+341	24	d	mro	computed / aliased class base drops inheritance
+342	24	d	ctor	ctor-invariant goal reads only plain self.f; __class__ reassign
+343	25	c	erasure	field-less receiver aliases still int
+344	25	d	mro	MRO-inherited override escapes R5
+345	25	g	names	foreign attribute base tail-resolved to file class
+346	25	d	ctor	__post_init__ never verified
+347	25	d	ctor	partial-init field assumed present
+348	25	d	dataclass	NamedTuple / frozen dataclass lowered mutable
+349	25	d	hash	unhashable record set element
+350	25	c	erasure	default contradicts annotation
+351	25	e	alias	read-only view escapes by return
+352	26	d	enum	enum base import alias
+353	26	d	enum	mixin dunders unseen by #339
+354	26	d	enum	IntFlag not int
+355	26	d	enum	C(v) no ValueError
+356	26	d	enum	__members__ members keep int laws
+357	26	c	erasure	field-less values beyond self/params not erased
+358	26	c	erasure	protocol ops on erased values unchecked
+359	26	d	mro	R5 MRO walk: non-def bindings, imported MRO classes
+360	27	d	slots	__slots__ not modelled
+361	27	d	dataclass	InitVar / KW_ONLY counted as fields
+362	27	d	dataclass	InitVar drops invariant goal
+363	27	d	mro	super(X, self) misresolved
+364	27	d	hash	hash scan too narrow
+365	27	d	hash	unhashable inside a tuple
+366	27	d	hash	record field hashability
+367	27	d	enum	enum _ignore_ / private names as members
+369	28	d	dataclass	dataclass specifier aliases
+370	28	d	enum	enum non-member bodies as members
+371	28	d	hash	hashability: first base only
+372	28	d	hash	hashed element class from fields / subscripts
+373	28	c	erasure	nested def in a method = opaque int
+374	28	d	slots	slots names unmangled
+375	28	c	erasure	erased augassign / star-unpack
+376	28	d	attr	getattr default vs class attribute
+377	29	d	classbody	class-body name bound twice
+378	29	d	dataclass	dataclass default from first binding
+379	29	a	construct	*/** call args dropped
+380	29	d	ctor	ctor arity gaps: init=False / super().__init__ / metaclass __call__
+381	29	d	hash	stdlib bases skipped in hash MRO
+382	29	d	hash	container set-display elements
+383	29	d	hash	hash element-class sources
+384	30	d	ctor	\length invariant with no statable goal assumed
+385	30	d	ctor	\length goal binding / []*N / super().__init__ requires
+386	30	g	names	nested def shadowing a builtin
+387	30	d	classbody	class-body defs never bound
+388	30	d	attr	getattr default vs imported base
+389	30	d	attr	getattr default vs setattr / mangled store
+390	30	a	construct	** into builtins
+391	30	d	metaclass	Protocol / TypedDict construction
+226	29	d	ctor	#226 documented not-covered invariant shapes (measured live, not new routes)

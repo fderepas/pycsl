@@ -1,0 +1,44 @@
+FIX(#44): an abstract op could declare an `array` type with no `use array.Array` above it — 4 more tests green, mirror byte-identical
+
+`python-reference/stdlib/{base64,codecs}/encode_call_*` died at
+"unbound type symbol 'array'". The emitter had declared
+
+    val base64_encode_1 (x0: int) : array int
+
+with no `use array.Array` in the module. THE CAUSE IS AN ORDERING ONE: the
+preamble's `needs_array` is computed BEFORE any function body is emitted
+(`Module6_WhyMLTranspiler` resets `self._abstract_ops` right after
+`_emit_preamble`), so it cannot see an op that a body registers later. When
+the ONLY thing in a module mentioning `array` is such an op, the `use` is
+never pulled.
+
+Fixed with a LATE recovery in `_insert_abstract_val_block`, on exactly the
+same footing as the LATE `str_hash_op` RECOVERY already living there: it
+fires only when a declaration JUST EMITTED mentions an `array` type AND the
+module has no `use array.Array` — which is an L3-tc rejection today, so it
+is fail-closed and byte-inert by construction.
+
+PLACED INSIDE THAT `\trusted` MIRROR METHOD DELIBERATELY. The first version
+was a new helper `_insert_abstract_op_array_use`, and
+`bin/check-mirror-coverage.py` went 550 -> 551: a new live method with no
+mirror counterpart is not `\trusted`, it is ABSENT, and the headline count
+cannot see it. That is the SECOND time this window that plane has caught
+me adding an unmirrored helper. Folded into the existing method, coverage
+is back to 550, and the fix costs the perimeter nothing.
+
+THE TESTS ALSO HAD A DEFECT, uncovered once the emitter stopped losing the
+type: `base64.encode` / `codecs.encode` return BYTES, carried as
+`array int`, and the drivers declared `-> int` and returned the call into
+it. Changed to `-> list`, with a comment saying which side was wrong.
+
+MEASURED:
+    all 4 now emit and type-check
+    mirror emission              all 53 BYTE-IDENTICAL — no re-proof owed
+    pycsl-reference              820/820 BYTE-IDENTICAL
+    python-reference             2208 emitted / 9 refused, ZERO new refusals,
+                                 and EXACTLY the 4 encode emissions changed
+    fidelity                     2 DIVERGED, the pre-existing pair
+    mirror-coverage              550 / 41
+    metric                       markers 456 / grep 481, unchanged
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

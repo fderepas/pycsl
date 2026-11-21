@@ -1,3 +1,4 @@
+# pycsl-expected: FAIL
 # Negative test: loop invariant that is not preserved
 # Dynamic oracle should catch invariant violation
 
