@@ -79,7 +79,8 @@ rt63 (stopped before probing by a safety classifier; replaced by the read-only r
   - module6_whyml/statements.py, module6_whyml/stmt_control_flow.py: snapA (b65e75bfc), pre-#615 / #616 tooling.
   - types.py, proof_axiom_allowlist.py: lvY's branch (not landed), pre-#615.
   - every other mirror file: last proved in run #7 or earlier, pre-#615 / #616 tooling.
-  - => every mirror file except the first three must be re-proved in run #9 under the landed (and then the u62) tooling.
+  - Run #9 diagnostic (end of run, int75 / u62 tooling, all SUCCESS incl. the non-vacuity gate, oom 15 -> 15; scratchpad/run8/r9diag-proofs.txt): errors 163/163, frontend/__init__ 705/705, frontend/module_collect 3/3, frontend/exec_splice 67/67, frontend/import_classifier 90/90, frontend/ConcurrencyChecker 92/92, module6_whyml/abstract_ops 30/30, scc 50/50, identifiers 25/25, struct_format 40/40, irx 35/35, proof_axiom_allowlist 18/18, proof2why3/ir 46/46, proof2why3/sertop 52/52.
+  - => every OTHER mirror file must be re-proved in run #9 under the landed (and then the u62) tooling; the 17 above are already green under u62's tooling.
 - **Newly probed helpers, UNCHECKED until run #9 re-proves their files** (u62 census, +1192 probes in total): pycsl +107, frontend/__init__ +107, ir_resolve +107, Module5_IREmitter +104, expressions +83, statements +73, stmt_control_flow +68, and the rest (pycsl's are now checked: 227 probes, none vacuous).
 - Incidents: the 2-slot queue was the bottleneck (jobs waited up to 15 h); several red teams relied on emission-level evidence; executor branches committed `progress.txt` (untracked before every landing); the driver's own proveq.sh first ran a mirror file without `--verification-image` (log 1236).
 
