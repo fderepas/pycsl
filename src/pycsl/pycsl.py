@@ -42472,11 +42472,13 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     # directive-enforcement pairs, pycsl_lib enm `_auto_counter`, fut `annotations`). It has no
     # assumed context of its own to be vacuous, so it is neither split nor probed (exactly its
     # treatment before u62); a header is a constant when the first non-blank character after
-    # its name is `:` or `=`.
+    # its name is `:` or `=`, or when it is a `let constant <name> : <ty> = ...` (the regex
+    # reads `constant` as the name: corpus 2503-2507's `pycsl_float_nan`, u63 census).
     _l62: List[str] = []
     for _x62 in lines:
         _m62 = _LET_FN_RE.match(_x62)
-        if _m62 and _x62[_m62.end():].lstrip()[:1] in (":", "="):
+        if _m62 and (_m62.group(1) == "constant"
+                     or _x62[_m62.end():].lstrip()[:1] in (":", "=")):
             _m62 = None
         _cut62 = -1
         if _m62:
@@ -42511,7 +42513,8 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     _cur62: Optional[str] = None
     for _i62, _y62 in enumerate(lines):
         _mm62 = _LET_FN_RE.match(_y62)
-        if _mm62 and _y62[_mm62.end():].lstrip()[:1] in (":", "="):
+        if _mm62 and (_mm62.group(1) == "constant"
+                      or _y62[_mm62.end():].lstrip()[:1] in (":", "=")):
             _cur62 = None
         elif _mm62:
             _cur62 = _mm62.group(1)
