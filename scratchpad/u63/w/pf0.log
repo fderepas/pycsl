@@ -1,0 +1,39 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/u63/w/pf0/main.py'...
+[*] Memory model: hoare
+[*] Imported class from 'slotlib': Table (record + 1 method stub(s) + 0 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "scratchpad/u63/w/pf0/main.mlw", line 9, characters 17-33:
+Sub-goal array creation size of goal table'vc.
+Prover result is: Valid (0.00s, 279 steps).
+
+File "scratchpad/u63/w/pf0/main.mlw", line 8, characters 16-42:
+Sub-goal type invariant of goal table'vc.
+Prover result is: Valid (0.00s, 584 steps).
+
+File "scratchpad/u63/w/pf0/main.mlw", line 18, characters 86-114:
+Sub-goal goal of goal _check_class_inv_table.
+Prover result is: Valid (0.00s, 478 steps).
+
+File "scratchpad/u63/w/pf0/main.mlw", line 20, characters 28-44:
+Sub-goal array creation size of goal t'vc.
+Prover result is: Valid (0.00s, 369 steps).
+
+File "scratchpad/u63/w/pf0/main.mlw", line 20, characters 18-46:
+Sub-goal precondition of goal t'vc.
+Prover result is: Valid (0.00s, 603 steps).
+
+File "scratchpad/u63/w/pf0/main.mlw", line 27, characters 89-116:
+Sub-goal PyCSL-R167 callee precondition at a stubbed method call of goal keep'vc.
+Prover result is: Valid (0.01s, 567 steps).
+
+File "scratchpad/u63/w/pf0/main.mlw", line 24, characters 15-33:
+Sub-goal postcondition of goal keep'vc.
+Prover result is: Unknown (why3: Unknown
+(unknown)) (0.01s, 18165 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

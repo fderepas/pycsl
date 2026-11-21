@@ -1,0 +1,41 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/u63/w/footprint_0.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "scratchpad/u63/w/footprint_0.mlw", line 9, characters 16-35:
+Sub-goal array creation size of goal disk'vc.
+Prover result is: Valid (0.00s, 279 steps).
+
+File "scratchpad/u63/w/footprint_0.mlw", line 8, characters 16-45:
+Sub-goal type invariant of goal disk'vc.
+Prover result is: Valid (0.00s, 850 steps).
+
+File "scratchpad/u63/w/footprint_0.mlw", line 11, characters 86-117:
+Sub-goal goal of goal _check_class_inv_disk.
+Prover result is: Valid (0.00s, 694 steps).
+
+File "scratchpad/u63/w/footprint_0.mlw", line 13, characters 26-45:
+Sub-goal array creation size of goal d'vc.
+Prover result is: Valid (0.00s, 369 steps).
+
+File "scratchpad/u63/w/footprint_0.mlw", line 13, characters 17-47:
+Sub-goal precondition of goal d'vc.
+Prover result is: Valid (0.00s, 877 steps).
+
+File "scratchpad/u63/w/footprint_0.mlw", line 19, characters 12-69:
+Sub-goal check of goal writer'vc.
+Prover result is: Timeout (30.00s, 28292219 steps).
+
+File "scratchpad/u63/w/footprint_0.mlw", line 20, characters 4-18:
+Sub-goal index in array bounds of goal writer'vc.
+Prover result is: Valid (0.00s, 5346 steps).
+
+File "scratchpad/u63/w/footprint_0.mlw", line 19, characters 4-18:
+Sub-goal type invariant of goal writer'vc.
+Prover result is: Valid (0.01s, 7909 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 28292219 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
