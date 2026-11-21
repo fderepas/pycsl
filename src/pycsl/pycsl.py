@@ -42465,9 +42465,19 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     # mirror twin is `\trusted` (the scan's own twin is verified): split a header's top-level
     # body `=` onto its own `  =` line (the same WhyML, one line longer), then rescan, ending a
     # pending header at any other top-level declaration.
+    # (#49) run #9 u63 -- a PARAMETERLESS `let` (a global constant, `  let d : disk = { ... }`,
+    # `  let annotations : _feature = { ... }`) has no binder, so it can carry no `requires`
+    # and no spec at all: `let c : r ensures { false } = ...` is a why3 SYNTAX ERROR (measured,
+    # rc 1), which route #615 rightly failed as 'could not be checked' on 6 programs (4
+    # directive-enforcement pairs, pycsl_lib enm `_auto_counter`, fut `annotations`). It has no
+    # assumed context of its own to be vacuous, so it is neither split nor probed (exactly its
+    # treatment before u62); a header is a constant when the first non-blank character after
+    # its name is `:` or `=`.
     _l62: List[str] = []
     for _x62 in lines:
         _m62 = _LET_FN_RE.match(_x62)
+        if _m62 and _x62[_m62.end():].lstrip()[:1] in (":", "="):
+            _m62 = None
         _cut62 = -1
         if _m62:
             _d62 = 0
@@ -42501,7 +42511,9 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     _cur62: Optional[str] = None
     for _i62, _y62 in enumerate(lines):
         _mm62 = _LET_FN_RE.match(_y62)
-        if _mm62:
+        if _mm62 and _y62[_mm62.end():].lstrip()[:1] in (":", "="):
+            _cur62 = None
+        elif _mm62:
             _cur62 = _mm62.group(1)
         elif _BODY_EQ_RE.match(_y62):
             if _cur62 is not None:
