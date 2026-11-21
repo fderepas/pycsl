@@ -99,3 +99,10 @@ rt63 (stopped before probing by a safety classifier; replaced by the read-only r
 - Kept branches (commit-only): run8-u50 ... run8-u62, run8-lvW / lvX / lvY / lvZ / lvZ-spikeT / lvZ2 / lvZ2-r614, run8-int67 ... run8-int75.
 - Evidence archived under `scratchpad/run8/evidence/` (executor scratch tarballs, re-proof logs) and `scratchpad/rt63` ... `scratchpad/rt74`.
 - Cleanup at the deadline: see the RUN #8 END log entry.
+
+## 10. User decisions after the run (2026-11-21)
+
+- ACCEPTED the declared over-refusals: 2160 (#614), 10251 (Path passed to an imported `p: Path` parameter), 3600 (#608), and local helpers named like a stdlib / site-package module (#613 G6 / O1).
+- ACCEPTED the `--verification-image ROOT` declared mode for the mirror checks (`--as-package-module` stays withdrawn).
+- ACCEPTED the supervisor defaults set at the start of run #8 for plan-draft §5: a red team per batch before landing; batch A GO; older pending items untouched; no corpus-wide str-subscript IndexError obligation.
+- Note: L18's merge commit is d0e533e73 (b9c025081 is its log entry).
