@@ -1,0 +1,26 @@
+== /usr/bin/python3 10340_r613y_dependency_dotted_prefix_package_false.py PYTHONPATH=multi_file_lib/r613y/X2
+PROGRAM-DIR zpy61_alt/b.py loaded: zpy61_alt/b.py
+result 2
+== /home/fabrice/git/pycsl/.venv/bin/python3 10340_r613y_dependency_dotted_prefix_package_false.py PYTHONPATH=multi_file_lib/r613y/X2
+PROGRAM-DIR zpy61_alt/b.py loaded: zpy61_alt/b.py
+result 2
+== /usr/bin/python3 10341_r613y_dotted_import_prefix_regular_package_elsewhere.py PYTHONPATH=multi_file_lib/r613y/X3
+Traceback (most recent call last):
+  File "10341_r613y_dotted_import_prefix_regular_package_elsewhere.py", line 12, in <module>
+    from zpy62.b import one
+ModuleNotFoundError: No module named 'zpy62.b'
+== /home/fabrice/git/pycsl/.venv/bin/python3 10341_r613y_dotted_import_prefix_regular_package_elsewhere.py PYTHONPATH=multi_file_lib/r613y/X3
+Traceback (most recent call last):
+  File "10341_r613y_dotted_import_prefix_regular_package_elsewhere.py", line 12, in <module>
+    from zpy62.b import one
+ModuleNotFoundError: No module named 'zpy62.b'
+== /usr/bin/python3 10343_r613y_dependency_dotted_module_import_prefix_false.py PYTHONPATH=multi_file_lib/r613y/X2
+PROGRAM-DIR zpy61_alt/b.py loaded: zpy61_alt/b.py
+result 2
+== /home/fabrice/git/pycsl/.venv/bin/python3 10343_r613y_dependency_dotted_module_import_prefix_false.py PYTHONPATH=multi_file_lib/r613y/X2
+PROGRAM-DIR zpy61_alt/b.py loaded: zpy61_alt/b.py
+result 2
+== /usr/bin/python3 10344_r613y_dependency_relative_dotted_import_ctl.py 
+result 1
+== /home/fabrice/git/pycsl/.venv/bin/python3 10344_r613y_dependency_relative_dotted_import_ctl.py 
+result 1
