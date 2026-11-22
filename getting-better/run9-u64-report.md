@@ -112,8 +112,16 @@ Census rows (commit 427045b14): I first ran `--append-new`. It would have run al
 that have no row at base (a pre-existing backlog, almost none of them mine). I killed it before it
 wrote anything (own PIDs; parent chain checked; `L/G/census-append.txt` is empty; the tsv was
 unchanged). I then wrote the 3 rows with `_census_row`'s exact parse applied to the head pipeline
-output. CR.sh re-ran the real `_census_row` on the 3 files and compared the result with the
-committed rows (`L/CR/`, `L/CR.txt`).
+output (`L/J/pr-head`, run with cwd-relative witness paths).
+
+CR.sh then re-ran the real `_census_row` on the 3 files (`L/CR/rows.tsv`, `L/CR.txt`). CR.sh passes
+the witness path as an ABSOLUTE path, so its rows begin `[imports] /home/fabrice/git/pycsl-u64/...`.
+With that one prefix replaced by the cwd-relative path, they are byte-identical to the committed
+rows (`L/CR/normalized-cmp.txt`). The committed rows keep the relative form, the same form as u60's
+10330 / 10331 rows and u61's c4dd1fa17 rows. rwc joins on the message fragment either way (rc 0).
+
+CR.sh also re-ran the 4 witnesses' full proofs at c8af1d490 (same src): 3 REFUSED and 10344
+SUCCESS, each equal to its header.
 
 The new prefix site is DEMONSTRATED: rwc reports 488 demonstrated and 5 undemonstrated, against a
 ceiling of 5. 10341 fires it; 10340 and 10343 fire u60's site through the prefix compare.
@@ -188,4 +196,5 @@ should decide whether that is acceptable.**
 - 83752df95: WIP, witnesses (+ `zpy61_alt/__init__.py`), probes, tools, CPython logs
 - 5f12811e9: WIP, witness and v1f proof logs, gate scripts
 - 427045b14: census rows 10340 / 10341 / 10343
-- the report commit (this file + gate logs)
+- c8af1d490: report draft + gate logs
+- final: report + CR logs (census re-check, witness re-proof)
