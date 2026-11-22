@@ -1,0 +1,68 @@
+## b0 /home/fabrice/git/pycsl-u66-b0 3bf3f3f21
+r12c rc=0 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/r12c/P :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+b21 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+a22 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: a function, method or class NAME is rebound after its definition (`b` rebound at line 6). Every call is resolv :: [!] PIPELINE ERROR:
+r1 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+r2 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r5 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r6 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r6/C :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r2d rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r14 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r12 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r2d-dep rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r17 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+v2d rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+x3 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+v2down rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+v1f rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r12c rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/r12c/P :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+b21 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+a22 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: a function, method or class NAME is rebound after its definition (`b` rebound at line 6). Every call is resolv :: [!] PIPELINE ERROR:
+10380_r621_package_init_rebinds_submodule_name_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10381_r621_package_init_binds_submodule_itself_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10382_r613y_from_import_module_attribute_beside_namespace_ctl.py hdr=PASS rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10383_r613y_from_import_package_attribute_later_root_submodule_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+zr80___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+zr80_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+zr80_c.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+zr81___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+zr81_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+multi_file_lib_u66_A14_zh80___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+multi_file_lib_u66_B14_zh80___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+multi_file_lib_u66_B14_zh80_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+multi_file_lib_u66_X5_zq80.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+multi_file_lib_u66_X5_zq80_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+## head /home/fabrice/git/pycsl-u66-h1 0c6fc7b37
+r12c rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/r12c/P :: `import zz76` resolves only through pycsl's own working directory (zz76.py), and CPython never searches the wo :: [!] PIPELINE ERROR:
+b21 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/b21/P/zk66/__init__.py, which the p :: [!] PIPELINE ERROR:
+a22 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/a22/P/prog.py, which the program reache :: [!] PIPELINE ERROR:
+r1 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r1/P/zr76/__init__.py, which the p :: [!] PIPELINE ERROR:
+r2 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2/P/zr76/__init__.py, which the p :: [!] PIPELINE ERROR:
+r5 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r6 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r6/C :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r2d rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2d/X2/zr76/__init__.py, which the :: [!] PIPELINE ERROR:
+r14 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r12 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+r2d-dep rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2d/X2/zr76/__init__.py, which the :: [!] PIPELINE ERROR:
+r17 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+v2d rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2d/X2/depv2.py, which the program reac :: [!] PIPELINE ERROR:
+x3 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+v2down rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+v1f rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+r12c rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/r12c/P :: `import zz76` resolves only through pycsl's own working directory (zz76.py), and CPython never searches the wo :: [!] PIPELINE ERROR:
+b21 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/b21/P/zk66/__init__.py, which the p :: [!] PIPELINE ERROR:
+a22 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h1 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/a22/P/prog.py, which the program reache :: [!] PIPELINE ERROR:
+10380_r621_package_init_rebinds_submodule_name_false.py hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the package __init__ test-suite/corpus/pycsl-reference/zr80/__init__.py, which the program reaches, has at import time (
+10381_r621_package_init_binds_submodule_itself_ctl.py hdr=PASS rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10382_r613y_from_import_module_attribute_beside_namespace_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10383_r613y_from_import_package_attribute_later_root_submodule_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+zr80___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+zr80_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+zr80_c.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+zr81___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+zr81_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+multi_file_lib_u66_A14_zh80___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+multi_file_lib_u66_B14_zh80___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+multi_file_lib_u66_B14_zh80_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+multi_file_lib_u66_X5_zq80.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+multi_file_lib_u66_X5_zq80_b.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 

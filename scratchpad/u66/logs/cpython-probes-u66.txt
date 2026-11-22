@@ -1,0 +1,6 @@
+r12c | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/r12c/X | X/zz76.py loaded result 2 
+r12c | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/r12c/X | X/zz76.py loaded result 2 
+b21 | /usr/bin/python3 |  | result 1 
+b21 | /home/fabrice/git/pycsl/.venv/bin/python3 |  | result 1 
+a22 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/a22/X2 |   File "/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/a22/P/prog.py", line 1, in <module>     from zd66 import b ImportError: cannot import name 'b' from 'zd66' (/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/a22/P/zd66/__init__.py) 
+a22 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/a22/X2 |   File "/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/a22/P/prog.py", line 1, in <module>     from zd66 import b ImportError: cannot import name 'b' from 'zd66' (/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/a22/P/zd66/__init__.py) 

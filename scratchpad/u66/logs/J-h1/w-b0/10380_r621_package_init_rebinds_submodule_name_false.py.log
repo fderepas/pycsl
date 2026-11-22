@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10380_r621_package_init_rebinds_submodule_name_false.py'...
+[*] Memory model: hoare
+[*] Imported from 'zr80.b': ['one'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_029hx6se.mlw", line 10, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
