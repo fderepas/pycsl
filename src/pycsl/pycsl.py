@@ -2119,11 +2119,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                       and isinstance(_c510.name, _sa510.Name))
                     elif isinstance(_s510, _sa510.ImportFrom) and (_s510.module or _s510.level):
                         _mm510 = _s510.module or ""
+                        # (#49) run #9 u69 -- review rt78 s7: in the program's run a
+                        # dependency's ABSOLUTE import resolves from the PROGRAM's sys.path
+                        # (its first root), as CPython loads it; only a relative one is
+                        # anchored at the dependency (a symlinked dependency's own first root
+                        # raised CWD-ROOT here while the program's run was faithful).
                         for _al510 in _s510.names:
                             _sb510 = None if _al510.name == "*" else _rmp510(
                                 f"{_mm510}.{_al510.name}" if _mm510 else _al510.name,
-                                _s510.level or 0, _pp510)
-                            _qq510 = _rmp510(_mm510, _s510.level or 0, _pp510) if _mm510 else None
+                                _s510.level or 0, _pp510 if _s510.level else str(args.file))
+                            _qq510 = _rmp510(_mm510, _s510.level or 0, _pp510 if _s510.level
+                                             else str(args.file)) if _mm510 else None
                             if _al510.name == "*" and _qq510:
                                 _dinf510[_pp510][2].append(_qq510)
                                 _dq510.append(_qq510)
@@ -39518,11 +39524,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 # every package on a dotted path runs its `__init__` first
                 _mq483 = _mq483 + [(".".join(_mn.split(".")[:_i]), _lv)
                                    for _mn, _lv in _mq483 for _i in range(1, _mn.count(".") + 1)]
-                for _mn483, _lv483 in _mq483:
+                # (#49) run #9 u69 -- review of rt78 s1 (u66 INTRODUCED, measured s8): CPython
+                # resolves a dependency's ABSOLUTE import from the PROGRAM's first root; the
+                # dependency-anchored resolution alone (a symlinked dependency's own first root is
+                # its realpath directory) missed the program-directory module CPython runs, and
+                # that module's import-time writer went unjudged. Both are followed (union).
+                _mq483 = [(_mn, _lv, _f483) for _mn, _lv in _mq483] + [
+                    (_mn, 0, _mf483) for _mn, _lv in _mq483 if not _lv and _f483 != _mf483]
+                for _mn483, _lv483, _an483 in _mq483:
                     if _lv483 == 0 and (not _mn483 or _mn483.split(".")[0] in _std483):
                         continue
                     try:
-                        _rp483 = _rmp483(_mn483, _lv483, _f483)
+                        _rp483 = _rmp483(_mn483, _lv483, _an483)
                     except Exception:
                         _rp483 = None
                     if not _rp483:

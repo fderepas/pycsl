@@ -4441,15 +4441,45 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             _bnd666: Optional[Tuple[str, str, int, str]] = None
             # (u66, route #622) the program file is a symlink into another directory: its
             # first root is that realpath directory, so a module beside the LINK does not share
-            # the program's view
-            _ln622 = (os.path.realpath(os.path.dirname(_mf660))
-                      != os.path.dirname(os.path.realpath(_mf660)))
+            # the program's view.
+            # (#49) run #9 u69 -- review rt78 s1 (u66 INTRODUCED false proof). The same holds
+            # for a DEPENDENCY that is itself a symlink into another directory Q: its own run
+            # (`python P/dep.py`) has sys.path[0] = Q, which is how its contracts are verified,
+            # while the program's run resolves the dependency's absolute imports from the
+            # PROGRAM's first root P (only the program's directory becomes a realpath in
+            # CPython). u66 gave such a dependency, sitting in the program's raw directory, its
+            # own view only (Q), so P was never searched and nothing was compared (measured:
+            # P/dep78.py -> ../Q/dep78.py, `from hz78 import one`; Q/hz78.py returns 1, P/hz78.py
+            # returns 2; pycsl PROVED `\result == 1` for the program, CPython printed 2). RULE:
+            # a module shares the program's single view only when it sits in the program's raw
+            # directory AND its first root (the `_resolve_module_path` rule: the realpath
+            # directory when the file is a symlink into another directory) is the program's;
+            # otherwise both views are resolved and compared as for any other dependency.
+            # (#49) run #9 u69 -- review rt78 t4 / t8 (route #621 extended, PRE-EXISTING): the
+            # attribute stores of every reached module, and the package directories the walk
+            # meets (see the rule after the walk)
+            _ast669: List[Tuple[str, str, int]] = []
+            _pkd669: Set[str] = set()
+            _fp669 = os.path.dirname(_mf660)
+            if os.path.realpath(_fp669) != os.path.dirname(os.path.realpath(_mf660)):
+                _fp669 = os.path.dirname(os.path.realpath(_mf660))
             while _wl660 and _bad660 is None and _pfx661 is None and _bnd666 is None:
                 _m660 = _wl660.pop(0)
+                _fm669 = os.path.dirname(_m660)
+                if os.path.realpath(_fm669) != os.path.dirname(os.path.realpath(_m660)):
+                    _fm669 = os.path.dirname(os.path.realpath(_m660))
                 try:
                     _tr660 = _a613.parse(__import__("pathlib").Path(_m660).read_bytes())
                 except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
                     continue
+                for _z669 in _a613.walk(_tr660):
+                    if isinstance(_z669, _a613.Attribute) and not isinstance(_z669.ctx, _a613.Load):
+                        _ast669.append((_m660, _z669.attr, _z669.lineno))
+                    elif (isinstance(_z669, _a613.Call) and isinstance(_z669.func, _a613.Name)
+                          and _z669.func.id in ("setattr", "delattr") and len(_z669.args) >= 2
+                          and isinstance(_z669.args[1], _a613.Constant)
+                          and isinstance(_z669.args[1].value, str)):
+                        _ast669.append((_m660, _z669.args[1].value, _z669.lineno))
                 # (#49) run #9 u66 -- review rt76 r2 / r2d (route #621, PRE-EXISTING). A package
                 # `__init__` that BINDS, at import time, a name that is also one of the package's
                 # submodules decides what the attribute `pkg.<name>` is: CPython sets the
@@ -4581,7 +4611,7 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     # (outcome, path): ("file", abspath) / ("none", "") / ("refused", code)
                     _vw660: List[Tuple[str, str]] = []
                     for _fr660 in ([_m660] if _lv660 or _m660 == _mf660 or (os.path.dirname(
-                            _m660) == os.path.dirname(_mf660) and not _ln622)
+                            _m660) == os.path.dirname(_mf660) and _fm669 == _fp669)
                                    else [_m660, _mf660]):
                         # (#49) run #9 u66 -- review rt76 r6 (u64 INTRODUCED over-refusal): a
                         # PREFIX this module does not import by name (added by the V2D expansion
@@ -4652,7 +4682,7 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     # (u66, rt76 r6) a prefix resolves in CPython's roots: cwd = the anchor's
                     # first root (see the views above)
                     _fa666 = (_m660 if _lv660 or _m660 == _mf660 or (os.path.dirname(
-                        _m660) == os.path.dirname(_mf660) and not _ln622) else _mf660)
+                        _m660) == os.path.dirname(_mf660) and _fm669 == _fp669) else _mf660)
                     _ks666 = list(range(1 if os.path.commonpath([_hf660, _lib660]) != _lib660
                                         else len(_pt661), len(_pt661)))
                     if _ma666 and _ks666:
@@ -4747,11 +4777,74 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         _pi660 = os.path.join(_rt660, *_pt660[:_k660], "__init__.py")
                         if os.path.isfile(_pi660):
                             _fol660.append(_pi660)
+                    # (u69) the packages on the way: every prefix directory of a dotted name, the
+                    # anchor package (and the packages up to it) of a relative import, and the
+                    # directory of a package `__init__`
+                    if os.path.commonpath([_hf660, _lib660]) != _lib660:
+                        _pkd669.update(os.path.join(_rt660, *_pt660[:_k669]) for _k669 in range(
+                            0 if _lv660 else 1, len(_pt660) + (
+                                1 if os.path.basename(_hf660) == "__init__.py" else 0)))
+                        _c669 = os.path.dirname(_m660)
+                        while _lv660 and _c669.startswith(_rt660 + os.sep):
+                            _pkd669.add(_c669)
+                            _c669 = os.path.dirname(_c669)
                     for _f660 in _fol660:
                         if (_f660 not in _seen660 and _f660.endswith(".py")
                                 and os.path.commonpath([_f660, _lib660]) != _lib660):
                             _seen660.add(_f660)
                             _wl660.append(_f660)
+            # (#49) run #9 u69 -- review rt78 t4 / t8 (PRE-EXISTING #621 bypasses, false proofs at
+            # base and after u66). CPython looks `pkg.<name>` up as an ATTRIBUTE of the package
+            # module object (`import pkg.b; pkg.b.one()`, `from pkg import b`), and the
+            # attribute is the submodule only until some code stores to it: route #621 judged
+            # the Name bindings of package `__init__`s, but a SIBLING submodule, a sub-package
+            # `__init__` or any other module the program runs can do `import pkg; pkg.b = c0`
+            # (`import pkg as _p; _p.b = ...`, `setattr(pkg, "b", ...)`) at import time or in a
+            # function it calls (measured: zt784/d.py `from . import c as c0; import zt784;
+            # zt784.b = c0`, zt788/sub/__init__.py `import zt788 as _p; _p.b = c0`; pycsl PROVED
+            # `zt784.b.one() == 1` with b.py, CPython ran c.one() and printed 2). RULE
+            # (refusal-only, fail-closed, any receiver, any position in the file): in every
+            # module the program reaches (the program included), an attribute store or delete
+            # -- or a `setattr` / `delattr` with a literal name -- whose attribute NAME is the
+            # name of a submodule of a package the walk meets (an entry of the package's
+            # directory CPython imports as `pkg.<name>`, as route #621) REFUSES.
+            _rbd669: Optional[Tuple[str, str, int, str]] = None
+            if _bad660 is None and _pfx661 is None and _bnd666 is None and _ast669:
+                _nm669: Dict[str, str] = {}
+                for _D669 in sorted(_pkd669):
+                    try:
+                        _ls669 = sorted(os.listdir(_D669))
+                    except OSError:
+                        _ls669 = []
+                        _rbd669 = _rbd669 or (_ast669[0][0], _ast669[0][1], _ast669[0][2], _D669)
+                    for _e669 in _ls669:
+                        _s669 = _e669.split(".", 1)[0]
+                        if os.path.isdir(os.path.join(_D669, _e669)):
+                            if _e669.isidentifier() and _e669 != "__pycache__":
+                                _nm669.setdefault(_e669, _D669)
+                        elif (_s669.isidentifier() and _s669 != "__init__"
+                              and _e669.endswith((".py", ".pyc", ".pyd", ".so", *__import__(
+                                  "importlib.machinery").machinery.EXTENSION_SUFFIXES))):
+                            _nm669.setdefault(_s669, _D669)
+                for _f669, _n669, _l669 in _ast669:
+                    if _rbd669 is None and _n669 in _nm669:
+                        _rbd669 = (_f669, _n669, _l669, _nm669[_n669])
+            if _rbd669 is not None:
+                _dm669 = (os.path.relpath(_rbd669[0]) if _rbd669[0].startswith(os.getcwd() + os.sep)
+                          else _rbd669[0])
+                raise _E613(
+                    f"the local module {_dm669}, which the program reaches, stores (line "
+                    f"{_rbd669[2]}) to an attribute named `{_rbd669[1]}`, the name of a submodule of "
+                    f"the package directory {_rbd669[3]}: CPython looks a dotted submodule up as an "
+                    f"attribute of its package module object, and any store to that attribute -- "
+                    f"from any module, through any alias, at import time or in a function the "
+                    f"program calls -- replaces the submodule pycsl resolves the dotted name to, so "
+                    f"the contracts pycsl would believe describe another module than the one the "
+                    f"program runs (review rt78 t4: zt784/d.py `import zt784; zt784.b = c0`; pycsl "
+                    f"PROVED `zt784.b.one() == 1` with b.py, CPython ran c.one() and printed 2). "
+                    f"FIX: give the attribute another name than the package's submodules.",
+                    filename=main_file, stage="imports",
+                    code="PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND")
             if _pfx661 is not None:
                 _dm661 = (os.path.relpath(_pfx661[0]) if _pfx661[0].startswith(os.getcwd() + os.sep)
                           else _pfx661[0])

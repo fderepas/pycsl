@@ -1,0 +1,4 @@
+Sun Nov 22 15:31:06 UTC 2026 u69 start: tree created
+Sun Nov 22 15:33:01 UTC 2026 quick probes p78 on head(=u66) and b0
+Sun Nov 22 15:41:22 UTC 2026 probes t9-t13,o2 written; quick on head
+Sun Nov 22 15:46:09 UTC 2026 quick probes on head h1 (s1/s7/s8/T fixes)
