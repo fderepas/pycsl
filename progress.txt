@@ -26,3 +26,18 @@ Sun Nov 22 18:02:20 UTC 2026 waiting chainA (h1 sweep)
 Sun Nov 22 18:10:08 UTC 2026 waiting chainA (h1 pyref)
 Sun Nov 22 18:17:54 UTC 2026 waiting chainA (h1 mirror)
 Sun Nov 22 18:18:39 UTC 2026 chainA done (0/0/0 all); quick tests of narrowed tree
+Sun Nov 22 18:20:21 UTC 2026 chainB launched (h2 sweep, J x3, CR)
+Sun Nov 22 18:23:24 UTC 2026 waiting chainB (h2 sweep)
+Sun Nov 22 18:31:21 UTC 2026 chainB queued in heavy
+Sun Nov 22 18:39:28 UTC 2026 waiting chainB (h2 sweep)
+Sun Nov 22 18:47:30 UTC 2026 waiting chainB (h2 sweep)
+Sun Nov 22 18:55:30 UTC 2026 waiting chainB (h2 sweep)
+Sun Nov 22 19:03:15 UTC 2026 waiting chainB (h2 sweep)
+Sun Nov 22 19:10:58 UTC 2026 waiting chainB (h2 sweep)
+Sun Nov 22 19:18:42 UTC 2026 waiting chainB (h2 sweep)
+Sun Nov 22 19:26:27 UTC 2026 waiting chainB (h2 pyref)
+Sun Nov 22 19:34:11 UTC 2026 waiting chainB (h2 pyref)
+Sun Nov 22 19:41:54 UTC 2026 waiting chainB (h2 mirror)
+Sun Nov 22 19:49:37 UTC 2026 waiting chainB
+Sun Nov 22 19:54:50 UTC 2026 waiting chainB (J h2)
+Sun Nov 22 20:02:35 UTC 2026 waiting chainB (J b0)

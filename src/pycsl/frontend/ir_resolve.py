@@ -4877,10 +4877,12 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             if _rbd669 is not None:
                 _dm669 = (os.path.relpath(_rbd669[0]) if _rbd669[0].startswith(os.getcwd() + os.sep)
                           else _rbd669[0])
+                _dp669 = (os.path.relpath(_rbd669[3]) if _rbd669[3].startswith(os.getcwd() + os.sep)
+                          else _rbd669[3])
                 raise _E613(
                     f"the local module {_dm669}, which the program reaches, stores (line "
                     f"{_rbd669[2]}) to an attribute named `{_rbd669[1]}`, the name of a submodule of "
-                    f"the package directory {_rbd669[3]}: CPython looks a dotted submodule up as an "
+                    f"the package directory {_dp669}: CPython looks a dotted submodule up as an "
                     f"attribute of its package module object, and any store to that attribute -- "
                     f"from any module, through any alias, at import time or in a function the "
                     f"program calls -- replaces the submodule pycsl resolves the dotted name to, so "
