@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u70/scratchpad/u70/probes/u05_transitive_callee_local_clash.py'...
+[*] Memory model: hoare
+[*] Imported from 'u70libt': ['f'] (trusted stubs, module-qualified)
+
+[!] PIPELINE ERROR:
+Imported contract of 'f' (from 'u70libt.py') reads the module-level name '_h', which denotes THAT module's binding; in 'u05_transitive_callee_local_clash.py' the name is bound by the importing module itself, and the contract would be lowered against the wrong binding (route #143). Rename one of the two bindings.

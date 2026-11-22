@@ -2244,6 +2244,44 @@ def _inject_functions(dep_funcs: List[Dict[str, Any]], ir_data: Dict[str, Any]) 
             ir_data["functions"].insert(0, func_ir)
             imported.add(func_ir["name"])
             existing.add(func_ir["name"])
+            continue
+        # (#49) run #9 u70 -- review rt77 F1 / F2, routes #624 / #625 (PRE-EXISTING since the
+        # first multi-file resolver; MEASURED PROVED at daa36070b, CPython contradicts). The
+        # name is taken already, and the old code silently SKIPPED this dependency function:
+        # `import lib` + a local `def val1` lowered `lib.val1()` to the LOCAL val1 (w14: `== 2`
+        # PROVED, CPython prints 1), and `liba.helper() + libb.helper()` became one `val
+        # helper` (w19: a false disjunction PROVED, CPython prints 3). Skipping is faithful only
+        # when the entry already present IS this dependency function: the same origin file
+        # (the `_r143_dep_file` tag `_process_dependency` sets; a program's own `def` has none)
+        # and the same IR (both are copies of the one cached entry; an alias rename that lands
+        # on another function of the same file differs). RULE: anything else is refused, never
+        # approximated. Inline; the mirror twin is `\trusted`.
+        _prev624 = None
+        for _f624 in ir_data["functions"]:
+            if _f624["name"] == func_ir["name"]:
+                _prev624 = _f624
+                break
+        _dep624 = func_ir.get("_r143_dep_file")
+        if (_prev624 is not None and _dep624 is not None
+                and _prev624.get("_r143_dep_file") == _dep624 and _prev624 == func_ir):
+            continue
+        _was624 = ("a function the program defines itself"
+                   if _prev624 is None or _prev624.get("_r143_dep_file") is None
+                   else f"the function of that name in "
+                        f"`{os.path.basename(_prev624['_r143_dep_file'])}`")
+        from errors import PyCSLSemanticError
+        raise PyCSLSemanticError(
+            f"the imported function `{func_ir['name']}` of "
+            f"`{os.path.basename(_dep624 or '?')}` has the "
+            f"same name as {_was624}: pycsl gives every function ONE WhyML name, so one of the "
+            f"two definitions would be dropped and a call meant for it (a module-qualified "
+            f"`mod.{func_ir['name']}()`, or the dependency's own call of it) would be verified "
+            f"against the other one's contract, while CPython runs each module's own function "
+            f"(routes #624 / #625: `import lib` beside a local `def {func_ir['name']}`, or two "
+            f"libraries that both define it). FIX: rename one of the two functions, or import "
+            f"it under a distinct name (`from mod import {func_ir['name']} as other`).",
+            filename=os.path.relpath(_dep624) if _dep624 else "", stage="imports",
+            code="PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH")
     return imported
 
 

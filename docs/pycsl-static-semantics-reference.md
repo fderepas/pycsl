@@ -3141,7 +3141,13 @@ the same outcome through the program's search order (how CPython loads it: `sys.
 program's directory, then `--import-path`); otherwise refused
 (`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`); a non-stdlib name with no module from the
 dependency's directory was an unconstrained external there and is admitted; relative imports
-are package-relative in both views; not applied under `--verification-image`. Under the declared `--verification-image
+are package-relative in both views; not applied under `--verification-image`. One WhyML name per
+function (u70, review rt77 F1 / F2, routes #624 / #625, PRE-EXISTING): injecting a dependency function
+whose name the IR already holds is admitted only when the entry present IS that dependency function (the
+same origin file and the same IR, e.g. `import m` + `m.f()` beside `from m import f`); a program's own
+`def f` beside `import m` + `m.f()`, or two modules that both define a called `f`, are refused
+(`PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH`) -- the old resolver silently dropped one definition and bound
+every call to the other; `from m import f as g` keeps the two apart and is admitted. Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
 roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`

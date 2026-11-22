@@ -1447,7 +1447,11 @@ checked hash-based `__pycache__` pyc, or a timestamp pyc whose header matches, a
 entry in any resolution root named like a module the closure may reach — a stdlib / builtin
 name, or any name the interpreter's stdlib source imports — is judged as a direct import of
 it and REFUSED unless admitted, `PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`, route #613: a local
-`re.py` beside a program that imports only `json` is the `re` that `json` runs; the judged
+`re.py` beside a program that imports only `json` is the `re` that `json` runs; a dependency
+function whose name the IR already holds (a local `def f` beside `import m` + `m.f()`, or `f` defined
+in two imported modules) is REFUSED unless it is the same dependency function reached twice,
+`PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH`, routes #624 / #625 (u70, review rt77 F1 / F2; corpus
+10420-10427); the judged
 names also include every module entry of the interpreter's stdlib directories (Lib,
 lib-dynload, the platform stdlib: the stdlib imports `_sysconfigdata_<abi>_<platform>` by a
 COMPUTED name), literal names handed to `__import__` / `import_module` /
