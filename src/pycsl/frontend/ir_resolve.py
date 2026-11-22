@@ -4602,8 +4602,10 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                           else ("none", ""))
                         except _E613 as _x660:
                             _vw660.append(("refused", str(_x660.code or "refused")))
-                        finally:
+                        except BaseException:
                             os.chdir(_ow666)
+                            raise
+                        os.chdir(_ow666)
                     if len(_vw660) == 2 and _vw660[0] != _vw660[1] and (
                             _vw660[0][0] == "file" or (
                                 _vw660[0][0] == "none"
@@ -4663,8 +4665,10 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                             _pa666 = _resolve_module_path(".".join(_pt661[:-1]), _lv660, _fa666)
                         except _E613:
                             _pa666 = None
-                        finally:
+                        except BaseException:
                             os.chdir(_ow666)
+                            raise
+                        os.chdir(_ow666)
                         _ti666 = None
                         if _pa666 is not None and os.path.basename(_pa666) == "__init__.py":
                             try:
@@ -4714,8 +4718,10 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                       else ("none", ""))
                         except _E613 as _x661:
                             _po661 = ("refused", str(_x661.code or "refused"))
-                        finally:
+                        except BaseException:
                             os.chdir(_ow666)
+                            raise
+                        os.chdir(_ow666)
                         if _po661[0] == "none" or (
                                 _po661[0] == "file"
                                 and os.path.basename(_po661[1]) == "__init__.py"

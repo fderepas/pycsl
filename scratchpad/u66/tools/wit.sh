@@ -5,7 +5,7 @@ source /home/fabrice/git/pycsl/scratchpad/g29/env.sh; export PYTHON_CPU_COUNT=2
 M=$1; T=$2; O=$(realpath -m "$3"); W=/home/fabrice/git/pycsl-u66; C=test-suite/corpus/pycsl-reference
 EV=/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/pycsl.slice/pycsl-heavy.slice/memory.events
 mkdir -p $O; cd $W || exit 2
-for f in $C/1038[0-3]_*.py $C/zr80/*.py $C/zr81/*.py $(find $C/multi_file_lib/u66 -name '*.py' | sort); do
+for f in $C/1038[0-3]_*.py $C/zr80/*.py $C/zr81/*.py $C/zq80.py $C/zq80/*.py $C/zh80/*.py $(find $C/multi_file_lib/u66 -name '*.py' | sort); do
   n=$(echo "${f#$C/}" | tr '/' '_' ); FL=($(grep -m1 '^# pycsl-flags:' $f | cut -d: -f2-))
   o0=$(grep '^oom_kill ' $EV | cut -d' ' -f2); s=$(date +%s)
   if [ "$M" = q ]; then timeout 300 $T/.venv/bin/python3 $T/src/pycsl/pycsl.py --no-proof "${FL[@]}" $f > $O/$n.log 2>&1; rc=$?

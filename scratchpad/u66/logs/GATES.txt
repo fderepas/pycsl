@@ -1,0 +1,9 @@
+GATES start Sun Nov 22 11:43:31 UTC 2026 65119ed70 oom_kill 15
+[LG] emitted 53
+[LG] check-assigns-writes-survival rc=0
+[LG] check-trusted-frame-honesty rc=0
+[LG] check-getattr-erasure rc=0
+[LG] check-self-annotate-sync rc=0
+[LG] self-annotate-mirror-check rc=0
+[LG] doc-coherency rc=0
+[LG] trusted 366
