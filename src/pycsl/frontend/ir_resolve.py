@@ -107,7 +107,23 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
         script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         lib_dir = os.path.join(script_dir, "Lib")
         src_dir = os.path.dirname(script_dir)  # …/pycsl/src
-        for base in [os.path.dirname(os.path.abspath(main_file)), os.getcwd(),
+        # (#49) run #9 u66 -- review rt76 r12 (route #622, PRE-EXISTING since the first
+        # multi-file resolver). CPython's script mode puts the directory of the script's
+        # REALPATH first on sys.path; pycsl's first root was the directory the script is NAMED
+        # in. For a program FILE that is a symlink into another directory R the two differ, and
+        # a module the link directory P holds but R lacks was read by pycsl from P while CPython
+        # continues past R to PYTHONPATH (measured: P/prog.py -> R/prog.py, P/zz76.py with
+        # `ensures \result == 1`, --import-path X/zz76.py returning 2; pycsl PROVED the claim,
+        # CPython loaded X/zz76.py and printed 2). The rt62 r19 rule below only refused when R
+        # held a same-named entry. RULE (faithful, every absolute import): the first root is
+        # the realpath directory whenever it is another directory than the one the file is
+        # named in; P is then no root at all (and, as the cwd, not exempt from the CWD-ROOT
+        # rule below). A path whose PARENT directories are symlinks names the same directory
+        # either way and keeps its spelling.
+        _fr622 = os.path.dirname(os.path.abspath(main_file))
+        if os.path.realpath(_fr622) != os.path.dirname(os.path.realpath(main_file)):
+            _fr622 = os.path.dirname(os.path.realpath(main_file))
+        for base in [_fr622, os.getcwd(),
                      src_dir, lib_dir, *_EXTRA_IMPORT_PATHS]:
             # (#49) ROUTE #326 — package before module (see the relative branch above).
             pkg_init = os.path.join(base, *parts, "__init__.py")
@@ -247,7 +263,8 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
             # held helperq.py with `ensures \result == 1`, --import-path X held a helperq.py
             # returning 2; pycsl PROVED the claim, `cd C && PYTHONPATH=X python P/prog.py`
             # loaded X/helperq.py and printed 2). RULE (refusal-only): a module found FIRST in
-            # the cwd, when the cwd is none of the program's directory (or its realpath), an
+            # the cwd, when the cwd is none of the program's first root (its realpath
+            # directory when the program file is a symlink elsewhere: u66, route #622), an
             # --import-path root or pycsl's src/ / Lib/ model roots, is REFUSED -- unless it is
             # a standard-library name whose local copy passed route #326 / #611 above (an
             # admitted byte-identical copy, the repo-root ./json/): then CPython loads the
@@ -256,9 +273,7 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
             _cw658 = os.path.realpath(os.getcwd())
             if (base == os.getcwd()
                     and _cw658 not in [os.path.realpath(_q) for _q in (
-                        os.path.dirname(os.path.abspath(main_file)),
-                        os.path.dirname(os.path.realpath(main_file)), src_dir, lib_dir,
-                        *_EXTRA_IMPORT_PATHS)]
+                        _fr622, src_dir, lib_dir, *_EXTRA_IMPORT_PATHS)]
                     and parts[0] not in sys.stdlib_module_names
                     and parts[0] not in sys.builtin_module_names):
                 from errors import PyCSLSemanticError
@@ -4423,12 +4438,106 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             _wl660: List[str] = [_mf660]
             _bad660: Optional[Tuple[str, str, str, str]] = None
             _pfx661: Optional[Tuple[str, str, str, str, str]] = None
-            while _wl660 and _bad660 is None and _pfx661 is None:
+            _bnd666: Optional[Tuple[str, str, int, str]] = None
+            # (u66, route #622) the program file is a symlink into another directory: its
+            # first root is that realpath directory, so a module beside the LINK does not share
+            # the program's view
+            _ln622 = (os.path.realpath(os.path.dirname(_mf660))
+                      != os.path.dirname(os.path.realpath(_mf660)))
+            while _wl660 and _bad660 is None and _pfx661 is None and _bnd666 is None:
                 _m660 = _wl660.pop(0)
                 try:
                     _tr660 = _a613.parse(__import__("pathlib").Path(_m660).read_bytes())
                 except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
                     continue
+                # (#49) run #9 u66 -- review rt76 r2 / r2d (route #621, PRE-EXISTING). A package
+                # `__init__` that BINDS, at import time, a name that is also one of the package's
+                # submodules decides what the attribute `pkg.<name>` is: CPython sets the
+                # attribute to the submodule only when it LOADS it, so `from . import b as b0;
+                # from . import c as b` leaves `pkg.b` bound to c while `pkg.b` is in
+                # sys.modules, and `import pkg.b; pkg.b.one()` runs c.one() (measured: CPython
+                # printed 2; pycsl lowered `zr76.b.one` to b.py's contract and PROVED
+                # `\result == 1`, in the program AND in a dependency's own run). RULE
+                # (refusal-only): in every package `__init__.py` the program reaches, any binding
+                # of a submodule's name in the code that runs at import time (outside `def` /
+                # `lambda` bodies and class bodies: import / import-as, from-import /
+                # from-import-as, assignment of any form, `def` / `class`, `del`, a `global` /
+                # `nonlocal` declaration of it anywhere, a wildcard import while the package has
+                # submodules) REFUSES, unless it is `from . import <name>` itself, which binds
+                # exactly that submodule. A submodule is any entry of the package's directory
+                # CPython can import as `pkg.<name>`: a module file or artifact, or a
+                # sub-directory (regular or namespace).
+                if os.path.basename(_m660) == "__init__.py" and _m660 != _mf660:
+                    _sub666: Set[str] = set()
+                    try:
+                        _ls666 = sorted(os.listdir(os.path.dirname(_m660)))
+                    except OSError:
+                        _ls666 = []
+                        _bnd666 = (_m660, "?", 0, "its package directory cannot be listed")
+                    for _e666 in _ls666:
+                        _s666 = _e666.split(".", 1)[0]
+                        if os.path.isdir(os.path.join(os.path.dirname(_m660), _e666)):
+                            if _e666.isidentifier() and _e666 != "__pycache__":
+                                _sub666.add(_e666)
+                        elif (_s666.isidentifier() and _s666 != "__init__"
+                              and _e666.endswith((".py", ".pyc", ".pyd", ".so", *__import__(
+                                  "importlib.machinery").machinery.EXTENSION_SUFFIXES))):
+                            _sub666.add(_s666)
+                    _st666: List[Any] = list(_tr660.body)
+                    while _st666 and _sub666 and _bnd666 is None:
+                        _z666 = _st666.pop(0)
+                        _bn666: List[Tuple[str, bool]] = []
+                        if isinstance(_z666, (_a613.FunctionDef, _a613.AsyncFunctionDef,
+                                              _a613.ClassDef)):
+                            _bn666.append((_z666.name, False))
+                            _st666 += list(_z666.decorator_list)
+                            if isinstance(_z666, _a613.ClassDef):
+                                _st666 += list(_z666.bases) + [_k.value for _k in _z666.keywords]
+                            else:
+                                _st666 += [_q for _q in (list(_z666.args.defaults)
+                                                         + list(_z666.args.kw_defaults))
+                                           if _q is not None]
+                        elif isinstance(_z666, _a613.Lambda):
+                            _st666 += list(_z666.args.defaults) + [
+                                _q for _q in _z666.args.kw_defaults if _q is not None]
+                        else:
+                            if isinstance(_z666, _a613.Import):
+                                _bn666 += [(_al.asname or _al.name.split(".")[0], False)
+                                           for _al in _z666.names]
+                            elif isinstance(_z666, _a613.ImportFrom):
+                                for _al in _z666.names:
+                                    if _al.name == "*":
+                                        _bn666.append(("*", False))
+                                    else:
+                                        _bn666.append((_al.asname or _al.name, (
+                                            (_z666.level or 0) == 1 and not _z666.module
+                                            and (_al.asname or _al.name) == _al.name)))
+                            elif isinstance(_z666, _a613.Name) and not isinstance(
+                                    _z666.ctx, _a613.Load):
+                                _bn666.append((_z666.id, False))
+                            elif isinstance(_z666, _a613.ExceptHandler) and _z666.name:
+                                _bn666.append((_z666.name, False))
+                            elif isinstance(_z666, (_a613.MatchAs, _a613.MatchStar)) and _z666.name:
+                                _bn666.append((_z666.name, False))
+                            elif isinstance(_z666, _a613.MatchMapping) and _z666.rest:
+                                _bn666.append((_z666.rest, False))
+                            _st666 += list(_a613.iter_child_nodes(_z666))
+                        for _q666, _x666 in _bn666:
+                            if _q666 == "*" or (_q666 in _sub666 and not _x666):
+                                _bnd666 = (_m660, _q666, getattr(_z666, "lineno", 0) or 0, (
+                                    "a wildcard import, which may bind any of its submodules' "
+                                    "names" if _q666 == "*" else
+                                    f"a binding of `{_q666}`, the name of its submodule"))
+                                break
+                    for _z666 in (_a613.walk(_tr660) if _sub666 and _bnd666 is None else []):
+                        if isinstance(_z666, (_a613.Global, _a613.Nonlocal)) and any(
+                                _q in _sub666 for _q in _z666.names):
+                            _bnd666 = (_m660, [_q for _q in _z666.names if _q in _sub666][0],
+                                       _z666.lineno, "a `global` declaration of a submodule's "
+                                       "name, which lets a function rebind it")
+                            break
+                    if _bnd666 is not None:
+                        break
                 _ent660: List[Tuple[str, int]] = []
                 for _n660 in _a613.walk(_tr660):
                     if isinstance(_n660, _a613.Import):
@@ -4439,6 +4548,19 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                             _ent660.append((_n660.module, _lv660))
                         _ent660 += [((_n660.module + "." if _n660.module else "") + _al.name,
                                      _lv660) for _al in _n660.names if _al.name != "*"]
+                # (u66, rt76 r5 / r14) the MODULE names of this module's import statements
+                # (`import a.b`, the `a.b` of `from a.b import c`) and their prefixes; a name that
+                # is only a from-import TARGET (`c`) may be an attribute rather than a submodule
+                _mod666: Set[Tuple[str, int]] = set()
+                for _n660 in _a613.walk(_tr660):
+                    for _q666, _l666 in ([(_al.name, 0) for _al in _n660.names]
+                                         if isinstance(_n660, _a613.Import) else
+                                         [(_n660.module, _n660.level or 0)]
+                                         if isinstance(_n660, _a613.ImportFrom)
+                                         and _n660.module else []):
+                        _mod666 |= {(".".join(_q666.split(".")[:_k666]), _l666)
+                                    for _k666 in range(1, _q666.count(".") + 2)}
+                _org666 = set(_ent660)
                 # (#49) run #8 u61 -- review rt74 V2D: every dotted PREFIX `a`, `a.b`, ... of
                 # an import is compared and followed too (CPython imports `a` before `a.b`, and
                 # stops at the first root holding a REGULAR package `a`), as u59's closure walk
@@ -4458,14 +4580,30 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         continue
                     # (outcome, path): ("file", abspath) / ("none", "") / ("refused", code)
                     _vw660: List[Tuple[str, str]] = []
-                    for _fr660 in ([_m660] if _lv660 or _m660 == _mf660 or os.path.dirname(
-                            _m660) == os.path.dirname(_mf660) else [_m660, _mf660]):
+                    for _fr660 in ([_m660] if _lv660 or _m660 == _mf660 or (os.path.dirname(
+                            _m660) == os.path.dirname(_mf660) and not _ln622)
+                                   else [_m660, _mf660]):
+                        # (#49) run #9 u66 -- review rt76 r6 (u64 INTRODUCED over-refusal): a
+                        # PREFIX this module does not import by name (added by the V2D expansion
+                        # above) is resolved in CPython's roots: pycsl's own working directory is
+                        # no root of a script (rt69 G7), so the resolution runs with the cwd set
+                        # to the anchor's first root, which it already searches first. (The names
+                        # the import statements spell keep today's resolution and the CWD-ROOT
+                        # refusal where it was.)
+                        _ow666 = os.getcwd()
+                        if (_d660, _lv660) not in _org666:
+                            try:
+                                os.chdir(os.path.dirname(os.path.realpath(_fr660)))
+                            except OSError:
+                                pass
                         try:
                             _h660 = _resolve_module_path(_d660, _lv660, _fr660)
                             _vw660.append(("file", os.path.abspath(_h660)) if _h660 is not None
                                           else ("none", ""))
                         except _E613 as _x660:
                             _vw660.append(("refused", str(_x660.code or "refused")))
+                        finally:
+                            os.chdir(_ow666)
                     if len(_vw660) == 2 and _vw660[0] != _vw660[1] and (
                             _vw660[0][0] == "file" or (
                                 _vw660[0][0] == "none"
@@ -4493,18 +4631,91 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     # a module file, another package, or a refused prefix resolution REFUSES.
                     # (pycsl's own stdlib model root `Lib/` stands for the interpreter's stdlib
                     # and is not judged here, as it is not followed below.)
+                    # (#49) run #9 u66 -- review rt76 r5 / r14 (u64 INTRODUCED over-refusals):
+                    # `from pkg import name` makes CPython import the SUBMODULE `pkg.name` only
+                    # when the attribute lookup on pkg fails, and pycsl's own resolution of it
+                    # (`_resolve_direct_imports`) takes `name` from pkg's file, never from a
+                    # submodule. So `pkg.name`, when no import statement names it as a module,
+                    # is checked as a dotted module import only if pkg can be a package without
+                    # that attribute: it is skipped when pkg's resolution (CPython's roots, as
+                    # below) is a MODULE file (a module beside a namespace directory wins; a
+                    # module has no submodules), or a package `__init__.py` that binds `name` in
+                    # a top-level statement (`def` / `class` / assignment / import of it) and has
+                    # no `del`, `global` or `nonlocal` of it anywhere. (Whether such an
+                    # `__init__` binding collides with a real submodule is route #621 above.)
+                    # Every other case -- a namespace or unresolved pkg, an `__init__` without
+                    # the binding, a refused resolution -- is checked as before.
+                    _ma666 = (_d660, _lv660) not in _mod666 and "." in _d660
                     _pt661 = _d660.split(".")
-                    for _k661 in range(1 if os.path.commonpath([_hf660, _lib660]) != _lib660
-                                       else len(_pt661), len(_pt661)):
-                        _pd661 = ".".join(_pt661[:_k661])
+                    # (u66, rt76 r6) a prefix resolves in CPython's roots: cwd = the anchor's
+                    # first root (see the views above)
+                    _fa666 = (_m660 if _lv660 or _m660 == _mf660 or (os.path.dirname(
+                        _m660) == os.path.dirname(_mf660) and not _ln622) else _mf660)
+                    _ks666 = list(range(1 if os.path.commonpath([_hf660, _lib660]) != _lib660
+                                        else len(_pt661), len(_pt661)))
+                    if _ma666 and _ks666:
+                        _ow666 = os.getcwd()
                         try:
-                            _pq661 = _resolve_module_path(_pd661, _lv660, (
-                                _m660 if _lv660 or _m660 == _mf660 or os.path.dirname(
-                                    _m660) == os.path.dirname(_mf660) else _mf660))
+                            os.chdir(os.path.dirname(os.path.realpath(_fa666)))
+                        except OSError:
+                            pass
+                        try:
+                            _pa666 = _resolve_module_path(".".join(_pt661[:-1]), _lv660, _fa666)
+                        except _E613:
+                            _pa666 = None
+                        finally:
+                            os.chdir(_ow666)
+                        _ti666 = None
+                        if _pa666 is not None and os.path.basename(_pa666) == "__init__.py":
+                            try:
+                                _ti666 = _a613.parse(
+                                    __import__("pathlib").Path(_pa666).read_bytes())
+                            except (OSError, SyntaxError, ValueError, RecursionError,
+                                    MemoryError):
+                                _ti666 = None
+                        _nm666 = _pt661[-1]
+                        if _pa666 is not None and (
+                                os.path.basename(_pa666) != "__init__.py" or (
+                                    _ti666 is not None and any(
+                                        (isinstance(_z, (_a613.FunctionDef,
+                                                         _a613.AsyncFunctionDef,
+                                                         _a613.ClassDef)) and _z.name == _nm666)
+                                        or (isinstance(_z, _a613.Assign) and any(
+                                            isinstance(_t, _a613.Name) and _t.id == _nm666
+                                            for _t in _z.targets))
+                                        or (isinstance(_z, _a613.AnnAssign)
+                                            and _z.value is not None
+                                            and isinstance(_z.target, _a613.Name)
+                                            and _z.target.id == _nm666)
+                                        or (isinstance(_z, _a613.Import) and any(
+                                            (_al.asname or _al.name.split(".")[0]) == _nm666
+                                            for _al in _z.names))
+                                        or (isinstance(_z, _a613.ImportFrom) and any(
+                                            _al.name != "*" and (_al.asname or _al.name) == _nm666
+                                            for _al in _z.names))
+                                        for _z in _ti666.body) and not any(
+                                        (isinstance(_z, (_a613.Global, _a613.Nonlocal))
+                                         and _nm666 in _z.names)
+                                        or (isinstance(_z, _a613.Delete) and any(
+                                            isinstance(_y, _a613.Name) and _y.id == _nm666
+                                            for _t in _z.targets for _y in _a613.walk(_t)))
+                                        for _z in _a613.walk(_ti666)))):
+                            _ks666 = []
+                    for _k661 in _ks666:
+                        _pd661 = ".".join(_pt661[:_k661])
+                        _ow666 = os.getcwd()
+                        try:
+                            os.chdir(os.path.dirname(os.path.realpath(_fa666)))
+                        except OSError:
+                            pass
+                        try:
+                            _pq661 = _resolve_module_path(_pd661, _lv660, _fa666)
                             _po661 = (("file", os.path.abspath(_pq661)) if _pq661 is not None
                                       else ("none", ""))
                         except _E613 as _x661:
                             _po661 = ("refused", str(_x661.code or "refused"))
+                        finally:
+                            os.chdir(_ow666)
                         if _po661[0] == "none" or (
                                 _po661[0] == "file"
                                 and os.path.basename(_po661[1]) == "__init__.py"
@@ -4551,6 +4762,21 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     f"package (or the module) so that one root holds the whole dotted path.",
                     filename=main_file, stage="imports",
                     code="PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER")
+            if _bnd666 is not None:
+                _dm666 = (os.path.relpath(_bnd666[0]) if _bnd666[0].startswith(os.getcwd() + os.sep)
+                          else _bnd666[0])
+                raise _E613(
+                    f"the package __init__ {_dm666}, which the program reaches, has at import time "
+                    f"(line {_bnd666[2]}) {_bnd666[3]}: CPython sets the package attribute of a "
+                    f"submodule only when it loads that submodule, so after such a binding "
+                    f"`pkg.<name>` may be another object than the submodule pycsl resolves the "
+                    f"dotted name to, and the contracts pycsl would believe describe another "
+                    f"module than the one the program runs (review rt76 r2: `from . import b as b0; "
+                    f"from . import c as b` in zr76/__init__.py; pycsl PROVED `zr76.b.one() == 1` "
+                    f"with b.py, CPython ran c.one() and printed 2). FIX: bind the submodule "
+                    f"itself (`from . import <name>`) or give the other binding another name.",
+                    filename=main_file, stage="imports",
+                    code="PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND")
             if _bad660 is not None:
                 _dm660 = (os.path.relpath(_bad660[0]) if _bad660[0].startswith(os.getcwd() + os.sep)
                           else _bad660[0])

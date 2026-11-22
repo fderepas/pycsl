@@ -1491,7 +1491,17 @@ import is compared and followed as well, and through the program's order each pr
 file must be a package `__init__.py` whose directory holds the file pycsl reads for the full name
 (u61, review rt74 V2D: CPython stops at the first root with a regular package `a` and searches
 `a.b` only in its `__path__`, which `P/zpa74/__init__.py` redirected, while pycsl fell through to
-an `--import-path` `zpa74/b.py`). Relative imports stay package-relative; the
+an `--import-path` `zpa74/b.py`). A from-import target `pkg.name` is checked as a dotted
+module only where CPython can import it as one (u66, review rt76 r5 / r14): not when `pkg` is a
+module file, nor when `pkg/__init__.py` binds `name` in a top-level statement without a `del` /
+`global` of it; and a prefix the import statements do not spell is resolved in CPython's roots,
+never in pycsl's cwd (u66, rt76 r6). A package `__init__.py` the program reaches that binds, at
+import time, the name of one of its own submodules to anything but that submodule (`from . import
+c as b` beside `b.py`; any import, assignment, `def` / `class`, `del`, `global`, or a wildcard
+import) is REFUSED (`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`, u66, route #621: CPython leaves
+`pkg.b` bound to `c` and `import pkg.b; pkg.b.one()` runs `c.one()`). A program FILE that is a
+symlink into another directory resolves its absolute imports from that realpath directory, as
+CPython's `sys.path[0]` does (u66, route #622, review rt76 r12). Relative imports stay package-relative; the
 check is skipped under the declared `--verification-image`, which makes no CPython-run
 claim): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or

@@ -3144,7 +3144,17 @@ dependency's directory was an unconstrained external there and is admitted (OPEN
 every dotted prefix of an import is compared too, and in the program's order each prefix that
 resolves to a file must be a package `__init__.py` whose directory holds the file read for the
 full name (u61, rt74 V2D: CPython stops at the first root holding a regular package for a
-prefix); relative imports are package-relative in both views; not applied under
+prefix); a from-import target `pkg.name` that no import statement names as a module is checked
+so only when `pkg` can lack the attribute (u66, rt76 r5 / r14: skipped when `pkg` resolves to a
+module file, or to an `__init__.py` that binds `name` in a top-level statement and never
+`del`s / declares it `global`); prefixes the statements do not spell resolve in CPython's roots
+(cwd = the anchor's first root; u66, rt76 r6). Every package `__init__.py` reached is refused
+(`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`; u66, route #621, rt76 r2 / r2d) when its
+import-time code binds the name of one of the package's submodules (an entry of its directory
+CPython imports as `pkg.<name>`) other than by `from . import <name>` (also `del`, a `global`
+of it, a wildcard import). The first root of an absolute import is the directory of the
+file's realpath whenever that is another directory than the one the file is named in (u66,
+route #622, rt76 r12: a symlinked program file); relative imports are package-relative in both views; not applied under
 `--verification-image`. Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's

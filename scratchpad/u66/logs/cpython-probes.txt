@@ -1,0 +1,58 @@
+r1 | /usr/bin/python3 |  | P/zr76/c.py loaded result 2 
+r1 | /home/fabrice/git/pycsl/.venv/bin/python3 |  | P/zr76/c.py loaded result 2 
+r2 | /usr/bin/python3 |  | P/zr76/c.py loaded result 2 
+r2 | /home/fabrice/git/pycsl/.venv/bin/python3 |  | P/zr76/c.py loaded result 2 
+r5 | /usr/bin/python3 |  | result 1 
+r5 | /home/fabrice/git/pycsl/.venv/bin/python3 |  | result 1 
+r5b | /usr/bin/python3 |  |     return b.one()            ^^^^^ AttributeError: 'function' object has no attribute 'one' 
+r5b | /home/fabrice/git/pycsl/.venv/bin/python3 |  |     return b.one()            ^^^^^ AttributeError: 'function' object has no attribute 'one' 
+r4 | /usr/bin/python3 |  | result 1 
+r4 | /home/fabrice/git/pycsl/.venv/bin/python3 |  |   File "/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r4/P/prog.py", line 1, in <module>     from lark.zr76 import one ModuleNotFoundError: No module named 'lark.zr76' 
+r3 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r3/X2 | P/zr76/c.py loaded result 2 
+r3 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r3/X2 | P/zr76/c.py loaded result 2 
+r9 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r9/X2 | X2/pkr76/c.py loaded result 2 
+r9 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r9/X2 | X2/pkr76/c.py loaded result 2 
+r6 | /usr/bin/python3 |  | result 1 
+r6 | /home/fabrice/git/pycsl/.venv/bin/python3 |  | result 1 
+r6-treecwd | /usr/bin/python3 |  | result 1 
+r6-treecwd | /home/fabrice/git/pycsl/.venv/bin/python3 |  | result 1 
+r2s | /usr/bin/python3 |  | P/zr76/c.py loaded result 2 
+r2s | /home/fabrice/git/pycsl/.venv/bin/python3 |  | P/zr76/c.py loaded result 2 
+r7 | /usr/bin/python3 |  | P/zr76/c.py loaded result 2 
+r7 | /home/fabrice/git/pycsl/.venv/bin/python3 |  | P/zr76/c.py loaded result 2 
+r8 | /usr/bin/python3 |  | P/zpa76_alt/b.py loaded result 2 
+r8 | /home/fabrice/git/pycsl/.venv/bin/python3 |  | P/zpa76_alt/b.py loaded result 2 
+r2d | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2d/X2 | X2/zr76/c.py loaded result 2 
+r2d | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2d/X2 | X2/zr76/c.py loaded result 2 
+r2r | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2r/X2 | X2/pkr76/c.py loaded result 2 
+r2r | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2r/X2 | X2/pkr76/c.py loaded result 2 
+r14 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r14/X2 | result 1 
+r14 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r14/X2 | result 1 
+r12 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r12/X | X/zz76.py loaded result 2 
+r12 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r12/X | X/zz76.py loaded result 2 
+r2d-dep | /usr/bin/python3 |  | X2/zr76/c.py loaded 
+r2d-dep | /home/fabrice/git/pycsl/.venv/bin/python3 |  | X2/zr76/c.py loaded 
+r2r-dep | /usr/bin/python3 |  |   File "/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2r/X2/pkr76/dep.py", line 1, in <module>     from . import b ImportError: attempted relative import with no known parent package 
+r2r-dep | /home/fabrice/git/pycsl/.venv/bin/python3 |  |   File "/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2r/X2/pkr76/dep.py", line 1, in <module>     from . import b ImportError: attempted relative import with no known parent package 
+r15 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r15/X2 | X2/zn76/b.py loaded result 2 
+r15 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r15/X2 | X2/zn76/b.py loaded result 2 
+r16 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r16/X2 | result 1 
+r16 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r16/X2 | result 1 
+r17 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r17/X2 | result 1 
+r17 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r17/X2 | result 1 
+v2d | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2d/X2 | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2d/P/zpa74_alt/b.py result 2 
+v2d | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2d/X2 | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2d/P/zpa74_alt/b.py result 2 
+w5 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/w5/X2 | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/w5/P/zpa74_alt/b.py result 2 
+w5 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/w5/X2 | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/w5/P/zpa74_alt/b.py result 2 
+v2 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2/X | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2/P/zpa74_alt/b.py result 2 
+v2 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2/X | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2/P/zpa74_alt/b.py result 2 
+x1 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x1/X | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x1/P/zpa74_alt/b.py result 2 
+x1 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x1/X | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x1/P/zpa74_alt/b.py result 2 
+x2 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x2/X |   File "/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x2/P/prog.py", line 1, in <module>     from zpb74.b import one ModuleNotFoundError: No module named 'zpb74.b' 
+x2 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x2/X |   File "/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x2/P/prog.py", line 1, in <module>     from zpb74.b import one ModuleNotFoundError: No module named 'zpb74.b' 
+x3 | /usr/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x3/X2 | result 1 
+x3 | /home/fabrice/git/pycsl/.venv/bin/python3 | PYTHONPATH=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x3/X2 | result 1 
+v2down | /usr/bin/python3 |  | 
+v2down | /home/fabrice/git/pycsl/.venv/bin/python3 |  | 
+v1f | /usr/bin/python3 |  | result 2 
+v1f | /home/fabrice/git/pycsl/.venv/bin/python3 |  | result 2 
