@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/u64/probes/v1f/P/prog.py'...
+[*] Memory model: hoare
+[*] Imported from 'dep75': ['f'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_efa8rcbx.mlw", line 10, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
