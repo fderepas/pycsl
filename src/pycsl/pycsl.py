@@ -42453,6 +42453,80 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     annotation) is still probed — the exemption does NOT extend to it."""
     import tempfile
     fns, lines = _function_body_eqs(mlw_code)
+    # (#49) u62 — A WELL-FORMED PER-FUNCTION PROBE FOR EVERY `let` DEFINITION. Two defects of
+    # the header scan above, measured on the int74 pycsl.py mirror proof (821 / 821 goals, then
+    # `vacuity probe for 'is_pstr' could not be checked ... Alt-Ergo, exit code 1, 0 goal
+    # records`): (1) a ONE-LINE `  let function is_pstr (v: pyval) : bool = match ... end`
+    # carries its body `=` on the header line, so no `^  =` line follows it; (2) the scan
+    # does not stop at a non-`let` declaration, so it attributed the `^  = match d with` line
+    # of the NEXT pure logic `  function get (d: pydict) ...` to `is_pstr` and inserted
+    # `ensures { false }` INTO a logic function — a syntax error why3 rejects (rc 1), which
+    # route #615 rightly fails as 'could not be checked'. Repair, here because this function's
+    # mirror twin is `\trusted` (the scan's own twin is verified): split a header's top-level
+    # body `=` onto its own `  =` line (the same WhyML, one line longer), then rescan, ending a
+    # pending header at any other top-level declaration.
+    # (#49) run #9 u63 -- a PARAMETERLESS `let` (a global constant, `  let d : disk = { ... }`,
+    # `  let annotations : _feature = { ... }`) has no binder, so it can carry no `requires`
+    # and no spec at all: `let c : r ensures { false } = ...` is a why3 SYNTAX ERROR (measured,
+    # rc 1), which route #615 rightly failed as 'could not be checked' on 6 programs (4
+    # directive-enforcement pairs, pycsl_lib enm `_auto_counter`, fut `annotations`). It has no
+    # assumed context of its own to be vacuous, so it is neither split nor probed (exactly its
+    # treatment before u62); a header is a constant when the first non-blank character after
+    # its name is `:` or `=`, or when it is a `let constant <name> : <ty> = ...` (the regex
+    # reads `constant` as the name: corpus 2503-2507's `pycsl_float_nan`, u63 census).
+    _l62: List[str] = []
+    for _x62 in lines:
+        _m62 = _LET_FN_RE.match(_x62)
+        if _m62 and (_m62.group(1) == "constant"
+                     or _x62[_m62.end():].lstrip()[:1] in (":", "=")):
+            _m62 = None
+        _cut62 = -1
+        if _m62:
+            _d62 = 0
+            _k62 = _m62.end()
+            _s62 = False
+            while _k62 < len(_x62):
+                _c62 = _x62[_k62]
+                if _s62:
+                    if _c62 == "\\":
+                        _k62 += 1
+                    elif _c62 == '"':
+                        _s62 = False
+                elif _c62 == '"':
+                    _s62 = True
+                elif _c62 in "([{":
+                    _d62 += 1
+                elif _c62 in ")]}":
+                    _d62 -= 1
+                elif (_c62 == "=" and _d62 == 0 and _x62[_k62 - 1] not in "<>=!:"
+                      and _x62[_k62 + 1:_k62 + 2] not in ("=", ">")):
+                    _cut62 = _k62
+                    break
+                _k62 += 1
+        if _cut62 >= 0:
+            _l62.append(_x62[:_cut62].rstrip())
+            _l62.append("  =" + _x62[_cut62 + 1:])
+        else:
+            _l62.append(_x62)
+    lines = _l62
+    fns = []
+    _cur62: Optional[str] = None
+    for _i62, _y62 in enumerate(lines):
+        _mm62 = _LET_FN_RE.match(_y62)
+        if _mm62 and (_mm62.group(1) == "constant"
+                      or _y62[_mm62.end():].lstrip()[:1] in (":", "=")):
+            _cur62 = None
+        elif _mm62:
+            _cur62 = _mm62.group(1)
+        elif _BODY_EQ_RE.match(_y62):
+            if _cur62 is not None:
+                fns.append((_cur62, _i62))
+            _cur62 = None
+        elif (_re.match(r"^\S", _y62)
+              or _re.match(r"^  (val|function|predicate|lemma|axiom|goal|type|constant|"
+                           r"inductive|coinductive|exception|use|clone|scope|end|meta)\b",
+                           _y62)):
+            _cur62 = None
     if not fns:
         return []
     skip = noreturn_names or set()

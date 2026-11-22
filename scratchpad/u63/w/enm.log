@@ -1,0 +1,63 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u63/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/pycsl_lib/enm/__init__.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "src/pycsl_lib/enm/__init__.mlw", line 9, characters 16-28:
+Sub-goal type invariant of goal autocounter'vc.
+Prover result is: Valid (0.00s, 10 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 12, characters 71-85:
+Sub-goal goal of goal _check_class_inv_autocounter.
+Prover result is: Valid (0.00s, 46 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 14, characters 36-49:
+Sub-goal precondition of goal _auto_counter'vc.
+Prover result is: Valid (0.00s, 25 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 19, characters 4-19:
+Sub-goal type invariant of goal auto'vc.
+Prover result is: Valid (0.00s, 433 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 17, characters 15-28:
+Sub-goal postcondition of goal auto'vc.
+Prover result is: Valid (0.01s, 628 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 30, characters 4-6:
+Sub-goal type invariant of goal autocounter__auto'vc.
+Prover result is: Valid (0.00s, 407 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 27, characters 15-28:
+Sub-goal postcondition of goal autocounter__auto'vc.
+Prover result is: Valid (0.00s, 602 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 28, characters 15-42:
+Sub-goal postcondition of goal autocounter__auto'vc.
+Prover result is: Valid (0.00s, 384 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 36, characters 15-36:
+Sub-goal postcondition of goal intenum__name'vc.
+Prover result is: Valid (0.00s, 21 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 37, characters 15-42:
+Sub-goal postcondition of goal intenum__name'vc.
+Prover result is: Valid (0.01s, 22 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 38, characters 15-44:
+Sub-goal postcondition of goal intenum__name'vc.
+Prover result is: Valid (0.00s, 23 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 43, characters 15-37:
+Sub-goal postcondition of goal intenum__value'vc.
+Prover result is: Valid (0.00s, 21 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 44, characters 15-42:
+Sub-goal postcondition of goal intenum__value'vc.
+Prover result is: Valid (0.00s, 22 steps).
+
+File "src/pycsl_lib/enm/__init__.mlw", line 45, characters 15-44:
+Sub-goal postcondition of goal intenum__value'vc.
+Prover result is: Valid (0.00s, 23 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

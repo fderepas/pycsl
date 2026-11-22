@@ -1,0 +1,20 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/u63/w/mutex_invariant_0.py'...
+[*] Memory model: concurrent
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "scratchpad/u63/w/mutex_invariant_0.mlw", line 11, characters 37-55:
+Sub-goal goal of goal _check_initial_lock_counter.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 11 steps).
+
+File "scratchpad/u63/w/mutex_invariant_0.mlw", line 25, characters 13-38:
+Sub-goal assertion of goal worker'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 126 steps).
+
+[-] 2 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

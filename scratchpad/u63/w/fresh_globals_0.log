@@ -1,0 +1,26 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/u63/w/fresh_globals_0.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "scratchpad/u63/w/fresh_globals_0.mlw", line 10, characters 14-28:
+Sub-goal postcondition of goal counter_fresh_init'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "scratchpad/u63/w/fresh_globals_0.mlw", line 16, characters 15-29:
+Sub-goal postcondition of goal counter__init'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "scratchpad/u63/w/fresh_globals_0.mlw", line 22, characters 13-28:
+Sub-goal assertion of goal probe'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.01s, 64 steps).
+
+File "scratchpad/u63/w/fresh_globals_0.mlw", line 20, characters 15-27:
+Sub-goal postcondition of goal probe'vc.
+Prover result is: Valid (0.00s, 15 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

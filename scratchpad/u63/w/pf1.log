@@ -1,0 +1,35 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/u63/w/pf1/main.py'...
+[*] Memory model: hoare
+[*] Imported class from 'slotlib': Table (record + 1 method stub(s) + 0 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "scratchpad/u63/w/pf1/main.mlw", line 9, characters 17-33:
+Sub-goal array creation size of goal table'vc.
+Prover result is: Valid (0.00s, 279 steps).
+
+File "scratchpad/u63/w/pf1/main.mlw", line 8, characters 16-42:
+Sub-goal type invariant of goal table'vc.
+Prover result is: Valid (0.00s, 584 steps).
+
+File "scratchpad/u63/w/pf1/main.mlw", line 19, characters 86-114:
+Sub-goal goal of goal _check_class_inv_table.
+Prover result is: Valid (0.00s, 478 steps).
+
+File "scratchpad/u63/w/pf1/main.mlw", line 21, characters 28-44:
+Sub-goal array creation size of goal t'vc.
+Prover result is: Valid (0.00s, 369 steps).
+
+File "scratchpad/u63/w/pf1/main.mlw", line 21, characters 18-46:
+Sub-goal precondition of goal t'vc.
+Prover result is: Valid (0.00s, 603 steps).
+
+File "scratchpad/u63/w/pf1/main.mlw", line 28, characters 89-116:
+Sub-goal PyCSL-R167 callee precondition at a stubbed method call of goal keep'vc.
+Prover result is: Valid (0.00s, 567 steps).
+
+File "scratchpad/u63/w/pf1/main.mlw", line 25, characters 15-33:
+Sub-goal postcondition of goal keep'vc.
+Prover result is: Valid (0.01s, 8184 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
