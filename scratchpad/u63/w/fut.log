@@ -1,0 +1,8 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u63/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/pycsl_lib/fut/__init__.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+[+] Verification SUCCESS! All contracts formally proven.

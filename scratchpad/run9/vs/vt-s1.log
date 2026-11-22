@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl/scratchpad/run9/vs/vt.py'...
+[*] Memory model: hoare
+[vs] mlw sha256 405c7a719900311a97419dc33bf0fdc76d203d6064952156544788c342f344ff lines 22 provers ['Alt-Ergo,2.6.3,', 'Z3,4.13.3,'] check_vacuity True timelimit 5 exempt [] probes 3 cpu 4
+[vs] shard 1/3: probing ['dbl']
+[vs-run] perfn prover=Alt-Ergo,2.6.3, rc=2 sels=1 records=1 answers=['Unknown\n(unknown)']
+[vs-run] perfn prover=Z3,4.13.3, rc=2 sels=1 records=1 answers=['Unknown\n(sat)']
+[vs] SHARD-RESULT 1/3 CLEAN []

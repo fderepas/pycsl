@@ -1,0 +1,58 @@
+rt76 FINDINGS -- defensive review of run9-u64 V2D (route #613), head 427045b14 vs base 2873a902d. REPORT-ONLY, no commits.
+Trees: /home/fabrice/git/pycsl-rt76 (427045b14), /home/fabrice/git/pycsl-rt76b (2873a902d) -- removed at the end.
+Probes: scratchpad/rt76/probes/<id>/ (benign: tiny int-returning functions). Tools: scratchpad/rt76/tools/
+ (q.sh = --no-proof, p.sh = full proof hoare PYTHON_CPU_COUNT=2, cpy.sh = CPython /usr/bin/python3 3.14.4 + venv 3.14,
+ -B, cwd /tmp, ulimit -v 2000000; b1..b5.sh = the batches). cwd = tree root for every pycsl run unless stated (RUNCWD).
+Commands: HEAVY_QUICK=1 heavy.sh bash tools/b{1,3,5}.sh <tree> <logs/qN-tree>; heavy.sh bash tools/b{2,4}.sh <tree> <logs/pN-tree>.
+CPython logs: logs/cpy{1,2,3}.txt. Verdict logs: logs/q{1,3,5}.txt, logs/p{2,4}.txt (+ per-probe dirs). oom_kill 15 -> 15 on every proof.
+
+SUMMARY TABLE
+probe | layout | CPython (both) | head | base | class
+r2  | P/zr76/__init__.py: `from . import b as b0; from . import c as b`; prog `import zr76.b`, `zr76.b.one()`, ensures ==1 (b.py returns 1, c.py returns 2) | "c.py loaded", result 2 | SUCCESS (p2-rt76/r2) | SUCCESS (p2-rt76b/r2) | PRE-EXISTING (NEW gap, false claim proved)
+r2d | same zr76 in --import-path X2; X2/depr76.py `import zr76.b; f(): zr76.b.one()` ensures ==1; prog g()==f() | result 2 | SUCCESS prog AND dep's own run (p4-rt76/r2d, r2d-dep) | SUCCESS both (p4-rt76b) | PRE-EXISTING (same gap, dependency form; dep's own verification also proves its false claim)
+r12 | P/prog.py is a SYMLINK to R/prog.py; P/zz76.py one()==1 (contract); R has no zz76; PYTHONPATH/--import-path X/zz76.py returns 2 | "X/zz76.py loaded", result 2 | SUCCESS (p4-rt76/r12) | SUCCESS (p4-rt76b/r12) | PRE-EXISTING (NEW variant of rt62 r19: the artifact rule only looks in realpath dir for the SAME name; when R lacks it, pycsl reads P/zz76.py, CPython (sys.path[0]=R) falls through to PYTHONPATH)
+r5  | P/zq76.py defines b() ==1; P/zq76/ (namespace dir, no __init__) holds b.py; prog `from zq76 import b; b()` | result 1 (zq76.py module wins over namespace dir) | REFUSED new prefix site ("prefix `zq76` is P/zq76.py") | SUCCESS (p2-rt76b/r5, true claim) | INTRODUCED over-refusal
+r14 | regular P/zh76/__init__.py defines b() ==1; --import-path X2/zh76/{__init__,b.py}; prog `from zh76 import b; b()` | result 1 (attribute from P/zh76/__init__) | REFUSED new prefix site (p4-rt76/r14) | SUCCESS (p4-rt76b/r14, true claim) | INTRODUCED over-refusal (`from pkg import name` where name is an attribute and another root has pkg/name.py)
+r6  | P/zc76/ namespace dir with b.py ==1; pycsl run with cwd = C, C/zc76/__init__.py (regular); prog `from zc76.b import one` | result 1 (script mode: cwd not on sys.path; also with cwd C) | REFUSED new prefix site: prefix resolution refused PYCSL-SEM-IMPORT-CWD-ROOT (p2-rt76/r6) | SUCCESS (p2-rt76b/r6) | INTRODUCED over-refusal, cwd-dependent (cwd = tree root: emits at head, q1 r6-treecwd)
+r5b | as r5 but prog uses `b.one()` claiming ==2 (the namespace submodule) | AttributeError | REFUSED (new site) | FAILED (proof) | fail-safe (head refusal is correct)
+r1  | r2's package, `from zr76 import b` with __init__ `from . import c as b` | result 2 | FAILED (b.one lowered unconstrained `val b_one_0`) | FAILED | fail-safe
+r3  | r1 shape in an --import-path dependency | result 2 | emits; dep's own run cannot prove (b.one unconstrained) | same | fail-safe (modular premise unverified)
+r9/r2r | relative `from . import b` in X2/pkr76/dep.py, package __init__ rebinds b -> c | result 2 | prog SUCCESS, dep's own run FAILED (p4 r2r-dep) | same | fail-safe (dep never verifies; program rests on an unproved premise, v1f-like but not a proof of a false verified claim)
+r2s | __init__ rebinds by assignment `b = c` | result 2 | REFUSED (#483: module used as a value) | REFUSED | fail-safe
+r7  | __init__ `sys.modules["zr76.b"] = c` | result 2 | REFUSED (#483) | REFUSED | fail-safe
+r8  | __init__ `__path__.insert(0, alt)`, P/zpa76/b.py also present | result 2 | REFUSED (#483 `__path__`) | REFUSED | fail-safe
+r4  | P/lark/ namespace dir vs venv site-packages lark (regular) | venv: ModuleNotFoundError; /usr: result 1 | REFUSED (rt69 G5 rule) | REFUSED | fail-safe
+r15 | P/zn76/b.py namespace vs X2/zn76 regular package | result 2 (regular wins) | REFUSED (namespace rule) | REFUSED | fail-safe
+r16 | namespace zn76 split P/X2, dep in X2 imports zn76.b (only in X2) | result 1 | REFUSED NAMESPACE-PORTION-SHADOWED | REFUSED | pre-existing over-refusal (not introduced)
+r17 | control: X2/zk76/dep.py `from .sub.b import one`, regular subpackage | result 1 | SUCCESS (emits, q5) | SUCCESS | correct
+
+DETAILS
+G1 (PRE-EXISTING, NEW; not V1D / v1f): a package __init__ that IMPORTS a submodule first and then binds the
+ submodule's NAME to another module (`from . import b as b0` then `from . import c as b`). CPython: `import zr76.b`
+ finds zr76.b already in sys.modules, so the parent attribute `zr76.b` is NOT re-set to the real submodule; the
+ attribute read `zr76.b.one()` runs c.one(). pycsl lowers `zr76.b.one` to P/zr76/b.py's `one` (`val one () : int
+ ensures {result = 1}`) and proves. #483's allow-list admits both import statements (imports of program modules).
+ Dependency form r2d: the dependency's own run proves its false claim too, so this is not a modular-premise issue.
+ Unaffected by u64 (prefix `zr76` is the __init__ holding b.py). Fix direction: in the #483 closure, refuse an
+ import-time binding (import-as, from-import, assignment, def/class) in a package __init__ of a name that is also a
+ submodule of that package, or lower `pkg.sub` attribute access through the __init__'s binding.
+G2 (PRE-EXISTING, NEW variant of route #611 r19): symlinked program FILE. The r19 rule refuses only when the
+ realpath directory holds an entry named like the import; when it holds none, pycsl still reads the LINK directory's
+ module while CPython (sys.path[0] = realpath dir) continues to PYTHONPATH and loads another file. Fix: when
+ realpath(dir(main)) != dir(abspath(main)), resolve the program view from the realpath dir (or refuse any absolute
+ import that resolves through the link directory).
+G3 (INTRODUCED over-refusals, CPython-faithful programs base proved correctly):
+ r5/r14: `from pkg import name` -- u64 expands every ImportFrom to `pkg.name` and treats it as a module import. When
+  `name` is an attribute of the module/package CPython loads (a module file pkg.py beside a namespace dir pkg/, or a
+  regular package whose __init__ defines it) and some root also holds pkg/name.py, the prefix check refuses. CPython
+  only imports the submodule if the attribute is missing. Fix: for `from pkg import name`, run the prefix check on
+  `pkg.name` only when the pkg the program view resolves does not bind `name` itself (or simply when the prefix
+  resolution is a module FILE/`__init__` in a different root, refuse only if the full name is actually a submodule
+  CPython would import).
+ r6: a prefix whose resolution is REFUSED for a reason that CPython does not share (PYCSL-SEM-IMPORT-CWD-ROOT: the
+  cwd root is pycsl-only; CPython script mode never searches cwd) refuses a program whose whole dotted path sits in
+  the program directory as a namespace portion. Depends on the cwd pycsl is launched from.
+ No head SUCCESS on a case base refused was found (the change is refusal-only; confirmed on every probe).
+
+NOT TESTED / N/A: case-insensitive names (ext4, case-sensitive; no case-insensitive mount used). Bytecode caches not
+ touched (per brief). --deep not run on G1/G2.
