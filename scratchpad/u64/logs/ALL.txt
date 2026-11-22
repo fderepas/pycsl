@@ -1,0 +1,49 @@
+ALL start Sun Nov 22 04:09:56 UTC 2026 oom_kill 15
+[J2] start Sun Nov 22 04:09:56 UTC 2026 oom_kill 15
+[J2] ## base 2873a902d
+[J2] dep75 own rc=1 [!] PIPELINE ERROR: 
+[J2] prog --deep rc=0 --- Verification Results --- [+] Verification SUCCESS! All contracts formally proven. 
+[J2] ## head 5f12811e9
+[J2] dep75 own rc=1 [!] PIPELINE ERROR: 
+[J2] prog --deep rc=0 --- Verification Results --- [+] Verification SUCCESS! All contracts formally proven. 
+[J2] end Sun Nov 22 04:10:04 UTC 2026 oom_kill 15
+Terminated                 .venv/bin/python3 bin/check-refusal-witness-coverage.py --append-new > $G/census-append.txt 2>&1
+census append rc=143 
+On branch run9-u64
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.venv
+	progress.txt
+	scratchpad/u64/logs/ALL.txt
+	scratchpad/u64/logs/G/
+	scratchpad/u64/logs/J2.txt
+	scratchpad/u64/logs/J2/
+	scratchpad/u64/logs/q-base/
+	scratchpad/u64/logs/q-head/
+
+nothing added to commit but untracked files present (use "git add" to track)
+census commit 5f12811e9 u64 WIP: witness + v1f full-proof logs (base 2873a902d / head 83752df95), gate scripts
+[S-base] tree /home/fabrice/git/pycsl-u64-base 2873a902d944f3dfd70fb6b65743a7b3e19f891d start Sun Nov 22 04:17:16 UTC 2026 oom_kill 15
+[S-base] byte-diff-sweep rc=0 emitted 3326 of 6356 source file(s) into /home/fabrice/git/pycsl-u64/scratchpad/u64/logs/G/base/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u64/scratchpad/u64/logs/G/base/bd/pyref (6 jobs) 
+[S-base] mirror-emit-sweep rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u64/scratchpad/u64/logs/G/base/mir --min-files 45
+[S-base] end Sun Nov 22 05:11:00 UTC 2026 oom_kill 15
+[S-head] tree /home/fabrice/git/pycsl-u64 427045b14a089e82bd2e52666736fff72d1f7484 start Sun Nov 22 05:11:01 UTC 2026 oom_kill 15
+[S-head] byte-diff-sweep rc=0 emitted 3327 of 6360 source file(s) into /home/fabrice/git/pycsl-u64/scratchpad/u64/logs/G/head/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u64/scratchpad/u64/logs/G/head/bd/pyref (6 jobs) 
+[S-head] mirror-emit-sweep rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u64/scratchpad/u64/logs/G/head/mir --min-files 45
+[S-head] end Sun Nov 22 06:04:27 UTC 2026 oom_kill 15
+compare root rc=0 [*] byte-diff-compare: 3325 baseline / 3326 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 1 new source file(s) ignored. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare pyref rc=0 [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare mirror rc=0 [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+mirror diff -rq lines=0 files base=53 head=53
+[LG] emitted 53
+[LG] check-assigns-writes-survival rc=0
+[LG] check-trusted-frame-honesty rc=0
+[LG] check-getattr-erasure rc=0
+[LG] check-self-annotate-sync rc=0
+[LG] self-annotate-mirror-check rc=0
+[LG] doc-coherency rc=0
+[LG] trusted 366
+planes rc=0     NOT CHECKED: 23 prover/emission plane(s) — among them     check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival     and check-stdlib-modules-verify. Re-run with --slow before a GATE. 
+rwc rc=0 [*]   plus 10 refusal(s) UNMATCHABLE by this instrument: their message has no string literal of 25+ characters, so no witness can ever mark them demonstrated. Closing them is a compiler/census change, not a corpus one. [+] refusal-witness-coverage: OK — 488 demonstrated, 5 undemonstrated (floor 208 / ceiling 5); 14 not source-reachable, 10 unmatchable (ceiling 10). 
+corpus-executes rc=0 [*] corpus-executes: 2621 of 2629 PASS-expected proof-on file(s) LOAD under CPython; 1703 of 1703 with a `__main__` block pass their OWN self-check. (6148 skipped: expected-FAIL or `--no-proof`.) [+] corpus-executes: OK — every PASS-expected corpus file loads as Python, and every self-check its author wrote passes. 
+ALL end Sun Nov 22 07:12:47 UTC 2026 oom_kill 15
