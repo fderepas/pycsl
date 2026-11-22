@@ -25,9 +25,7 @@
     ok       check-type-keyed-value-sentinels.py       
     ok       check-collapsed-option-reads.py           
     ok       check-constant-fallthrough.py             
-    RED      check-dropped-mutation.py                  rc=1
-               [*] dropped-mutation: 61098 statement(s) scanned — 60849 HANDLED, 122 NORMALIZED, 70 REFUSED, 0 DROPPED, 49 CTXBIND, 8 TRYFINAL, 0 DANGLING.
-               [!] dropped-mutation: TRYFINAL RATCHET BROKEN — 8 > 5. Python runs a `finally` block on EVERY exit path; a dropped one is a fail-OPEN.
+    ok       check-dropped-mutation.py                 
     ok       check-ir-field-coverage.py                
     ok       check-statement-block-coverage.py         
     ok       check-vacuous-drivers.py                  
@@ -36,10 +34,7 @@
     ok       check-coercion-exits.py                   
     ok       check-corpus-contract-truth.py            
     ok       check-class-invariant-establishment.py    
-    RED      check-corpus-executes.py                   rc=1
-               [!]   DOES NOT LOAD: 10383_r613y_from_import_package_attribute_later_root_submodule_ctl.py — ModuleNotFoundError: No module named 'zh80'. A `# pycsl-expected: PASS` driver that is not a Python program is not one function that fails, it is the whole module — and nothing else in this battery reads a corpus file AS A PROGRAM. Repair it, or name it in KNOWN_LOAD_FAILURES with the reason.
-               [!] corpus-executes: NOT OK.
-               [*] corpus-executes: 2631 of 2641 PASS-expected proof-on file(s) LOAD under CPython; 1704 of 1704 with a `__main__` block pass their OWN self-check. (6150 skipped: expected-FAIL or `--no-proof`.)
+    ok       check-corpus-executes.py                  
     ok       check-corpus-contract-truth-args.py       
     ok       check-trust-blast-radius.py               
     ok       check-claim-vacuity.py                    
@@ -62,3 +57,12 @@
     ok       check-artifact-cleanup.sh                 
     ok       check-directive-enforcement.py            
     ok       check-declaration-conformance.py          
+    ok       check-untrusted-emitted.py                
+    ok       check-yield-erasure.py                    
+    ok       check-shadowed-selfcalls.py               
+    ok       check-emitted-vacuity.py                  
+    ok       check-cross-module-contract-parity.py     
+[+] soundness-planes: OK — all 62 plane(s) green (fast + the CONVERSION TIER).
+    NOT CHECKED: 23 prover/emission plane(s) — among them
+    check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival
+    and check-stdlib-modules-verify. Re-run with --slow before a GATE.
