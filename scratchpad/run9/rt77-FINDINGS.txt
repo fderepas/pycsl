@@ -1,0 +1,87 @@
+rt77 FINDINGS (driver run #9). Defensive review of u65: route #619 (vacuity probes for `with` members) and
+route #620 (PYCSL-SEM-WHYML-NAME-CLASH, plus the vacuity exemption that fails closed).
+Target: head f43343311 (branch run9-u65), base b1400b11c. Trees: /home/fabrice/git/pycsl-rt77 (head) and
+/home/fabrice/git/pycsl-rt77b (base). Both are removed at the end.
+Work dir: /home/fabrice/git/pycsl/scratchpad/rt77 (probes/, probes/gen/, logs/, tools/).
+Commands. Emission: `HEAVY_QUICK=1 heavy.sh bash tools/q.sh <tree> <out> -- <files>` (--no-proof --keep-mlw).
+Full proofs: `HEAVY_PRIO=1 heavy.sh bash tools/p.sh <tree> <out> [--keep-mlw] -- <files>` (also via tools/fp.sh
+and tools/fp2.sh). Every run used cwd = tree root, PYTHON_CPU_COUNT=2 and a 3600 s cap.
+oom_kill was 15 -> 15 on every proof, so no result is void.
+CPython: `timeout 60 bash -c 'ulimit -v 2000000; python3 -E -s <probe>'` with cwd = probes/. Output is in logs/cpython.txt.
+
+VERDICT
+- #619: no breach. A vacuous function in ANY position of a program mutual-recursion group FAILS at head
+  (positions 2, 3 and 4; `let rec function` and program `let rec` groups; mixed logic/program groups;
+  groups of nested defs lifted out of a function; a member used in another function's contract).
+  The same programs get Verification SUCCESS at base whenever the vacuous member is a `with` member.
+  Static check: the u65 group scan (tools/grpscan.py, tools/grpscan2.py) was run over the 3277 base8
+  corpus+mirror emissions. Every `  with` line it does not treat as a header belongs to a LOGIC group
+  (type / function / predicate). No program `let` group is closed early by a 2-space declaration line.
+- #620 and the exemption: no INTRODUCED soundness breach. Every exemption shape I could build is refused
+  at head or FAILS as vacuous. Two further base escapes are now closed: e08 and v04b (see below).
+- PRE-EXISTING (head and base both wrong): a module-qualified call can resolve to a DIFFERENT function
+  with the same name. #620 does not see this case, because the dependency stub never reaches the IR
+  function list. Findings F1 and F2.
+- INTRODUCED, not a soundness issue: two refusal-census rows are now stale (finding F3).
+
+== Findings ==
+| id | program | emitted shape | head | base | class |
+| F1 | probes/w14_module_qualified_call_local_shadow.py (`import rt77lib_val`; local `def val1` returns 2; `g` returns `rt77lib_val.val1()` and claims `\result == 2`; rt77lib_val.val1 returns 1) | only the local `let function val1 ... = 2` is emitted, and `g = (val1 ())`. The dependency stub `val val1` (ensures result = 1) is DROPPED | Verification SUCCESS (logs/fp-head/w14*.log) | Verification SUCCESS (logs/fp-base/w14*.log) | PRE-EXISTING. CPython prints 1, so a false claim is proved |
+| F1b | probes/w14b_alias_qualified_call_local_shadow.py (`import rt77lib_val as L`; `L.val1()`) | same as F1 | SUCCESS | SUCCESS | PRE-EXISTING. CPython 1 |
+| F1c | probes/w14c_module_qualified_call_ctl.py (no local val1, claims == 1) | `val val1 () ensures {result = 1}` | SUCCESS | SUCCESS | control: the stub is emitted when no local def has the name |
+| F1d | probes/w17_from_import_alias_local_shadow.py (`from rt77lib_val import val1 as v1` plus a local `def val1`) | `val v1` and `let function val1` are kept apart | FAILED (correct) | FAILED | control: only the module-QUALIFIED call collapses |
+| F2 | probes/w19_two_libs_same_function_name.py (`import rt77liba, rt77libb`; each defines `helper`, returning 1 and 2; `g` returns `rt77liba.helper() + rt77libb.helper()` and claims `\result == 2 or \result == 4`) | ONE `val helper () ensures {result = 1}`; `g = helper () + helper ()` | Verification SUCCESS | Verification SUCCESS | PRE-EXISTING. CPython prints 3, so a false claim is proved |
+| F2c | probes/w19c_two_libs_ctl.py (same program, true claim `\result == 3`) | same | FAILED | FAILED | control: the true claim is unprovable, which confirms the wrong body |
+Root cause of F1 / F2: src/pycsl/frontend/ir_resolve.py::_inject_functions (shared by the direct, wildcard
+and module-qualified resolvers). It "insert[s] each dependency stub ... if no function of that name is
+present yet", so a dependency function whose name is already taken (by a local def, or by another
+dependency) is silently skipped. The qualified call then lowers to the bare name. This is exactly the
+"two definitions, one WhyML name" defect that #620 targets, at a point #620 never sees. Suggested fix: in
+_inject_functions, refuse when the name exists and the existing entry is not that same dependency
+function (compare the `_r143_dep_file` tag and the name).
+
+| F3 | bin/refusal-witness-census.tsv rows 4307_gen37_r327_function_casefold.py and 4308_gen37_r327_class_casefold.py | both still record the PYCSL-R327-IDENT-COLLISION message, but head now refuses both files earlier with PYCSL-SEM-WHYML-NAME-CLASH (logs/q-head-c/4307*.log, 4308*.log; base logs/q-base-c/ = R327) | REFUSED (#620 text) | REFUSED (R327 text) | INTRODUCED, gate honesty only. These are the only census witnesses for the R327 "the functions ..." and "the classes ..." raise sites. check-refusal-witness-coverage joins on the stale text, so it still counts both sites as DEMONSTRATED, and a `--regenerate` would mark them unwitnessed. u65 kept the #122 rows valid but missed these two. The R327 function site is still reachable at head: probes/c327b_lifted_pair_plus_casefold.py (nested `def f` in p and q plus a module `def F`) refuses with R327 at head and at base, so it can serve as a replacement witness. I did not find a head witness for the class site: c327a, a pair of classes without methods, is admitted at both. Regenerate rows 4307/4308 and re-witness the class site |
+
+== #619 vacuity probes: generated mutual-recursion groups (tools/gen.py -> probes/gen/) ==
+Each group is a cycle. The one vacuous member V has `requires n >= 0 and n < 0` and `ensures \result == 99`.
+Its caller reaches it only inside a dead branch, so V's vacuity is the only defect.
+Emitted order is the reverse of source order (`let rec` opener = the last def in the source).
+| probe | emitted group (logs/fpg-head/*.log; .mlw in probes/gen) | V position | head | base |
+| g3L_vac_c / _b / _a | let rec function c / with function b / with function a | 1 / 2 / 3 | FAILED c / FAILED b / FAILED a | FAILED / SUCCESS / SUCCESS |
+| g3P_vac_c / _b / _a (program, while loop) | let rec c / with b / with a | 1 / 2 / 3 | FAILED c / b / a | FAILED / SUCCESS / SUCCESS |
+| g3N_vac_c / _b / _a (nested in outer, lifted) | let rec function c / with function b / with function a | 1 / 2 / 3 | FAILED c / b / a | FAILED / SUCCESS / SUCCESS |
+| g4L_vac_d / _b | 4-member group | 1 / 3 | FAILED d / FAILED b | FAILED / SUCCESS |
+| g2M_vac_a_progA / progB (mixed logic+program) | let rec function b / with a  and  let rec b / with function a | 2 | FAILED a / FAILED a | SUCCESS / SUCCESS |
+| g2M_vac_b_progA / progB | same groups | 1 | FAILED b | FAILED |
+| g3LU_vac_b_logic_use (+ `use` whose ensures reads c(x)) | let rec function c / with function b / with function a | 2 | FAILED b | SUCCESS |
+| g3L_ctl / g3P_ctl (no vacuity) | | - | SUCCESS | SUCCESS (no over-report) |
+Hand-written: probes/v04b_mutrec_nested_with_vac.py (nested p/q, vacuous p = `with p`): head FAILED p,
+base SUCCESS. v01/v02 (vacuous opener h): FAILED at head and base. v05_mutrec_lemma: two mutually
+recursive `#@ lemma` defs are each emitted as `let rec lemma`, so L3-tc fails with `unbound ... 'la'`
+at head and base. That is pre-existing and fails safe (it never succeeds).
+
+== #620 refusal and exemption shapes (logs/q-head.txt, logs/q-base.txt, logs/fp-{head,base}/) ==
+| probe | shape | head | base | class |
+| e05_rebind_noreturn_diff_sig | `def f(x) -> NoReturn`, then a vacuous `def f(x, y)` (same-scope narrowing, different signature) | FAILED vacuous f | SUCCESS | closed at head (c22 family) |
+| e08_trusted_parent_nested_noreturn | `\trusted outer` holding a nested `def f -> NoReturn`, plus a vacuous module `def f` | FAILED vacuous f | SUCCESS | a NEW base escape, closed at head by the ambiguous-name drop (lifted collision) |
+| e01 / w07 classes C and c, both with method m | `c__m` x2 | REFUSED #620 | REFUSED R327 | fail-safe both |
+| e04 `\diverges def F` + vacuous `def f`; w05 `def constant` + `def py_constant`; w08 `def é` + `def e` | one WhyML name | REFUSED #620 | REFUSED R327 | fail-safe both |
+| w15 / w16: `\trusted` parent with a nested F (or constant), plus a module f (or py_constant) | nested def not emitted | REFUSED #620 | REFUSED R327 | not an over-refusal: base refused too |
+| e06 (`\diverges` dead binding with a claim), w09 | module rebinding with a `#@` on the dead def | REFUSED (route #463) | same | fail-safe |
+| e07, w01, w02 (conditional def in if/else, try/except) | | REFUSED (compound-statement def route) | same | fail-safe |
+| e02, w03 (nested def h in a method + method h) | | REFUSED (nested-in-method route) | same | fail-safe |
+| e10 (async rebind), e11 / w12 (property setter), w13 (nested class C), v03 (cross-class method cycle) | | REFUSED by existing routes | same | fail-safe |
+| w10 (class C defined twice) | | L3-tc error `Symbol c_v is already defined` | same | fail-safe |
+| e09 / e13 / e14 (a lib `stop -> NoReturn`, imported or called qualified, plus a vacuous local `def stop`) | lib stub not injected | FAILED vacuous stop | FAILED | no exemption leaks from a dependency |
+| w06 (lib class C.m plus a local `def c__m`) | the imported method call is an opaque `val o_m_1` | admitted, no collision | same | no issue |
+| w04 (`\trusted` parent nested f + module f) | nested f not emitted | FAILED (correct claim mismatch) | FAILED | control |
+No over-refusal was found. Every program that head refuses with #620 is also refused at base
+(R327 or another route), or base proved it only by escaping.
+
+Logs: logs/q-head.txt, logs/q-base.txt, logs/q-head/*.{log,mlw}, logs/q-base/*.{log,mlw},
+logs/fp-head.txt, logs/fp-base.txt, logs/fp2.txt, logs/fp-{head,base}/*.log, logs/fpg-{head,base}/*.log,
+logs/q-{head,base}-c/ (4307/4308), logs/cpython.txt.
+Tools: tools/{q.sh,p.sh,fp.sh,fp2.sh,gen.py,grpscan.py,grpscan2.py,body2.py}.
+Note: logs/fp-base.txt contains 16 "Permission denied" lines. They come from a quoting slip in my
+first base launch: bash tried to execute the .py paths, which are not executable, so nothing ran.
+The base gen/ set was re-run correctly through tools/fp2.sh (logs/fp2.txt).

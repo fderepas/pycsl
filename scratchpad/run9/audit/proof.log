@@ -1,0 +1,27 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/module_collect.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_ox3o_i2d.mlw", line 40, characters 15-19:
+Sub-goal postcondition of goal _module_const_int'vc.
+Prover result is: Valid (0.01s, 99 steps).
+
+File "/tmp/.pycsl_ox3o_i2d.mlw", line 40, characters 15-19:
+Sub-goal postcondition of goal _module_const_int'vc.
+Prover result is: Valid (0.00s, 246 steps).
+
+File "/tmp/.pycsl_ox3o_i2d.mlw", line 40, characters 15-19:
+Sub-goal postcondition of goal _module_const_int'vc.
+Prover result is: Valid (0.00s, 244 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_ox3o_i2d.mlw", line 40, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ox3o_i2d.mlw", line 54, characters 32-36: unused variable node
+Warning, file "/tmp/.pycsl_ox3o_i2d.mlw", line 56, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_ox3o_i2d.mlw", line 58, characters 30-34: unused variable node
+Warning, file "/tmp/.pycsl_ox3o_i2d.mlw", line 58, characters 42-53: unused variable class_names
+Warning, file "/tmp/.pycsl_ox3o_i2d.mlw", line 60, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

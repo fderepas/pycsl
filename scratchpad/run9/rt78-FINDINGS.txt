@@ -1,0 +1,58 @@
+rt78 FINDINGS -- red-team review of run9-u66 (src b95cb8767) vs base c115e0a5a (L19), import resolver
+(u64 V2D + u66 A1/A2 narrowing, #621 PACKAGE-SUBMODULE-REBOUND, #622 realpath first root).
+Trees: /home/fabrice/git/pycsl-rt78 (head b95cb8767), /home/fabrice/git/pycsl-rt78b (base c115e0a5a); removed at end.
+Tools: scratchpad/rt78/tools/{q.sh,p.sh,cpy.sh} (copies of rt76's; p.sh timeout 3700 s, PYTHON_CPU_COUNT=2, hoare default,
+cwd = tree root unless RUNCWD). All pycsl runs via heavy.sh (q: HEAVY_QUICK=1; p: HEAVY_PRIO=1 as granted).
+CPython: /usr/bin/python3 and .venv python3, -B, ulimit -v 2000000, cwd /tmp (cpy.sh) unless stated; both agree everywhere.
+oom_kill 15 before/after every proof (logged per line by p.sh); no result VOID.
+Logs: scratchpad/rt78/logs/q-{rt78,rt78b}/<probe>/ (--no-proof + .mlw), logs/p-{rt78,rt78b}/<probe>/ (full proofs).
+Probes: scratchpad/rt78/probes/<probe>/.
+
+| id | layout | CPython | base | head | class |
+|----|--------|---------|------|------|-------|
+| s1 | P/prog.py imports dep78; P/dep78.py -> ../Q/dep78.py (symlinked DEPENDENCY file, program not a link); dep78 `from hz78 import one`, `ensures \result == 1`; Q/hz78.py returns 1 (contract), P/hz78.py returns 2 | prints 2 (loads P/hz78.py: sys.path[0] = P) | REFUSED (rt62 r19 NONSOURCE-ARTIFACT, both prog and dep78) | prog P SUCCESS (false), dep78 own run P SUCCESS | **INTRODUCED false proof (#622)** |
+| s7 | s1 shape, hz78 (returns 1) only in P, run with cwd = P | prints 1 (from P) | prog P SUCCESS (faithful), dep78 P SUCCESS | prog + dep78 REFUSED (CWD-ROOT, from dep78's resolution) | INTRODUCED over-refusal of prog (#622; dep78's own refusal is correct: `python P/dep78.py` -> ModuleNotFoundError) |
+| o1 | P/zo781/__init__.py defines `b()` (ensures 1), P/zo781/b.py exists but nothing imports it; `from zo781 import b` | prints 1 | P SUCCESS | REFUSED (#621 PACKAGE-SUBMODULE-REBOUND) | INTRODUCED over-refusal (#621 conservative by design; a bare identifier data dir would trigger the same) |
+| t4 | #621 bypass: __init__ `from . import d as d0`; d.py `from . import b as b0; from . import c as c0; import zt784; zt784.b = c0`; prog `import zt784.b; zt784.b.one()` ensures 1 | prints 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING (new #621 variant: rebinding from a SUBMODULE by attribute store; #621 scans only `__init__` Name bindings) |
+| t8 | #621 bypass: __init__ `from . import b as b0; from . import sub as s0`; sub/__init__.py `from .. import c as c0; import zt788 as _p; _p.b = c0` | prints 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING (sub-package __init__ attribute store on the parent) |
+| t1 t2 t3 t5 t7 | globals()["b"]=, setattr(sys.modules[__name__]...), setattr from d.py, vars().update, `_self.b = c0` in __init__ | 2 | REFUSED (ir-semantic import-time dynamic code) | REFUSED (same) | fail-safe |
+| t6 | program-level `zt786.b = zt786.c` | 2 | REFUSED (rebound-name rule) | REFUSED | fail-safe |
+| a1 | A1: __init__ top-level `def b` then `if True: from .alt import b` (+/- --import-path X2/za781/b.py) | 2 | REFUSED (rebound-name) | REFUSED | fail-safe |
+| a3 | A1: __init__ `__path__ = extend_path(...)`, `from . import alt as b`, `from .b import one` (loads X2/za783/b.py over the alias) | 2 | REFUSED (G5 namespace; without X2: `__path__` dynamic code) | REFUSED (same) | fail-safe |
+| c1 | program via relative symlink CHAIN P/prog.py -> ../M/prog.py -> ../R/prog.py; hz78c in R(1)/M(2)/P(3) | prints 1 (R = full realpath) | REFUSED (r19) | P SUCCESS (faithful) | head improvement |
+
+KEY FINDING (s1, INTRODUCED, #622). `_resolve_module_path` now takes dirname(realpath(main_file)) as the first root for
+EVERY file passed as main_file, including a DEPENDENCY module that is itself a symlink into another directory. In the
+u60 closure walk (resolve_imports, ~line 4580) a dependency in the program's own raw directory is resolved with ONE
+view only (`[_m660]` when dirname(_m660) == dirname(_mf660) and not _ln622) -- the dependency's view, which is now
+the symlink target's directory Q, not the program's sys.path[0] P. Base used P as the dependency's first root and the
+rt62 r19 rule refused because Q held a same-named entry; head never takes P as a base, so r19 never fires, the
+single view reads Q/hz78.py, and the program believes dep78's contract (proved by dep78's own run against Q/hz78.py,
+which is faithful for `python P/dep78.py` but not for the dependency imported by P/prog.py). _ln622 only covers a
+symlinked PROGRAM. Fix direction: in the u60 walk, a dependency whose realpath directory differs from its raw
+directory must not share the program's single view (compare both views, as for _ln622), or resolve a dependency's
+absolute imports from the program's first root.
+Evidence: logs/p-rt78/s1/P__prog.log + P__dep78.log (SUCCESS, oom 15->15), logs/p-rt78b/s1/*.log (refused),
+logs/q-rt78/s1/P__prog.mlw (`val g () : int ensures { result = 1 }`), CPython: probes/s1 via tools/cpy.sh -> "P/hz78.py loaded / result 2".
+Commands (from scratchpad/rt78): HEAVY_PRIO=1 ../heavy/heavy.sh bash tools/p.sh /home/fabrice/git/pycsl-rt78 $PWD/logs/p-rt78/s1 -- $PWD/probes/s1/P/prog.py $PWD/probes/s1/P/dep78.py
+(same with pycsl-rt78b); s7 with RUNCWD=$PWD/probes/s7/P.
+
+Other checks (no finding):
+- A2 cwd switch: every chdir is restored on the normal path, on `_E613` (caught, then restored) and on any other
+  BaseException (restore + re-raise); a failed chdir into the anchor leaves the original cwd (resolution as before
+  u66: at worst the CWD-ROOT refusal). No memoisation of `_resolve_module_path` (grep: no lru_cache), all roots /
+  main files in the walk are absolute (_EXTRA_IMPORT_PATHS abspath'd in resolve(), _wl660 abspath), so the switch
+  cannot leak into later resolution. Not probed dynamically beyond the runs above (all of which exercise the walk).
+- A1: every way found to make `pkg.name` differ from the __init__ top-level binding (conditional rebinding,
+  dynamic globals/setattr/vars, `__path__` extension so a relative import loads another root's submodule) is refused
+  by an older rule (rebound-name, import-time dynamic code, G5 namespace). Without `__path__` manipulation CPython
+  cannot reach the other root's `pkg/name.py`, so the skip looks sound. `__getattr__` (PEP 562) only acts on a
+  missing attribute; A1 does not skip then.
+- #622 others: symlinked package DIRECTORY / symlinked parent directory -> realpath(dirname) == dirname(realpath),
+  spelling kept, same files; symlinked module inside a package and symlinked dependency on --import-path -> two views
+  compared (dirs differ), refused when they differ. Relative symlink chain (c1) matches CPython (single readlink +
+  realpath in _PyPathConfig_ComputeSysPath0 == full realpath).
+- #621 gaps (t4, t8) are PRE-EXISTING (base proves the same false claim); route #621 only inspects Name-level
+  bindings in package `__init__` files; attribute stores `pkg.b = ...` from any module the program runs at import time
+  rebind the attribute too.
+Known OPEN V1D / v1f not re-probed.
