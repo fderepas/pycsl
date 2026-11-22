@@ -1,0 +1,69 @@
+rt75 FINDINGS (driver run #9) -- defensive review of the u62 + u63 vacuity-probe scan change
+Target: src/pycsl/pycsl.py::_run_vacuity_gate at 2873a902d (head) vs 5453e0395 (base).
+Trees: /home/fabrice/git/pycsl-rt75 (head), /home/fabrice/git/pycsl-rt75b (base). Work dir: /home/fabrice/git/pycsl/scratchpad/rt75
+oom_kill: 15 before and after every proof (no void results).
+
+VERDICT: NO INTRODUCED breach found (and no PASS-expected corpus shape now FAILS; one cost regression, §3). The u62/u63 scan never drops a probe the base scan made on any
+reachable shape. Two PRE-EXISTING gate escapes found (both trees SUCCESS on a vacuous function), one
+pre-existing fail-closed over-report.
+
+== 1. Static comparison of the two scans (no prover) ==
+tools/scan.py = verbatim replica of the base scan (_function_body_eqs) and the head scan (u62 split + u63
+constant skip + declaration stop list). tools/owners.py maps every probe line to the declaration that owns it.
+Run over 3328 emissions (scratchpad/run8/base8/bd/*.mlw corpus + base8/mir/*.mlw mirror) and every rt75 probe:
+  - probes: base 8392, head 14856. Functions lost by name (multiset base - head): NONE (logs/scanall.txt).
+  - owners lost: only `function get (d: pydict) ...` in 36 files = the known u62 is_pstr mis-attribution
+    (base inserted ensures-false INTO the logic function get -> syntax error, fail-closed). logs/owners.txt.
+  - no base probe was ever owned by a `with` member, a `val`, or a constant; head mis-attributes nothing.
+Since 5453e0395..2873a902d changes ONLY pycsl.py (+74 lines, all in _run_vacuity_gate), emissions are
+identical at head and base: the scan is the whole difference.
+
+Shape candidates from the brief (emitted with --no-proof --keep-mlw at head, logs/b1-head/*.mlw):
+  c02 def constant(x)           -> `let py_constant (x: int)` (WHYML_RESERVED mangling) probed both; FULL: head FAILED (vacuous), base FAILED (vacuous). no gap.
+  c04/c09 method/staticmethod `constant` -> `let c__constant (...)` probed both. no gap.
+  c10 def function/ghost/rec    -> py_function / py_ghost / py_rec, probed both. no gap.
+  c03 def f() (no params)       -> `let f () : int` (never parameterless), probed both.
+  c05 nested def                -> lifted to top-level `let inner (...)`, probed both.
+  c06 str default "a=b", c08 Tuple return -> multi-line headers, no depth-0 `=` on header line, probed both.
+  c07 lambda / c14 module-level statements -> not emitted at all (nothing to probe; out of this gate's scope).
+  c15 contract string with "\n  end\nfunction=b" -> encoded as pystr_chr 10, one line, probed both.
+  c16 raw multi-line string in a contract -> refused (front end).
+  `let ghost` / `let lemma` / `let function` without parens: the name regex takes the next word, the rest is
+     a name (not `:`/`=`), so still probed (lemma probed under the name "lemma"; c13).
+  `let` inside scope / nested module: not produced for user code (multi-module emissions keep `  let` at
+     2 spaces per module, `^end` closes; no `scope` in the corpus emissions).
+  Header `=` inside string / parens: handled by the u62 lexer; a wrong cut can only yield a malformed
+     probe -> route #615/#616 'could not be checked' -> FAILED (fail-closed); u63 census 0 rejected.
+
+== 2. Findings (full proofs, tools/p.sh, cwd = tree root, PYTHON_CPU_COUNT=2) ==
+| id  | program | emitted shape | head | base | class |
+| F1  | probes/c12_mutrec_first_vacuous.py (f: requires n>=0 and n<0, ensures \result==99; f,g mutually recursive) | `let rec function g ... =` / `with function f (n: int) : int  requires {false-ish} ... =` : the SECOND member of a `let rec ... with ...` SCC group is never probed (_LET_FN_RE matches only `^  let`) | SUCCESS | SUCCESS | PRE-EXISTING |
+| F1c | probes/c12b_norec_control.py (same f, g does not call f -> no `with`) | `let rec function f` (own group) | FAILED (vacuous) | FAILED (vacuous) | control: the c12 escape is exactly the `with` position |
+| F2  | probes/c19_exempt_mangle_clash.py (top-level `def c__m(x) -> NoReturn` + class C method `m` with requires x>0 and x<0, ensures \result==99) | method emitted `let c__m (self: c) (x: int)`; the NoReturn exemption set is keyed on whyml_ident(IR name) = {"c__m"}, which equals the METHOD's emitted name, so the vacuous method's probe is skipped (the top-level c__m is not even emitted) | SUCCESS | SUCCESS | PRE-EXISTING |
+| F2c | probes/c21_mangle_clash_control.py (same class, no top-level c__m) | `let c__m (self: c) ...` probed | FAILED (vacuous) | FAILED (vacuous) | control |
+| F3  | probes/c13_lemma_vacuous.py (`#@ lemma` with requires a>0 and a<0) | `let lemma l1 ...` probed under name "lemma" | FAILED (vacuous) | FAILED (vacuous) | pre-existing over-report (fail-closed, not a breach) |
+| ctl | probes/c01_control.py | `let f (x: int)` | FAILED (vacuous) | FAILED (vacuous) | control |
+| ctl | probes/c02_named_constant.py | `let py_constant (x: int)` | FAILED (vacuous) | FAILED (vacuous) | no gap |
+(c11 is a bad test: f calls g whose requires is false -> a real unproven precondition, FAILED both; not a vacuity verdict.)
+Side observation (F2): a top-level function whose name equals a mangled `Class__method` name is silently
+replaced by the method in the emission (and in c20, `\diverges` on the top-level c__m was applied to the
+method: L3-tc 'this expression does not diverge', fail-closed). Name-collision in the IR/emitter, pre-existing.
+
+== 3. Corpus PASS-expected re-check (head probes more one-line helpers) ==
+Files whose head probe set grew most (scanall): full proof, cwd = tree root, PYTHON_CPU_COUNT=2, logs/pr2.out,
+logs/pr3-{head,base}/, logs/pr4-head/.
+| corpus file | probes base->head | head | base |
+| 10045_u46_r608_ctl_or_str_len_member | 1 -> 10 | SUCCESS 172 s | SUCCESS 54 s |
+| 10047_u46_r608_ctl_unannotated_field_narrowed | 1 -> 10 | SUCCESS 140 s | SUCCESS 23 s |
+| 0948_pyval_flatten | 6 -> 8 | SUCCESS 150 s | FAILED 'vacuity could not be checked' (is_pstr syntax error = the u62 target; head REPAIRS it) |
+| 0958_term_string_pp | 3 -> 4 | SUCCESS 139 s | SUCCESS 116 s |
+| 0747 | 5 -> 39 | first run: rc 124 TIMEOUT at my 1500 s cap (no verdict); re-run (5400 s cap, HEAVY_PRIO per driver grant): SUCCESS 1560 s | SUCCESS 76 s |
+No PASS-expected shape turns FAILED. COST REGRESSION (not soundness): the newly probed one-line helpers
+(kind_of, is_binop, ... in the emit_ir preamble) make the vacuity phase ~20x slower on 0747 (76 s -> 1560 s)
+and 3-6x on the u46 controls; any caller with a fixed wall-clock budget (sweeps, batteries, corpus runner
+timeouts) may now see timeouts where base passed. Same phenomenon u62's report predicted (+1192 probes,
+'up to ~2 x 5 s per new probe') but the measured per-probe cost is higher (~40 s per added probe on 0747,
+PYTHON_CPU_COUNT=2 -> 1 vacuity worker).
+
+Logs: logs/pr1.out, logs/pr1-{head,base}/*.log, logs/pr2.out, logs/pr2-*/, logs/pr3-*/, logs/b1-head/*.{mlw,log},
+logs/scanall.txt, logs/owners.txt. Tools: tools/{scan.py,owners.py,p.sh,q.sh,b1.sh,pr1.sh,pr2.sh,pr3.sh}.

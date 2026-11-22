@@ -1,0 +1,23 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl/scratchpad/run9/vs/vt.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_ilodhf28.mlw", line 8, characters 15-27:
+Sub-goal postcondition of goal bad'vc.
+Prover result is: Valid (0.00s, 199 steps).
+
+File "/tmp/.pycsl_ilodhf28.mlw", line 13, characters 15-33:
+Sub-goal postcondition of goal dbl'vc.
+Prover result is: Valid (0.00s, 18 steps).
+
+File "/tmp/.pycsl_ilodhf28.mlw", line 19, characters 15-33:
+Sub-goal postcondition of goal inc'vc.
+Prover result is: Valid (0.00s, 11 steps).
+
+[-] NON-VACUITY GATE FAILED: the following function(s) verify VACUOUSLY — their assumed context is logically inconsistent, so every postcondition is discharged for free (the 'green' is meaningless):
+    bad  (proves `ensures false`)
+    Root cause is usually several nonlinear integer-division facts coexisting in one context (helper `result == …//…` ensures, division-bound inequalities, disjunctive value-equalities). See getting-better/csys-vacuity-investigation/ROOT-CAUSE.md.
+    (Opt out with --no-check-vacuity; tune with --vacuity-timelimit.)
+
+[-] Verification FAILED (vacuous proof). Check the solver output.
