@@ -3860,6 +3860,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _ambig620.add(_n620)
             if any(_x620.get("lifted_name_collision") for _x620 in _fs620):
                 continue
+            # The SAME Python name bound twice in ONE scope (`def f` ... `def f` in the module,
+            # or twice in one class body: same IR name, same kind, same class) is not two
+            # definitions but a rebinding: CPython keeps the LAST one and so does the model,
+            # and a `#@` claim on a dead binding is refused by route #463 (Module 3). MEASURED
+            # before this narrowing: the rule refused exactly 2 corpus files (0 pyref, 0
+            # mirror), both such PASS controls (7194_r463_ctl_unclaimed_def_rebound,
+            # 7548_r476_ctl_two_defs_before_main). The name stays AMBIGUOUS for the exemption
+            # below: a `-> NoReturn` dead binding must not exempt the live one.
+            if (len({str(_x620.get("name", "")) for _x620 in _fs620}) == 1
+                    and len({(_x620.get("kind") or "function", str(_x620.get("self_type")))
+                             for _x620 in _fs620}) == 1):
+                continue
             from errors import PyCSLSemanticError as _PyCSLSemErr620
             raise _PyCSLSemErr620(
                 "PYCSL-SEM-WHYML-NAME-CLASH (route #620): %d definitions of this program are "
@@ -3876,8 +3888,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                        for _x620 in _fs620)),
                 stage="ir-semantic", code="PYCSL-SEM-WHYML-NAME-CLASH")
     # (#49) u65 ROUTE #620 (b) -- the exemption fails CLOSED: a name that more than one
-    # definition maps to (only a route #122 lifted collision gets this far, and Module 6
-    # refuses it) is never exempted; nor is any name when the IR cannot be keyed.
+    # definition maps to (a same-scope rebinding, or a route #122 lifted collision that
+    # Module 6 refuses) is never exempted; nor is any name when the IR cannot be keyed.
     try:
         from module6_whyml.identifiers import whyml_ident as _wid_vac
         args._vacuity_exempt = {

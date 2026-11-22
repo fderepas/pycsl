@@ -9,7 +9,7 @@ for f in "$@"; do
   n=$(basename "$(dirname "$f")")__$(basename "$f" .py)
   o0=$(grep '^oom_kill ' $EV | cut -d' ' -f2)
   s=$(date +%s)
-  timeout 1500 "$T/.venv/bin/python3" "$T/src/pycsl/pycsl.py" "${FL[@]}" "$f" > "$O/$n.log" 2>&1
+  timeout 3600 "$T/.venv/bin/python3" "$T/src/pycsl/pycsl.py" "${FL[@]}" "$f" > "$O/$n.log" 2>&1
   rc=$?
   o1=$(grep '^oom_kill ' $EV | cut -d' ' -f2)
   v=$(grep -E "Verification (SUCCESS|FAIL)|All contracts|PYCSL-[A-Z0-9-]+|NOT a success" "$O/$n.log" | head -2 | tr '\n' ' ' | cut -c1-200)
