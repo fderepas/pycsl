@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10408_r622x_plain_dependency_beside_program_absolute_import_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'zs08dep': ['g'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

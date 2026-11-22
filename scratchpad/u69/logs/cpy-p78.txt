@@ -1,0 +1,40 @@
+s1 | usr |  | P/hz78.py loaded result 2 
+s1 | venv |  | P/hz78.py loaded result 2 
+s1-dep | usr |  | 
+s1-dep | venv |  | 
+s7 | usr |  | result 1 
+s7 | venv |  | result 1 
+s7-dep | usr |  |   File "/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/s7/P/dep78.py", line 1, in <module>     from hz78 import one ModuleNotFoundError: No module named 'hz78' 
+s7-dep | venv |  |   File "/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/s7/P/dep78.py", line 1, in <module>     from hz78 import one ModuleNotFoundError: No module named 'hz78' 
+s7-treecwd | usr |  | result 1 
+s7-treecwd | venv |  | result 1 
+s1f | usr |  | result 2 
+s1f | venv |  | result 2 
+c1 | usr |  | result 1 
+c1 | venv |  | result 1 
+o1 | usr |  | result 1 
+o1 | venv |  | result 1 
+t4 | usr |  | c.py loaded result 2 
+t4 | venv |  | c.py loaded result 2 
+t8 | usr |  | c.py loaded result 2 
+t8 | venv |  | c.py loaded result 2 
+t1 | usr |  | c.py loaded result 2 
+t1 | venv |  | c.py loaded result 2 
+t2 | usr |  | c.py loaded result 2 
+t2 | venv |  | c.py loaded result 2 
+t3 | usr |  | c.py loaded result 2 
+t3 | venv |  | c.py loaded result 2 
+t5 | usr |  | c.py loaded result 2 
+t5 | venv |  | c.py loaded result 2 
+t6 | usr |  | c.py loaded result 2 
+t6 | venv |  | c.py loaded result 2 
+t7 | usr |  | c.py loaded result 2 
+t7 | venv |  | c.py loaded result 2 
+a1 | usr | PYTHONPATH=/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/a1/X2 | result 2 
+a1 | venv | PYTHONPATH=/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/a1/X2 | result 2 
+a1-noX | usr |  | result 2 
+a1-noX | venv |  | result 2 
+a3 | usr | PYTHONPATH=/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/a3/X2 | X2/za783/b.py loaded result 2 
+a3 | venv | PYTHONPATH=/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/a3/X2 | X2/za783/b.py loaded result 2 
+a3-noX | usr |  |   File "/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/a3/P/za783/__init__.py", line 4, in <module>     from .b import one as _q ModuleNotFoundError: No module named 'za783.b' 
+a3-noX | venv |  |   File "/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/a3/P/za783/__init__.py", line 4, in <module>     from .b import one as _q ModuleNotFoundError: No module named 'za783.b' 

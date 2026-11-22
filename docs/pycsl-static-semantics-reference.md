@@ -3154,7 +3154,16 @@ import-time code binds the name of one of the package's submodules (an entry of 
 CPython imports as `pkg.<name>`) other than by `from . import <name>` (also `del`, a `global`
 of it, a wildcard import). The first root of an absolute import is the directory of the
 file's realpath whenever that is another directory than the one the file is named in (u66,
-route #622, rt76 r12: a symlinked program file); relative imports are package-relative in both views; not applied under
+route #622, rt76 r12: a symlinked program file); a reached module shares the program's single
+view only when it is in the program's raw directory AND has the program's first root (u69, rt78 s1:
+a symlinked DEPENDENCY is compared through both views); routes #483 / #484 and the `type`-alias
+export scan follow a dependency's absolute imports from the program's first root too (u69, rt78
+s7 / s8). Any reached module (the program included) with an attribute store / delete, or a
+literal-name `setattr` / `delattr`, whose name is a submodule of a package the walk meets is
+refused (`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`; u69, rt78 t4 / t8); one undecorated
+top-level `def` of a submodule's name in an `__init__.py` is admitted when no reached module
+names a module of that name in an import (outside the program also as a from-import target or any wildcard) and
+none reads `<x>.<name>.<y>` (u69, rt78 o1); relative imports are package-relative in both views; not applied under
 `--verification-image`. Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's

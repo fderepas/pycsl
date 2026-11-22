@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/u69/t12/P/prog.py'...
+[*] Memory model: hoare
+[*] Imported from 'zu694.b': ['one'] (trusted stubs, module-qualified)
+
+[!] PIPELINE ERROR:
+a function, method or class NAME is rebound after its definition (attribute `.b` written on `zu694...` at line 6). Every call is resolved against the `def`, so the rebinding would be silently ignored (measured: `inc = dec` then `inc(3)` proved the `inc` contract while Python ran `dec`). Rebinding a function name is not modelled; give the new binding its own name.

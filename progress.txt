@@ -2,3 +2,27 @@ Sun Nov 22 15:31:06 UTC 2026 u69 start: tree created
 Sun Nov 22 15:33:01 UTC 2026 quick probes p78 on head(=u66) and b0
 Sun Nov 22 15:41:22 UTC 2026 probes t9-t13,o2 written; quick on head
 Sun Nov 22 15:46:09 UTC 2026 quick probes on head h1 (s1/s7/s8/T fixes)
+Sun Nov 22 15:47:35 UTC 2026 chainA (base b1 sweep + head h1 sweep) launched NORMAL
+Sun Nov 22 15:50:11 UTC 2026 chainA running (base sweep); wrote witnesses 10405-10408 + docs + o1 narrowing in working tree
+Sun Nov 22 15:51:32 UTC 2026 waiting chainA; narrowing + wildcard guard edited
+Sun Nov 22 15:59:56 UTC 2026 waiting chainA
+Sun Nov 22 16:00:38 UTC 2026 waiting chainA (base sweep)
+Sun Nov 22 16:07:35 UTC 2026 waiting chainA
+Sun Nov 22 16:15:13 UTC 2026 waiting chainA
+Sun Nov 22 16:22:51 UTC 2026 waiting chainA
+Sun Nov 22 16:30:29 UTC 2026 waiting chainA
+Sun Nov 22 16:38:07 UTC 2026 waiting chainA
+Sun Nov 22 16:45:45 UTC 2026 waiting chainA
+Sun Nov 22 16:53:24 UTC 2026 waiting chainA
+Sun Nov 22 17:01:03 UTC 2026 waiting chainA
+Sun Nov 22 17:08:41 UTC 2026 waiting chainA (base mirror)
+Sun Nov 22 17:16:21 UTC 2026 waiting chainA (h1 sweep)
+Sun Nov 22 17:24:05 UTC 2026 waiting chainA (h1 sweep)
+Sun Nov 22 17:31:48 UTC 2026 waiting chainA (h1 sweep)
+Sun Nov 22 17:39:26 UTC 2026 waiting chainA (h1 sweep)
+Sun Nov 22 17:47:04 UTC 2026 waiting chainA (h1 sweep)
+Sun Nov 22 17:54:42 UTC 2026 waiting chainA (h1 sweep)
+Sun Nov 22 18:02:20 UTC 2026 waiting chainA (h1 sweep)
+Sun Nov 22 18:10:08 UTC 2026 waiting chainA (h1 pyref)
+Sun Nov 22 18:17:54 UTC 2026 waiting chainA (h1 mirror)
+Sun Nov 22 18:18:39 UTC 2026 chainA done (0/0/0 all); quick tests of narrowed tree

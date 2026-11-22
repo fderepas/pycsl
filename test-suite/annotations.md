@@ -1501,7 +1501,21 @@ c as b` beside `b.py`; any import, assignment, `def` / `class`, `del`, `global`,
 import) is REFUSED (`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`, u66, route #621: CPython leaves
 `pkg.b` bound to `c` and `import pkg.b; pkg.b.one()` runs `c.one()`). A program FILE that is a
 symlink into another directory resolves its absolute imports from that realpath directory, as
-CPython's `sys.path[0]` does (u66, route #622, review rt76 r12). Relative imports stay package-relative; the
+CPython's `sys.path[0]` does (u66, route #622, review rt76 r12). A DEPENDENCY that is itself such a
+symlink (its own run's first root is its realpath directory) is compared through both views like any
+other dependency, since the program's run resolves its absolute imports from the PROGRAM's first root
+(u69, review rt78 s1: P/dep78.py -> ../Q/dep78.py, Q/hz78.py returning 1, P/hz78.py returning 2; u66
+PROVED the claim, CPython printed 2); the import-time closure check (routes #483 / #484) and the
+`type`-alias export scan follow a dependency's absolute imports from the program's first root as well
+(u69, rt78 s7 / s8). Any module the program reaches (the program included) that stores to, or deletes,
+an attribute named like a submodule of a package the walk meets (`import pkg; pkg.b = c0`, `import pkg
+as _p; _p.b = ...`, `setattr(pkg, "b", ...)`; any receiver, at import time or in a function body) is
+REFUSED too (`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`, u69, review rt78 t4 / t8: CPython looks
+`pkg.b` up as an attribute, so `zt784.b.one()` ran `c.one()`). A package `__init__.py` whose top level
+holds ONE undecorated `def` of a submodule's name is admitted when no reached module names a module of
+that name in an import (any `import a.b`, the module of any `from a.b import`, and, outside the program,
+every from-import target, a wildcard included) and none reads `<x>.<name>.<y>`: CPython then never loads the submodule over
+the function (u69, review rt78 o1). Relative imports stay package-relative; the
 check is skipped under the declared `--verification-image`, which makes no CPython-run
 claim): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or

@@ -4460,6 +4460,11 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             # meets (see the rule after the walk)
             _ast669: List[Tuple[str, str, int]] = []
             _pkd669: Set[str] = set()
+            # (u69, rt78 o1) `__init__` candidates; module-name components the reached modules'
+            # import statements spell; names read as `<x>.<name>.<y>`
+            _cnd669: List[Tuple[str, str, int]] = []
+            _imc669: Set[str] = set()
+            _atc669: Set[str] = set()
             _fp669 = os.path.dirname(_mf660)
             if os.path.realpath(_fp669) != os.path.dirname(os.path.realpath(_mf660)):
                 _fp669 = os.path.dirname(os.path.realpath(_mf660))
@@ -4473,6 +4478,14 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
                     continue
                 for _z669 in _a613.walk(_tr660):
+                    if isinstance(_z669, _a613.Import):
+                        _imc669.update(_q for _al in _z669.names for _q in _al.name.split("."))
+                    elif isinstance(_z669, _a613.ImportFrom):
+                        _imc669.update((_z669.module or "").split("."))
+                        if _m660 != _mf660:
+                            _imc669.update(_al.name for _al in _z669.names)
+                    if isinstance(_z669, _a613.Attribute) and isinstance(_z669.value, _a613.Attribute):
+                        _atc669.add(_z669.value.attr)
                     if isinstance(_z669, _a613.Attribute) and not isinstance(_z669.ctx, _a613.Load):
                         _ast669.append((_m660, _z669.attr, _z669.lineno))
                     elif (isinstance(_z669, _a613.Call) and isinstance(_z669.func, _a613.Name)
@@ -4553,7 +4566,16 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                 _bn666.append((_z666.rest, False))
                             _st666 += list(_a613.iter_child_nodes(_z666))
                         for _q666, _x666 in _bn666:
-                            if _q666 == "*" or (_q666 in _sub666 and not _x666):
+                            # (u69, rt78 o1) one undecorated top-level `def` of the name is a
+                            # CANDIDATE, judged after the walk (see there)
+                            if (_q666 in _sub666 and not _x666 and _z666 in _tr660.body
+                                    and isinstance(_z666, (_a613.FunctionDef,
+                                                           _a613.AsyncFunctionDef))
+                                    and not _z666.decorator_list
+                                    and not any(_c[0] == _m660 and _c[1] == _q666
+                                                for _c in _cnd669)):
+                                _cnd669.append((_m660, _q666, _z666.lineno))
+                            elif _q666 == "*" or (_q666 in _sub666 and not _x666):
                                 _bnd666 = (_m660, _q666, getattr(_z666, "lineno", 0) or 0, (
                                     "a wildcard import, which may bind any of its submodules' "
                                     "names" if _q666 == "*" else
@@ -4793,6 +4815,29 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                 and os.path.commonpath([_f660, _lib660]) != _lib660):
                             _seen660.add(_f660)
                             _wl660.append(_f660)
+            # (#49) run #9 u69 -- review rt78 o1 (u66 INTRODUCED over-refusal of route #621): a
+            # package `__init__` whose top level defines `def b()` beside an unimported submodule
+            # b.py, and `from pkg import b` in the program (CPython: the function, result 1;
+            # base PROVED; u66 REFUSED). CPython rebinds the attribute `pkg.b` to the submodule
+            # only when something LOADS `pkg.b`: an `import pkg.b`, `from pkg.b import ...` /
+            # `from .b import ...`, or a `from pkg import b` / `from . import b` that runs while
+            # the attribute is still missing (code running inside `pkg/__init__` before the
+            # `def`, i.e. any module it imports, transitively); dynamic loaders are refused by
+            # routes #326 / #483, and an attribute store by the rule below. NARROWING (sound by
+            # that list): one undecorated top-level `def` of a submodule's name is ADMITTED when
+            # no reached module's import statement spells a module-name component equal to the
+            # name (any `import a.b`, the module of any `from a.b import`, and, outside the
+            # program -- which never runs inside `pkg/__init__` -- every from-import target, a
+            # wildcard included: `__all__` can make it load a submodule), and no reached module reads `<x>.<name>.<y>` (pycsl could resolve that dotted read to
+            # the submodule); otherwise the binding is refused as before. Every other binding
+            # form keeps route #621's refusal.
+            for _c669 in _cnd669:
+                if (_bnd666 is None and _bad660 is None and _pfx661 is None
+                        and (_c669[1] in _imc669 or "*" in _imc669 or _c669[1] in _atc669)):
+                    _bnd666 = (_c669[0], _c669[1], _c669[2], (
+                        f"a binding of `{_c669[1]}`, the name of its submodule, while a module the "
+                        f"program reaches names a module `{_c669[1]}` in an import (or reads "
+                        f"`<x>.{_c669[1]}.<y>`), which may load the submodule over it"))
             # (#49) run #9 u69 -- review rt78 t4 / t8 (PRE-EXISTING #621 bypasses, false proofs at
             # base and after u66). CPython looks `pkg.<name>` up as an ATTRIBUTE of the package
             # module object (`import pkg.b; pkg.b.one()`, `from pkg import b`), and the
