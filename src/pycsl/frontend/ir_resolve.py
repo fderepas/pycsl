@@ -4458,7 +4458,7 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             # (#49) run #9 u69 -- review rt78 t4 / t8 (route #621 extended, PRE-EXISTING): the
             # attribute stores of every reached module, and the package directories the walk
             # meets (see the rule after the walk)
-            _ast669: List[Tuple[str, str, int]] = []
+            _ast669: List[Tuple[str, str, int, bool]] = []
             _pkd669: Set[str] = set()
             # (u69, rt78 o1) `__init__` candidates; module-name components the reached modules'
             # import statements spell; names read as `<x>.<name>.<y>`
@@ -4474,6 +4474,8 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             _wcr671: Optional[Tuple[str, str, str, str]] = None
             _alx671: Optional[Tuple[str, int]] = None
             _wpk671: Optional[Tuple[str, str]] = None
+            # (u71, rt79 r1) the first place a module object may escape into a value
+            _esc671: Optional[Tuple[str, int, str]] = None
             while (_wl660 and _bad660 is None and _pfx661 is None and _bnd666 is None
                    and _wcr671 is None):
                 _m660 = _wl660.pop(0)
@@ -4484,6 +4486,45 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     _tr660 = _a613.parse(__import__("pathlib").Path(_m660).read_bytes())
                 except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
                     continue
+                # (#49) run #9 u71 -- review rt79 r1 (u69 INTRODUCED over-refusal of rule E):
+                # `self.b = 1` in an unrelated class of the program was refused because `b` is a
+                # submodule name of a package the walk met (CPython 4 = the claim, base PROVED).
+                # Rule E is narrowed to the receivers that can denote a package MODULE object: a
+                # store whose receiver is (an attribute / subscript / call chain rooted at) a
+                # name an import statement of the module binds (`import pkg`, `import pkg as p`,
+                # `from x import pkg`, anywhere in the file). Any other receiver can hold a
+                # module only if a module object ESCAPES into a value somewhere, so every store
+                # stays judged as before (any receiver) as soon as ANY reached module has: a
+                # wildcard import (it binds unknown names); an import inside a class body (it
+                # binds a class attribute); an import-bound name, or a chain rooted at one, in a
+                # value position (anything but a call's callee, a store / delete receiver, an
+                # expression statement, an annotation, a decorator, a class base, an `except`
+                # type or a `raise`); a reflective name (`globals`, `vars`, `locals`, `eval`,
+                # `exec`, `compile`, `__import__`, `__builtins__`), a namespace / frame /
+                # loader attribute (`modules`, `__dict__`, `__globals__`, `__class__`,
+                # `_getframe`, `f_globals`, ...), an import of a module that can produce module
+                # objects by name (`importlib`, `inspect`, `pkgutil`, `runpy`, `pydoc`, `gc`,
+                # `ctypes`, `builtins`, `__main__`, `pickle`, `marshal`, `copyreg`,
+                # `zipimport`, `imp`); or an import of an installed (non-program, non-standard)
+                # library, whose functions may return a module (u71).
+                _mc671: Set[str] = set()
+                _pa671: Dict[int, Any] = {}
+                _ann671: Set[int] = set()
+                for _z671 in _a613.walk(_tr660):
+                    for _c671 in _a613.iter_child_nodes(_z671):
+                        _pa671[id(_c671)] = _z671
+                    if isinstance(_z671, _a613.Import):
+                        _mc671.update(_al.asname or _al.name.split(".")[0] for _al in _z671.names)
+                    elif isinstance(_z671, _a613.ImportFrom):
+                        _mc671.update(_al.asname or _al.name for _al in _z671.names
+                                      if _al.name != "*")
+                    for _q671 in ([_z671.annotation] if isinstance(_z671, (_a613.arg,
+                                                                           _a613.AnnAssign))
+                                  else [_z671.returns] if isinstance(
+                                      _z671, (_a613.FunctionDef, _a613.AsyncFunctionDef))
+                                  else []):
+                        if _q671 is not None:
+                            _ann671.update(id(_y) for _y in _a613.walk(_q671))
                 for _z669 in _a613.walk(_tr660):
                     if isinstance(_z669, _a613.Import):
                         _imc669.update(_q for _al in _z669.names for _q in _al.name.split("."))
@@ -4500,13 +4541,76 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         _alx671 = _alx671 or (_m660, getattr(_z669, "lineno", 0) or 0)
                     if isinstance(_z669, _a613.Attribute) and isinstance(_z669.value, _a613.Attribute):
                         _atc669.add(_z669.value.attr)
+                    _rv671 = None
                     if isinstance(_z669, _a613.Attribute) and not isinstance(_z669.ctx, _a613.Load):
-                        _ast669.append((_m660, _z669.attr, _z669.lineno))
+                        _rv671 = _z669.value
+                        _ast669.append((_m660, _z669.attr, _z669.lineno, False))
                     elif (isinstance(_z669, _a613.Call) and isinstance(_z669.func, _a613.Name)
                           and _z669.func.id in ("setattr", "delattr") and len(_z669.args) >= 2
                           and isinstance(_z669.args[1], _a613.Constant)
                           and isinstance(_z669.args[1].value, str)):
-                        _ast669.append((_m660, _z669.args[1].value, _z669.lineno))
+                        _rv671 = _z669.args[0]
+                        _ast669.append((_m660, _z669.args[1].value, _z669.lineno, False))
+                    # (u71) the store's receiver, rooted through attribute / subscript / call
+                    while isinstance(_rv671, (_a613.Attribute, _a613.Subscript, _a613.Call,
+                                              _a613.Starred)):
+                        _rv671 = _rv671.func if isinstance(_rv671, _a613.Call) else _rv671.value
+                    if isinstance(_rv671, _a613.Name) and _rv671.id in _mc671:
+                        _ast669[-1] = _ast669[-1][:3] + (True,)
+                    # (u71) a module object may escape into a value (see above)
+                    _ex671 = None
+                    if isinstance(_z669, _a613.ImportFrom) and any(
+                            _al.name == "*" for _al in _z669.names):
+                        _ex671 = "a wildcard import"
+                    elif isinstance(_z669, (_a613.Import, _a613.ImportFrom)):
+                        _y671 = _pa671.get(id(_z669))
+                        while _y671 is not None and not isinstance(_y671, (
+                                _a613.FunctionDef, _a613.AsyncFunctionDef, _a613.Lambda,
+                                _a613.ClassDef)):
+                            _y671 = _pa671.get(id(_y671))
+                        if isinstance(_y671, _a613.ClassDef):
+                            _ex671 = "an import in a class body"
+                        elif any(_q.split(".")[0] in (
+                                "importlib", "inspect", "pkgutil", "runpy", "pydoc", "gc",
+                                "ctypes", "builtins", "__main__", "pickle", "marshal", "copyreg",
+                                "zipimport", "imp")
+                                for _q in ([_al.name for _al in _z669.names]
+                                           if isinstance(_z669, _a613.Import)
+                                           else [] if _z669.level else [_z669.module or ""])):
+                            _ex671 = "an import of a module that can produce module objects"
+                    elif isinstance(_z669, _a613.Name) and isinstance(_z669.ctx, _a613.Load) and (
+                            _z669.id in ("globals", "vars", "locals", "eval", "exec", "compile",
+                                         "__import__", "__builtins__")):
+                        _ex671 = f"the reflective name `{_z669.id}`"
+                    elif isinstance(_z669, _a613.Attribute) and _z669.attr in (
+                            "modules", "__dict__", "__globals__", "__builtins__", "__class__",
+                            "_getframe", "f_globals", "f_locals", "f_back", "tb_frame",
+                            "gi_frame", "cr_frame", "__self__", "__closure__", "cell_contents"):
+                        _ex671 = f"the attribute `{_z669.attr}`"
+                    elif (isinstance(_z669, _a613.Name) and isinstance(_z669.ctx, _a613.Load)
+                          and _z669.id in _mc671 and id(_z669) not in _ann671):
+                        _y671 = _z669
+                        _p671 = _pa671.get(id(_y671))
+                        while (isinstance(_p671, (_a613.Attribute, _a613.Subscript))
+                               and _p671.value is _y671 and isinstance(_p671.ctx, _a613.Load)):
+                            _y671 = _p671
+                            _p671 = _pa671.get(id(_y671))
+                        if not ((isinstance(_p671, _a613.Call) and _p671.func is _y671)
+                                or (isinstance(_p671, (_a613.Attribute, _a613.Subscript))
+                                    and _p671.value is _y671)
+                                or isinstance(_p671, (_a613.Expr, _a613.Raise))
+                                or (isinstance(_p671, (_a613.FunctionDef, _a613.AsyncFunctionDef,
+                                                       _a613.ClassDef))
+                                    and any(_y is _y671 for _y in _p671.decorator_list))
+                                or (isinstance(_p671, _a613.ClassDef)
+                                    and any(_y is _y671 for _y in _p671.bases))
+                                or (isinstance(_p671, _a613.ExceptHandler)
+                                    and _p671.type is _y671)
+                                or (isinstance(_p671, _a613.Tuple) and isinstance(
+                                    _pa671.get(id(_p671)), _a613.ExceptHandler))):
+                            _ex671 = f"the imported name `{_z669.id}` used as a value"
+                    if _ex671 is not None and _esc671 is None:
+                        _esc671 = (_m660, getattr(_z669, "lineno", 0) or 0, _ex671)
                 # (#49) run #9 u66 -- review rt76 r2 / r2d (route #621, PRE-EXISTING). A package
                 # `__init__` that BINDS, at import time, a name that is also one of the package's
                 # submodules decides what the attribute `pkg.<name>` is: CPython sets the
@@ -4692,6 +4796,12 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                              else "a refused resolution (" + _v[1] + ")") for _v in _vw660])
                         break
                     if _vw660[-1][0] != "file":
+                        # (u71, rt79 r1) an installed library may hand out a module object
+                        if (_vw660[-1][0] == "none" and not _lv660 and "." not in _d660
+                                and _d660 not in sys.stdlib_module_names
+                                and _d660 not in sys.builtin_module_names and _esc671 is None):
+                            _esc671 = (_m660, 0, f"an import of `{_d660}`, which is no program "
+                                                 f"module (an installed library)")
                         continue
                     _hf660 = _vw660[-1][1]
                     # (#49) run #9 u71 -- review rt79 d8 / w2 (route #626, PRE-EXISTING): CPython's
@@ -4982,8 +5092,8 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                               and _e669.endswith((".py", ".pyc", ".pyd", ".so", *__import__(
                                   "importlib.machinery").machinery.EXTENSION_SUFFIXES))):
                             _nm669.setdefault(_s669, _D669)
-                for _f669, _n669, _l669 in _ast669:
-                    if _rbd669 is None and _n669 in _nm669:
+                for _f669, _n669, _l669, _mr671 in _ast669:
+                    if _rbd669 is None and _n669 in _nm669 and (_mr671 or _esc671 is not None):
                         _rbd669 = (_f669, _n669, _l669, _nm669[_n669])
             if _rbd669 is not None:
                 _dm669 = (os.path.relpath(_rbd669[0]) if _rbd669[0].startswith(os.getcwd() + os.sep)

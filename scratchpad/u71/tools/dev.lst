@@ -1,0 +1,23 @@
+r1||rt79/r1/P/prog.py|
+y2||u71/y2/P/prog.py|
+y3||u71/y3/P/prog.py|
+y4||u71/y4/P/prog.py|
+y5||u71/y5/P/prog.py|
+y6||u71/y6/P/prog.py|
+t4||rt78/t4/P/prog.py|
+t8||rt78/t8/P/prog.py|
+t11||u69/t11/P/prog.py|
+t13||u69/t13/P/prog.py|
+t12||u69/t12/P/prog.py|
+t9||u69/t9/P/prog.py|
+t10||u69/t10/P/prog.py|
+n1||u71/n1/P/prog.py|
+n2||u71/n2/P/prog.py|
+n3||u71/n3/P/prog.py|
+n4||u71/n4/P/prog.py|
+n5||u71/n5/P/prog.py|
+n6||u71/n6/P/prog.py|
+n7||u71/n7/P/prog.py|
+d8||rt79/d8/P/prog.py|
+w2||rt79/w2/P/prog.py|
+z1|--import-path @P@/rt79/z1/X/lib.zip --import-path @P@/rt79/z1/Y|rt79/z1/P/prog.py|

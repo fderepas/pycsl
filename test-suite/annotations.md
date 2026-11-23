@@ -1515,7 +1515,22 @@ REFUSED too (`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`, u69, review rt78 t4 /
 holds ONE undecorated `def` of a submodule's name is admitted when no reached module names a module of
 that name in an import (any `import a.b`, the module of any `from a.b import`, and, outside the program,
 every from-import target, a wildcard included) and none reads `<x>.<name>.<y>`: CPython then never loads the submodule over
-the function (u69, review rt78 o1). Relative imports stay package-relative; the
+the function (u69, review rt78 o1); a wildcard import in the PROGRAM counts as such a name too (u71,
+review rt79 d8). The attribute-store rule only judges receivers that can denote the package module object:
+a store / delete / literal-name `setattr` whose receiver is rooted at a name an import statement binds;
+any receiver is judged again as soon as some reached module lets a module object escape (an import-bound
+name used as a value, a wildcard import, an import in a class body, reflective names such as `globals` /
+`vars` / `__import__`, `sys.modules` / `__dict__` / frame attributes, an import of `importlib` /
+`inspect` / ..., or of an installed library) (u71, review rt79 r1: `self.b = 1` in an unrelated class is
+admitted). A wildcard import of a package (`from pkg import *`, `from pkg.sub import *`, `from . import *`)
+is followed as `from pkg import <each __all__ name>`, since CPython loads every `__all__` submodule the
+package does not bind yet, in the import walk and in the import-time closure (routes #483 / #484); an
+`__all__` that is not one top-level literal list / tuple of identifier strings (computed, extended,
+re-bound) or that other code can change is REFUSED (`PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN`, u71, route
+#626, review rt79 w2: the `__all__` submodule's import-time writer made CPython print 5 where pycsl
+PROVED 4). Every `--import-path` entry must be an existing directory (`PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY`,
+u71, route #627, review rt79 z1: CPython's zipimport loads modules from a zip archive on sys.path, which
+pycsl skipped). Relative imports stay package-relative; the
 check is skipped under the declared `--verification-image`, which makes no CPython-run
 claim): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or

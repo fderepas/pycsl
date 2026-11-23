@@ -3163,8 +3163,19 @@ literal-name `setattr` / `delattr`, whose name is a submodule of a package the w
 refused (`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`; u69, rt78 t4 / t8); one undecorated
 top-level `def` of a submodule's name in an `__init__.py` is admitted when no reached module
 names a module of that name in an import (outside the program also as a from-import target or any wildcard) and
-none reads `<x>.<name>.<y>` (u69, rt78 o1); relative imports are package-relative in both views; not applied under
-`--verification-image`. Under the declared `--verification-image
+none reads `<x>.<name>.<y>` (u69, rt78 o1), a wildcard in the program counting as such a name (u71,
+rt79 d8); the attribute-store rule judges only receivers rooted (through attribute / subscript / call)
+at an import-bound name of the module, and every receiver once any reached module lets a module object
+escape into a value (an import-bound name in a value position, a wildcard, an import in a class body,
+reflective names, `modules` / `__dict__` / frame attributes, an import of `importlib` / `inspect` / ...
+or of an installed library) (u71, rt79 r1); a wildcard import of a package `__init__.py` is followed
+as a from-import of each `__all__` name, in this walk and in routes #483 / #484, and an `__all__` that
+is not one top-level literal list / tuple of identifier strings mentioned nowhere else, or that a
+reached module can change (`pkg.__all__`, a literal `"__all__"`), is refused
+(`PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN`; u71, route #626, rt79 w2 / d8); relative imports are
+package-relative in both views; not applied under `--verification-image`. Every `--import-path` entry
+must be an existing directory, in every mode (`PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY`; u71, route #627,
+rt79 z1: zipimport). Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
 roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`
