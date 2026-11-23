@@ -106,7 +106,24 @@ the same kind of cut artefact the driver accepted for u64 / u66. The cut was alr
 
 ## 5. Gates (final src; snapshot `/home/fabrice/git/pycsl-u70-h2` at 47aad7d7f; `tools/GATES.sh`, NORMAL)
 
-GATES_TABLE
+Run: `GT=/home/fabrice/git/pycsl-u70-h2 heavy.sh bash scratchpad/u70/tools/GATES.sh scratchpad/u70/logs/GATES`.
+Summary: `logs/GATES.txt`, rc 0, oom_kill 15 -> 15. The src / bin / docs / test-suite of h2 = the final commit.
+
+| gate | result | log |
+|---|---|---|
+| byte-diff root / pyref / mirror | 0 MOVED, 0 GONE (none declared), mirror `diff -rq` 0 (section 3) | `logs/G/C1-*.txt`, `logs/G/D1-mir.txt` |
+| check-self-annotate-sync | rc 0 (986 un-trusted mirror functions verbatim) | `logs/GATES/lg/sync.txt` |
+| self-annotate-mirror-check | rc 0 (53 mirrors in sync) | `logs/GATES/lg/mircheck.txt` |
+| doc-coherency --check | rc 0 | `logs/GATES/lg/doccoh.txt` |
+| run-soundness-planes.sh (fast + conversion tier, full tee) | rc 0, 62 / 62 ok | `logs/GATES/planes.txt` |
+| check-refusal-witness-coverage | rc 0: 488 demonstrated, 5 undemonstrated (ceiling 5), 10 unmatchable (ceiling 10). Both ceilings hold, so the new NAME-CLASH site is demonstrated by the 10420-10423 rows | `logs/GATES/rwc.txt` |
+| check-corpus-executes | rc 0: 2612 / 2620 load (the 8 failures are the KNOWN ones), 1706 / 1706 self-checks | `logs/GATES/ce.txt` |
+| frontend-only-conformance | rc 0: 38 OK / 0 MISMATCH | `logs/GATES/foc.txt` |
+| check-dropped-mutation | rc 0: 0 dropped / 49 ctxbind (ratchet 51) / 5 tryfinal / 0 dangling | `logs/GATES/cdm.txt` |
+| check-assigns-writes-survival / check-trusted-frame-honesty / check-getattr-erasure | rc 0 / 0 / 0 (emit dir `logs/GATES/lg/mir_emit`, 53 .mlw, single-underscore naming; full outputs kept) | `logs/GATES/lg/*.txt` |
+| \trusted | 366 | `logs/GATES.txt` [LG] |
+| proof-axiom ledger | 3 (`proof_axiom_allowlist.py` untouched; `git diff daa36070b HEAD -- src bin` = ir_resolve.py + 4 census rows) | -- |
+| rt77 w-probes head vs base, with CPython | section 2 | `logs/P-b0/`, `logs/P-h1/`, `logs/cpython.txt` |
 
 ## 6. Commits (branch run9-u70, not pushed)
 
