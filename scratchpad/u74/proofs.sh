@@ -1,7 +1,7 @@
 #!/bin/bash
 # proofs.sh : u74 sequential proof battery for audit_proof_reverify.py::_to_cache_payload (one heavy.sh NORMAL slot).
 T=/home/fabrice/git/pycsl-u74; L=$T/scratchpad/u74/pr; cd $T
-source /home/fabrice/git/pycsl/scratchpad/g29/env.sh; export PYTHON_CPU_COUNT=2
+source /home/fabrice/git/pycsl/scratchpad/g29/env.sh; export PYTHON_CPU_COUNT=2 TMPDIR=/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp
 EV=/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/pycsl.slice/pycsl-heavy.slice/memory.events
 oom() { grep oom_kill $EV | awk '{print $2}'; }
 M=src/self-annotate/src/audit_proof_reverify.py

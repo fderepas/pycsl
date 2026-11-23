@@ -998,14 +998,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "target": gen.target.id if isinstance(gen.target, ast.Name) else "_comp_var",
                 "iter": self._py_expr_to_ir(gen.iter),
                 "ifs": [self._py_expr_to_ir(if_) for if_ in gen.ifs],
-                # run #9 u74: a TUPLE target keeps its slot names in order (`for (qn,
-                # ok, axs) in xs` -> ["qn", "ok", "axs"]; a non-Name slot is "_"), so a
-                # consumer can bind each slot by position instead of the erased
-                # `_comp_var`. Empty for a Name target.
-                "target_elts": ([e.id if isinstance(e, ast.Name) else "_"
-                                 for e in gen.target.elts]
-                                if isinstance(gen.target, ast.Tuple) else []),
             }
+            # run #9 u74: a TUPLE target keeps its slot names in order (`for (qn, ok,
+            # axs) in xs` -> ["qn", "ok", "axs"]; a non-Name slot is "_"), so a consumer
+            # can bind each slot by position instead of the erased `_comp_var`. The key
+            # is ADDED only for a tuple target, so every other comprehension's IR (and
+            # every `repr`-hashed temp name derived from it) is unchanged.
+            | ({"target_elts": [e.id if isinstance(e, ast.Name) else "_"
+                                for e in gen.target.elts]}
+               if isinstance(gen.target, ast.Tuple) else {})
             for gen in generators
         ]
 

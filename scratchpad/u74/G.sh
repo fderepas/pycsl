@@ -3,7 +3,7 @@
 # compares vs the base sweep (pycsl-u67b), the single-underscore mirror emission + 3 ledger slow planes, fidelity,
 # fast planes teed in full, trusted count.
 H=/home/fabrice/git/pycsl-u74h; S=/home/fabrice/git/pycsl-u74/scratchpad/u74/sw; G=/home/fabrice/git/pycsl-u74/scratchpad/u74/logs/G
-mkdir -p $G $S/head; source /home/fabrice/git/pycsl/scratchpad/g29/env.sh; export PYTHON_CPU_COUNT=2
+mkdir -p $G $S/head; source /home/fabrice/git/pycsl/scratchpad/g29/env.sh; export PYTHON_CPU_COUNT=2 TMPDIR=/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp
 EV=/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/pycsl.slice/pycsl-heavy.slice/memory.events
 echo "G start $(date -u) $(git -C $H log --oneline -1 | cut -c1-12) $(grep oom_kill $EV)"
 cd $H || exit 2
