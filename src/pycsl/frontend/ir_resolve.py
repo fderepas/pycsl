@@ -2929,7 +2929,8 @@ def _resolve_imported_base_classes(module_imports: List[Any], main_file: str,
         _loc629: Dict[str, Optional[str]] = {}
         for _l629, _o629, _m629, _v629 in module_imports:
             _r629 = _resolve_module_path(_m629, _v629, main_file)
-            _loc629[_l629] = os.path.abspath(_r629) if _r629 is not None else None
+            _loc629[_l629] = (os.path.abspath(_r629) if _r629 is not None
+                              else ("?", _m629, _v629))
         _att629: Dict[str, Set[Any]] = {}
         _bare629: Set[str] = set()
         _cls629: Set[str] = set()
@@ -2950,14 +2951,14 @@ def _resolve_imported_base_classes(module_imports: List[Any], main_file: str,
                             _root629 = ".".join([_rt629.id] + _ps629)
                             _att629.setdefault(_b629.attr, set()).add(
                                 _loc629[_root629] if _root629 in _loc629
-                                else ("?", _root629))
+                                else ("??", _root629))
             elif isinstance(_n629, _a629.ImportFrom) and _n629.module:
                 for _al629 in _n629.names:
                     if _al629.name != "*":
                         _r629 = _resolve_module_path(_n629.module, _n629.level or 0, main_file)
                         _frm629.setdefault(_al629.asname or _al629.name, set()).add(
                             os.path.abspath(_r629) if _r629 is not None
-                            else ("?", _n629.module))
+                            else ("?", _n629.module, _n629.level or 0))
         for _tl629 in sorted(_att629):
             _fs629 = _att629[_tl629]
             if _tl629 in existing_types:
@@ -2969,7 +2970,9 @@ def _resolve_imported_base_classes(module_imports: List[Any], main_file: str,
                                f"name from another module")
                     break
                 continue
-            if len(_fs629) + (1 if _tl629 in _bare629 else 0) > 1:
+            # a bare use of the tail denotes what this file from-imports under that name
+            if len(_fs629 | (_frm629.get(_tl629) or {("bare", _tl629)}
+                             if _tl629 in _bare629 else set())) > 1:
                 _amb629 = (f"the tail `{_tl629}` is reached through more than one module "
                            f"(or is also written as a bare base name)")
                 break
