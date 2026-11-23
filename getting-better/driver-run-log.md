@@ -1616,3 +1616,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-23T17:45Z | 1342 | STATUS (run hour 44.3). Main = L20 (\trusted 366), ledger 3, oom_kill 15. v79 F on int80: 57 / 85 ok, 0 red. c20 44 / 81 (functions, ir_resolve in flight). u72 / u73 / u74 progressing slowly behind the slots. |
 2026-11-23T18:41Z | 1343 | STATUS (run hour 45.3). Main = L20 (\trusted 366), ledger 3, oom_kill 15. v79 F (int80) 68 / 85 ok, 0 red. c20 45 / 81 (+ functions 1364/1364). u72 / u73 / u74 queued. |
 2026-11-23T19:34Z | 1344 | STATUS (run hour 46.2). Main = L20 (\trusted 366), ledger 3, oom_kill 15. v79 F (int80) 68 / 85 ok, 0 red (in its long slow planes). c20 45 / 81. u72 / u73 / u74 queued on slots. |
+2026-11-23T20:24Z | 1345 | STATUS (run hour 47.0). Main = L20 (\trusted 366), ledger 3, oom_kill 15. v79 F (int80) 75 / 85 ok, 0 red. c20 45 / 81. u72 / u73 / u74 queued. |
