@@ -3165,7 +3165,7 @@ definition (u70 / u72, reviews rt77 F1 / F2 and rt80, routes #624 / #625 / #628 
 a dependency function is injected under its own name when that name is free; when the name is
 already held by ANOTHER definition (the program's own `def`, another module's function) or is
 reserved for another binding of the program (a from-import local bound elsewhere, a builtin the
-program calls), a dependency function that the program does not bind by that bare name (a
+program calls, a name the program calls bare and takes from a wildcard import), a dependency function that the program does not bind by that bare name (a
 transitive in-file callee, the target of a module-qualified `m.f()`, an imported class's module
 helper) is injected under a fresh name `<name>_from_<module>[_k]` and every call that CPython
 resolves to it (the module-qualified call, the same file's own calls in the injected bodies and
@@ -3179,8 +3179,9 @@ origin def; otherwise `m.f` stays an opaque call unless no definition, type, bar
 reservation can capture the bare `f`. A class base written `r.T` (r a module import) is taken only
 from the file r resolves to: one tail reached through two modules, also written bare, or naming a
 class the file imports under that name from another module is refused
-(`PYCSL-SEM-IMPORT-BASE-CLASS-AMBIGUOUS`, extends route #345); a bare-only base two module imports
-define is refused too. `from m import f as g` keeps the two apart and is admitted. Under the declared `--verification-image
+(`PYCSL-SEM-IMPORT-BASE-CLASS-AMBIGUOUS`, extends route #345); a bare-only base whose name is
+bound by a wildcard import, a from-import of another source or another binding (or that two module
+imports define) is refused too. `from m import f as g` keeps the two apart and is admitted. Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
 roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`
