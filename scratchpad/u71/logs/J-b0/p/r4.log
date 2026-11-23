@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt76/r4/P/prog.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt76/r4/P/prog.py: `import lark.zr76`: pycsl's resolution took /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt76/r4/P/lark/zr76.py through the directory /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt76/r4/P/lark, which has no `__init__.py` -- only a namespace portion -- while another root CPython searches holds `lark` too (.venv/lib/python3.14/site-packages/lark). CPython's PathFinder takes any regular package or module of that name over a namespace portion, and merges portions in sys.path order, so the module the program runs is not the one pycsl read (review rt69 G5: a local bare lark/utils.py PROVED `\result == False`, the venv CPython loaded site-packages lark.utils and returned True). FIX: give the local package an `__init__.py`, or rename it so it does not collide with an installed or library package.
