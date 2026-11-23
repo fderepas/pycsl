@@ -1,0 +1,51 @@
+rt82 FINDINGS (driver run #9): red-team review of u67's capabilities A / B / C and the type_of_batch conversion
+Target: run9-u67 96eac515d vs base e0d77c919 (diff: scratchpad/rt82/diff.patch)
+Trees: /home/fabrice/git/pycsl-rt82 (head), /home/fabrice/git/pycsl-rt82b (base), both removed at the end.
+Every pycsl run went through heavy.sh: probes were QUICK (--no-proof); proofs were NORMAL (master.sh = prove.sh + conv.sh,
+hoare model, PYTHON_CPU_COUNT=2, per-run timeout 3600). Slice oom_kill was 15 before and after every proof (o/p1/summary.txt,
+conv/summary.txt). CPython checks: cpy.sh (timeout 60, ulimit -v 2000000, python3 -I).
+
+VERDICT: NO false proof found. 0 INTRODUCED unsound. One INTRODUCED scoping weakness (W1) and one latent premise gap (W2),
+both fail-safe today. Capability C is faithful.
+
+| id  | axis | candidate | CPython | head | base | class |
+|-----|------|-----------|---------|------|------|-------|
+| W1  | A scope | a USER class named `SertopSession` with `cwd: Optional[Path]` (d03_noreq) | n/a | A+B reached: `cwd: option string`, `(match self.cwd with Some _p67 -> _p67 \| None -> (self_fb_0 self) end)`; full proof FAILS (honest: the None arm runs fb, so `seq == old seq` is unprovable) | refused (`and/or` value rule) | INTRODUCED reachability, fail-safe |
+| W2  | B premise | "a Path is always truthy" is false for a Path SUBCLASS with `__bool__` returning False (FP(PosixPath)); d01-d08 try to pin `self.cwd` to Some so the model skips `y` | VIOLATION (fb runs, seq+1) | every pin is refused: `requires self.cwd != None` / class invariant -> R614; `requires self.cwd is not None` -> parse error; `str(self.cwd)` in spec, body `is None` / `is not None` / walrus -> L3-tc (option vs int); field write `self.cwd = p` -> L3-tc (c11, c13) | - | latent, fail-safe (unpinned `self` makes the model a superset of CPython) |
+| c01-c03, c05, c06 | B type confusion under `no_exception` (`len` / `+` / `.upper` on `self.cwd or y`; `len(p: Path)`) | VIOLATION TypeError / AttributeError | refused at ir-semantic (routes #441 / R527 / #443) | same | fail-safe |
+| c14-c18 | B type confusion via `try/except TypeError/AttributeError` (value claim `\result == 2`) | VIOLATION (returns 1) | refused (route #174 dead-handler rule), field and param alike | c14 same | fail-safe |
+| c04 | B `return self.cwd or "abc"` from `-> str` | Path returned | R614 (Path returned from non-Path function) | - | fail-safe |
+| c07, c12 | user `class Path(str)` with falsy `__bool__` | - | refused (stdlib `str` base unmodelled) | - | fail-safe |
+| c13 | `Path = str` alias, `""` written to the field | VIOLATION | L3-tc (string vs option) | - | fail-safe |
+| e01 / e02 / e03 / e05 / e08 | `and`, `not`, nested `or` chain, `or` inside IfExp, `or` in a spec | - | refused (and/or value rule) or L3-tc | - | fail-safe |
+| e04 | `self.cwd or <int>` | - | L3-tc | - | fail-safe |
+| e06 | a field other than `cwd` (`other: Optional[Path]`) in SertopSession | - | refused (and/or value rule): allow-list is per field | - | fail-safe |
+| c05 | `cwd` in another class (`Other`) | - | no arm (refused) | - | fail-safe |
+| e07 | `f"{self.cwd or self.fb()}"` | - | TC-OK (f-string of a Path = its str: faithful) | - | sound |
+| c08 / c19 / c20 | C: omitted `Optional[str] = None` fill (positional / keyword-only / positional-only); false claim `h() == 2` | VIOLATION (1) | fill `Arm_0_None`; full proof FAILS on h's postcondition | L3-tc (int `pycsl_none` vs union) | C faithful |
+| c09 | C control: true claim `h() == 1` | ok | PROVES | L3-tc | C faithful (new coverage) |
+| c10 | C on `Union[int, str, None] = None` | VIOLATION | L3-tc (other cause, line 31) | - | fail-safe |
+| c21 | C on a redefined `g` (None default, then `"s"`) | VIOLATION | refused (route #463 duplicate binding) | - | fail-safe |
+| T1  | stub narrowing `load_paths: List[Path]`, `-> Dict[str, object]` | - | all callers (live and mirror) pass List[Path]: live type_of_batch passes self.load_paths, live extract_via_sertop passes [proof_dir]. No caller anywhere passes tuples (grep, outside scratchpad). The stub is \trusted with `ensures True` | - | sound (it narrows the premise only) |
+| V1  | conversion `type_of_batch` | - | whole sertop.py proof at head: SUCCESS, .mlw byte-identical to u67 pr/whole.mlw. Leaf `#@ assert 1 == 2` NOT proved (Timeout). Some arm -> absurd: Unreachable point NOT proved (z3 and alt-ergo). None arm -> `let _w = ext_path_cwd_op () in absurd` (u67's un-run arm_none2): NOT proved (z3 and alt-ergo) | - | VERIFIED body is live in all leaves, including the None arm |
+
+Notes / recommendations (not blocking):
+- W1: `_M5_OPTION_FIELD_ALLOWLIST` and the `path_str` tag key on the class NAME only, not on the mirror file, so any corpus
+  class named `SertopSession` with `cwd: Optional[Path]` gets the option-string field and the `or` arm (d03 TC-OK at head).
+  The preamble `path_str` branch is NOT gated on @mutable_state / IR-node param, unlike the string/emit_ir option branch.
+  Today this is harmless (W2's pins are all refused), but the u67 claim that the edit is "corpus byte-inert" holds only for
+  the present corpus, not by construction.
+- W2: the B arm's justification ("pathlib.Path has no __bool__/__len__") ignores subclasses. CPython runs `y` for a falsy
+  Path subclass, while the model's Some arm never does. It stays sound only because nothing can pin the option's arm.
+  If a presence test (`self.cwd is not None`) is ever lowered faithfully for path_str option fields (as IRCrossCheckResult
+  has for opaque_term), d05_body_isnotnone.py becomes a FALSE PROOF (CPython: VIOLATION contract 1).
+  Keep it as a regression witness for any such capability.
+- The model is mixed: the `path_str` field is a Why3 string (#31 style), while `Path(<str>)` is the abstract py_path (lvZ2).
+  `self.cwd or Path("x")` is therefore an L3-tc error (fail-closed). No route was found that equates the two models.
+
+Evidence (all under /home/fabrice/git/pycsl/scratchpad/rt82/):
+  c/*.py                  candidates (each has a CPython __main__ check)
+  o/h1..h6/*.log, w_*/    head --no-proof probes (+ .mlw); o/b1, o/b2: base probes
+  o/p1/summary.txt, *.log full proofs at head (c08 c09 c19 c20 d03)
+  conv/summary.txt        whole / leaf / arm proofs of proof2why3/sertop.py at head; conv/whole.mlw, conv/arm_*.mlw, conv/*.log
+  probe.sh prove.sh conv.sh master.sh cpy.sh   exact commands
