@@ -2510,7 +2510,7 @@ def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main
             for local, orig in needed:
                 if func_ir["name"] == orig and (
                         func_ir.get("_r143_dep_file") == os.path.abspath(resolved)
-                        or "_u72_orig" in func_ir) and not func_ir.get("_u72_bound"):
+                        or "_u72_orig" in func_ir):
                     func_ir.setdefault("_u72_orig", orig)
                     func_ir["_u72_bound"] = True
                     if local != orig:

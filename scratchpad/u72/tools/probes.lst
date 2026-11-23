@@ -140,3 +140,10 @@
 /home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/qi72.py
 /home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/qj72.py
 /home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/qk72.py
+/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x01_class_contract_helper_noclash.py
+/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x02_direct_reexport_vs_qualified_other.py
+/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x03_lib_shadows_builtin_abs.py
+/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x04_bare_and_attribute_same_class_true.py
+/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x05_star_bare_base_vs_module_import.py
+/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x06_assign_bare_base_true.py
+/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x07_qualified_ctor_with_from_import_same_class_true.py
