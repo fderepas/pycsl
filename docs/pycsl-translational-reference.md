@@ -6271,8 +6271,37 @@ the program has no image (`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`) when, for 
 $d$ it reaches and some absolute import $m$ in $d$, $\rho_{R_0(d)}(m) \ne \rho_{R_0(P)}(m)$
 while $\rho_{R_0(d)}(m)$ is a file, or is $\bot$ for a stdlib name (pycsl's model); a non-stdlib
 $m$ with $\rho_{R_0(d)}(m) = \bot$ lowered to an unconstrained `val` in $d$'s verification and is
-admitted; relative imports are package-relative in both and not compared; not applied under
-`--verification-image`. $\rho$ is a function of the
+admitted (OPEN: rt74 V1D, the `val` has no writes); $m$ ranges over every dotted prefix of
+each import too, and for every prefix $p$ of $m$ with $\rho_{R_0(P)}(p)$ a file, that file
+must be a package `__init__.py` whose directory contains $\rho_{R_0(P)}(m)$ (u61, rt74 V2D:
+CPython's search for $m$ stops at the first root holding a regular package $p$ and continues
+in its `__path__` only), except for a from-import target $m = q.n$ that no statement names as
+a module while $\rho_{R_0(P)}(q)$ is a module file or an `__init__.py` binding $n$ at its top
+level with no `del` / `global` of it (u66, rt76 r5 / r14: CPython takes the attribute and
+never imports $m$); a prefix no statement spells is resolved with the cwd root removed (u66,
+rt76 r6). It has no image either (`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`; u66, route
+#621) when a package `__init__.py` it reaches binds at import time a name $n$ of one of its
+submodules other than by `from . import n`: CPython's attribute `pkg.n` is then not
+$\rho(\texttt{pkg.n})$. $R_0(f)$ starts with the directory of $\mathrm{realpath}(f)$ when
+that is another directory than $f$'s own (u66, route #622, rt76 r12), and a reached module $d$
+is compared through both $R_0(d)$ and $R_0(P)$ unless it is in $P$'s raw directory with
+$R_0(d) = R_0(P)$ (u69, rt78 s1: a symlinked dependency). It has no image either
+(`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`; u69, rt78 t4 / t8) when a reached module (the
+program included) stores to or deletes an attribute $n$ (any receiver; a literal-name `setattr` /
+`delattr`) where $n$ names a submodule of a package the walk meets: CPython's `pkg.n` is an
+attribute of the package object. An `__init__.py` binding $n$ by one undecorated top-level `def`
+is admitted when no reached module names a module $n$ in an import (outside $P$ also as a
+from-import target or any wildcard; in $P$ too a wildcard, u71, rt79 d8) and none reads $x.n.y$ (u69, rt78 o1: CPython never loads `pkg.n`).
+The attribute-store condition holds only for receivers rooted at an import-bound name, unless some
+reached module lets a module object escape into a value, when it holds for every receiver (u71, rt79
+r1). A wildcard `from m import *` of a package contributes $m.a$ for each name $a$ of a literal
+`__all__` of $m$'s `__init__.py` to the reached set (CPython's `_handle_fromlist` loads them), in the
+walk and in routes #483 / #484; an `__all__` pycsl cannot read as one literal list of identifiers, or
+that reached code can change, has no image (`PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN`; u71, route #626,
+rt79 w2). Relative imports are
+package-relative in both and not compared; not applied under `--verification-image`. A program run
+with an `--import-path` entry that is not an existing directory has no image
+(`PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY`; u71, route #627, rt79 z1: $R$ would omit a zipimport root). $\rho$ is a function of the
 source tree only, so a program that can change CPython's binding has no image
 (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
 path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a

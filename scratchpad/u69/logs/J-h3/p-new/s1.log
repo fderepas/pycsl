@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/s1/P/prog.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/s1/P/prog.py: the local module /home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/s1/P/dep78.py, which the program reaches, imports `hz78` absolutely: resolved from its own directory (how its contracts are verified) that is /home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/s1/Q/hz78.py, but CPython resolves it through the PROGRAM's sys.path (the program's directory first, then PYTHONPATH / --import-path), where it is /home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/s1/P/hz78.py, so the contracts pycsl would believe describe another module than the one the program runs (review rt72 A1: prog.py -> lib/dep.py -> `from zqh72 import one`; pycsl PROVED `\result == 1` with lib/zqh72.py, CPython loaded the program directory's zqh72.py and printed 2). FIX: import the module package-relatively (`from . import ...`) or by its full package path, or rename one of the two files so that both resolutions agree.

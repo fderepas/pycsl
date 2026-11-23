@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/s7/P/prog.py'...
+[*] Memory model: hoare
+[*] Imported from 'dep78': ['g'] (trusted stubs)
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u69/scratchpad/u69/probes/rt78/s7/P/dep78.py: `import hz78` resolves only through pycsl's own working directory (hz78.py), and CPython never searches the working directory when it runs a script: sys.path[0] is the script's directory, then PYTHONPATH (--import-path), the standard library and the site directories, so CPython loads another `hz78` (or none) than the file pycsl would verify against (review rt69 G7: a cwd helperq.py PROVED `\result == 1`, CPython loaded the --import-path copy and printed 2). FIX: name the module's directory with --import-path (CPython: PYTHONPATH), or put it beside the program.

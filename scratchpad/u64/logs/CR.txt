@@ -1,0 +1,15 @@
+/home/fabrice/git/pycsl-u64/scratchpad/u64/logs/CR/rows.tsv /home/fabrice/git/pycsl-u64/scratchpad/u64/logs/CR/committed.tsv differ: byte 73, line 1
+census rows DIFFER
+1,3c1,3
+< 10340_r613y_dependency_dotted_prefix_package_false.py	REFUSAL	[imports] /home/fabrice/git/pycsl-u64/test-suite/corpus/pycsl-reference/10340_r613y_dependency_dotted_prefix_package_false.py: the local module test-suite/corpus/pycsl-reference/multi_file_lib/r613y/X2/r613y_depv2.py, which the program 
+< 10341_r613y_dotted_import_prefix_regular_package_elsewhere.py	REFUSAL	[imports] /home/fabrice/git/pycsl-u64/test-suite/corpus/pycsl-reference/10341_r613y_dotted_import_prefix_regular_package_elsewhere.py: the local module test-suite/corpus/pycsl-reference/10341_r613y_dotted_import_prefix_regular_p
+< 10343_r613y_dependency_dotted_module_import_prefix_false.py	REFUSAL	[imports] /home/fabrice/git/pycsl-u64/test-suite/corpus/pycsl-reference/10343_r613y_dependency_dotted_module_import_prefix_false.py: the local module test-suite/corpus/pycsl-reference/multi_file_lib/r613y/X2/r613y_depw5.py, which 
+---
+> 10340_r613y_dependency_dotted_prefix_package_false.py	REFUSAL	[imports] test-suite/corpus/pycsl-reference/10340_r613y_dependency_dotted_prefix_package_false.py: the local module test-suite/corpus/pycsl-reference/multi_file_lib/r613y/X2/r613y_depv2.py, which the program reaches, imports `zpy61` abs
+> 10341_r613y_dotted_import_prefix_regular_package_elsewhere.py	REFUSAL	[imports] test-suite/corpus/pycsl-reference/10341_r613y_dotted_import_prefix_regular_package_elsewhere.py: the local module test-suite/corpus/pycsl-reference/10341_r613y_dotted_import_prefix_regular_package_elsewhere.py, which t
+> 10343_r613y_dependency_dotted_module_import_prefix_false.py	REFUSAL	[imports] test-suite/corpus/pycsl-reference/10343_r613y_dependency_dotted_module_import_prefix_false.py: the local module test-suite/corpus/pycsl-reference/multi_file_lib/r613y/X2/r613y_depw5.py, which the program reaches, imports
+## head c8af1d490
+10340_r613y_dependency_dotted_prefix_package_false rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: 
+10341_r613y_dotted_import_prefix_regular_package_elsewhere rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: 
+10343_r613y_dependency_dotted_module_import_prefix_false rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: 
+10344_r613y_dependency_relative_dotted_import_ctl rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 

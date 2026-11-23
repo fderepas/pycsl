@@ -1,0 +1,134 @@
+tree /home/fabrice/git/pycsl-u66-h2 b95cb8767e752001349088f59ae2e1ec0ddc45b7 start Sun Nov 22 12:38:09 UTC 2026 oom_kill 15
+byte-diff-sweep rc=0 emitted 3331 of 6365 source file(s) into /home/fabrice/git/pycsl-u66/scratchpad/u66/logs/G/h2/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u66/scratchpad/u66/logs/G/h2/bd/pyref (6 jobs) 
+mirror-emit-sweep rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u66/scratchpad/u66/logs/G/h2/mir --min-files 45
+end Sun Nov 22 13:49:37 UTC 2026 oom_kill 15
+compare root rc=0 [*] byte-diff-compare: 3325 baseline / 3330 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 5 new source file(s) ignored. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare pyref rc=0 [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare mirror rc=0 [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+mirror diff -rq lines=0
+[J] ## b0 /home/fabrice/git/pycsl-u66-b0 3bf3f3f21
+[J] r12c rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/r12c/P :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[J] b21 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[J] a22 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: a function, method or class NAME is rebound after its definition (`b` rebound at line 6). Every call is resolv :: [!] PIPELINE ERROR:
+[J] r1 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+[J] r2 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r5 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r6 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r6/C :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r2d rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r14 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r12 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r2d-dep rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r17 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] v2d rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] x3 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] v2down rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] v1f rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r12c rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/r12c/P :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] b21 rc=1 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+[J] a22 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-b0 :: a function, method or class NAME is rebound after its definition (`b` rebound at line 6). Every call is resolv :: [!] PIPELINE ERROR:
+[J] 10380_r621_package_init_rebinds_submodule_name_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] 10381_r621_package_init_binds_submodule_itself_ctl.py hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] 10382_r613y_from_import_module_attribute_beside_namespace_ctl.py hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] 10383_r613y_from_import_package_attribute_later_root_submodule_ctl.py hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zr80___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zr80_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zr80_c.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zr81___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zr81_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zq80.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zq80_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[J] zh80___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] multi_file_lib_u66_B14_zh80___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] multi_file_lib_u66_B14_zh80_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] ## head /home/fabrice/git/pycsl-u66-h2 b95cb8767
+[J] r12c rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/r12c/P :: `import zz76` resolves only through pycsl's own working directory (zz76.py), and CPython never searches the wo :: [!] PIPELINE ERROR:
+[J] b21 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/b21/P/zk66/__init__.py, which the p :: [!] PIPELINE ERROR:
+[J] a22 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/a22/P/prog.py, which the program reache :: [!] PIPELINE ERROR:
+[J] r1 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r1/P/zr76/__init__.py, which the p :: [!] PIPELINE ERROR:
+[J] r2 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2/P/zr76/__init__.py, which the p :: [!] PIPELINE ERROR:
+[J] r5 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r6 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r6/C :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r2d rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2d/X2/zr76/__init__.py, which the :: [!] PIPELINE ERROR:
+[J] r14 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r12 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+[J] r2d-dep rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2d/X2/zr76/__init__.py, which the :: [!] PIPELINE ERROR:
+[J] r17 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] v2d rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2d/X2/depv2.py, which the program reac :: [!] PIPELINE ERROR:
+[J] x3 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] v2down rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] v1f rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+[J] r12c rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/r12c/P :: `import zz76` resolves only through pycsl's own working directory (zz76.py), and CPython never searches the wo :: [!] PIPELINE ERROR:
+[J] b21 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/b21/P/zk66/__init__.py, which the p :: [!] PIPELINE ERROR:
+[J] a22 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u66/a22/P/prog.py, which the program reache :: [!] PIPELINE ERROR:
+[J] 10380_r621_package_init_rebinds_submodule_name_false.py hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the package __init__ test-suite/corpus/pycsl-reference/zr80/__init__.py, which the program reaches, has at import time (
+[J] 10381_r621_package_init_binds_submodule_itself_ctl.py hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] 10382_r613y_from_import_module_attribute_beside_namespace_ctl.py hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] 10383_r613y_from_import_package_attribute_later_root_submodule_ctl.py hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zr80___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zr80_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zr80_c.py hdr=none rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zr81___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zr81_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zq80.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] zq80_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[J] zh80___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] multi_file_lib_u66_B14_zh80___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J] multi_file_lib_u66_B14_zh80_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] 10380_r621_package_init_rebinds_submodule_name_false.py hdr=FAIL rc=0 5s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] 10381_r621_package_init_binds_submodule_itself_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] 10382_r613y_from_import_module_attribute_beside_namespace_ctl.py hdr=PASS rc=1 3s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/10382_r613y_from_import_module_attribute_beside_namespace_ctl.py, whi
+[Jb1] 10383_r613y_from_import_package_attribute_later_root_submodule_ctl.py hdr=PASS rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/10383_r613y_from_import_package_attribute_later_root_submodule_ctl.py
+[Jb1] zr80___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] zr80_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] zr80_c.py hdr=none rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] zr81___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] zr81_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] zq80.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] zq80_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[Jb1] zh80___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] multi_file_lib_u66_B14_zh80___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[Jb1] multi_file_lib_u66_B14_zh80_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[qh2] r1 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r1/P/zr76/__init__.py, which the p :: [!] PIPELINE ERROR:
+[qh2] r2 rc=1 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2/P/zr76/__init__.py, which the p :: [!] PIPELINE ERROR:
+[qh2] r5 rc=0 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[qh2] r5b rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[qh2] r4 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: `import lark.zr76`: pycsl's resolution took /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r4/P/lark/z :: [!] PIPELINE ERROR:
+[qh2] r3 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r3/X2/zr76/__init__.py, which the  :: [!] PIPELINE ERROR:
+[qh2] r9 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r9/X2/pkr76/__init__.py, which the :: [!] PIPELINE ERROR:
+[qh2] r6 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r6/C :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[qh2] r6-treecwd rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[qh2] r2s rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2s/P/zr76/__init__.py, which the  :: [!] PIPELINE ERROR:
+[qh2] r7 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: [ir-semantic]: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r7/P/zr76/__init__.py (line 3) runs, at  :: [!] PIPELINE ERROR:
+[qh2] r8 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: [ir-semantic]: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r8/P/zpa76/__init__.py (line 2) runs, at :: [!] PIPELINE ERROR:
+[qh2] r2d rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2d/X2/zr76/__init__.py, which the :: [!] PIPELINE ERROR:
+[qh2] r2r rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2r/X2/pkr76/__init__.py, which th :: [!] PIPELINE ERROR:
+[qh2] r14 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[qh2] r12 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[qh2] r2d-dep rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the package __init__ /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r2d/X2/zr76/__init__.py, which the :: [!] PIPELINE ERROR:
+[qh2] r2r-dep rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[qh2] r15 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: `import zn76.b`: pycsl's resolution took /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r15/P/zn76/b.p :: [!] PIPELINE ERROR:
+[qh2] r16 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r16/X2/depr76.py, which the program re :: [!] PIPELINE ERROR:
+[qh2] r17 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[qh2] v2d rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2d/X2/depv2.py, which the program reac :: [!] PIPELINE ERROR:
+[qh2] w5 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/w5/X2/depv2.py, which the program reach :: [!] PIPELINE ERROR:
+[qh2] v2 rc=1 1s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2/P/prog.py, which the program reaches :: [!] PIPELINE ERROR:
+[qh2] x1 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x1/P/depx1.py, which the program reache :: [!] PIPELINE ERROR:
+[qh2] x2 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: the local module /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/x2/P/prog.py, which the program reaches :: [!] PIPELINE ERROR:
+[qh2] x3 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[qh2] v2down rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+[qh2] v1f rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66-h2 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+CR rc=0 cmp-committed: IDENTICAL
+GATES start Sun Nov 22 13:55:16 UTC 2026 b95cb8767 oom_kill 15
+[LG] emitted 53
+[LG] check-assigns-writes-survival rc=0
+[LG] check-trusted-frame-honesty rc=0
+[LG] check-getattr-erasure rc=0
+[LG] check-self-annotate-sync rc=0
+[LG] self-annotate-mirror-check rc=0
+[LG] doc-coherency rc=0
+[LG] trusted 366
+planes rc=0     NOT CHECKED: 23 prover/emission plane(s) — among them     check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival     and check-stdlib-modules-verify. Re-run with --slow before a GATE. 
+rwc rc=0 [*]   plus 10 refusal(s) UNMATCHABLE by this instrument: their message has no string literal of 25+ characters, so no witness can ever mark them demonstrated. Closing them is a compiler/census change, not a corpus one. [+] refusal-witness-coverage: OK — 489 demonstrated, 5 undemonstrated (floor 208 / ceiling 5); 14 not source-reachable, 10 unmatchable (ceiling 10). 
+corpus-executes rc=0     known-load-failure  x1_h466g.py route #466 witness fixture (7265): the other half of that cycle, by design.     known-load-failure  x1_h466h.py route #466 witness fixture (7268): its own import of x1_h466a raises, by design. [+] corpus-executes: OK — every PASS-expected corpus file loads as Python, and every self-check its author wrote passes. 
+frontend-only-conformance rc=0 front-end-only: no core/Module6/prover module in sys.modules (import-based, no subprocess for the conformance check) determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1) 
+GATES end Sun Nov 22 15:11:19 UTC 2026 oom_kill 15

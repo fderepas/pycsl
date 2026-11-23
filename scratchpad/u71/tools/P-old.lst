@@ -1,0 +1,16 @@
+r1||rt76/r1/P/prog.py|
+r2||rt76/r2/P/prog.py|
+r5||rt76/r5/P/prog.py|
+r6||rt76/r6/P/prog.py|rt76/r6/C
+r2d|X2|rt76/r2d/P/prog.py|
+r14|X2|rt76/r14/P/prog.py|
+r12|X|rt76/r12/P/prog.py|
+r2d-dep||rt76/r2d/X2/depr76.py|
+r17|X2|rt76/r17/P/prog.py|
+v2d|X2|u64/v2d/P/prog.py|
+x3|X2|u64/x3/P/prog.py|
+v2down||u64/v2d/X2/depv2.py|
+v1f||u64/v1f/P/prog.py|
+r12c|X|u66/r12c/P/prog.py|u66/r12c/P
+b21||u66/b21/P/prog.py|
+a22|X2|u66/a22/P/prog.py|

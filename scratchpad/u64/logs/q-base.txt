@@ -1,0 +1,8 @@
+P__prog rc=0 no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+P__prog rc=0 no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+P__prog rc=1 no-code :: [ir-semantic]: /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2/P/zpa74/__init__.py (line 2) runs, at import time, the name `__path__`. A module of this program's import closure that runs dynamic code at import time 
+P__prog rc=1 no-code :: [ir-semantic]: /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x1/P/zpa74/__init__.py (line 2) runs, at import time, the name `__path__`. A module of this program's import closure that runs dynamic code at import time 
+P__prog rc=0 no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+P__prog rc=0 no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+X2__depv2 rc=0 no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+P__prog rc=0 no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

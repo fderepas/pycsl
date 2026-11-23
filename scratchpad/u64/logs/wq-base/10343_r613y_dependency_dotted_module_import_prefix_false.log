@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10343_r613y_dependency_dotted_module_import_prefix_false.py'...
+[*] Memory model: hoare
+[*] Imported from 'r613y_depw5': ['f'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/zp36/sub/b.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+a function, method or class NAME is rebound after its definition (attribute `.one` written on `zh36...` at line 9). Every call is resolved against the `def`, so the rebinding would be silently ignored (measured: `inc = dec` then `inc(3)` proved the `inc` contract while Python ran `dec`). Rebinding a function name is not modelled; give the new binding its own name.

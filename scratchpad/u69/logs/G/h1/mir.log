@@ -1,0 +1,2 @@
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into /home/fabrice/git/pycsl-u69/scratchpad/u69/logs/G/h1/mir
+    Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u69/scratchpad/u69/logs/G/h1/mir --min-files 45

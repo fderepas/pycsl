@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt79/g3/P/prog.py'...
+[*] Memory model: hoare
+[*] Imported from 'zv7g3': ['c.k'] (trusted stubs, module-qualified)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
