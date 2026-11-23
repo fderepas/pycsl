@@ -8,6 +8,8 @@ H=/home/fabrice/git/pycsl/scratchpad/heavy/heavy.sh; source /home/fabrice/git/py
 while true; do
   exec {q}>$Q.lock; flock $q; J=$(head -n 1 $Q); [ -n "$J" ] && sed -i 1d $Q; flock -u $q; exec {q}>&-
   [ -z "$J" ] && break
+  # run #9 disk rule (2026-11-23 22:10Z): never launch with < 800 MB free on /tmp (shared tmpfs); wait and log
+  while [ "$(df --output=avail -k /tmp | tail -n 1)" -lt 819200 ]; do echo "$(date -u +%FT%H:%MZ) DISK-WAIT /tmp avail $(df --output=avail -k /tmp | tail -n 1) kB before: $J" >> $O/$TAG-queue.txt; sleep 300; done
   set -- $J; kind=$1; f=$2; b=$(echo $f | tr / _); s=$(date +%s); o1=$(grep oom_kill $OP | awk '{print $2}')
   echo "$(date -u +%FT%H:%MZ) START $J" >> $O/$TAG-queue.txt
   case $kind in
@@ -23,6 +25,7 @@ while true; do
       res="$(grep -oE 'SHARD-RESULT .*' $L | cut -c1-200 | tr ' ' _) sha=$(grep -oE 'mlw sha256 [0-9a-f]{12}' $L | awk '{print $3}') probes=$(grep -oE 'probes [0-9]+' $L | head -1 | awk '{print $2}')";;
   esac
   o2=$(grep oom_kill $OP | awk '{print $2}')
+  grep -q -E 'Disk quota exceeded|EDQUOT|No space left on device' $L && res="VOID-EDQUOT $res"
   echo "$kind $f ${k:+$k/$N} rc=$rc $res $(( $(date +%s)-s ))s oom $o1->$o2 tree=$(git rev-parse --short HEAD) $(/home/fabrice/git/pycsl/scratchpad/run9/bin/fp.sh $T)" >> $R
   unset k N
 done
