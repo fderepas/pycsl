@@ -1,0 +1,26 @@
+FP start Sun Nov 22 09:13:27 UTC 2026 head=bbf8b14bb
+[head] probes__c01_control rc=1 3s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[head] probes__c12_mutrec_first_vacuous rc=1 3s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[head] probes__c12b_norec_control rc=1 2s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[head] probes__c13_lemma_vacuous rc=1 3s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[head] probes__c19_exempt_mangle_clash rc=1 1s oom 15->15 :: [ir-semantic]: PYCSL-SEM-WHYML-NAME-CLASH (route #620): 2 definitions of this program are emitted under the same WhyML function name `c__m`: 'c__m' (function, line 3), 'c__m' (method, line 12). A meth
+[head] probes__c21_mangle_clash_control rc=1 3s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[head] probes__c22_rebind_noreturn_then_vacuous rc=1 3s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[head] pycsl-reference__10360_r619_mutrec_with_member_vacuous_false rc=1 4s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[head] pycsl-reference__10361_r619_mutrec_with_member_ctl rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+[head] pycsl-reference__10362_r620_method_toplevel_whyml_name_clash_false rc=1 2s oom 15->15 :: [ir-semantic]: PYCSL-SEM-WHYML-NAME-CLASH (route #620): 2 definitions of this program are emitted under the same WhyML function name `c__m`: 'c__m' (function, line 7), 'c__m' (method, line 17). A meth
+[head] pycsl-reference__10363_r620_method_toplevel_distinct_names_ctl rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+[head] pycsl-reference__10364_r620_rebound_noreturn_def_exempts_live_vacuous_false rc=1 3s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[base] probes__c01_control rc=1 3s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[base] probes__c12_mutrec_first_vacuous rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+[base] probes__c12b_norec_control rc=1 4s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[base] probes__c13_lemma_vacuous rc=1 3s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[base] probes__c19_exempt_mangle_clash rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+[base] probes__c21_mangle_clash_control rc=1 4s oom 15->15 :: [-] Verification FAILED (vacuous proof). Check the solver output. 
+[base] probes__c22_rebind_noreturn_then_vacuous rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+[base] pycsl-reference__10360_r619_mutrec_with_member_vacuous_false rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+[base] pycsl-reference__10361_r619_mutrec_with_member_ctl rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+[base] pycsl-reference__10362_r620_method_toplevel_whyml_name_clash_false rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+[base] pycsl-reference__10363_r620_method_toplevel_distinct_names_ctl rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+[base] pycsl-reference__10364_r620_rebound_noreturn_def_exempts_live_vacuous_false rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+FP end Sun Nov 22 09:14:37 UTC 2026

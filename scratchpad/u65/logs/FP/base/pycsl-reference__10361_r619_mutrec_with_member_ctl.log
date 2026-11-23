@@ -1,0 +1,38 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u65/test-suite/corpus/pycsl-reference/10361_r619_mutrec_with_member_ctl.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_kltgxndw.mlw", line 10, characters 15-47:
+Sub-goal postcondition of goal od'vc.
+Prover result is: Valid (0.00s, 28 steps).
+
+File "/tmp/.pycsl_kltgxndw.mlw", line 17, characters 20-32:
+Sub-goal variant decrease of goal od'vc.
+Prover result is: Valid (0.00s, 52 steps).
+
+File "/tmp/.pycsl_kltgxndw.mlw", line 17, characters 20-32:
+Sub-goal precondition of goal od'vc.
+Prover result is: Valid (0.01s, 101 steps).
+
+File "/tmp/.pycsl_kltgxndw.mlw", line 10, characters 15-47:
+Sub-goal postcondition of goal od'vc.
+Prover result is: Valid (0.00s, 68 steps).
+
+File "/tmp/.pycsl_kltgxndw.mlw", line 22, characters 15-47:
+Sub-goal postcondition of goal ev'vc.
+Prover result is: Valid (0.00s, 28 steps).
+
+File "/tmp/.pycsl_kltgxndw.mlw", line 29, characters 20-32:
+Sub-goal variant decrease of goal ev'vc.
+Prover result is: Valid (0.00s, 52 steps).
+
+File "/tmp/.pycsl_kltgxndw.mlw", line 29, characters 20-32:
+Sub-goal precondition of goal ev'vc.
+Prover result is: Valid (0.00s, 101 steps).
+
+File "/tmp/.pycsl_kltgxndw.mlw", line 22, characters 15-47:
+Sub-goal postcondition of goal ev'vc.
+Prover result is: Valid (0.01s, 68 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

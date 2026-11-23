@@ -916,9 +916,28 @@ vacuity probe: their `false` postcondition is the SPEC (NR1), not a vacuity
 signal. The exemption is keyed on the IR `is_noreturn` flag (from the
 `-> NoReturn` annotation), NOT on the inferred postcondition — the latter
 would exempt every genuinely-vacuous function, defeating the gate.
+The exemption is a set of emitted WhyML NAMES, so it fails CLOSED on an
+ambiguous name (route #620, run #9 u65): a name that two IR functions map to
+is never exempted, and such a program is refused first (next paragraph).
+
+**One WhyML name per definition (route #620, `PYCSL-SEM-WHYML-NAME-CLASH`).**
+Every function is emitted as `let whyml_ident(<IR name>)`, and a method `C.m`
+has the IR name `c__m`; WhyML names also start lower-case and avoid reserved
+words (`def F` and `def f`, `def py_range` and `def range` meet). Two distinct
+IR functions (module functions, methods, lifted nested defs) whose emitted
+names coincide are REFUSED in `pycsl.py:_run_pipeline` once the IR is fully
+resolved: the emitter used to keep ONE body and silently drop the other, and a
+`-> NoReturn` module-level `def c__m` exempted a vacuous method `C.m` from the
+non-vacuity gate (red team rt75 c19; witness 10362, control 10363). A lifted
+nested def that collides is left to route #122's own refusal in Module 6.
 
 **The non-vacuity gate is ON BY DEFAULT (fail-closed).** After a file verifies,
 every body-bearing function is re-probed with an injected `ensures false`
+(every member of a program `let rec ... with ...` group included: route #619,
+run #9 u65 -- the second and later `with` members of a mutual-recursion group
+were never probed, so a vacuous `f` emitted as `with function f` verified;
+members of LOGIC groups (`function` / `predicate` / `type` ... `with`) are not
+program functions and are not probed)
 (`split_vc`, one goal per NORMAL-EXIT path); a function VACUOUS on ALL its exits
 (its assumed context is logically inconsistent, so every postcondition —
 including a false one — discharges for free) FAILS the run, naming the
