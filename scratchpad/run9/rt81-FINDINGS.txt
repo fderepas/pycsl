@@ -1,0 +1,119 @@
+rt81 FINDINGS: defensive red-team review of run9-u71 (src 08e65645c) against base c115e0a5a (L19) and u69 73f47db9d.
+Scope: import resolver, round 4 on the V2D batch. REPORT ONLY, no commits.
+
+Trees (all three removed at the end):
+  /home/fabrice/git/pycsl-rt81   (head 08e65645c)
+  /home/fabrice/git/pycsl-rt81b  (base c115e0a5a)
+  /home/fabrice/git/pycsl-rt81c  (u69 73f47db9d, --no-proof only, to show what u69 refused)
+Tools are in tools/:
+  q.sh / p.sh: rt79 copies. q = --no-proof --keep-mlw. p = full proof, hoare default, PYTHON_CPU_COUNT=2,
+    timeout 3700, cwd = tree root unless the probe has a `cwd` file.
+  qb.sh / pb.sh: per-probe drivers. A probe's `flags` file holds its --import-path entries.
+  q3.sh: --no-proof on head, base and u69.
+  p2.sh: full proof on head, then base.
+  cpy.sh: CPython runner.
+  mk1..mk6.py: probe generators.
+  q79.sh: rt79's probes, re-run at head.
+Every pycsl run went through heavy.sh: q with HEAVY_QUICK=1, p with HEAVY_PRIO=1 as granted.
+oom_kill was 15 -> 15 on every full proof (logs/p1.txt, logs/p2.txt), so no result is VOID.
+CPython: /usr/bin/python3 and the .venv python3 (both 3.14.4), -B, ulimit -v 2000000, cwd /tmp or the probe's cwd,
+PYTHONPATH = the --import-path entries. Logs: logs/cpy1..6.txt. The two interpreters agree on every probe.
+Probes are benign (tiny int functions, one stored zip holding one .py, no bytecode): probes/<id>/P/prog.py.
+Logs: logs/q-<tree>/<id>/, logs/p-<tree>/<id>/, logs/q<N>-<tree>.txt, logs/p1.txt, logs/p2.txt.
+No safety-classifier stop occurred.
+
+Process note: QUICK batch 4 (z*, p7, p8) and the rt79 re-check ran on slot 3 while my PRIO proof batch 1 was
+still QUEUED. Batch 1 was waiting because both proof slots were held by hour-long mirror proofs. The batch only
+started after both QUICK jobs had finished, so no two jobs of mine ever ran at once.
+
+| id | layout (claim) | CPython | base L19 | u69 (q) | head 08e65645c | class |
+|----|----------------|---------|----------|---------|----------------|-------|
+| p2 | the program has `import zv81p2.b` and `class C(zv81p2): pass`; zv81p2/__init__.py has `def __mro_entries__(bases): setattr(bases[0], "b", K); return ()` with K.one() -> 2; g() = zv81p2.b.one() ensures 1 | 2 | P SUCCESS (false) | REFUSED rule E (PACKAGE-SUBMODULE-REBOUND) | P SUCCESS (false) | PRE-EXISTING vs L19; REGRESSION vs u69 (rule E' narrowing escape) |
+| p2b | p2 with `bases[0].b = K` | 2 | P SUCCESS (false) | REFUSED rule E | P SUCCESS (false) | same as p2 |
+| p8 | p2 with the `class C(zv81p8)` inside a program function called at top level | 2 | P SUCCESS (false) | REFUSED rule E | P SUCCESS (false) | same as p2 |
+| p1b / p6b | program fn: `m = dict(_h.__annotations__)["a"]; m.b = K`, with `def _h(a: zv81p1b)` (p6b: class field annotation) | 2 | q FAIL (WhyML tc: "Symbol _h already defined" / type error) | REFUSED rule E | q FAIL (same tc error) | fail-safe today, but head's import stage ADMITS it (u69 refused): latent rule E' escape (annotation position is exempt) |
+| p7 | program fn: `m = zv81p7.__loader__.load_module("zv81p7"); m.b = K` | 2 | q FAIL (tc type error) | REFUSED rule E | q FAIL (same) | fail-safe today, latent rule E' escape (a callee-position call returns the module) |
+| p4 | program top level: `from unittest import mock; mock.patch("zv81p4.b", K).start()` | 2 | P SUCCESS (false) | q SUCCESS | P SUCCESS (false) | PRE-EXISTING (new class: string-based store, recorded by no rule) |
+| p4b | p4 with `import unittest.mock` + the patch inside a program function called at top level | 2 | P SUCCESS (false) | q SUCCESS | P SUCCESS (false) | PRE-EXISTING (same) |
+| x3 | dependency `from zw81x3 import *`; zw81x3/__init__.py has NO `__all__` and a PEP 562 `__getattr__` that answers `"_" + "_all__"` with ["w"]; w.py is an import-time writer `hw81x3.one = _two`; prog `hw.one() + three()` ensures 4 | writer loaded, 5 | P SUCCESS (false) | q SUCCESS | P SUCCESS (false) | PRE-EXISTING; bypass of u71 #626 (route G) |
+| x9 | x3 with the key taken from a table `_T = dict([("_" + "_all__", ["w"])])` | 5 | P SUCCESS (false) | q SUCCESS | P SUCCESS (false) | PRE-EXISTING; bypass of #626 |
+| x4 | zw81x4/__init__.py: `__all__ = ["k"]` then `from . import k`; k.py: `from . import __all__ as A; A.append("w")`; dependency `from zw81x4 import *` | 5 | P SUCCESS (false) | q SUCCESS | P SUCCESS (false) | PRE-EXISTING; bypass of #626 (outside-mutation trigger) |
+| x1b | the PROGRAM imports zf81x1b (`from zw81x1b import __all__ as A; A.append("w")`) before the dependency whose `from zw81x1b import *` runs | 5 | P SUCCESS (false) | q SUCCESS | P SUCCESS (false) | PRE-EXISTING; bypass of #626 |
+| x1 / x2 | x1b with the mutator imported by the dependency before its wildcard (x2: `A += ["w"]`) | 5 | q REFUSED (wildcard after a binding) | same | same | fail-safe (older rule) |
+| x5 | `__all__ = ["f", "w"]` names an __init__ def AND a writer submodule | 5 | q SUCCESS (false) | q SUCCESS (false) | q REFUSED (#483 on w.py) | closed by u71 |
+| x6 | package __init__ itself does `from .inner import *`, inner `__all__ = ["w"]` | 5 | q SUCCESS (false) | REFUSED | q REFUSED (#621 binding) | closed |
+| x7 | star import of a plain module whose import-time code does `import zw81x7.w` | 5 | q REFUSED (#483) | same | same | fail-safe |
+| x8 | `__all__ = ["sub"]`, sub/__init__ `__all__ = ["w"]; from . import *` | 5 | q SUCCESS (false) | q SUCCESS (false) | q REFUSED (#621 binding) | closed by u71 |
+| a1-a13 | rule E escapes in a DEPENDENCY function the program calls (annotations, `__mro_entries__`, metaclass fn, `pkg.__setattr__`, `setattr` default arg, `from sys import modules` 1 and 2 hops, `mock.patch` 1 and 2 hops, `__getstate__`, module in default arg, module in dict, `getattr(builtins, "setattr")`) | 2 | REFUSED | REFUSED | REFUSED (#127 rebound-name, #326, #483 import-time closure, ir-emit, rule E) | fail-safe (#483 judges dependency functions reached from the program's top level) |
+| p1 p3 p6 | program top-level escapes (annotation dict, `pkg.__getstate__()` + item store) | 2 | REFUSED (computed receiver at module scope) | same | same | fail-safe |
+| p3b / p5 | `__getstate__` store inside a program fn / metaclass fn in the program | 2 | q FAIL / error | same | same | fail-safe |
+| z1 | `--import-path ""` (= cwd, CPython PYTHONPATH=":"), module only in cwd Q | 1 (= claim) | P SUCCESS (faithful; without the entry base REFUSES CWD-ROOT, q5) | q SUCCESS | REFUSED PATH-NOT-DIRECTORY | INTRODUCED over-refusal (minor) |
+| z5 | a missing --import-path entry, then Y | 1 (= claim; CPython skips missing entries) | P SUCCESS (faithful) | q SUCCESS | REFUSED PATH-NOT-DIRECTORY | INTRODUCED over-refusal (u71 documents it as by design) |
+| z3 | --import-path X/lnk (symlink -> lib.zip, zz returns 2), then Y (ensures 1) | 2 | P SUCCESS (false) | q SUCCESS (false) | REFUSED PATH-NOT-DIRECTORY | closed (PRE-EXISTING at L19) |
+| z8 | --import-path X/lib.zip/sub (a path INSIDE a zip), then Y | 2 | P SUCCESS (false) | q SUCCESS (false) | REFUSED | closed |
+| z2 z4 z6 z7 | relative entry (cwd = probe root) / symlink to a directory / a .pth file in an entry (CPython ignores it there) / a DIRECTORY named lib.zip | 1 | q SUCCESS | q SUCCESS | q SUCCESS | consistent (no finding) |
+| rt79 | d8 w2 z1 w1 w3 e3 e6 e9 e10 e11 d7 g1 a1 a2 (logs/q79.txt) | - | - | - | all REFUSED; r1 SUCCESS (CPython 4 = claim) | rt79 table still closed |
+
+KEY FINDING 1 (p2 / p2b / p8: rule E' escape through a class base; PRE-EXISTING vs L19, REGRESSION vs u69).
+Rule E' judges a store to a non-import-rooted receiver only when `_esc671` is set. A class BASE is an allowed
+position for an import-bound name. Since PEP 560, though, a non-type base is passed to its own `__mro_entries__(bases)`.
+That is an ordinary module-level function of the package, and it receives the package module object as `bases[0]`.
+A store through `bases[0]` has receiver root `bases`, not import-rooted, so it is not judged.
+Route #483 skips the program file, so the class statement there is never judged. In a dependency, #483 refuses it
+("module used as a value"; probe a2).
+Results: head proves `zv81p2.b.one() == 1` and CPython prints 2. u69 refused it (logs/q2-rt81c.txt), and L19 proves it.
+The same hole is latent for annotations (p1b / p6b: an import-bound name in an annotation is exempt, and
+`f.__annotations__` hands the module out) and for callee-position calls that return a module
+(p7: `pkg.__loader__.load_module("pkg")`). In p1b / p6b / p7 the import stage now ADMITS the program and only an
+unrelated WhyML type-check error stops it.
+Fix direction: E' should count as an escape an import-bound name in a class base (or any ClassDef keyword)
+whenever the module named there defines `__mro_entries__`. Fail-closed is simpler: any import-bound name used as a
+class base, any import-bound name in an annotation (drop the `_ann671` exemption, or treat a read of
+`__annotations__` / `__annotate__` / `get_type_hints` as an escape), and any attribute `__loader__` / `load_module` /
+`__spec__` in a callee chain. The robust alternative is to restore u69's any-receiver judgement for stores whose
+attribute names a submodule, and narrow only on `self.<n>` stores inside methods (the r1 shape).
+Evidence: logs/p-rt81/p2/P__prog.log, logs/p-rt81b/p2/P__prog.log (and p2b, p8), logs/p1.txt, logs/p2.txt,
+logs/q2-rt81c.txt, logs/q4-rt81c.txt, logs/cpy3.txt, logs/cpy6.txt.
+
+KEY FINDING 2 (x3 / x9 / x4 / x1b: `__all__` the walk cannot see; PRE-EXISTING, bypasses u71 route #626).
+(a) CPython's `from pkg import *` reads `pkg.__all__` through `hasattr` / `getattr`, so PEP 562 `__getattr__`
+answers it. An `__init__` with no `__all__` binding (count 0, so pycsl follows nothing) and a `__getattr__` that
+returns a list for a computed `"__all__"` key loads w.py. x3 / x9: the writer runs and CPython prints 5, while
+head proves 4.
+(b) The outside-mutation trigger `_alx671` looks only at Attribute `.__all__` and the Constant "__all__". An import
+alias `from pkg import __all__ as A` (or `from . import __all__ as A` in a submodule), followed by
+`A.append("w")` / `A += [...]`, mutates the literal list in place. pycsl follows ["k"] and CPython loads w. In x4 the
+mutation is in a submodule the package's own `__init__` imports; in x1b it is in a module the program imports first.
+Fix direction: in the `__init__` check, refuse (`WILDCARD-ALL-UNKNOWN`) when the `__init__` defines a module-level
+`__getattr__` (and, to be safe, `__dir__`). In `_alx671`, also count every `ast.alias` whose name is `__all__`, from
+any reached module. Add the same to the #483 closure expansion.
+Evidence: logs/p-rt81{,b}/{x3,x9,x4,x1b}/P__prog.log (8 x SUCCESS), logs/cpy2.txt, logs/cpy4.txt.
+
+KEY FINDING 3 (p4 / p4b: a string-based monkeypatch; PRE-EXISTING, a new class outside every store rule).
+`unittest.mock.patch("pkg.b", K).start()` resolves the dotted string itself and `setattr`s the package attribute.
+No rule records it: it is not an attribute store, not a Name-callee setattr, unittest is not in #326's dynamic list,
+and #483 skips the program file. All three trees accept it; head and L19 prove `zv81p4.b.one() == 1` and CPython
+prints 2. The same mechanism can patch any dependency function (`patch("hw.one", ...)`).
+Fix direction: add `unittest.mock` (and `mock`, `pydoc.locate`, `logging.config`) to #326's dynamic-import list, or
+refuse any program import of `unittest.mock`.
+Evidence: logs/p-rt81{,b}/{p4,p4b}/P__prog.log, logs/cpy3.txt.
+
+MINOR (z1 / z5: INTRODUCED over-refusal, route #627).
+`os.path.isdir` refuses `--import-path ""` (CPython's empty PYTHONPATH component means cwd; L19 mapped it to
+abspath("") and proved the program faithfully, logs/p-rt81b/z1). It also refuses a missing directory, which
+CPython skips (L19 proved z5 faithfully). Both messages talk about zip archives, which misleads here.
+Narrowing direction: refuse only an entry that EXISTS and is not a directory (`os.path.exists(p) and not
+os.path.isdir(p)`), plus any entry with a zip ancestor (z8). A missing entry is ignored by both pycsl and CPython,
+unless a later mkdir between check and run is a concern. Map "" to cwd as L19 did.
+
+No finding:
+- PATH-NOT-DIRECTORY: a symlink to a zip (z3) and a path inside a zip (z8) are refused. A symlink to a directory
+  (z4), a directory named lib.zip (z7), a relative entry (z2) and a .pth in an entry (z6, CPython ignores it outside
+  site dirs) are all consistent with CPython.
+- Wildcard following: `__all__` naming a submodule plus an attribute (x5), a sub-package wildcard chain (x8) and an
+  `__init__` that itself star-imports (x6) are now refused. Star import of a plain module (x7) is refused by #483.
+- Rule E' escapes inside DEPENDENCY functions are caught by other rules (a1-a13). Route #483 judges every
+  dependency function reachable by name from the program's top level, and #127 / #326 cover the rest. That is
+  why finding 1 needs the program file or a package hook.
+- rt79's table at head: closed (logs/q79.txt; r1 now SUCCESS, which is correct).
+Known OPEN V1D / v1f were not re-probed.
