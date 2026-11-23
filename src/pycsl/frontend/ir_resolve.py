@@ -2799,6 +2799,59 @@ def _resolve_imported_classes(direct_imports: List[Any], main_file: str,
     for local, original, module_path, level in direct_imports:
         _r72 = _resolve_module_path(module_path, level, main_file)
         _rs72[local] = (os.path.abspath(_r72) if _r72 is not None else None, original)
+    # A name the program calls bare and takes from a wildcard import (a public top-level name of
+    # that module, or one of its literal `__all__`) is reserved for that module's binding too:
+    # a re-exported function is not injected under it by the wildcard pass, and another
+    # dependency's def of that name must not capture the call. A wildcard module with its own
+    # wildcard import or a computed `__all__` reserves every bare call the program does not
+    # define itself.
+    import ast as _a72
+    _pc72: Set[str] = set()
+    for _f72 in ir_data["functions"]:
+        if "_r143_dep_file" not in _f72:
+            _pc72 |= {c for c in _collect_calls(_f72) if isinstance(c, str) and "." not in c}
+    _pc72 -= existing_funcs
+    for _im72 in ir_data.get("imports", []) or []:
+        if _im72[0] != "*" or _im72[4]:
+            continue
+        _r72 = _resolve_module_path(_im72[2], _im72[3], main_file)
+        if _r72 is None:
+            continue
+        try:
+            _t72 = _a72.parse(__import__("pathlib").Path(_r72).read_bytes())
+        except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
+            _t72 = None
+        _pub72: Optional[Set[str]] = set()
+        _all72: List[Any] = []
+        for _n72 in (_t72.body if _t72 is not None else []):
+            _nm72: List[str] = []
+            if isinstance(_n72, (_a72.FunctionDef, _a72.AsyncFunctionDef, _a72.ClassDef)):
+                _nm72 = [_n72.name]
+            elif isinstance(_n72, (_a72.Import, _a72.ImportFrom)):
+                if any(_al.name == "*" for _al in _n72.names):
+                    _pub72 = None
+                    break
+                _nm72 = [_al.asname or _al.name.split(".")[0] for _al in _n72.names]
+            else:
+                _nm72 = [_x.id for _x in _a72.walk(_n72)
+                         if isinstance(_x, _a72.Name) and not isinstance(_x.ctx, _a72.Load)]
+            if "__all__" in _nm72:
+                _all72.append(_n72)
+            _pub72 |= {_q for _q in _nm72 if not _q.startswith("_")}
+        if _t72 is None or any(isinstance(_x, _a72.Name) and _x.id == "__all__"
+                               and not isinstance(_x.ctx, _a72.Load)
+                               for _x in _a72.walk(_t72)) and not (
+                len(_all72) == 1 and isinstance(_all72[0], _a72.Assign)
+                and isinstance(_all72[0].value, (_a72.List, _a72.Tuple))
+                and all(isinstance(_e, _a72.Constant) and isinstance(_e.value, str)
+                        for _e in _all72[0].value.elts)):
+            _pub72 = None
+        elif _pub72 is not None and _all72:
+            _pub72 = {_e.value for _e in _all72[0].value.elts}
+        for _c72 in sorted(_pc72):
+            if _pub72 is None or _c72 in _pub72:
+                _rs72.setdefault(_c72, (os.path.abspath(_r72) if _pub72 is not None else None,
+                                        _c72))
 
     for (module_path, level), names in by_module.items():
         resolved = _resolve_module_path(module_path, level, main_file)
