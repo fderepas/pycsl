@@ -2741,7 +2741,15 @@ def _resolve_module_imports(module_imports: List[Any], all_calls: Set[str], main
             if bare_name in _req72:
                 bare_name = dep_funcs[_req72[bare_name]]["name"]
             elif "." not in bare_name:
-                if (bare_name in {f["name"] for f in ir_data["functions"]}
+                # `m.C(...)` where the program also does `from m import C`: the same class
+                if bare_name in {td.get("name") for td in ir_data.get("type_decls", [])} and any(
+                        not _im72[4] and _im72[0] == bare_name and _im72[1] == bare_name
+                        and _resolve_module_path(_im72[2], _im72[3], main_file) is not None
+                        and os.path.abspath(_resolve_module_path(_im72[2], _im72[3], main_file))
+                        == os.path.abspath(resolved)
+                        for _im72 in ir_data.get("imports", [])):
+                    pass
+                elif (bare_name in {f["name"] for f in ir_data["functions"]}
                         or bare_name in {td.get("name") for td in ir_data.get("type_decls", [])}
                         or bare_name in all_calls
                         or bare_name in (ir_data.get("_u72_reserved") or {})):
@@ -2992,10 +3000,35 @@ def _resolve_imported_base_classes(module_imports: List[Any], main_file: str,
                     if any(td.get("name") == _tl629 for td in (
                             cache.get(os.path.abspath(_r629)) or {}).get("type_decls", [])):
                         _pv629.add(os.path.abspath(_r629))
-                if len(_pv629) > 1:
+                # CPython binds the bare name through a from-import, a wildcard import or an
+                # assignment, not through whichever module import happens to define a class of
+                # that name: admitted only with ONE such module, no wildcard import, no
+                # from-import of the name from another source, and no binding of the name other
+                # than a single top-level `T = r.T` naming that module.
+                _wild629 = any(isinstance(_n629, _a629.ImportFrom)
+                               and any(_al629.name == "*" for _al629 in _n629.names)
+                               for _n629 in _a629.walk(_t629))
+                _st629 = [_n629 for _n629 in _a629.walk(_t629)
+                          if isinstance(_n629, _a629.Name) and _n629.id == _tl629
+                          and not isinstance(_n629.ctx, _a629.Load)]
+                _asg629 = [_n629 for _n629 in _t629.body
+                           if isinstance(_n629, _a629.Assign) and len(_n629.targets) == 1
+                           and isinstance(_n629.targets[0], _a629.Name)
+                           and _n629.targets[0].id == _tl629
+                           and isinstance(_n629.value, _a629.Attribute)
+                           and _n629.value.attr == _tl629
+                           and isinstance(_n629.value.value, _a629.Name)
+                           and _loc629.get(_n629.value.value.id) in _pv629]
+                if _pv629 and (len(_pv629) > 1 or _wild629
+                               or (_tl629 in _frm629 and not _pv629 <= _frm629[_tl629])
+                               or (_st629 and not (len(_st629) == 1 and len(_asg629) == 1))):
                     _amb629 = (f"the bare base `{_tl629}` names a class that "
-                               f"{len(_pv629)} imported modules define")
+                               f"{len(_pv629)} imported module(s) define, while the bare name "
+                               f"is bound by a wildcard import, by another binding, or "
+                               f"through several modules")
                     break
+                if len(_pv629) == 1 and _asg629:
+                    _src629[_tl629] = next(iter(_pv629))
     if _amb629 is not None:
         from errors import PyCSLSemanticError
         raise PyCSLSemanticError(
