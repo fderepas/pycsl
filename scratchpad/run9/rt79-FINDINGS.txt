@@ -1,0 +1,103 @@
+rt79 FINDINGS -- defensive red-team review of run9-u69 (src 73f47db9d) vs base c115e0a5a (L19), import resolver
+(u64 V2D + u66 A1/A2/#621/#622 + u69 rules A-E). REPORT ONLY, no commits.
+Trees: /home/fabrice/git/pycsl-rt79 (73f47db9d), /home/fabrice/git/pycsl-rt79b (c115e0a5a), plus
+/home/fabrice/git/pycsl-rt79c (u66 b95cb8767, --no-proof only, to show what u66 did); all three removed at the end.
+Tools: tools/{q.sh,p.sh,cpy.sh} (rt78 copies: q = --no-proof --keep-mlw; p = full proof, hoare default,
+PYTHON_CPU_COUNT=2, timeout 3700; cwd = tree root), tools/{qb.sh,pb.sh,pw2.sh} drivers, tools/mk*.py probe generators.
+All pycsl runs via heavy.sh (q: HEAVY_QUICK=1; p: HEAVY_PRIO=1 as granted). oom_kill 15 -> 15 on every proof: none VOID.
+CPython: /usr/bin/python3 and .venv python3 (3.14), -B, ulimit -v 2000000, cwd /tmp: logs/cpy{1..7}.txt; both agree.
+Probes (benign, tiny int functions): probes/<id>/P/prog.py. Logs: logs/q-<tree>/<id>/, logs/p-<tree>/<id>/, logs/q*-*.txt, logs/p*.txt.
+
+| id | layout | CPython | base c115e0a5a | head 73f47db9d | class |
+|----|--------|---------|----------------|----------------|-------|
+| d8 | zv7od8/__init__.py `def b()` (ensures 1) beside zv7od8/b.py (a ModuleType-subclass module whose __call__ returns 2); zv7xd8/__init__.py `__all__ = ["m"]`, zv7xd8/m.py `import zv7od8.b`; prog `from zv7xd8 import *; import zv7od8; g() = zv7od8.b()` ensures 1 | result 2 | P SUCCESS (false) | P SUCCESS (false); u66 b95cb8767: q REFUSED (#621) | PRE-EXISTING vs L19, but a REGRESSION vs u66: direct counterexample to rule D's soundness argument |
+| w2 | dep depw792.py `from zv7w2 import *`; zv7w2/__init__.py `__all__ = ["b"]`; zv7w2/b.py import-time writer `hw792.one = _two`; prog `hw792.one() + three()` ensures 4 | result 5 | P SUCCESS (false), dep + hw792 own runs SUCCESS | P SUCCESS (false), same | PRE-EXISTING (new class) |
+| z1 | prog `from zhz79 import one`; --import-path X/lib.zip (zip holding zhz79.py returning 2) then --import-path Y (zhz79.py, ensures 1); CPython PYTHONPATH=X/lib.zip:Y | result 2 (zipimport) | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING (new class) |
+| r1 | prog `from zv7r1.k import three`; zv7r1/ also holds b.py; unrelated `class C: self.b = 1`; g() = c.b + three() ensures 4 | result 4 | P SUCCESS | q REFUSED PACKAGE-SUBMODULE-REBOUND (rule E) | INTRODUCED over-refusal (rule E; the class the brief's item 8 asked for) |
+| e1-e8 | t11 shape (sibling d.py swaps pkg.b -> c in a function called at import time / top level) via `pkg.__dict__["b"]=`, `builtins.setattr`, `sa = setattr; sa(...)`, `vars(pkg)[...]`, non-literal setattr name, `object.__setattr__`, `__dict__.update` | 2 | q REFUSED (#483 import-time dynamic code) | q REFUSED (same) | fail-safe |
+| e9 e10 | same writes through `__dict__` / `vars()` in a dependency function the PROGRAM calls at run time | 2 | q REFUSED (rebound-name rule, namespace-dict write) | same | fail-safe |
+| e11 | sibling d.py `sys.modules["pkg.b"] = c0`; prog `from pkg.b import one` | 2 | q REFUSED (#483 `.modules`) | same | fail-safe |
+| d1-d3, d5 | o1 shape + importlib.import_module / __import__ of "pkg.b" in a reached module (import time, or a dependency function) | TypeError | q REFUSED (#483) | same | fail-safe |
+| d4 d6 | same loader in the program's own function, b.py made callable (returns 2) | 2 | q REFUSED (program manipulates the import system) | same | fail-safe |
+| d7 | d8 with `from zv7od7 import b` in the program | 2 | q REFUSED (#483 judges b.py: `.__class__`) | same | fail-safe |
+| d9 | d8 with a plain b.py (not callable) | TypeError | q SUCCESS | q SUCCESS | no claim contradicted (partial correctness) |
+| g1 | __init__ PEP 562 `__getattr__` that uses importlib | 7 | q REFUSED (#483) | same | fail-safe |
+| g3 g4 | dotted read `pkg.c.k()` / `from pkg import c` of a submodule the package's plain `__getattr__` answers with another module | 2 | q emits, `c.k` lowered to an unconstrained `val c_k_0` (cannot prove) | same | fail-safe |
+| a1 | dependency in a namespace sub-directory P/sub79/dep.py, `from hza79 import one` with hza79 in P/sub79 (1) and P (2) | 2 | q REFUSED (DEPENDENCY-SEARCH-ORDER) | same | fail-safe |
+| a2 | dependency is a RELATIVE symlink into a sub-directory, P/depa792.py -> sub/depa792.py, hza792 in P/sub (1) and P (2) | 2 | q REFUSED (r19 NONSOURCE-ARTIFACT) | q REFUSED (rule A: two views, DEPENDENCY-SEARCH-ORDER) | fail-safe |
+| w1 | w2 with the wildcard in the program | 2 | q REFUSED (wildcard after a binding) | same | fail-safe |
+| w3 | control: explicit `from zv7w3 import b` | 2 | q REFUSED (#483 writer) | same | correct |
+
+KEY FINDING 1 (d8; rule D, u69 o1 narrowing). Rule D admits a top-level `def b` in a package `__init__` beside a
+submodule b.py when no REACHED module spells `b` in an import. A wildcard import in the PROGRAM is the gap. CPython's
+`from pkg2 import *` imports every name in pkg2's `__all__` that is not yet an attribute, here the submodule
+pkg2.m, and m.py's `import zv7od8.b` loads the submodule and rebinds `zv7od8.b` over the def. Neither the u60
+walk nor the #483 closure follows `__all__`-named submodules (`_ent660` drops `*`), so m.py and b.py are never
+reached. `_imc669` therefore holds no `b`, and only a NON-program `*` counts. b.py's import-time dynamic code
+(`sys.modules[__name__].__class__ = ...`) is never judged either: d7, where the program spells
+`from zv7od7 import b`, reaches b.py and is refused for exactly that code.
+Results: head proves `zv7od8.b() == 1` and CPython prints 2. Base L19 proves it too, so the class is PRE-EXISTING.
+u66 refused it with #621 (logs/q8-rt79c.txt), so u69's narrowing reopened what u66 had closed.
+Fix direction: in rule D, count a wildcard in the program too (or any wildcard of a package whose `__init__`
+binds `__all__`). More generally, see finding 2.
+Evidence: logs/p-rt79/d8/P__prog.log and logs/p-rt79b/d8/P__prog.log (SUCCESS, oom 15->15),
+logs/q-rt79/d8/P__prog.mlw (`val b () : int ensures { result = 1 }`), logs/cpy7.txt (b.py loaded / result 2).
+
+KEY FINDING 2 (w2; PRE-EXISTING, new class). Submodules that a wildcard import loads through `__all__` are outside
+both closures: the u60 / #621 / rule-E walk, and the #483 import-time closure. A dependency's
+`from zv7w2 import *` with `__all__ = ["b"]` runs zv7w2/b.py, whose import-time writer `hw792.one = _two` would be
+refused by #483 if b.py were reached (w3 control: refused). Here it is never seen.
+Results: the program proves `hw792.one() + three() == 4` and CPython prints 5. Each file's own run proves too:
+depw792 and hw792 are true in isolation, and b.py is never verified.
+Fix direction: in the walk and in #483, treat a wildcard `from P import *` as importing every `__all__` entry that
+P's `__init__` does not bind but that is a submodule of P (or every submodule of P, fail-closed), when P's
+`__init__` assigns `__all__` (refuse a non-literal `__all__`).
+Evidence: logs/p2.txt, logs/p-rt79{,b}/w2/*.log (6 x SUCCESS, oom 15->15), logs/cpy6.txt.
+
+KEY FINDING 3 (z1; PRE-EXISTING, new class, #622 family "which file does CPython load"). The `--import-path`
+entries (`_EXTRA_IMPORT_PATHS`) are only ever probed as directories (`os.path.join(base, *parts) + ".py"`). A zip
+archive entry is skipped silently, while CPython's zipimport loads modules from it in sys.path order. With
+PYTHONPATH=X/lib.zip:Y, pycsl reads Y/zhz79.py (ensures 1), CPython runs lib.zip's zhz79.py, and the program prints
+2. Both trees prove it.
+Fix direction: refuse a non-directory --import-path entry, or any entry that is a file / zip, as with the artifact
+rule.
+Evidence: logs/p1-rt79.txt, logs/p1-rt79b.txt, logs/p-rt79{,b}/z1/P__prog.log, logs/cpy1.txt (zip zhz79 loaded / result 2).
+
+OVER-REFUSAL CLASS (r1; rule E, INTRODUCED, item 8). Rule E refuses ANY attribute store `<anything>.<n> = ...`
+(including `self.<n>` in an unrelated class of the program) when `<n>` is the name of an entry of ANY package
+directory the walk meets. Here `self.b = 1` is refused because zv7r1/ holds b.py, although the program only imports
+zv7r1.k. Base proves the program (logs/p1-rt79b.txt) and CPython prints 4. Names such as `data`, `config`, `utils`
+and `test` make this likely in real code.
+Narrowing direction: restrict it to receivers that can denote the package module object: a Name bound by an import
+of that package (or an alias of one), `sys.modules[...]`, or a parameter or other unknown only when the package is
+otherwise reachable. Keep the fail-closed `setattr` / `delattr` literal rule. Evidence: logs/q1-rt79.txt (r1 line),
+logs/q-rt79/r1/P__prog.log.
+
+OTHER CHECKS (no finding):
+- (1) A1: conditional, dynamic and late bindings are refused by older rules (rt78 a1 / a3 / t1-t7). `globals()`,
+  `setattr(sys.modules...)`, `vars()`, `__dict__` and `object.__setattr__` are all refused at import time AND in
+  functions called at import time (e1-e8). A PEP 562 `__getattr__` that answers a submodule name with another
+  module is fail-safe: pycsl never resolves an unimported dotted submodule read, so g3 / g4 lower it to an
+  unconstrained val. `from pkg import c` with hasattr satisfied by `__getattr__` behaves the same way.
+- (2) A2 cwd switch, by reading the code: every chdir is followed by a restore on the normal path, on `_E613` and
+  on BaseException (the views at ~4646 and the two prefix sites at ~4711 and ~4762). The roots are absolute
+  (`_EXTRA_IMPORT_PATHS` abspath'd at line 5200, and main files abspath'd in the walk), and nothing memoises
+  `_resolve_module_path`. A switched cwd equals the anchor's realpath first root, so it adds no new root and the
+  CWD-ROOT exemption is consistent. No leak found.
+- (3) #621 bypasses: sibling and sub-package attribute stores are now caught by rule E (u69 t4 / t8 / t11 / t13).
+  The dynamic variants are caught by #483 or the rebound-name rule (e1-e11).
+- (4) / (5) rule A: a dependency in a namespace sub-directory (a1), a relative symlink into a sub-directory (a2),
+  and (from rt78) symlinked package directories, parents and chains all get two views and are refused when the
+  views differ. Reading the code: a module shares the single view only when its directory and its realpath first
+  root both equal the program's, and then `_resolve_module_path(d, 0, m)` and `(d, 0, mf)` are identical (same
+  first root, same cwd, same r19 base test). The only admission left is the KNOWN V1D (own view none / refused).
+- (6) `_find_record_type_from_dep_imports` (~2181) resolves from the dependency anchor, one hop, by the same
+  `_resolve_module_path` call as the u60 own view. Where the own view is a file it equals the compared program
+  view (otherwise the program is refused); where it is none, the helper returns None (fail-loud). The #613
+  closure (~4240-4370) uses the program's roots, and the later closure helpers (~5089-5170) use `main_file` for
+  absolute imports. Without --deep `_process_dependency` does not resolve a dependency's own imports, and with
+  --deep it reduces to the V1D case. No new s8-shape gap found by reading; not probed dynamically.
+- (7) Rule D: importlib / __import__ (literal or concatenated), sys.modules aliasing, and a `__getattr__` using
+  importlib are all refused (d1-d6, g1, e11). A non-program `*` is counted. The gap is the program's own wildcard
+  (finding 1).
+Known OPEN V1D / v1f not re-probed. Bytecode caches never created (-B everywhere). No classifier stop occurred.
