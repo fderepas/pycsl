@@ -1,0 +1,9 @@
+x01_class_contract_helper_noclash :: 1
+x02_direct_reexport_vs_qualified_other :: 3
+x03_lib_shadows_builtin_abs :: 10
+x04_bare_and_attribute_same_class_true :: 11
+x05_star_bare_base_vs_module_import :: 1
+x06_assign_bare_base_true :: 2
+x07_qualified_ctor_with_from_import_same_class_true :: 1
+x08_star_reexport_vs_qualified_other :: 3
+x09_base_class_inlined_method_local_helper :: 1

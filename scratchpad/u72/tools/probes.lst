@@ -148,3 +148,4 @@
 /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x06_assign_bare_base_true.py
 /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x07_qualified_ctor_with_from_import_same_class_true.py
 /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x08_star_reexport_vs_qualified_other.py
+/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x09_base_class_inlined_method_local_helper.py
