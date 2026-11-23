@@ -1,0 +1,2 @@
+test-suite/corpus/pycsl-reference/10400_r327_function_site_lifted_casefold_witness.py cpython rc=0
+test-suite/corpus/pycsl-reference/10401_r327_class_site_dataclass_casefold_witness.py cpython rc=0

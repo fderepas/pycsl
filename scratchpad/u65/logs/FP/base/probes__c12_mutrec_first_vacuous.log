@@ -1,0 +1,42 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u65/scratchpad/u65/probes/c12_mutrec_first_vacuous.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_p9yrfsgm.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 20 steps).
+
+File "/tmp/.pycsl_p9yrfsgm.mlw", line 18, characters 22-27:
+Sub-goal variant decrease of goal g'vc.
+Prover result is: Valid (0.00s, 133 steps).
+
+File "/tmp/.pycsl_p9yrfsgm.mlw", line 18, characters 22-27:
+Sub-goal precondition of goal g'vc.
+Prover result is: Valid (0.00s, 139 steps).
+
+File "/tmp/.pycsl_p9yrfsgm.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 97 steps).
+
+File "/tmp/.pycsl_p9yrfsgm.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 95 steps).
+
+File "/tmp/.pycsl_p9yrfsgm.mlw", line 26, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 33 steps).
+
+File "/tmp/.pycsl_p9yrfsgm.mlw", line 33, characters 20-31:
+Sub-goal variant decrease of goal f'vc.
+Prover result is: Valid (0.00s, 61 steps).
+
+File "/tmp/.pycsl_p9yrfsgm.mlw", line 33, characters 20-31:
+Sub-goal precondition of goal f'vc.
+Prover result is: Valid (0.00s, 49 steps).
+
+File "/tmp/.pycsl_p9yrfsgm.mlw", line 26, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 42 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

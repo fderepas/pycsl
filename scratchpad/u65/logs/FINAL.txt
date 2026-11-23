@@ -1,0 +1,22 @@
+CR rc=0 10362_r620_method_toplevel_whyml_name_clash_false.py	REFUSAL	[ir-semantic]: PYCSL-SEM-WHYML-NAME-CLASH (route #620): 2 definitions of this program are emitted u
+census commit f43343311 u6
+witness census: 10360_r619_mutrec_with_member_vacuous_false.mlw: base-tc rc 0, 2 probes, 0 rejected 10361_r619_mutrec_with_member_ctl.mlw: base-tc rc 0, 2 probes, 0 rejected 10363_r620_method_toplevel_distinct_names_ctl.mlw: base-tc rc 0, 2 probes, 0 rejected 10364_r620_rebound_noreturn_def_exempts_live_vacuous_false.mlw: base-tc rc 0, 1 probes, 0 rejected TOTAL probes 7 rejected 0 
+compare root rc=0 [*] byte-diff-compare: 3325 baseline / 3329 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 4 new source file(s) ignored. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare pyref rc=0 [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare mirror rc=0 [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+mirror diff -rq lines=0 files base=53 head=53
+G start Sun Nov 22 10:38:24 UTC 2026 f43343311 u6 oom_kill 15
+[LG] emitted 53
+[LG] check-assigns-writes-survival rc=0
+[LG] check-trusted-frame-honesty rc=0
+[LG] check-getattr-erasure rc=0
+[LG] check-self-annotate-sync rc=0
+[LG] self-annotate-mirror-check rc=0
+[LG] doc-coherency rc=0
+[LG] trusted 366
+planes rc=0     NOT CHECKED: 23 prover/emission plane(s) — among them     check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival     and check-stdlib-modules-verify. Re-run with --slow before a GATE. 
+directive-enforcement rc=0 [+] directive-enforcement: OK — every covered directive BITES (its violation does not verify) and is not merely banned (its satisfying twin does). Ratchet 53.
+stdlib-modules-verify rc=0 [+] stdlib-modules-verify: OK — the non-verifying set is the known one (21 module(s)); 1 module(s) with BODIES verify with no postcondition (ceiling 1), plus 6 with no VALUE-RETURNING function at all.
+rwc rc=0 [*]   plus 10 refusal(s) UNMATCHABLE by this instrument: their message has no string literal of 25+ characters, so no witness can ever mark them demonstrated. Closing them is a compiler/census change, not a corpus one. [+] refusal-witness-coverage: OK — 488 demonstrated, 5 undemonstrated (floor 208 / ceiling 5); 14 not source-reachable, 10 unmatchable (ceiling 10). 
+corpus-executes rc=0 [*] corpus-executes: 2608 of 2616 PASS-expected proof-on file(s) LOAD under CPython; 1704 of 1704 with a `__main__` block pass their OWN self-check. (6148 skipped: expected-FAIL or `--no-proof`.) [+] corpus-executes: OK — every PASS-expected corpus file loads as Python, and every self-check its author wrote passes. 
+G end Sun Nov 22 12:53:52 UTC 2026 oom_kill 15

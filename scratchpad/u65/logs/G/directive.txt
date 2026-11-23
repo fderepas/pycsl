@@ -1,0 +1,3 @@
+    uncovered  thread_entry
+[*] directive-enforcement: 53 of 54 documented directive(s) have an enforcement pair; 1 uncovered.
+[+] directive-enforcement: OK — every covered directive BITES (its violation does not verify) and is not merely banned (its satisfying twin does). Ratchet 53.
