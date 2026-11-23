@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp; mkdir -p $TMPDIR
 # GATES.sh <outdir> : fidelity + ledger planes (LG), fast planes (full tee), rwc, corpus-executes,
 # frontend-only-conformance, \trusted count. cwd = u72 tree root. One NORMAL job.
 W=${GT:-/home/fabrice/git/pycsl-u72}; O=$(realpath -m $1); mkdir -p $O; cd $W

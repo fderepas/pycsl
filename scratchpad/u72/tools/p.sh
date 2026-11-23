@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp; mkdir -p $TMPDIR
 # p.sh <tree> <outdir> [flags] -- <file.py>... : full pycsl proof per file, cwd = tree root, PYTHON_CPU_COUNT=2, cap 3600 s
 source /home/fabrice/git/pycsl/scratchpad/g29/env.sh
 export PYTHON_CPU_COUNT=2

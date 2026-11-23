@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp; mkdir -p $TMPDIR
 # P3.sh <tag> <listfile> [trees...] : full pycsl proofs (p.sh: cwd = tree root, PYTHON_CPU_COUNT=2, cap 3600 s,
 # oom_kill before/after each file) of every file in <listfile> on each tree (default b0 u70 h1).
 U=/home/fabrice/git/pycsl-u72/scratchpad/u72; TAG=$1; LST=$2; shift 2; TR=${@:-b0 u70 h1}

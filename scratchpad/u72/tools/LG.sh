@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp; mkdir -p $TMPDIR
 # LG.sh <outdir> : head mirror emission with the planes' single-underscore naming, then the three ledger slow
 # planes individually (full output kept), count-trusted grep, fidelity scripts. cwd = u72 tree root.
 source /home/fabrice/git/pycsl/scratchpad/g29/env.sh

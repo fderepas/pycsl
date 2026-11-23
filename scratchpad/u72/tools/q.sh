@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp; mkdir -p $TMPDIR
 # q.sh <tree> <outdir> -- <file.py>... : --no-proof --keep-mlw emission per file, cwd = tree root
 source /home/fabrice/git/pycsl/scratchpad/g29/env.sh
 export PYTHON_CPU_COUNT=2

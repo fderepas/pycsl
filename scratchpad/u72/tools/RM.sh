@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp; mkdir -p $TMPDIR
 # RM.sh <outdir> : --no-proof refusal message (the line after PIPELINE ERROR, as _census_row records it) of
 # every census REFUSAL witness that imports a local module (tools/ref-local.lst), on b0 (L20) and h1.
 # Files are read from the h1 tree (corpus identical to b0 for these), cwd = the tree whose pycsl runs.

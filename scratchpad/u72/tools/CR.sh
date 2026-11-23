@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp; mkdir -p $TMPDIR
 # CR.sh <tree> <out.tsv> <witness-basename>... : the real _census_row (cwd-relative paths, as the committed rows)
 # for each named FAIL witness. cwd = tree root.
 W=$1; OUT=$(realpath -m $2); shift 2; cd $W || exit 2; source /home/fabrice/git/pycsl/scratchpad/g29/env.sh; export PYTHON_CPU_COUNT=2
