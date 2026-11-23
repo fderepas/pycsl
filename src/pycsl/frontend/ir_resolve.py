@@ -4468,7 +4468,14 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             _fp669 = os.path.dirname(_mf660)
             if os.path.realpath(_fp669) != os.path.dirname(os.path.realpath(_mf660)):
                 _fp669 = os.path.dirname(os.path.realpath(_mf660))
-            while _wl660 and _bad660 is None and _pfx661 is None and _bnd666 is None:
+            # (u71, route #626) a wildcard import whose package `__all__` pycsl cannot read
+            # (module, spelled module, package `__init__`, reason); the first code that can
+            # change an `__all__` from outside; whether any wildcard of a package was met
+            _wcr671: Optional[Tuple[str, str, str, str]] = None
+            _alx671: Optional[Tuple[str, int]] = None
+            _wpk671: Optional[Tuple[str, str]] = None
+            while (_wl660 and _bad660 is None and _pfx661 is None and _bnd666 is None
+                   and _wcr671 is None):
                 _m660 = _wl660.pop(0)
                 _fm669 = os.path.dirname(_m660)
                 if os.path.realpath(_fm669) != os.path.dirname(os.path.realpath(_m660)):
@@ -4482,8 +4489,15 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         _imc669.update(_q for _al in _z669.names for _q in _al.name.split("."))
                     elif isinstance(_z669, _a613.ImportFrom):
                         _imc669.update((_z669.module or "").split("."))
-                        if _m660 != _mf660:
-                            _imc669.update(_al.name for _al in _z669.names)
+                        # (u71, rt79 d8) a wildcard counts in the PROGRAM too: `__all__` makes
+                        # it load submodules, whose own imports may load the candidate's one
+                        _imc669.update(_al.name for _al in _z669.names
+                                       if _m660 != _mf660 or _al.name == "*")
+                    # (u71, rt79 w2 / route #626) code that can change a package's `__all__`
+                    # from outside its `__init__` (`pkg.__all__ ...`, a literal "__all__" name)
+                    if ((isinstance(_z669, _a613.Attribute) and _z669.attr == "__all__")
+                            or (isinstance(_z669, _a613.Constant) and _z669.value == "__all__")):
+                        _alx671 = _alx671 or (_m660, getattr(_z669, "lineno", 0) or 0)
                     if isinstance(_z669, _a613.Attribute) and isinstance(_z669.value, _a613.Attribute):
                         _atc669.add(_z669.value.attr)
                     if isinstance(_z669, _a613.Attribute) and not isinstance(_z669.ctx, _a613.Load):
@@ -4591,6 +4605,8 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     if _bnd666 is not None:
                         break
                 _ent660: List[Tuple[str, int]] = []
+                # (u71, route #626) the (module, level) of every wildcard import here
+                _wc671: Set[Tuple[str, int]] = set()
                 for _n660 in _a613.walk(_tr660):
                     if isinstance(_n660, _a613.Import):
                         _ent660 += [(_al.name, 0) for _al in _n660.names]
@@ -4600,6 +4616,10 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                             _ent660.append((_n660.module, _lv660))
                         _ent660 += [((_n660.module + "." if _n660.module else "") + _al.name,
                                      _lv660) for _al in _n660.names if _al.name != "*"]
+                        if any(_al.name == "*" for _al in _n660.names):
+                            _wc671.add((_n660.module or "", _lv660))
+                            if not _n660.module and _lv660:
+                                _ent660.append(("", _lv660))
                 # (u66, rt76 r5 / r14) the MODULE names of this module's import statements
                 # (`import a.b`, the `a.b` of `from a.b import c`) and their prefixes; a name that
                 # is only a from-import TARGET (`c`) may be an attribute rather than a submodule
@@ -4626,9 +4646,11 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                             _ex661.append(_e661)
                 _ent660 = _ex661
                 for _d660, _lv660 in _ent660:
-                    if _bad660 is not None or _pfx661 is not None:
+                    if _bad660 is not None or _pfx661 is not None or _wcr671 is not None:
                         break
-                    if not _d660 or not all(_q.isidentifier() for _q in _d660.split(".")):
+                    # (u71) `from . import *` resolves its anchor package's `__init__` (below)
+                    if not (_d660 and all(_q.isidentifier() for _q in _d660.split("."))) and not (
+                            not _d660 and _lv660 and ("", _lv660) in _wc671):
                         continue
                     # (outcome, path): ("file", abspath) / ("none", "") / ("refused", code)
                     _vw660: List[Tuple[str, str]] = []
@@ -4672,6 +4694,70 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     if _vw660[-1][0] != "file":
                         continue
                     _hf660 = _vw660[-1][1]
+                    # (#49) run #9 u71 -- review rt79 d8 / w2 (route #626, PRE-EXISTING): CPython's
+                    # `from pkg import *` (and `from . import *`, `from pkg.sub import *`) IMPORTS
+                    # every name of the package's `__all__` that is not yet an attribute of it,
+                    # i.e. LOADS those submodules (and runs their import-time code), but the walk
+                    # dropped the `*` and never reached them (measured w2: a dependency's `from
+                    # zv7w2 import *` with `__all__ = ["b"]` ran zv7w2/b.py, whose import-time
+                    # `hw792.one = _two` made CPython print 5 where pycsl PROVED 4; d8: the
+                    # program's wildcard loaded zv7xd8/m.py, whose `import zv7od8.b` rebound the
+                    # `def b` pycsl believed). RULE (faithful where readable, fail-closed
+                    # otherwise): a wildcard import of a package `__init__` is followed as
+                    # `from pkg import <each __all__ name>`; an `__init__` without any `__all__`
+                    # loads nothing; an `__all__` that is not ONE top-level assignment of a
+                    # literal list / tuple of identifier strings with no other mention of the
+                    # name in the file (computed, extended, re-bound, imported, a `global` of
+                    # it), or an `__init__` that cannot be read, REFUSES.
+                    if ((_d660, _lv660) in _wc671 and os.path.basename(_hf660) == "__init__.py"
+                            and os.path.commonpath([_hf660, _lib660]) != _lib660):
+                        _wpk671 = _wpk671 or (_m660, _hf660)
+                        try:
+                            _ti671 = _a613.parse(__import__("pathlib").Path(_hf660).read_bytes())
+                        except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
+                            _ti671 = None
+                        _nl671: Optional[List[str]] = None
+                        _why671 = "its `__init__` cannot be read"
+                        if _ti671 is not None:
+                            _cn671 = 0
+                            _ok671 = True
+                            for _y671 in _a613.walk(_ti671):
+                                if isinstance(_y671, _a613.Name) and _y671.id == "__all__":
+                                    _cn671 += 1
+                                elif any(getattr(_y671, _k671, None) == "__all__" for _k671 in (
+                                        "attr", "value", "name", "asname", "arg", "rest")) or (
+                                        isinstance(_y671, (_a613.Global, _a613.Nonlocal))
+                                        and "__all__" in _y671.names):
+                                    _ok671 = False
+                            _as671 = [_y for _y in _ti671.body
+                                      if (isinstance(_y, _a613.Assign) and len(_y.targets) == 1
+                                          and isinstance(_y.targets[0], _a613.Name)
+                                          and _y.targets[0].id == "__all__")
+                                      or (isinstance(_y, _a613.AnnAssign)
+                                          and _y.value is not None
+                                          and isinstance(_y.target, _a613.Name)
+                                          and _y.target.id == "__all__")]
+                            _why671 = ("its `__all__` is not one top-level assignment of a "
+                                       "literal list / tuple of identifier strings (it is "
+                                       "computed, extended, re-bound or mentioned elsewhere)")
+                            if _ok671 and _cn671 == 0:
+                                _nl671 = []
+                            elif (_ok671 and _cn671 == 1 and len(_as671) == 1
+                                  and isinstance(_as671[0].value, (_a613.List, _a613.Tuple))
+                                  and all(isinstance(_y, _a613.Constant)
+                                          and isinstance(_y.value, str)
+                                          and _y.value.isidentifier()
+                                          for _y in _as671[0].value.elts)):
+                                _nl671 = [_y.value for _y in _as671[0].value.elts]
+                        if _nl671 is None:
+                            _wcr671 = (_m660, ("." * _lv660) + _d660, _hf660, _why671)
+                            break
+                        for _y671 in _nl671:
+                            _e671 = ((_d660 + ".") if _d660 else "") + _y671
+                            if (_e671, _lv660) not in _ent660:
+                                _ent660.append((_e671, _lv660))
+                    if not _d660:
+                        continue    # `from . import *`: its package is this module's own parent
                     # (#49) run #8 u61 -- review rt74 V2D (PRE-EXISTING): CPython imports the
                     # dotted name's every prefix first, and a prefix found as a REGULAR package
                     # (`R/a/__init__.py`) in the first root that holds it is final: `a.b` is
@@ -4815,6 +4901,31 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                 and os.path.commonpath([_f660, _lib660]) != _lib660):
                             _seen660.add(_f660)
                             _wl660.append(_f660)
+            # (u71, route #626) a wildcard of a package is followed through its `__all__`; code
+            # that can change an `__all__` from outside (`pkg.__all__ = ...`, `.append`, a
+            # literal "__all__" name for setattr / a namespace dict) makes that list unknown
+            if (_wcr671 is None and _wpk671 is not None and _alx671 is not None
+                    and _bad660 is None and _pfx661 is None and _bnd666 is None):
+                _wcr671 = (_wpk671[0], os.path.basename(os.path.dirname(_wpk671[1])), _wpk671[1], (
+                    f"{_alx671[0]} (line {_alx671[1]}) names `__all__` outside a package's own "
+                    f"literal assignment, so the list the wildcard loads may be changed"))
+            if _wcr671 is not None:
+                _dm671 = (os.path.relpath(_wcr671[0]) if _wcr671[0].startswith(os.getcwd() + os.sep)
+                          else _wcr671[0])
+                _dp671 = (os.path.relpath(_wcr671[2]) if _wcr671[2].startswith(os.getcwd() + os.sep)
+                          else _wcr671[2])
+                raise _E613(
+                    f"the local module {_dm671}, which the program reaches, has a wildcard import "
+                    f"of the package `{_wcr671[1]}` ({_dp671}) whose `__all__` pycsl cannot read: "
+                    f"{_wcr671[3]}. CPython's `from pkg import *` imports every `__all__` name the "
+                    f"package does not bind yet, i.e. LOADS those submodules and runs their "
+                    f"import-time code, so the modules the program runs are not known (review rt79 "
+                    f"w2: `from zv7w2 import *` with `__all__ = [\"b\"]` ran zv7w2/b.py, whose "
+                    f"`hw792.one = _two` made CPython print 5 where pycsl PROVED 4). FIX: give the "
+                    f"package one literal `__all__ = [\"name\", ...]`, or import the names "
+                    f"explicitly.",
+                    filename=main_file, stage="imports",
+                    code="PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN")
             # (#49) run #9 u69 -- review rt78 o1 (u66 INTRODUCED over-refusal of route #621): a
             # package `__init__` whose top level defines `def b()` beside an unimported submodule
             # b.py, and `from pkg import b` in the program (CPython: the function, result 1;

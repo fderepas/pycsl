@@ -1,0 +1,14 @@
+s1||rt78/s1/P/prog.py|
+s1-dep||rt78/s1/P/dep78.py|
+s7||rt78/s7/P/prog.py|rt78/s7/P
+s7-dep||rt78/s7/P/dep78.py|rt78/s7/P
+s8||u69/s8/P/prog.py|
+c1||rt78/c1/P/prog.py|
+o1||rt78/o1/P/prog.py|
+o2||u69/o2/P/prog.py|
+o3||u69/o3/P/prog.py|
+o4||u69/o4/P/prog.py|
+t4||rt78/t4/P/prog.py|
+t8||rt78/t8/P/prog.py|
+t11||u69/t11/P/prog.py|
+t13||u69/t13/P/prog.py|
