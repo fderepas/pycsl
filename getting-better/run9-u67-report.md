@@ -108,7 +108,7 @@ let cwd = ref (match self.cwd with Some _p67 -> _p67 | None -> (ext_path_cwd_op 
 - **Arm reachability**, checked on the emitted whole-file `.mlw`:
   - **Some arm → `absurd`**: the "Unreachable point" goal of type_of_batch is **not proved** by either z3 or alt-ergo (rc 2), so the Some arm is reachable (`pr/arm_some_{z3,alt-ergo}.log`).
   - **None arm → `absurd`**: Why3 *rejects* the program because the declared raises set is no longer raised ("does not raise exception BlockingIOError"). So the None arm is the only source of the OS-family effect (`pr/arm_none_*.log`).
-  - Re-done as `None -> (let _w = ext_path_cwd_op () in absurd)`: __ARMNONE2__ (`pr/arm_none2_{z3,alt-ergo}.log`).
+  - A cleaner variant, `None -> (let _w = ext_path_cwd_op () in absurd)` in `pr/arm_none2.mlw`, is prepared but **NOT RUN**. Its heavy job (`fin.sh`) sat queued behind the driver's PRIO job from 11:24Z to 11:55Z, well past the time box, so I killed it (it never started; it was mine, checked by its parent chain).
 - **Mutation 1** (`self.seq = self.seq + 1` added, which violates `assigns \nothing`): **FAILS**. The postcondition goal `self.seq = old self.seq` timed out under both provers (`pr/mut_frame.log`).
 - **Mutation 2** (`cwd = self.cwd or self.seq`, an int fallback): **rejected** at Why3 type-check (`pr/mut_type.log`). The non-string `or` is not taken by the new arm, so the local takes the int `ref 0` pre-decl, and that pre-decl shadows the field label. It fails closed, but through the shadowing error, not through the arm's own type check.
 
@@ -143,7 +143,7 @@ Base = `/home/fabrice/git/pycsl-u67b` (e0d77c919); head = `/home/fabrice/git/pyc
 | check-getattr-erasure | rc 0 | `logs/G/lg/check-getattr-erasure.txt` |
 | run-soundness-planes.sh fast, at d877e5177 | rc 1: 61 / 62 ok. The only red plane is **check-trusted-reasons**: the converted stub's row was still in `getting-better/trusted-reasons.tsv`. | `logs/G/planes.txt` |
 | check-trusted-reasons after 9d01f76d3 (row deleted) | rc 0: 337 markers ↔ 337 rows | `logs/trusted-reasons.txt` |
-| run-soundness-planes.sh fast, at 9d01f76d3 | __PLANES2__ | `logs/planes2.txt` |
+| run-soundness-planes.sh fast, at 9d01f76d3 | **NOT RE-RUN** (same queued `fin.sh` job, killed before it started). The one red plane was re-checked directly, and the fix changes only the TSV. The driver should re-run the fast planes at 9d01f76d3. | `logs/planes2.txt` |
 | count-trusted-directives | rc 0 | `logs/G/count-trusted.txt` |
 | `\trusted` (canonical grep) | 366 → **365** | `logs/G.out` |
 | proof_axiom_allowlist diff vs base | 0 lines (ledger stays 3) | `logs/G.out` |
