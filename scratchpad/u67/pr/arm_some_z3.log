@@ -1,0 +1,258 @@
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 95, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 117, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 123, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 182, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 190, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 234, characters 26-36: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 234, characters 47-56: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 236, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 238, characters 24-34: unused variable load_paths
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 238, characters 48-51: unused variable cwd
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 238, characters 62-76: unused variable require_module
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 238, characters 87-96: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 238, characters 113-122: unused variable timeout_s
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 238, characters 131-145: unused variable require_prefix
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 240, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 244, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 250, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 254, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 262, characters 53-61: unused variable exc_type
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 262, characters 69-76: unused variable exc_val
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 262, characters 84-90: unused variable exc_tb
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 274, characters 15-19: unused variable result
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 95, characters 15-19:
+Sub-goal Postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 866 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 95, characters 15-19:
+Sub-goal Postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 873 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 95, characters 15-19:
+Sub-goal Postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 877 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 133, characters 18-27:
+Sub-goal Loop invariant init of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 1161 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 136, characters 33-67:
+Sub-goal Assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 9318 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 137, characters 41-75:
+Sub-goal Assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 940 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 134, characters 16-25:
+Sub-goal Loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 10963 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 133, characters 18-27:
+Sub-goal Loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 10779 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 134, characters 16-25:
+Sub-goal Loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 21257 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 133, characters 18-27:
+Sub-goal Loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 21085 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 134, characters 16-25:
+Sub-goal Loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 21266 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 133, characters 18-27:
+Sub-goal Loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 21094 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 154, characters 22-31:
+Sub-goal Loop invariant init of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 12179 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 153, characters 63-97:
+Sub-goal Assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 43844 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 157, characters 39-73:
+Sub-goal Assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 11687 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 155, characters 20-29:
+Sub-goal Loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 63048 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 154, characters 22-31:
+Sub-goal Loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 62806 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 155, characters 20-29:
+Sub-goal Loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 63397 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 154, characters 22-31:
+Sub-goal Loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 63155 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 134, characters 16-25:
+Sub-goal Loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 67107 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 133, characters 18-27:
+Sub-goal Loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 65237 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 170, characters 20-30:
+Sub-goal Loop invariant init of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 11086 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 169, characters 77-111:
+Sub-goal Assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 40279 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 169, characters 203-237:
+Sub-goal Assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 6536 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 169, characters 326-360:
+Sub-goal Assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 6719 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 171, characters 18-27:
+Sub-goal Loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 52016 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 170, characters 20-30:
+Sub-goal Loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 51802 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 134, characters 16-25:
+Sub-goal Loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 63701 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 133, characters 18-27:
+Sub-goal Loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 57235 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 123, characters 15-19:
+Sub-goal Postcondition of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 1301 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 185, characters 33-49:
+Sub-goal Precondition of goal parse_sexp'vc.
+Prover result is: Valid (0.00s, 799 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 186, characters 4-25:
+Sub-goal Precondition of goal parse_sexp'vc.
+Prover result is: Valid (0.00s, 1163 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 182, characters 15-19:
+Sub-goal Postcondition of goal parse_sexp'vc.
+Prover result is: Valid (0.00s, 1163 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 190, characters 15-19:
+Sub-goal Postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1090 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 201, characters 16-33:
+Sub-goal Precondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1107 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 190, characters 15-19:
+Sub-goal Postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1174 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 190, characters 15-19:
+Sub-goal Postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1181 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 190, characters 15-19:
+Sub-goal Postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1194 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 190, characters 15-19:
+Sub-goal Postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1564 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 190, characters 15-19:
+Sub-goal Postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1315 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 190, characters 15-19:
+Sub-goal Postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1107 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 244, characters 15-19:
+Sub-goal Postcondition of goal sertop_available'vc.
+Prover result is: Valid (0.00s, 799 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 254, characters 15-19:
+Sub-goal Postcondition of goal sertopsession____enter__'vc.
+Prover result is: Valid (0.00s, 1043 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 255, characters 15-38:
+Sub-goal Postcondition of goal sertopsession____enter__'vc.
+Prover result is: Valid (0.00s, 1044 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 256, characters 15-52:
+Sub-goal Postcondition of goal sertopsession____enter__'vc.
+Prover result is: Valid (0.00s, 1045 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 257, characters 15-40:
+Sub-goal Postcondition of goal sertopsession____enter__'vc.
+Prover result is: Valid (0.00s, 1046 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 258, characters 15-38:
+Sub-goal Postcondition of goal sertopsession____enter__'vc.
+Prover result is: Valid (0.00s, 1047 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 264, characters 15-19:
+Sub-goal Postcondition of goal sertopsession____exit__'vc.
+Prover result is: Valid (0.00s, 1043 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 265, characters 15-38:
+Sub-goal Postcondition of goal sertopsession____exit__'vc.
+Prover result is: Valid (0.00s, 1044 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 266, characters 15-52:
+Sub-goal Postcondition of goal sertopsession____exit__'vc.
+Prover result is: Valid (0.00s, 1045 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 267, characters 15-40:
+Sub-goal Postcondition of goal sertopsession____exit__'vc.
+Prover result is: Valid (0.00s, 1046 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 268, characters 15-38:
+Sub-goal Postcondition of goal sertopsession____exit__'vc.
+Prover result is: Valid (0.00s, 1047 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 281, characters 52-58:
+Sub-goal Unreachable point of goal sertopsession__type_of_batch'vc.
+Prover result is: Timeout (30.00s, 345831190 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 282, characters 4-84:
+Sub-goal Precondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1052 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 274, characters 15-19:
+Sub-goal Postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1065 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 276, characters 15-38:
+Sub-goal Postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1066 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 277, characters 15-52:
+Sub-goal Postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1067 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 278, characters 15-40:
+Sub-goal Postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1068 steps).
+
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_some.mlw", line 279, characters 15-38:
+Sub-goal Postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1069 steps).
+
