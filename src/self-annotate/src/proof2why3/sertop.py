@@ -140,7 +140,7 @@ def _extract_stmid(added_payload: object) -> int:
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def run_sertop_batch(load_paths, cwd: Path, require_module: str, qualnames: List[str], timeout_s: float=60.0, require_prefix: Optional[str]=None) -> int:
+def run_sertop_batch(load_paths: List[Path], cwd: Path, require_module: str, qualnames: List[str], timeout_s: float=60.0, require_prefix: Optional[str]=None) -> Dict[str, object]:
     return {}
 
 ""  # pycsl
@@ -163,12 +163,12 @@ class SertopSession:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def type_of_batch(self, require_module: str, qualnames: List[str]) -> int:
-        return {}
+    def type_of_batch(self, require_module: str, qualnames: List[str]) -> Dict[str, object]:
+        cwd = self.cwd or Path.cwd()
+        return run_sertop_batch(self.load_paths, cwd, require_module, qualnames)
 
 
 #@ \trusted reviewer: pycsl-self-annotate
