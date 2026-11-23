@@ -1,4 +1,6 @@
 #!/bin/bash
+# run #9 2026-11-23 22:35Z: /tmp (shared tmpfs) is over user 1000's quota: all temp files go to the repo volume
+export TMPDIR=/home/fabrice/git/pycsl/scratchpad/run9/tmp
 # camp.sh <tree> <tag> : one campaign RUNNER. Pops jobs from scratchpad/run9/<tag>-jobs.txt (flock) until empty.
 # Job lines:  full <mirror-rel> <cpu>   |  main <mirror-rel> <cpu>   |  shard <mirror-rel> <k> <N> <cpu>
 # full  = normal whole-file proof (main phase + vacuity gate);  main = --no-check-vacuity (main phase only);
