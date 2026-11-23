@@ -1648,6 +1648,88 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # re-wrapped as `HStr`/`HInt`. Gated on `_expr_is_pyval` -> corpus byte-inert.
             if self._expr_is_pyval(v_ir):
                 return self._expr_to_whyml(v_ir, local_refs)
+            # run #9 u74 (a): a `float`-typed record FIELD read is a Why3 `real`, which the
+            # int carrier cannot take (`HInt <real>` is an L3-tc error). It is NOT tagged
+            # `HFloat`: the positive tag DECIDES `isinstance(.., float)` (the isinstance arm
+            # below), and a `float`-annotated slot may hold a Python int (the numeric tower;
+            # this is why `isinstance(<float param>, float)` stays the opaque `typeof_op`).
+            # So it is the ERASED `HInt` carrier of a law-free program `val` that reads the
+            # real: a fresh int per evaluation, no law, no axiom (ledger stays 3).
+            if (t in ("Attribute", "FieldGet") and not self._in_spec
+                    and self._field_type_of(v_ir) == "float"):
+                self._add_abstract_op("val real_hcarrier_op (x: real) : int")
+                return f"(HInt (real_hcarrier_op {self._expr_to_whyml(v_ir, local_refs)}))"
+            # run #9 u74 (b): a list comprehension `[[a, b, c] for (a, b, c) in <r>.<f>]` (or
+            # `[a for (a, ..) in ..]`, a tuple element, any order) over a record FIELD typed
+            # `seq (t1, .., tn)` (Module5's tuple-element field, slots `string` / `int` /
+            # `seq string`) is the REAL list: an `HArr` built by a backward `for` fold over the
+            # field's seq, each element the wrap of the named tuple slots it lists (string ->
+            # `HStr`, int -> the erased `HInt`, seq string -> an `HArr` of `HStr` by the same
+            # fold). Slots are bound BY POSITION from Module5's `target_elts` (the tuple target
+            # names, in order). Fail-closed: one generator, no `ifs`, distinct named slots, an
+            # element made only of those names, exactly one declared value_type for that field
+            # name across the records, slot types in the three above; else the old lowering.
+            if t == "ListComp" and not self._in_spec:
+                _u74g = v_ir.get("generators") or []
+                _u74e = v_ir.get("elt")
+                _u74n = (_u74g[0].get("target_elts") or []
+                         if len(_u74g) == 1 and isinstance(_u74g[0], dict) else [])
+                _u74it = _u74g[0].get("iter") if _u74n else None
+                _u74ok = (bool(_u74n) and not (_u74g[0].get("ifs") or [])
+                          and _u74g[0].get("target") == "_comp_var"
+                          and "_" not in _u74n and len(set(_u74n)) == len(_u74n)
+                          and isinstance(_u74it, dict)
+                          and _u74it.get("type") in ("Attribute", "FieldGet")
+                          and self._field_type_of(_u74it) == "list")
+                _u74els = ([_u74e] if isinstance(_u74e, dict) and _u74e.get("type") == "Var"
+                           else (_u74e.get("elts") or []) if isinstance(_u74e, dict)
+                           and _u74e.get("type") in ("ArrayLit", "Tuple") else [])
+                _u74ok = (_u74ok and bool(_u74els)
+                          and all(isinstance(_x, dict) and _x.get("type") == "Var"
+                                  and _x.get("name") in _u74n for _x in _u74els))
+                _u74fn = ((_u74it.get("attr") if _u74it.get("type") == "Attribute"
+                           else _u74it.get("field")) if _u74ok else None)
+                _u74vts = {(_ri.get("field_value_types") or {}).get(_u74fn)
+                           for _ri in self._record_types.values()
+                           if _u74fn in (_ri.get("field_types") or {})} if _u74ok else set()
+                _u74vt = next(iter(_u74vts)) if len(_u74vts) == 1 else None
+                _u74sl = ([_s.strip() for _s in _u74vt[1:-1].split(",")]
+                          if (isinstance(_u74vt, str) and _u74vt.startswith("(")
+                              and _u74vt.endswith(")") and _u74vt.count("(") == 1)
+                          else [])
+                if (_u74ok and len(_u74sl) == len(_u74n)
+                        and all(_s in ("string", "int", "seq string") for _s in _u74sl)):
+                    self._u74_hv = getattr(self, "_u74_hv", 0) + 1
+                    _u74k = self._u74_hv
+                    _u74b = [f"_u74x{_u74k}_{_i}" for _i in range(len(_u74n))]
+                    _u74w = []
+                    for _x in _u74els:
+                        _i = _u74n.index(_x.get("name"))
+                        if _u74sl[_i] == "string":
+                            _u74w.append(f"(HStr {_u74b[_i]})")
+                        elif _u74sl[_i] == "int":
+                            _u74w.append(f"(HInt {_u74b[_i]})")
+                        else:
+                            _u74w.append(
+                                f"(HArr (let _u74b{_u74k} = ref HNil in for _u74j{_u74k} = "
+                                f"Seq.length {_u74b[_i]} - 1 downto 0 do _u74b{_u74k} := "
+                                f"HCons (HStr (Seq.get {_u74b[_i]} _u74j{_u74k})) "
+                                f"!_u74b{_u74k} done; !_u74b{_u74k}))")
+                    if _u74e.get("type") == "Var":
+                        _u74v = _u74w[0]
+                    else:
+                        _u74v = "HNil"
+                        for _w in reversed(_u74w):
+                            _u74v = f"(HCons {_w} {_u74v})"
+                        _u74v = (f"(HArr {_u74v})" if _u74e.get("type") == "ArrayLit"
+                                 else f"(HTuple {_u74v})")
+                    _u74src = self._expr_to_whyml(_u74it, local_refs)
+                    return (f"(HArr (let _u74s{_u74k} = {_u74src} in "
+                            f"let _u74a{_u74k} = ref HNil in "
+                            f"for _u74i{_u74k} = Seq.length _u74s{_u74k} - 1 downto 0 do "
+                            f"let ({', '.join(_u74b)}) = Seq.get _u74s{_u74k} _u74i{_u74k} in "
+                            f"_u74a{_u74k} := HCons {_u74v} !_u74a{_u74k} done; "
+                            f"!_u74a{_u74k}))")
         low = self._expr_to_whyml(v_ir, local_refs)
         if self._is_string_expr(v_ir):
             return f"(HStr {low})"
