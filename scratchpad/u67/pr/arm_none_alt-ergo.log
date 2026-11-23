@@ -1,0 +1,24 @@
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 95, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 117, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 123, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 182, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 190, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 234, characters 26-36: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 234, characters 47-56: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 236, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 238, characters 24-34: unused variable load_paths
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 238, characters 48-51: unused variable cwd
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 238, characters 62-76: unused variable require_module
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 238, characters 87-96: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 238, characters 113-122: unused variable timeout_s
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 238, characters 131-145: unused variable require_prefix
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 240, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 244, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 250, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 254, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 262, characters 53-61: unused variable exc_type
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 262, characters 69-76: unused variable exc_val
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 262, characters 84-90: unused variable exc_tb
+Warning, file "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 274, characters 15-19: unused variable result
+File "/home/fabrice/git/pycsl-u67/scratchpad/u67/pr/arm_none.mlw", line 281, character 4 to line 282, character 84:
+this expression does not raise exception BlockingIOError

@@ -1,0 +1,284 @@
+module PyCSL_StrLit
+  use int.Int
+  use string.String
+  function pystr_code (s: string) : int
+  val function pystr_chr (n: int) : string
+    ensures { 0 <= n < 256 -> String.length result = 1 /\ pystr_code result = n }
+    ensures { (0 <= n < 32 \/ n = 34 \/ n = 92 \/ 126 < n < 256) -> (result <> " " /\ result <> "!" /\ result <> "#" /\ result <> "$" /\ result <> "%" /\ result <> "&" /\ result <> "'" /\ result <> "(" /\ result <> ")" /\ result <> "*" /\ result <> "+" /\ result <> "," /\ result <> "-" /\ result <> "." /\ result <> "/" /\ result <> "0" /\ result <> "1" /\ result <> "2" /\ result <> "3" /\ result <> "4" /\ result <> "5" /\ result <> "6" /\ result <> "7" /\ result <> "8" /\ result <> "9" /\ result <> ":" /\ result <> ";" /\ result <> "<" /\ result <> "=" /\ result <> ">" /\ result <> "?" /\ result <> "@" /\ result <> "A" /\ result <> "B" /\ result <> "C" /\ result <> "D" /\ result <> "E" /\ result <> "F" /\ result <> "G" /\ result <> "H" /\ result <> "I" /\ result <> "J" /\ result <> "K" /\ result <> "L" /\ result <> "M" /\ result <> "N" /\ result <> "O" /\ result <> "P" /\ result <> "Q" /\ result <> "R" /\ result <> "S" /\ result <> "T" /\ result <> "U" /\ result <> "V" /\ result <> "W" /\ result <> "X" /\ result <> "Y" /\ result <> "Z" /\ result <> "[" /\ result <> "]" /\ result <> "^" /\ result <> "_" /\ result <> "`" /\ result <> "a" /\ result <> "b" /\ result <> "c" /\ result <> "d" /\ result <> "e" /\ result <> "f" /\ result <> "g" /\ result <> "h" /\ result <> "i" /\ result <> "j" /\ result <> "k" /\ result <> "l" /\ result <> "m" /\ result <> "n" /\ result <> "o" /\ result <> "p" /\ result <> "q" /\ result <> "r" /\ result <> "s" /\ result <> "t" /\ result <> "u" /\ result <> "v" /\ result <> "w" /\ result <> "x" /\ result <> "y" /\ result <> "z" /\ result <> "{" /\ result <> "|" /\ result <> "}" /\ result <> "~") }
+  val function pystr_cat (a b: string) : string
+    ensures { result = String.concat a b }
+end
+
+module PyCSL_Program
+  use PyCSL_StrLit
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use real.RealInfix
+  use seq.Seq
+  use map.Map
+  use map.Const
+  use option.Option
+  use array.Array
+
+  exception PyCSL_Continue
+
+  exception Return int
+  exception BlockingIOError
+  exception BrokenPipeError
+  exception ChildProcessError
+  exception ConnectionAbortedError
+  exception ConnectionError
+  exception ConnectionRefusedError
+  exception ConnectionResetError
+  exception FileExistsError
+  exception FileNotFoundError
+  exception IndexError
+  exception InterruptedError
+  exception IsADirectoryError
+  exception NotADirectoryError
+  exception OSError
+  exception PermissionError
+  exception ProcessLookupError
+  exception TimeoutError
+  exception TypeError
+  exception ValueError
+
+  predicate no_div_zero (b: int) = b <> 0
+  predicate in_bounds (n: int) (i: int) = 0 <= i /\ i < n
+  predicate non_neg_shift (n: int) = n >= 0
+
+  type _union__process_sertop_line_0 = Arm_0_0 int | Arm_0_None
+
+  type _union_run_sertop_batch_1 = Arm_1_0 string | Arm_1_None
+
+  type sertopsession = { mutable load_paths: array int; mutable cwd: option string; mutable proc: int; mutable seq: int }
+
+
+  exception Return__union__process_sertop_line_0 _union__process_sertop_line_0
+
+  (* Abstract operations for unsupported Python patterns *)
+  val ext_path_cwd_op () : string raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError }
+  val iter_length (x: int) : int
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+  val materialize_str (s: seq string) : array string
+    ensures { Array.length result = Seq.length s }
+    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }
+  val py_isinstance_tuple_int_op (x: int) : bool
+  predicate py_isspace_p (s: string)
+  function py_isspace_f (s: string) : int = if py_isspace_p s then 1 else 0
+  val py_isspace_op (s: string) : int
+    ensures { result = py_isspace_f s /\ ((result = 0) || (result = 1)) }
+  val function pycsl_none : int
+  val function pycsl_py_eq (a: 'a) (b: 'b) : bool
+  val function pycsl_py_ne (a: 'a) (b: 'b) : bool
+  val shutil_which_1 (x0: int) : int
+  val str_eq_op (a: string) (b: string) : bool
+    ensures { result <-> (a = b) }
+  val str_length_op (s: string) : int
+    ensures { result = (String.length s) }
+  val str_startswith_op (s: string) (prefix: string) : int
+    ensures { (result = 0) || (result = 1) }
+    ensures { (result = 1) <->
+      (String.length prefix <= String.length s /\
+       String.substring s 0 (String.length prefix) = prefix) }
+  val str_sub_op (s: string) (lo len: int) : string
+    ensures { (0 <= lo /\ 0 <= len) -> result = (String.substring s lo len) }
+    ensures { (0 <= lo /\ 0 <= len /\ lo + len <= String.length s) -> String.length result = len }
+  val subscript_get (x: int) (i: int) : int
+  val constant tuple : int
+
+  let _extract_stmid (added_payload: int) : int
+    requires { true }
+    ensures  { true }
+  =
+    try
+    if ((if (not (py_isinstance_tuple_int_op added_payload)) || ((iter_length added_payload) < 2) then 1 else 0) <> 0) then begin
+      raise (Return pycsl_none)
+    end else begin
+      if (pycsl_py_ne (subscript_get added_payload 0) "Added") then begin
+        raise (Return pycsl_none)
+      end else begin
+        try
+          raise (Return (subscript_get added_payload 1))
+        with ValueError -> 
+          raise (Return pycsl_none)
+        | TypeError -> 
+          raise (Return pycsl_none)
+        end
+      end
+    end
+    with Return r -> r end
+
+  val _sexp_parse (tokens: array string) : int
+    requires { true }
+    ensures  { true }
+    writes   { tokens }
+    raises { ValueError -> true }
+
+  let _sexp_tokens (s: string) : array string
+    requires { true }
+    ensures  { true }
+  =
+    let _pycsl_gen_acc_len = ref 0 in
+    let n = ref 0 in
+    let j = ref 0 in
+    let i = ref 0 in
+    let _pycsl_gen_acc = ref Seq.empty in
+    i := 0;
+    n := (str_length_op s);
+    while (!i < !n) do
+      invariant { (0 <= !i) }
+      variant { (!n - !i) }
+      try
+      let c = ref begin assert { in_bounds ((String.length s)) (!i) }; (str_sub_op s !i 1) end in
+      if ((py_isspace_op (begin assert { in_bounds ((String.length s)) (!i) }; (str_sub_op s !i 1) end)) <> 0) then begin
+        i := !i + 1;
+        raise PyCSL_Continue
+      end;
+      if (str_eq_op !c "(") then begin
+        _pycsl_gen_acc := Seq.snoc !_pycsl_gen_acc "(";
+        i := !i + 1;
+        raise PyCSL_Continue
+      end;
+      if (str_eq_op !c ")") then begin
+        _pycsl_gen_acc := Seq.snoc !_pycsl_gen_acc ")";
+        i := !i + 1;
+        raise PyCSL_Continue
+      end;
+      if (str_eq_op !c (pystr_chr 34)) then begin
+        j := (!i + 1);
+        while ((if (!j < !n) && (not (str_eq_op begin assert { in_bounds ((String.length s)) (!j) }; (str_sub_op s !j 1) end (pystr_chr 34))) then 1 else 0) <> 0) do
+          invariant { (!i < !j) }
+          variant { (!n - !j) }
+          try
+          if (str_eq_op begin assert { in_bounds ((String.length s)) (!j) }; (str_sub_op s !j 1) end (pystr_chr 92)) then begin
+            j := !j + 2;
+            raise PyCSL_Continue
+          end;
+          j := !j + 1
+          with PyCSL_Continue -> () end
+        done;
+        _pycsl_gen_acc := Seq.snoc !_pycsl_gen_acc (str_sub_op s !i (((!j + 1)) - (!i)));
+        i := (!j + 1);
+        raise PyCSL_Continue
+      end;
+      j := !i;
+      while ((if ((if ((if (!j < !n) && (not ((py_isspace_op (begin assert { in_bounds ((String.length s)) (!j) }; (str_sub_op s !j 1) end)) <> 0)) then 1 else 0) <> 0) && (not (str_eq_op begin assert { in_bounds ((String.length s)) (!j) }; (str_sub_op s !j 1) end "(")) then 1 else 0) <> 0) && (not (str_eq_op begin assert { in_bounds ((String.length s)) (!j) }; (str_sub_op s !j 1) end ")")) then 1 else 0) <> 0) do
+        invariant { (!i <= !j) }
+        variant { (!n - !j) }
+        j := !j + 1
+      done;
+      _pycsl_gen_acc := Seq.snoc !_pycsl_gen_acc (str_sub_op s !i ((!j) - (!i)));
+      i := !j
+      with PyCSL_Continue -> () end
+    done;
+    (materialize_str !_pycsl_gen_acc)
+
+  let parse_sexp (s: string) : int
+    requires { true }
+    ensures  { true }
+    raises { ValueError }
+  =
+    let tokens = ref (Array.copy (_sexp_tokens s)) in
+    (_sexp_parse !tokens)
+
+  let _process_sertop_line (line: string) (payloads_by_tag: ref (map int (option int))) : _union__process_sertop_line_0
+    requires { true }
+    ensures  { true }
+    writes { payloads_by_tag }
+  =
+    try
+    let sexp = ref 0 in
+    let body = ref 0 in
+    let ans_tag = ref 0 in
+    if (not ((str_startswith_op line "(Answer") <> 0)) then begin
+      raise (Return__union__process_sertop_line_0 Arm_0_None)
+    end else begin
+      try
+        sexp := (parse_sexp line)
+      with ValueError -> 
+        raise (Return__union__process_sertop_line_0 Arm_0_None)
+      | IndexError -> 
+        raise (Return__union__process_sertop_line_0 Arm_0_None)
+      end;
+      if ((if (not (py_isinstance_tuple_int_op !sexp)) || ((iter_length !sexp) < 3) then 1 else 0) <> 0) then begin
+        raise (Return__union__process_sertop_line_0 Arm_0_None)
+      end else begin
+        if (pycsl_py_ne (subscript_get !sexp 0) "Answer") then begin
+          raise (Return__union__process_sertop_line_0 Arm_0_None)
+        end else begin
+          try
+            ans_tag := (subscript_get !sexp 1)
+          with ValueError -> 
+            raise (Return__union__process_sertop_line_0 Arm_0_None)
+          | TypeError -> 
+            raise (Return__union__process_sertop_line_0 Arm_0_None)
+          end;
+          body := (subscript_get !sexp 2);
+          if (pycsl_py_eq !body "Completed") then begin
+            raise (Return__union__process_sertop_line_0 (Arm_0_0 !ans_tag))
+          end else begin
+            if ((let __and_l = (let __and_l = (let __and_l = (if (py_isinstance_tuple_int_op !body) then 1 else 0) in if __and_l <> 0 then !body else __and_l) in if __and_l <> 0 then (if (pycsl_py_eq (subscript_get !body 0) "ObjList") then 1 else 0) else __and_l) in if __and_l <> 0 then (if ((iter_length !body) >= 2) then 1 else 0) else __and_l) <> 0) then begin
+              payloads_by_tag := map_update_some !payloads_by_tag !ans_tag (subscript_get !body 1)
+            end;
+            raise (Return__union__process_sertop_line_0 Arm_0_None)
+          end
+        end
+      end
+    end
+    with Return__union__process_sertop_line_0 r -> r end
+
+  val extract_via_sertop (proof_file: string) (qualnames: array string) : int
+    requires { true }
+    ensures  { true }
+
+  val run_sertop_batch (load_paths: array int) (cwd: string) (require_module: string) (qualnames: array string) (timeout_s: real) (require_prefix: _union_run_sertop_batch_1) : map int (option int)
+    requires { true }
+    ensures  { true }
+
+  let sertop_available () : int
+    requires { true }
+    ensures  { true }
+  =
+    (if (not ((shutil_which_1 1158838347) = pycsl_none)) then 1 else 0)
+
+  val sertop_version () : string
+    requires { true }
+    ensures  { true }
+
+  let sertopsession____enter__ (self: sertopsession) : sertopsession
+    requires { true }
+    ensures  { true }
+    ensures  { self.cwd = old self.cwd }
+    ensures  { self.load_paths = old self.load_paths }
+    ensures  { self.proc = old self.proc }
+    ensures  { self.seq = old self.seq }
+  =
+    self
+
+  let sertopsession____exit__ (self: sertopsession) (exc_type: int) (exc_val: int) (exc_tb: int) : unit
+    requires { true }
+    ensures  { true }
+    ensures  { self.cwd = old self.cwd }
+    ensures  { self.load_paths = old self.load_paths }
+    ensures  { self.proc = old self.proc }
+    ensures  { self.seq = old self.seq }
+  =
+    ()
+
+  let sertopsession__type_of_batch (self: sertopsession) (require_module: string) (qualnames: array string) : map int (option int)
+    requires { true }
+    ensures  { true }
+    raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError }
+    ensures  { self.cwd = old self.cwd }
+    ensures  { self.load_paths = old self.load_paths }
+    ensures  { self.proc = old self.proc }
+    ensures  { self.seq = old self.seq }
+  =
+    let cwd = ref (match self.cwd with Some _p67 -> absurd | None -> (ext_path_cwd_op ()) end) in
+    (run_sertop_batch self.load_paths !cwd require_module qualnames 60.0 Arm_1_None)
+
+end

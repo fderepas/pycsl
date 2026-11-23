@@ -1,0 +1,41 @@
+master start Mon Nov 23 04:54:28 UTC 2026
+base bd rc=0 emitted 3330 of 6363 source file(s) into /home/fabrice/git/pycsl-u67/scratchpad/u67/sw/base/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u67/scratchpad/u67/sw/base/bd/pyref (6 jobs) 
+base mir rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u67/scratchpad/u67/sw/base/mir --min-files 45
+proofs done Mon Nov 23 06:07:46 UTC 2026
+== fun start 2026-11-23T05:56:52Z oom_kill=15
+== fun end 2026-11-23T05:57:37Z rc=0 oom_kill=15 :: [+] Verification SUCCESS for sertopsession__type_of_batch ONLY (--fun): its own goals are proved, and the contract of every function it calls is ASSUMED, including any frame the emitter SYNTHESIZED from a missing `#@ assigns`. This is NOT a claim about the module — run without `--fun` for that (route #221). 
+== whole start 2026-11-23T05:57:37Z oom_kill=15
+== whole end 2026-11-23T06:03:35Z rc=0 oom_kill=15 :: [+] Verification SUCCESS! All contracts formally proven. 
+== leaf start 2026-11-23T06:03:35Z oom_kill=15
+== leaf end 2026-11-23T06:04:38Z rc=1 oom_kill=15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. 
+== mut_frame start 2026-11-23T06:04:38Z oom_kill=15
+== mut_frame end 2026-11-23T06:06:39Z rc=1 oom_kill=15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. 
+== mut_type start 2026-11-23T06:06:39Z oom_kill=15
+== mut_type end 2026-11-23T06:06:41Z rc=1 oom_kill=15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. 
+== arm_some start 2026-11-23T06:06:41Z oom_kill=15
+== arm_some z3 end rc=2 oom_kill=15 :: 58 Valid / 1 non-Valid; sertopsession__type_of_batch non-Valid: 7
+== arm_some alt-ergo end rc=2 oom_kill=15 :: 58 Valid / 1 non-Valid; sertopsession__type_of_batch non-Valid: 7
+== arm_none start 2026-11-23T06:07:46Z oom_kill=15
+== arm_none z3 end rc=1 oom_kill=15 :: 0 Valid / 0 non-Valid; sertopsession__type_of_batch non-Valid: 0
+== arm_none alt-ergo end rc=1 oom_kill=15 :: 0 Valid / 0 non-Valid; sertopsession__type_of_batch non-Valid: 0
+== ALL DONE 2026-11-23T06:07:46Z
+G start Mon Nov 23 06:07:46 UTC 2026 d877e5177 u6 oom_kill 15
+head bd rc=0 emitted 3330 of 6363 source file(s) into /home/fabrice/git/pycsl-u67/scratchpad/u67/sw/head/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u67/scratchpad/u67/sw/head/bd/pyref (6 jobs) 
+head mir rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u67/scratchpad/u67/sw/head/mir --min-files 45
+compare root rc=0 [*] byte-diff-compare: 3329 baseline / 3329 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare pyref rc=0 [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare mir rc=1 [!]   MOVED proof2why3__sertop.mlw — if that is an intended SOURCE repair, pass --expect-moved proof2why3__sertop. [!] byte-diff-compare: NOT BYTE-INERT. [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 1 MOVED (1 unexpected), 0 GONE (0 unexpected), 0 APPEARED. 
+diff -rq mir rc=1 1 lines
+lg emitted 53
+check-assigns-writes-survival rc=0
+check-trusted-frame-honesty rc=0
+check-getattr-erasure rc=0
+check-self-annotate-sync rc=0
+self-annotate-mirror-check rc=0
+doc-coherency rc=0
+planes rc=1     ok       check-cross-module-contract-parity.py      [!] soundness-planes: 1 of 62 RED — check-trusted-reasons.py(rc=1)     (fast set only; 23 slow plane(s) NOT CHECKED — re-run with --slow) 
+count-trusted-directives rc=0 [*] trusted-directives: declared_in 25 · attached 25 · unattached 0  (a DISTINCT class, NOT in `markers`: cross-mixin declarations certified by bin/check-declaration-conformance.py; same `val` emission) [+] trusted-directives: OK 
+trusted (canonical grep) 365
+allowlist diff lines: 0
+G end Mon Nov 23 08:43:15 UTC 2026 oom_kill 15
+master end Mon Nov 23 08:43:16 UTC 2026
