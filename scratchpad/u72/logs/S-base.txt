@@ -1,0 +1,4 @@
+tree /home/fabrice/git/pycsl-u72-b0 f6435f70d8083d323e0968bc9392e6d8b42a06ed start Mon Nov 23 13:11:27 UTC 2026 oom_kill 15
+byte-diff-sweep rc=0 emitted 3330 of 6363 source file(s) into /home/fabrice/git/pycsl-u72/scratchpad/u72/logs/G/base/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u72/scratchpad/u72/logs/G/base/bd/pyref (6 jobs) 
+mirror-emit-sweep rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u72/scratchpad/u72/logs/G/base/mir --min-files 45
+end Mon Nov 23 14:34:02 UTC 2026 oom_kill 15
