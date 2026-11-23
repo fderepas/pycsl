@@ -1,0 +1,4 @@
+--import-path
+@P/X/lib.zip/sub
+--import-path
+@P/Y

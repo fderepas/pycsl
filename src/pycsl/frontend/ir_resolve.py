@@ -3708,6 +3708,12 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
     #   * dynamic-import machinery (`importlib`, `imp`, `zipimport`, `pkgutil`, `runpy`,
     #     `__import__`), which runs code pycsl never reads and can preload a module under
     #     any name, when the program ALSO has an import pycsl resolves to a local file;
+    #     (#49) run #9 u73 -- review rt81 p4 / p4b (route #633, PRE-EXISTING): the STRING
+    #     resolvers that import a dotted name and set / return what they find join this list:
+    #     `unittest` (`unittest.mock.patch("pkg.b", K).start()` imports `pkg` and SETS its
+    #     attribute `b`; CPython printed 2, pycsl PROVED `pkg.b.one() == 1`), its backport
+    #     `mock`, `pydoc` (`locate`), `logging.config` (dotted-name resolution in configs) and
+    #     `pickle` / `_pickle` / `shelve` (unpickling imports and calls by name);
     #   * a locally-resolved dependency whose OWN top-level code does the first (importing
     #     it runs that code before the importer's later imports).
     if validated_ast is not None:
@@ -3720,12 +3726,17 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     if a.name == "sys":
                         sys_names.add(a.asname or "sys")
                     if a.name.split(".")[0] in ("importlib", "imp", "zipimport", "pkgutil",
-                                                "runpy"):
+                                                "runpy", "unittest", "mock", "pydoc", "pickle",
+                                                "_pickle", "shelve") \
+                            or (a.name + ".").startswith("logging.config."):
                         dyn = dyn or "import " + a.name
             elif isinstance(n, _ast.ImportFrom) and not (getattr(n, "level", 0) or 0) \
                     and n.module:
                 if n.module.split(".")[0] in ("importlib", "imp", "zipimport", "pkgutil",
-                                              "runpy"):
+                                              "runpy", "unittest", "mock", "pydoc", "pickle",
+                                              "_pickle", "shelve") \
+                        or (n.module + ".").startswith("logging.config.") \
+                        or (n.module == "logging" and any(a.name == "config" for a in n.names)):
                     dyn = dyn or "from " + n.module + " import ..."
                 if n.module == "sys":
                     for a in n.names:
@@ -4476,6 +4487,11 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             _wpk671: Optional[Tuple[str, str]] = None
             # (u71, rt79 r1) the first place a module object may escape into a value
             _esc671: Optional[Tuple[str, int, str]] = None
+            # (u73, rt81 p2 / x3, routes #631 / #632) the first module-level hook binding
+            # (`__mro_entries__` / `__getattr__` / `__dir__`: module, name, line) of every reached
+            # module; the first import-rooted class base (module, line)
+            _hkm673: Dict[str, Tuple[str, str, int]] = {}
+            _cb673: Optional[Tuple[str, int]] = None
             while (_wl660 and _bad660 is None and _pfx661 is None and _bnd666 is None
                    and _wcr671 is None):
                 _m660 = _wl660.pop(0)
@@ -4510,6 +4526,9 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 _mc671: Set[str] = set()
                 _pa671: Dict[int, Any] = {}
                 _ann671: Set[int] = set()
+                # (u73) the statements of class bodies (a method named `__getattr__` is no
+                # module hook)
+                _cbd673: Set[int] = set()
                 for _z671 in _a613.walk(_tr660):
                     for _c671 in _a613.iter_child_nodes(_z671):
                         _pa671[id(_c671)] = _z671
@@ -4518,13 +4537,21 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     elif isinstance(_z671, _a613.ImportFrom):
                         _mc671.update(_al.asname or _al.name for _al in _z671.names
                                       if _al.name != "*")
-                    for _q671 in ([_z671.annotation] if isinstance(_z671, (_a613.arg,
-                                                                           _a613.AnnAssign))
-                                  else [_z671.returns] if isinstance(
-                                      _z671, (_a613.FunctionDef, _a613.AsyncFunctionDef))
-                                  else []):
-                        if _q671 is not None:
-                            _ann671.update(id(_y) for _y in _a613.walk(_q671))
+                    # (u73, rt81 p1b / p6b, route #631) only a FUNCTION-LOCAL variable
+                    # annotation is never evaluated (PEP 526 / 649; measured); a parameter /
+                    # return / module / class annotation hands its value out through
+                    # `__annotations__` (`dict(f.__annotations__)["a"]` is the module object),
+                    # so an import-bound name there is a value position
+                    if isinstance(_z671, _a613.AnnAssign):
+                        _y673 = _pa671.get(id(_z671))
+                        while _y673 is not None and not isinstance(_y673, (
+                                _a613.FunctionDef, _a613.AsyncFunctionDef, _a613.Lambda,
+                                _a613.ClassDef)):
+                            _y673 = _pa671.get(id(_y673))
+                        if isinstance(_y673, (_a613.FunctionDef, _a613.AsyncFunctionDef)):
+                            _ann671.update(id(_y) for _y in _a613.walk(_z671.annotation))
+                    if isinstance(_z671, _a613.ClassDef):
+                        _cbd673.update(id(_y) for _y in _z671.body)
                 for _z669 in _a613.walk(_tr660):
                     if isinstance(_z669, _a613.Import):
                         _imc669.update(_q for _al in _z669.names for _q in _al.name.split("."))
@@ -4536,9 +4563,43 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                        if _m660 != _mf660 or _al.name == "*")
                     # (u71, rt79 w2 / route #626) code that can change a package's `__all__`
                     # from outside its `__init__` (`pkg.__all__ ...`, a literal "__all__" name)
+                    # (#49) run #9 u73 -- review rt81 x4 / x1b (route #632, PRE-EXISTING): an
+                    # import binding of `__all__` (`from pkg import __all__ as A`, `from . import
+                    # __all__ as A`) hands the package's list out and `A.append("w")` extends it in
+                    # place (CPython loaded w.py, 5; pycsl PROVED 4): any import alias naming or
+                    # binding `__all__` counts as an outside mention too
                     if ((isinstance(_z669, _a613.Attribute) and _z669.attr == "__all__")
-                            or (isinstance(_z669, _a613.Constant) and _z669.value == "__all__")):
+                            or (isinstance(_z669, _a613.Constant) and _z669.value == "__all__")
+                            or (isinstance(_z669, _a613.alias)
+                                and "__all__" in (_z669.name, _z669.asname))):
                         _alx671 = _alx671 or (_m660, getattr(_z669, "lineno", 0) or 0)
+                    # (#49) run #9 u73 -- review rt81 p2 / x3 (routes #631 / #632, PRE-EXISTING):
+                    # a MODULE-LEVEL hook -- `__mro_entries__` (PEP 560: `class C(pkg)` calls it with
+                    # the module object itself in `bases`), `__getattr__` (PEP 562: it answers
+                    # every missing attribute, `__mro_entries__` and `__all__` included) or
+                    # `__dir__` -- runs code pycsl never connects to the statement that triggers
+                    # it (measured p2: `def __mro_entries__(bases): setattr(bases[0], "b", K)`,
+                    # x3: `__getattr__` answering "__all__" with ["w"]). Recorded fail-closed:
+                    # a def outside class bodies, a module-scope store / delete, an import
+                    # binding, a `global`, an attribute store / delete of the name, or the literal
+                    # string (setattr / namespace dict)
+                    if _m660 not in _hkm673:
+                        for _q673 in ("__mro_entries__", "__getattr__"):
+                            if ((isinstance(_z669, (_a613.FunctionDef, _a613.AsyncFunctionDef))
+                                 and _z669.name == _q673 and id(_z669) not in _cbd673)
+                                    or (isinstance(_z669, _a613.Name) and _z669.id == _q673
+                                        and not isinstance(_z669.ctx, _a613.Load))
+                                    or (isinstance(_z669, _a613.alias)
+                                        and _q673 in (_z669.name, _z669.asname))
+                                    or (isinstance(_z669, (_a613.Global, _a613.Nonlocal))
+                                        and _q673 in _z669.names)
+                                    or (isinstance(_z669, _a613.Attribute) and _z669.attr == _q673
+                                        and not isinstance(_z669.ctx, _a613.Load))
+                                    or (isinstance(_z669, _a613.Constant)
+                                        and isinstance(_z669.value, str)
+                                        and _z669.value == _q673)):
+                                _hkm673[_m660] = (_m660, _q673, getattr(_z669, "lineno", 0) or 0)
+                                break
                     if isinstance(_z669, _a613.Attribute) and isinstance(_z669.value, _a613.Attribute):
                         _atc669.add(_z669.value.attr)
                     _rv671 = None
@@ -4573,19 +4634,32 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         elif any(_q.split(".")[0] in (
                                 "importlib", "inspect", "pkgutil", "runpy", "pydoc", "gc",
                                 "ctypes", "builtins", "__main__", "pickle", "marshal", "copyreg",
-                                "zipimport", "imp")
+                                "zipimport", "imp", "annotationlib")
                                 for _q in ([_al.name for _al in _z669.names]
                                            if isinstance(_z669, _a613.Import)
                                            else [] if _z669.level else [_z669.module or ""])):
                             _ex671 = "an import of a module that can produce module objects"
+                        # (u73, rt81 p1b, route #631) an annotation evaluator imported by name
+                        elif isinstance(_z669, _a613.ImportFrom) and any(_al.name in (
+                                "get_type_hints", "get_annotations", "evaluate_forward_ref",
+                                "ForwardRef", "call_annotate_function") for _al in _z669.names):
+                            _ex671 = "an import of an annotation evaluator"
                     elif isinstance(_z669, _a613.Name) and isinstance(_z669.ctx, _a613.Load) and (
                             _z669.id in ("globals", "vars", "locals", "eval", "exec", "compile",
-                                         "__import__", "__builtins__")):
+                                         "__import__", "__builtins__", "__loader__", "__spec__",
+                                         "__annotations__", "__annotate__")):
                         _ex671 = f"the reflective name `{_z669.id}`"
+                    # (#49) run #9 u73 -- review rt81 p7 / p1b (route #631): a loader / spec
+                    # (`pkg.__loader__.load_module("pkg")` RETURNS the module from a callee
+                    # position) and an annotation reader (`f.__annotations__`,
+                    # `typing.get_type_hints(f)`) hand a module object out
                     elif isinstance(_z669, _a613.Attribute) and _z669.attr in (
                             "modules", "__dict__", "__globals__", "__builtins__", "__class__",
                             "_getframe", "f_globals", "f_locals", "f_back", "tb_frame",
-                            "gi_frame", "cr_frame", "__self__", "__closure__", "cell_contents"):
+                            "gi_frame", "cr_frame", "__self__", "__closure__", "cell_contents",
+                            "__loader__", "__spec__", "load_module", "exec_module",
+                            "module_from_spec", "__annotations__", "__annotate__",
+                            "get_type_hints", "get_annotations", "evaluate_forward_ref"):
                         _ex671 = f"the attribute `{_z669.attr}`"
                     elif (isinstance(_z669, _a613.Name) and isinstance(_z669.ctx, _a613.Load)
                           and _z669.id in _mc671 and id(_z669) not in _ann671):
@@ -4602,13 +4676,18 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                 or (isinstance(_p671, (_a613.FunctionDef, _a613.AsyncFunctionDef,
                                                        _a613.ClassDef))
                                     and any(_y is _y671 for _y in _p671.decorator_list))
-                                or (isinstance(_p671, _a613.ClassDef)
-                                    and any(_y is _y671 for _y in _p671.bases))
                                 or (isinstance(_p671, _a613.ExceptHandler)
                                     and _p671.type is _y671)
                                 or (isinstance(_p671, _a613.Tuple) and isinstance(
                                     _pa671.get(id(_p671)), _a613.ExceptHandler))):
                             _ex671 = f"the imported name `{_z669.id}` used as a value"
+                            # (u73, rt81 p2 / p2b / p8, route #631) a class BASE is no longer
+                            # exempt: a non-type base is passed, itself, to its
+                            # `__mro_entries__(bases)` (PEP 560)
+                            if (isinstance(_p671, _a613.ClassDef)
+                                    and any(_y is _y671 for _y in _p671.bases)):
+                                _ex671 = f"the imported name `{_z669.id}` used as a class base"
+                                _cb673 = _cb673 or (_m660, getattr(_z669, "lineno", 0) or 0)
                     if _ex671 is not None and _esc671 is None:
                         _esc671 = (_m660, getattr(_z669, "lineno", 0) or 0, _ex671)
                 # (#49) run #9 u66 -- review rt76 r2 / r2d (route #621, PRE-EXISTING). A package
@@ -4850,6 +4929,38 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                             _why671 = ("its `__all__` is not one top-level assignment of a "
                                        "literal list / tuple of identifier strings (it is "
                                        "computed, extended, re-bound or mentioned elsewhere)")
+                            # (#49) run #9 u73 -- review rt81 x3 / x9 (route #632, PRE-EXISTING):
+                            # CPython reads `pkg.__all__` with getattr, so a module-level PEP 562
+                            # `__getattr__` answers it when no binding exists (`"_" + "_all__"`
+                            # -> ["w"]: CPython loaded w.py, 5; pycsl PROVED 4), and it runs for
+                            # every `__all__` name the package does not bind: an `__init__` with
+                            # a module-level `__getattr__` / `__dir__` (the rule recorded for
+                            # every reached module above, applied to this file) is unreadable
+                            _cb674 = {id(_s) for _c in _a613.walk(_ti671)
+                                      if isinstance(_c, _a613.ClassDef) for _s in _c.body}
+                            for _y671 in _a613.walk(_ti671):
+                                if any(((isinstance(_y671, (_a613.FunctionDef,
+                                                            _a613.AsyncFunctionDef))
+                                         and _y671.name == _q and id(_y671) not in _cb674)
+                                        or (isinstance(_y671, _a613.Name) and _y671.id == _q
+                                            and not isinstance(_y671.ctx, _a613.Load))
+                                        or (isinstance(_y671, _a613.alias)
+                                            and _q in (_y671.name, _y671.asname))
+                                        or (isinstance(_y671, (_a613.Global, _a613.Nonlocal))
+                                            and _q in _y671.names)
+                                        or (isinstance(_y671, _a613.Attribute)
+                                            and _y671.attr == _q
+                                            and not isinstance(_y671.ctx, _a613.Load))
+                                        or (isinstance(_y671, _a613.Constant)
+                                            and isinstance(_y671.value, str)
+                                            and _y671.value == _q))
+                                       for _q in ("__getattr__", "__dir__", "__mro_entries__")):
+                                    _ok671 = False
+                                    _why671 = ("it defines a module-level `__getattr__` / "
+                                               "`__dir__` hook (PEP 562), which answers "
+                                               "`__all__` and every name the package does not "
+                                               "bind with code pycsl does not follow")
+                                    break
                             if _ok671 and _cn671 == 0:
                                 _nl671 = []
                             elif (_ok671 and _cn671 == 1 and len(_as671) == 1
@@ -5036,6 +5147,39 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     f"explicitly.",
                     filename=main_file, stage="imports",
                     code="PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN")
+            # (#49) run #9 u73 -- review rt81 p2 / p2b / p8 (route #631, PRE-EXISTING): `class
+            # C(pkg)` hands the package MODULE OBJECT to its module-level `__mro_entries__(bases)`
+            # (PEP 560; a module-level `__getattr__` answers that lookup too), a function the
+            # class statement calls without naming it, whose `setattr(bases[0], "b", K)` replaced
+            # the submodule `pkg.b` (CPython printed 2, pycsl PROVED `zv81p2.b.one() == 1`; in
+            # the PROGRAM, which route #483 does not judge). A module-level `__getattr__` also
+            # answers every attribute the module does not bind: `from pkg import b` takes
+            # `__getattr__("b")` before the submodule b.py pycsl resolves (u73 probe g1). RULE
+            # (refusal-only, fail-closed): a module-level `__mro_entries__` / `__getattr__` hook
+            # in any reached module other than the program REFUSES; in the program (whose module
+            # object is `__main__`) as soon as a module object can be used as a class base: an
+            # import-rooted class base anywhere, or any module-object escape (above).
+            _hk673 = next(iter([_h for _h in _hkm673.values() if _h[0] != _mf660]
+                               + [_h for _h in _hkm673.values() if _h[0] == _mf660
+                                  and (_cb673 is not None or _esc671 is not None)]), None)
+            if (_hk673 is not None
+                    and _bad660 is None and _pfx661 is None and _bnd666 is None):
+                _dm673 = (os.path.relpath(_hk673[0]) if _hk673[0].startswith(os.getcwd() + os.sep)
+                          else _hk673[0])
+                raise _E613(
+                    f"the local module {_dm673}, which the program reaches, binds the module-level "
+                    f"hook `{_hk673[1]}` (line {_hk673[2]}): CPython calls a module-level "
+                    f"`__getattr__` for every attribute the module does not bind (a from-import "
+                    f"target, `pkg.<name>`, `__mro_entries__`), and a module's `__mro_entries__"
+                    f"(bases)` with the module object itself when the module is a class base "
+                    f"(PEP 560 / 562), running code that no statement of the program names and "
+                    f"that can replace or shadow the module's attributes (review rt81 p2: "
+                    f"`def __mro_entries__(bases): setattr(bases[0], \"b\", K)` in zv81p2/__init__.py "
+                    f"and `class C(zv81p2)` in the program; CPython printed 2 where pycsl PROVED "
+                    f"`zv81p2.b.one() == 1`). FIX: remove the module-level hook, or do not use a "
+                    f"module as a class base.",
+                    filename=main_file, stage="imports",
+                    code="PYCSL-SEM-IMPORT-MODULE-HOOK")
             # (#49) run #9 u69 -- review rt78 o1 (u66 INTRODUCED over-refusal of route #621): a
             # package `__init__` whose top level defines `def b()` beside an unimported submodule
             # b.py, and `from pkg import b` in the program (CPython: the function, result 1;

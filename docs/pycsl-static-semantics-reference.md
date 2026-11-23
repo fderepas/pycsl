@@ -3194,7 +3194,18 @@ reached module can change (`pkg.__all__`, a literal `"__all__"`), is refused
 (`PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN`; u71, route #626, rt79 w2 / d8); relative imports are
 package-relative in both views; not applied under `--verification-image`. Every `--import-path` entry
 must be an existing directory, in every mode (`PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY`; u71, route #627,
-rt79 z1: zipimport). Under the declared `--verification-image
+rt79 z1: zipimport). The module-object escapes also include an import-bound name as a class base, in a
+non-function-local annotation, the loader / spec / annotation-reader attributes and names
+(`__loader__`, `__spec__`, `load_module`, `exec_module`, `module_from_spec`, `__annotations__`,
+`__annotate__`, `get_type_hints`, `get_annotations`) and an import of `annotationlib` or of an annotation
+evaluator (u73, route #631, rt81 p2 / p1b / p7); a module-level `__mro_entries__` / `__getattr__` hook in
+a reached module other than the program (in the program: once a module can be a class base or escapes)
+is refused (`PYCSL-SEM-IMPORT-MODULE-HOOK`; u73, route #631); a wildcard of a package whose `__init__`
+has a module-level `__getattr__` / `__dir__` / `__mro_entries__` hook, or a reached import alias naming
+or binding `__all__`, makes `__all__` unknown, in the walk and in route #483's closure (u73, route #632,
+rt81 x3 / x4 / x1b); route #326's dynamic-import list gains `unittest`, `mock`, `pydoc`,
+`logging.config`, `pickle`, `_pickle`, `shelve` (u73, route #633, rt81 p4: string-resolved
+`mock.patch`). Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
 roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`

@@ -1530,7 +1530,24 @@ re-bound) or that other code can change is REFUSED (`PYCSL-SEM-IMPORT-WILDCARD-A
 #626, review rt79 w2: the `__all__` submodule's import-time writer made CPython print 5 where pycsl
 PROVED 4). Every `--import-path` entry must be an existing directory (`PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY`,
 u71, route #627, review rt79 z1: CPython's zipimport loads modules from a zip archive on sys.path, which
-pycsl skipped). Relative imports stay package-relative; the
+pycsl skipped). The module-object escapes that make every store receiver judged also include an
+import-bound name used as a CLASS BASE (PEP 560 hands the module to its `__mro_entries__`), in a
+parameter / return / module / class annotation (only a function-local variable annotation is never
+evaluated), the attributes / names `__loader__`, `__spec__`, `load_module`, `exec_module`,
+`module_from_spec`, `__annotations__`, `__annotate__`, `get_type_hints`, `get_annotations`, and an
+import of `annotationlib` or of an annotation evaluator (u73, route #631, review rt81 p2 / p1b / p7). A
+module-level `__mro_entries__` / `__getattr__` hook (a def outside class bodies, a store, an import
+binding, a `global`, an attribute store or the literal string) in a reached module other than the
+program is REFUSED (`PYCSL-SEM-IMPORT-MODULE-HOOK`; in the program once a module object can be a class
+base or escapes): CPython calls it with the module object when the module is a class base, and
+`__getattr__` answers every name the module does not bind (u73, route #631, review rt81 p2: CPython
+printed 2 where pycsl PROVED 1). A wildcard of a package whose `__init__` has a module-level `__getattr__`
+/ `__dir__` / `__mro_entries__` hook, and any import alias naming or binding `__all__` in a reached
+module, make the wildcard's `__all__` unknown (`PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN` in the walk, route
+#483 in the import-time closure, which now applies the outside-mention rule too) (u73, route #632,
+review rt81 x3 / x4 / x1b). `unittest` (`mock.patch("pkg.b", K)` sets a module attribute by its dotted
+name), `mock`, `pydoc`, `logging.config`, `pickle`, `_pickle` and `shelve` join route #326's dynamic-import
+list (u73, route #633, review rt81 p4). Relative imports stay package-relative; the
 check is skipped under the declared `--verification-image`, which makes no CPython-run
 claim): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or

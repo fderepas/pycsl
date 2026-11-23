@@ -39592,6 +39592,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _std483 = set(_s483.stdlib_module_names) | set(_s483.builtin_module_names)
         _tr483 = {_mf483: _t341}    # program module path -> its tree
         _q483 = [_mf483]
+        _wpk483 = None    # (u73, route #632) the first wildcard of a package: (module, __init__)
         while _q483 and _rf483 is None:
             _f483 = _q483.pop(0)
             for _z483 in _a483.walk(_tr483[_f483]):
@@ -39634,6 +39635,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             and _lv483 == (_z483.level or 0)
                             and any(_al.name == "*" for _al in _z483.names)
                             and _o483.path.basename(_rp483) == "__init__.py"):
+                        _wpk483 = _wpk483 or (_f483, _rp483)
                         try:
                             _ti483 = _a483.parse(open(_rp483, "rb").read())
                         except Exception:
@@ -39658,6 +39660,35 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                           and _y.value is not None
                                           and isinstance(_y.target, _a483.Name)
                                           and _y.target.id == "__all__")]
+                            # (#49) run #9 u73 -- review rt81 x3 / x9 (route #632, PRE-EXISTING):
+                            # CPython reads `pkg.__all__` with getattr, so a module-level PEP 562
+                            # `__getattr__` answers it (computed "__all__" -> ["w"]: CPython
+                            # loaded w.py, 5; pycsl PROVED 4) and runs for every `__all__` name
+                            # the package does not bind: an `__init__` with a module-level
+                            # `__getattr__` / `__dir__` / `__mro_entries__` hook (a def outside
+                            # class bodies, a store / delete, an import binding, a `global`, an
+                            # attribute store of it, or its literal string) is unreadable
+                            _cb483 = {id(_s) for _c in _a483.walk(_ti483)
+                                      if isinstance(_c, _a483.ClassDef) for _s in _c.body}
+                            for _y483 in _a483.walk(_ti483):
+                                if any(((isinstance(_y483, (_a483.FunctionDef,
+                                                            _a483.AsyncFunctionDef))
+                                         and _y483.name == _q and id(_y483) not in _cb483)
+                                        or (isinstance(_y483, _a483.Name) and _y483.id == _q
+                                            and not isinstance(_y483.ctx, _a483.Load))
+                                        or (isinstance(_y483, _a483.alias)
+                                            and _q in (_y483.name, _y483.asname))
+                                        or (isinstance(_y483, (_a483.Global, _a483.Nonlocal))
+                                            and _q in _y483.names)
+                                        or (isinstance(_y483, _a483.Attribute)
+                                            and _y483.attr == _q
+                                            and not isinstance(_y483.ctx, _a483.Load))
+                                        or (isinstance(_y483, _a483.Constant)
+                                            and isinstance(_y483.value, str)
+                                            and _y483.value == _q))
+                                       for _q in ("__getattr__", "__dir__", "__mro_entries__")):
+                                    _ok483 = False
+                                    break
                             if _ok483 and _cn483 == 0:
                                 _nl483 = []
                             elif (_ok483 and _cn483 == 1 and len(_as483) == 1
@@ -39691,6 +39722,30 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if len(_tr483) > 400:
                             _rf483 = "the import closure has more than 400 program modules"
                             break
+                if _rf483 is not None:
+                    break
+        # (#49) run #9 u73 -- review rt81 x4 / x1b (route #632, PRE-EXISTING): the `__all__` the
+        # wildcard follows is read statically, but any module of the closure can change the list
+        # from outside the package: `from pkg import __all__ as A; A.append("w")` (in a module the
+        # package imports, or one the program imports first: CPython loaded w.py, 5; pycsl PROVED
+        # 4), `pkg.__all__ += [...]`, a literal "__all__" for setattr / a namespace dict. Once a
+        # wildcard of a package is met, any import alias naming or binding `__all__`, any
+        # attribute `.__all__` and any literal string "__all__" in the closure REFUSES (the u60
+        # walk's outside-mention rule, applied here too).
+        if _rf483 is None and _wpk483 is not None:
+            for _f483, _tt483 in _tr483.items():
+                for _y483 in _a483.walk(_tt483):
+                    if ((isinstance(_y483, _a483.Attribute) and _y483.attr == "__all__")
+                            or (isinstance(_y483, _a483.Constant)
+                                and isinstance(_y483.value, str) and _y483.value == "__all__")
+                            or (isinstance(_y483, _a483.alias)
+                                and "__all__" in (_y483.name, _y483.asname))):
+                        _rf483 = (f"{_f483} (line {getattr(_y483, 'lineno', 0) or 0}) names "
+                                  f"`__all__` outside a package's own literal assignment while "
+                                  f"{_wpk483[0]} has a wildcard import of {_wpk483[1]}, so the "
+                                  f"list of submodules the wildcard loads (and their import-time "
+                                  f"code) may be changed")
+                        break
                 if _rf483 is not None:
                     break
         if _rf483 is None and len(_tr483) > 1:
