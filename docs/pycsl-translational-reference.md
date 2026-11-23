@@ -6246,10 +6246,12 @@ stdlib / builtin name, or a top-level name the stdlib source imports; the closur
 includes the builtins, whose C-level imports are invisible) that would have no image as a
 direct import, or that is a non-stdlib local module (`PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`,
 route #613): an import inside the stdlib resolves from `sys.path[0]` first. Each dependency
-function is injected under its own name, once: a second definition reaching the same name (a
-local `def f` beside a module-qualified `m.f()`, or two modules' `f`) has no image under one WhyML
-name and is refused (`PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH`, routes #624 / #625), not lowered to the
-first one. The roots of that
+function is injected once, under its own name when that name is free and otherwise under a fresh
+`<name>_from_<module>[_k]` with every call CPython binds to it rewritten (u72, routes #624 / #625 /
+#628 / #630); a name the program itself binds to the import that another definition already holds
+has no image under one WhyML name and is refused (`PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH`), as is a
+class base tail reached from two modules (`PYCSL-SEM-IMPORT-BASE-CLASS-AMBIGUOUS`, route #629),
+never lowered to the first one. The roots of that
 check are the program's directory (and its realpath) first -- SCRIPT mode, the default. The
 mirror gates and the pycsl_lib plane declare instead `--verification-image ROOT` (ROOT =
 `src/self-annotate/src`, resp. `src`): a verification model that CPython never executes, with no

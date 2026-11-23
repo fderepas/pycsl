@@ -1448,10 +1448,13 @@ entry in any resolution root named like a module the closure may reach — a std
 name, or any name the interpreter's stdlib source imports — is judged as a direct import of
 it and REFUSED unless admitted, `PYCSL-SEM-IMPORT-TRANSITIVE-SHADOW`, route #613: a local
 `re.py` beside a program that imports only `json` is the `re` that `json` runs; a dependency
-function whose name the IR already holds (a local `def f` beside `import m` + `m.f()`, or `f` defined
-in two imported modules) is REFUSED unless it is the same dependency function reached twice,
-`PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH`, routes #624 / #625 (u70, review rt77 F1 / F2; corpus
-10420-10427); the judged
+function whose name another definition already holds (a local `def f` beside `import m` + `m.f()`,
+`f` defined in two imported modules, a library-private `_h` beside the program's `_h`) keeps its own
+identity under a fresh `<name>_from_<module>` and every call CPython binds to it is rewritten; a name
+the program binds to the import itself is REFUSED on a clash, `PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH`,
+routes #624 / #625 / #630; `m.f` with no in-file `def f` follows a certain re-export, route #628; a
+class base tail reached from two modules is REFUSED, `PYCSL-SEM-IMPORT-BASE-CLASS-AMBIGUOUS`, route
+#629 (u70 / u72, reviews rt77 F1 / F2, rt80; corpus 10420-10427, 10450-10464); the judged
 names also include every module entry of the interpreter's stdlib directories (Lib,
 lib-dynload, the platform stdlib: the stdlib imports `_sysconfigdata_<abi>_<platform>` by a
 COMPUTED name), literal names handed to `__import__` / `import_module` /

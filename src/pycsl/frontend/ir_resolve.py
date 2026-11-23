@@ -708,6 +708,119 @@ def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, 
             func = dict(func)  # shallow copy
             func["trusted"] = True
             result.append(func)
+    # (#49) run #9 u72 -- ROUTE #628 (review rt80 R1a-f; PRE-EXISTING, MEASURED PROVED at L20,
+    # CPython contradicts). A requested name that is NOT an in-file `def` of this module was
+    # silently dropped here, and the module-qualified caller then rewrote `m.f()` to the bare
+    # `f`, which bound to whatever `f` the importer held (a local def, another library's f).
+    # CPython runs the def the module's binding REACHES. Follow a re-export to its origin when
+    # the binding is statically certain: the name is bound at EXACTLY ONE site of any form in
+    # the module (the route #474 census), the module has no namespace writer pycsl cannot see,
+    # and that one site is a top-level `from M import X [as name]` (absolute or relative; a
+    # package `__init__` re-export included) or `name = b.X` with `b` bound once by a
+    # top-level `import M [as b]`. The origin `def` is returned under the requested name and
+    # carries its own file tag and its in-file name (`_u72_orig`, popped by
+    # `_inject_functions`), so it keeps its own identity. Anything else returns nothing, as
+    # before; the module-qualified caller then leaves `m.f` opaque instead of binding it to
+    # a same-named def. Inline; the mirror twin is `\trusted`.
+    import ast as _a628
+    for _n628 in (list(needed_names) if isinstance(needed_names, list) else sorted(needed_names)):
+        if (not isinstance(_n628, str) or not _n628.isidentifier() or _n628 in all_funcs
+                or any(_e628.get("name") == _n628 for _e628 in result)):
+            continue
+        _cur628, _nm628, _org628 = filepath, _n628, None
+        for _hop628 in range(8):
+            try:
+                _tr628 = _a628.parse(__import__("pathlib").Path(_cur628).read_bytes())
+            except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
+                break
+            _cnt628: Dict[str, int] = {}
+            _dy628 = False
+            for _y628 in _a628.walk(_tr628):
+                _ns628: List[str] = []
+                if isinstance(_y628, _a628.Name) and not isinstance(_y628.ctx, _a628.Load):
+                    _ns628 = [_y628.id]
+                elif isinstance(_y628, (_a628.FunctionDef, _a628.AsyncFunctionDef,
+                                        _a628.ClassDef)):
+                    _ns628 = [_y628.name]
+                elif isinstance(_y628, (_a628.Import, _a628.ImportFrom)):
+                    for _al628 in _y628.names:
+                        _dy628 = _dy628 or _al628.name == "*"
+                        _ns628.append(_al628.asname or _al628.name.split(".")[0])
+                elif isinstance(_y628, (_a628.Global, _a628.Nonlocal)):
+                    _ns628 = list(_y628.names)
+                elif isinstance(_y628, (_a628.ExceptHandler, _a628.MatchAs, _a628.MatchStar)):
+                    _ns628 = [_y628.name] if isinstance(_y628.name, str) else []
+                elif isinstance(_y628, _a628.MatchMapping):
+                    _ns628 = [_y628.rest] if isinstance(_y628.rest, str) else []
+                elif isinstance(_y628, _a628.Call) and isinstance(_y628.func, _a628.Name):
+                    _dy628 = _dy628 or _y628.func.id in (
+                        "globals", "vars", "locals", "exec", "eval", "setattr", "delattr",
+                        "__import__")
+                elif isinstance(_y628, _a628.Attribute):
+                    _dy628 = _dy628 or _y628.attr in ("__dict__", "modules")
+                for _q628 in _ns628:
+                    _cnt628[_q628] = _cnt628.get(_q628, 0) + 1
+            if _dy628 or _cnt628.get(_nm628, 0) != 1:
+                break
+            # a package's submodule of that name rebinds the package attribute once imported
+            if os.path.basename(_cur628) == "__init__.py" and (
+                    os.path.exists(os.path.join(os.path.dirname(_cur628), _nm628 + ".py"))
+                    or os.path.isdir(os.path.join(os.path.dirname(_cur628), _nm628))):
+                break
+            _nxt628 = None
+            for _st628 in _tr628.body:
+                if isinstance(_st628, (_a628.FunctionDef, _a628.AsyncFunctionDef)) \
+                        and _st628.name == _nm628:
+                    if _hop628 > 0:
+                        _org628 = (_cur628, _nm628)
+                    break
+                if isinstance(_st628, _a628.ImportFrom) and _st628.module:
+                    _al628 = [_a for _a in _st628.names
+                              if _a.name != "*" and (_a.asname or _a.name) == _nm628]
+                    if _al628:
+                        try:
+                            _r628 = _resolve_module_path(_st628.module, _st628.level or 0,
+                                                         _cur628)
+                        except Exception:
+                            _r628 = None
+                        if _r628 is not None:
+                            _nxt628 = (os.path.abspath(_r628), _al628[0].name)
+                        break
+                if (isinstance(_st628, _a628.Assign) and len(_st628.targets) == 1
+                        and isinstance(_st628.targets[0], _a628.Name)
+                        and _st628.targets[0].id == _nm628):
+                    _v628 = _st628.value
+                    if (isinstance(_v628, _a628.Attribute) and isinstance(_v628.value, _a628.Name)
+                            and _cnt628.get(_v628.value.id, 0) == 1):
+                        for _st2 in _tr628.body:
+                            if isinstance(_st2, _a628.Import):
+                                for _a in _st2.names:
+                                    if ((_a.asname or _a.name) == _v628.value.id
+                                            and (_a.asname or "." not in _a.name)):
+                                        try:
+                                            _r628 = _resolve_module_path(_a.name, 0, _cur628)
+                                        except Exception:
+                                            _r628 = None
+                                        if _r628 is not None:
+                                            _nxt628 = (os.path.abspath(_r628), _v628.attr)
+                    break
+            if _org628 is not None or _nxt628 is None:
+                break
+            _cur628, _nm628 = _nxt628
+        if _org628 is None:
+            continue
+        for _e628 in _process_dependency(_org628[0], [_org628[1]], cache, deep=deep,
+                                         processing_set=processing_set):
+            if (_e628.get("name") == _org628[1]
+                    and _e628.get("_r143_dep_file") == os.path.abspath(_org628[0])
+                    and "_u72_orig" not in _e628):
+                _e628["_u72_orig"] = _org628[1]
+                _e628["name"] = _n628
+            if not any(_x628.get("name") == _e628.get("name")
+                       and _x628.get("_r143_dep_file") == _e628.get("_r143_dep_file")
+                       and _x628.get("_u72_orig") == _e628.get("_u72_orig")
+                       for _x628 in result):
+                result.append(_e628)
     return result
 
 
@@ -2239,49 +2352,129 @@ def _inject_functions(dep_funcs: List[Dict[str, Any]], ir_data: Dict[str, Any]) 
     resolvers (direct / wildcard / module-qualified)."""
     imported = set()
     existing = {f["name"] for f in ir_data["functions"]}
-    for func_ir in dep_funcs:
-        if func_ir["name"] not in existing:
-            ir_data["functions"].insert(0, func_ir)
-            imported.add(func_ir["name"])
-            existing.add(func_ir["name"])
+    # (#49) run #9 u72 -- ONE IDENTITY PER DEFINITION (review rt80 O1-O5, R3; replaces the
+    # u70 blanket NAME-CLASH refusal of routes #624 / #625, which refused five CPython-faithful
+    # programs: a library-private `_h` beside the program's own `_h`, two libraries each with
+    # an internal `_h`, a star import followed by a local def). The old code silently SKIPPED a
+    # dependency function whose name was taken, so a call meant for it bound to the other def.
+    # Every entry of one batch comes from the files `_process_dependency` tagged
+    # (`_r143_dep_file`); its in-file name is `_u72_orig` when the caller renamed it (an
+    # import alias, a followed re-export), else its name. Two markers, popped here so they
+    # never reach the IR: `_u72_bound` = the PROGRAM binds this emitted name to this def (a
+    # from-import local, a wildcard name, a class method reached by its mangled name), and
+    # `_u72_orig`. RULE, per entry:
+    #   * the name is free and not reserved for another binding of the program -> as before;
+    #   * the entry present under the name IS this def (same file, same IR) -> skipped;
+    #   * a PROGRAM-BOUND entry whose name is taken by another def -> REFUSED (the program's
+    #     own name cannot denote both; NAME-CLASH, as u70);
+    #   * any other entry (a transitive in-file callee, a module-qualified call's target, a
+    #     class's module helper) whose name is taken by another def, or reserved for another
+    #     binding of the program (`_u72_reserved`: a from-import local of the program bound
+    #     elsewhere, a builtin the program calls) -> injected under a fresh name
+    #     `<name>_from_<module>[_k]`, and every call of the batch that binds to it (the same
+    #     file's in-file name, CPython's module-globals lookup) is rewritten to that name, on
+    #     a deep copy (the cache is shared). The caller reads the final names off `dep_funcs`,
+    #     whose entries are replaced in place. A call whose callee is a formal parameter of
+    #     the calling function is left alone (it binds to the parameter).
+    # Inline; the mirror twin is `\trusted`.
+    _res72 = ir_data.get("_u72_reserved") or {}
+    _first72: Dict[str, Any] = {}
+    for _f72 in ir_data["functions"]:
+        _first72.setdefault(_f72["name"], _f72)
+    _bnd72 = [bool(_e72.pop("_u72_bound", False)) for _e72 in dep_funcs]
+    _kp72 = [bool(_e72.pop("_u72_keep", False)) for _e72 in dep_funcs]
+    _org72 = [_e72.pop("_u72_orig", None) or _e72["name"] for _e72 in dep_funcs]
+    _plan72: List[Optional[str]] = [None] * len(dep_funcs)   # emitted name; None = skip
+    _taken72: Set[str] = set(existing)
+    for _pass72 in (True, False):
+        for _i72, _e72 in enumerate(dep_funcs):
+            if _bnd72[_i72] != _pass72:
+                continue
+            _nm72 = _e72["name"]
+            _prev72 = _first72.get(_nm72)
+            _tag72 = _e72.get("_r143_dep_file")
+            _same72 = (_prev72 is not None and _tag72 is not None
+                       and _prev72.get("_r143_dep_file") == _tag72
+                       and {k: v for k, v in _prev72.items() if k != "proof"}
+                       == {k: v for k, v in _e72.items() if k != "proof"})
+            if _same72:
+                continue
+            _rv72 = _res72.get(_nm72)
+            _resv72 = (_rv72 is not None and not _pass72
+                       and (_rv72[0] != _tag72 or _rv72[1] != _org72[_i72]))
+            if _nm72 not in _taken72 and not _resv72:
+                _plan72[_i72] = _nm72
+                _taken72.add(_nm72)
+                continue
+            if _pass72:
+                _was72 = ("a function the program defines itself"
+                          if _prev72 is None or _prev72.get("_r143_dep_file") is None
+                          else f"the function of that name in "
+                               f"`{os.path.basename(_prev72['_r143_dep_file'])}`")
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"the imported function `{_nm72}` of "
+                    f"`{os.path.basename(_tag72 or '?')}` has the "
+                    f"same name as {_was72}, and the program binds the name `{_nm72}` itself "
+                    f"to the imported one (a from-import, a wildcard import, or a class "
+                    f"method reached by its mangled name): one name cannot denote both "
+                    f"definitions, so a call of it would be verified against the wrong "
+                    f"contract while CPython runs the other (routes #624 / #625 / #630). FIX: "
+                    f"rename one of the two functions, or import it under a distinct name "
+                    f"(`from mod import {_nm72} as other`).",
+                    filename=os.path.relpath(_tag72) if _tag72 else "", stage="imports",
+                    code="PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH")
+            _stem72 = os.path.splitext(os.path.basename(_tag72 or "dep"))[0]
+            if _stem72 == "__init__":
+                _stem72 = os.path.basename(os.path.dirname(_tag72 or "dep"))
+            _stem72 = "".join(c if (c.isalnum() or c == "_") else "_" for c in _stem72)
+            _new72 = f"{_nm72}_from_{_stem72}"
+            _k72 = 0
+            while _new72 in _taken72 or _new72 in _res72:
+                _k72 += 1
+                _new72 = f"{_nm72}_from_{_stem72}_{_k72}"
+            _plan72[_i72] = _new72
+            _taken72.add(_new72)
+    # A renamed entry that nothing reaches is dropped, as the old code dropped it: no call of
+    # the batch binds to it and the caller does not need it (`_u72_keep`: the target of a
+    # module-qualified call); the program's own calls of the name bind to the other def.
+    for _i72, _e72 in enumerate(dep_funcs):
+        if (_plan72[_i72] is None or _plan72[_i72] == _e72["name"] or _bnd72[_i72]
+                or _kp72[_i72]):
             continue
-        # (#49) run #9 u70 -- review rt77 F1 / F2, routes #624 / #625 (PRE-EXISTING since the
-        # first multi-file resolver; MEASURED PROVED at daa36070b, CPython contradicts). The
-        # name is taken already, and the old code silently SKIPPED this dependency function:
-        # `import lib` + a local `def val1` lowered `lib.val1()` to the LOCAL val1 (w14: `== 2`
-        # PROVED, CPython prints 1), and `liba.helper() + libb.helper()` became one `val
-        # helper` (w19: a false disjunction PROVED, CPython prints 3). Skipping is faithful only
-        # when the entry already present IS this dependency function: the same origin file
-        # (the `_r143_dep_file` tag `_process_dependency` sets; a program's own `def` has none)
-        # and the same IR (both are copies of the one cached entry; an alias rename that lands
-        # on another function of the same file differs). RULE: anything else is refused, never
-        # approximated. Inline; the mirror twin is `\trusted`.
-        _prev624 = None
-        for _f624 in ir_data["functions"]:
-            if _f624["name"] == func_ir["name"]:
-                _prev624 = _f624
-                break
-        _dep624 = func_ir.get("_r143_dep_file")
-        if (_prev624 is not None and _dep624 is not None
-                and _prev624.get("_r143_dep_file") == _dep624 and _prev624 == func_ir):
+        if not any(_j72 != _i72 and _plan72[_j72] is not None
+                   and _x72.get("_r143_dep_file") == _e72.get("_r143_dep_file")
+                   and _org72[_i72] in _collect_calls(_x72)
+                   for _j72, _x72 in enumerate(dep_funcs)):
+            _plan72[_i72] = None
+    # the in-file call names of this batch that must be rewritten, per origin file
+    _map72: Dict[Tuple[Any, str], str] = {}
+    for _i72, _e72 in enumerate(dep_funcs):
+        _to72 = _plan72[_i72] if _plan72[_i72] is not None else _e72["name"]
+        if _to72 != _org72[_i72]:
+            _map72[(_e72.get("_r143_dep_file"), _org72[_i72])] = _to72
+    for _i72, _e72 in enumerate(dep_funcs):
+        if _plan72[_i72] is None:
             continue
-        _was624 = ("a function the program defines itself"
-                   if _prev624 is None or _prev624.get("_r143_dep_file") is None
-                   else f"the function of that name in "
-                        f"`{os.path.basename(_prev624['_r143_dep_file'])}`")
-        from errors import PyCSLSemanticError
-        raise PyCSLSemanticError(
-            f"the imported function `{func_ir['name']}` of "
-            f"`{os.path.basename(_dep624 or '?')}` has the "
-            f"same name as {_was624}: pycsl gives every function ONE WhyML name, so one of the "
-            f"two definitions would be dropped and a call meant for it (a module-qualified "
-            f"`mod.{func_ir['name']}()`, or the dependency's own call of it) would be verified "
-            f"against the other one's contract, while CPython runs each module's own function "
-            f"(routes #624 / #625: `import lib` beside a local `def {func_ir['name']}`, or two "
-            f"libraries that both define it). FIX: rename one of the two functions, or import "
-            f"it under a distinct name (`from mod import {func_ir['name']} as other`).",
-            filename=os.path.relpath(_dep624) if _dep624 else "", stage="imports",
-            code="PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH")
+        _tag72 = _e72.get("_r143_dep_file")
+        _fp72 = set()
+        for _p72 in list(_e72.get("formal_params", []) or []) + list(
+                _e72.get("kwonly_params", []) or []):
+            _fp72.add(_p72.get("name") if isinstance(_p72, dict) else _p72)
+        _mine72 = {o: t for (f, o), t in _map72.items() if f == _tag72 and o not in _fp72}
+        _mine72 = {o: t for o, t in _mine72.items() if o != t}
+        if _mine72 or _plan72[_i72] != _e72["name"]:
+            _e72 = copy.deepcopy(_e72)
+            _ph72 = {o: f"\x00u72:{_j}" for _j, o in enumerate(sorted(_mine72))}
+            for o, _h in _ph72.items():
+                _rewrite_ir_calls(_e72, o, _h)
+            for o, _h in _ph72.items():
+                _rewrite_ir_calls(_e72, _h, _mine72[o])
+            _e72["name"] = _plan72[_i72]
+            dep_funcs[_i72] = _e72
+        ir_data["functions"].insert(0, _e72)
+        imported.add(_e72["name"])
+        existing.add(_e72["name"])
     return imported
 
 
@@ -2310,10 +2503,18 @@ def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main
         # dep's IR (cached) to read their values.
         dep_funcs = _process_dependency(resolved, orig_names, cache,
                                         deep=deep, processing_set=processing_set)
+        # (#49) run #9 u72: the requested defs are PROGRAM-BOUND under their local name and
+        # keep their in-file name as identity (`_inject_functions`); a transitive callee that
+        # merely shares the requested name is not renamed (it is another file's def).
         for func_ir in dep_funcs:
             for local, orig in needed:
-                if func_ir["name"] == orig and local != orig:
-                    func_ir["name"] = local
+                if func_ir["name"] == orig and (
+                        func_ir.get("_r143_dep_file") == os.path.abspath(resolved)
+                        or "_u72_orig" in func_ir) and not func_ir.get("_u72_bound"):
+                    func_ir.setdefault("_u72_orig", orig)
+                    func_ir["_u72_bound"] = True
+                    if local != orig:
+                        func_ir["name"] = local
         imported_names |= _inject_functions(dep_funcs, ir_data)
         # 1111-spec R6 (no-more-int): propagate the imported module's
         # compile-time constant VALUES so the importer folds `SEEK_SET` to its
@@ -2481,6 +2682,17 @@ def _resolve_wildcard_imports(wildcard_imports: List[Any], all_calls: Set[str], 
             continue
         dep_funcs = _process_dependency(resolved, needed_names, cache,
                                         deep=deep, processing_set=processing_set)
+        # (#49) run #9 u72 (review rt80 O1): a wildcard name is PROGRAM-BOUND to the imported
+        # def unless the program defines that name itself. Then the program's own def is the
+        # later binding (a def BEFORE the star import is refused upstream: "`from m import *`
+        # after a binding of ..."), CPython's calls of the name run the program's def, and the
+        # imported def keeps its own identity for the dependency's own calls.
+        _own72 = {f["name"] for f in ir_data["functions"] if "_r143_dep_file" not in f}
+        for func_ir in dep_funcs:
+            if (func_ir["name"] in needed_names and func_ir["name"] not in _own72
+                    and (func_ir.get("_r143_dep_file") == os.path.abspath(resolved)
+                         or "_u72_orig" in func_ir)):
+                func_ir["_u72_bound"] = True
         imported_names |= _inject_functions(dep_funcs, ir_data)
         print(f"[*] Imported from '{module_path}.*': {needed_names} (wildcard, trusted stubs)")
 
@@ -2506,9 +2718,35 @@ def _resolve_module_imports(module_imports: List[Any], all_calls: Set[str], main
         func_names = [call[len(prefix):] for call in matching_calls]
         dep_funcs = _process_dependency(resolved, func_names, cache,
                                         deep=deep, processing_set=processing_set)
+        # (#49) run #9 u72 -- routes #624 / #625 / #628: `m.f` binds to the def CPython reaches
+        # through m: its in-file def, or the origin of a followed re-export (`_u72_orig`), under
+        # whatever name `_inject_functions` gave it (a fresh one when the bare name is taken).
+        # A non-dotted `m.f` that reaches no def keeps the old bare rewrite (an unconstrained
+        # opaque call) only when nothing can capture the bare name: no function or type of
+        # the IR has it, the program does not call it bare itself (a builtin, a later def),
+        # and it is RESERVED (`_u72_reserved`) so that no later injection takes it plainly.
+        # Otherwise it is left as the opaque `m.f` (like an external module), never bound to
+        # a same-named def.
+        _req72: Dict[str, int] = {}
+        for _i72, _e72 in enumerate(dep_funcs):
+            if _e72["name"] in func_names and _e72["name"] not in _req72 and (
+                    ("_u72_orig" not in _e72
+                     and _e72.get("_r143_dep_file") == os.path.abspath(resolved))
+                    or "_u72_orig" in _e72):
+                _req72[_e72["name"]] = _i72
+                _e72["_u72_keep"] = True
         imported_names |= _inject_functions(dep_funcs, ir_data)
         for call in matching_calls:
             bare_name = call[len(prefix):]
+            if bare_name in _req72:
+                bare_name = dep_funcs[_req72[bare_name]]["name"]
+            elif "." not in bare_name:
+                if (bare_name in {f["name"] for f in ir_data["functions"]}
+                        or bare_name in {td.get("name") for td in ir_data.get("type_decls", [])}
+                        or bare_name in all_calls
+                        or bare_name in (ir_data.get("_u72_reserved") or {})):
+                    continue
+                ir_data.setdefault("_u72_reserved", {})[bare_name] = (None, bare_name)
             for f in ir_data["functions"]:
                 _rewrite_ir_calls(f, call, bare_name)
         print(f"[*] Imported from '{module_path}': {func_names} (trusted stubs, module-qualified)")
@@ -2538,6 +2776,21 @@ def _resolve_imported_classes(direct_imports: List[Any], main_file: str,
 
     existing_types = {td.get("name") for td in ir_data.get("type_decls", [])}
     existing_funcs = {f["name"] for f in ir_data["functions"]}
+    # (#49) run #9 u72: this pass runs FIRST in `resolve_imports`, so it records the names
+    # the PROGRAM binds otherwise, which no injected dependency def may take plainly
+    # (`_inject_functions` renames such a def): each from-import local -> (the file it is
+    # imported from, the imported name), and each builtin the program calls without
+    # defining it -> (None, name). `_resolve_imported_base_classes`, the last pass, pops it.
+    import builtins as _bi72
+    _rs72 = ir_data.setdefault("_u72_reserved", {})
+    for _f72 in ir_data["functions"]:
+        for _c72 in sorted(_collect_calls(_f72)):
+            if (isinstance(_c72, str) and _c72 in vars(_bi72) and _c72 not in existing_funcs
+                    and not _c72.startswith("_")):
+                _rs72.setdefault(_c72, (None, _c72))
+    for local, original, module_path, level in direct_imports:
+        _r72 = _resolve_module_path(module_path, level, main_file)
+        _rs72[local] = (os.path.abspath(_r72) if _r72 is not None else None, original)
 
     for (module_path, level), names in by_module.items():
         resolved = _resolve_module_path(module_path, level, main_file)
@@ -2565,34 +2818,44 @@ def _resolve_imported_classes(direct_imports: List[Any], main_file: str,
             # the record name); an alias would need re-mangling (deferred).
             injected_methods = 0
             injected_fnames: Set[str] = set()
-            if local == orig:
-                prefix = f"{orig.lower()}__"
-                for fname, f in dep_funcs.items():
-                    if fname.startswith(prefix) and fname not in existing_funcs:
-                        mf = _strip_dir_scan_proofs(dict(f))
-                        mf["trusted"] = True
-                        ir_data["functions"].insert(0, mf)
-                        existing_funcs.add(fname)
-                        injected_fnames.add(fname)
-                        injected_methods += 1
             # inline.md: also import module-level helper functions from the
             # dependency that class methods may call.  After inlining splices
             # a method body, bare calls to these helpers must resolve to real
             # function stubs (with correct types), not opaque int-typed vals.
             injected_helpers = 0
+            # (#49) run #9 u72 -- ROUTE #630 (review rt80 R3a / R3b, e04; PRE-EXISTING, MEASURED
+            # PROVED at L20, CPython contradicts). Methods and helpers were inserted only "if
+            # the name is not taken", so a program's own `def helper` silently replaced the
+            # library's helper inside an inlined method body (`obj.m()` called the program's
+            # helper), and a program `def c__m` replaced the method. Both now go through
+            # `_inject_functions` as ONE batch: a method is reached by its mangled name, so it
+            # is program-bound (a clash with another def is refused); a helper takes a fresh
+            # name when its name is taken and the batch's method bodies / contracts are
+            # rewritten to it. Same insertion order as before (methods, then helpers).
             if local == orig:
                 prefix = f"{orig.lower()}__"
-                dep_module_funcs = {
-                    fn: ff for fn, ff in dep_funcs.items()
-                    if not fn.startswith(prefix) and fn not in existing_funcs
-                }
-                for fname, f in dep_module_funcs.items():
-                    mf = _strip_dir_scan_proofs(dict(f))
-                    mf["trusted"] = True
-                    ir_data["functions"].insert(0, mf)
-                    existing_funcs.add(fname)
-                    injected_fnames.add(fname)
-                    injected_helpers += 1
+                _b72: List[Dict[str, Any]] = []
+                for fname, f in dep_funcs.items():
+                    if fname.startswith(prefix):
+                        mf = _strip_dir_scan_proofs(dict(f))
+                        mf["trusted"] = True
+                        mf["_u72_bound"] = True
+                        _b72.append(mf)
+                _nm72 = len(_b72)
+                for fname, f in dep_funcs.items():
+                    if not fname.startswith(prefix):
+                        mf = _strip_dir_scan_proofs(dict(f))
+                        mf["trusted"] = True
+                        _b72.append(mf)
+                _got72 = _inject_functions(_b72, ir_data)
+                for _i72, mf in enumerate(_b72):
+                    if mf["name"] in _got72:
+                        existing_funcs.add(mf["name"])
+                        injected_fnames.add(mf["name"])
+                        if _i72 < _nm72:
+                            injected_methods += 1
+                        else:
+                            injected_helpers += 1
             # gap-9: a class method's `#@ ensures` may apply a module-level
             # `#@ inductive` predicate declared in the dependency
             # (`name_present`). We deliberately do NOT copy the dep's
@@ -2639,7 +2902,109 @@ def _resolve_imported_base_classes(module_imports: List[Any], main_file: str,
     existing_funcs = {f["name"] for f in ir_data["functions"]}
     needed = {b for td in type_decls for b in td.get("bases", [])
               if b not in existing_types}
+    # (#49) run #9 u72: the last pass of `resolve_imports`; the reservation table set by
+    # `_resolve_imported_classes` is read by `_inject_functions` below and popped on return.
+    _rs72 = ir_data.get("_u72_reserved") or {}
+    # (#49) run #9 u72 -- ROUTE #629 (review rt80 R2a-c; PRE-EXISTING, MEASURED PROVED at L20,
+    # CPython contradicts; extends route #345). Module5 records a base `m.Base` by its bare
+    # TAIL, and this pass injected each needed tail from the FIRST module import that defines
+    # a class of that name: `class X(liba.Base)` + `class Y(libb.Base)` gave Y liba's methods,
+    # and `from libb import Base` + `class X(liba.Base)` gave X libb's Base. The importer's
+    # own source says which module each attribute base names. RULE: for every tail written
+    # as an attribute base `r.T` (r a dotted module-import local of this file), the file r
+    # resolves to is T's ONLY admissible source; it is REFUSED when one tail is reached from
+    # two files (or also written bare, or from an unresolvable root), or when T already names
+    # a type that this file imports from ANOTHER file (a local class of the same name is
+    # route #345's, left to it). A bare-only needed tail that two module imports define is
+    # refused too (CPython's binding of the bare name is not the first import's). Inline; the
+    # mirror twin is `\trusted`.
+    import ast as _a629
+    _amb629: Optional[str] = None
+    _src629: Dict[str, Optional[str]] = {}
+    try:
+        _t629 = _a629.parse(__import__("pathlib").Path(main_file).read_bytes())
+    except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
+        _t629 = None
+    if _t629 is not None:
+        _loc629: Dict[str, Optional[str]] = {}
+        for _l629, _o629, _m629, _v629 in module_imports:
+            _r629 = _resolve_module_path(_m629, _v629, main_file)
+            _loc629[_l629] = os.path.abspath(_r629) if _r629 is not None else None
+        _att629: Dict[str, Set[Any]] = {}
+        _bare629: Set[str] = set()
+        _cls629: Set[str] = set()
+        _frm629: Dict[str, Set[Any]] = {}
+        for _n629 in _a629.walk(_t629):
+            if isinstance(_n629, _a629.ClassDef):
+                _cls629.add(_n629.name)
+                for _b629 in _n629.bases:
+                    if isinstance(_b629, _a629.Name):
+                        _bare629.add(_b629.id)
+                    elif isinstance(_b629, _a629.Attribute):
+                        _rt629 = _b629.value
+                        _ps629: List[str] = []
+                        while isinstance(_rt629, _a629.Attribute):
+                            _ps629.insert(0, _rt629.attr)
+                            _rt629 = _rt629.value
+                        if isinstance(_rt629, _a629.Name):
+                            _root629 = ".".join([_rt629.id] + _ps629)
+                            _att629.setdefault(_b629.attr, set()).add(
+                                _loc629[_root629] if _root629 in _loc629
+                                else ("?", _root629))
+            elif isinstance(_n629, _a629.ImportFrom) and _n629.module:
+                for _al629 in _n629.names:
+                    if _al629.name != "*":
+                        _r629 = _resolve_module_path(_n629.module, _n629.level or 0, main_file)
+                        _frm629.setdefault(_al629.asname or _al629.name, set()).add(
+                            os.path.abspath(_r629) if _r629 is not None
+                            else ("?", _n629.module))
+        for _tl629 in sorted(_att629):
+            _fs629 = _att629[_tl629]
+            if _tl629 in existing_types:
+                if _tl629 in _cls629:
+                    continue
+                if _frm629.get(_tl629) and _frm629[_tl629] != _fs629:
+                    _amb629 = (f"`{_tl629}` is written as an attribute base of a module "
+                               f"import AND names the class this file imports under that "
+                               f"name from another module")
+                    break
+                continue
+            if len(_fs629) + (1 if _tl629 in _bare629 else 0) > 1:
+                _amb629 = (f"the tail `{_tl629}` is reached through more than one module "
+                           f"(or is also written as a bare base name)")
+                break
+            _one629 = next(iter(_fs629))
+            _src629[_tl629] = _one629 if isinstance(_one629, str) else None
+        if _amb629 is None:
+            for _tl629 in sorted(needed - set(_src629)):
+                if _tl629 not in _bare629:
+                    continue
+                _pv629 = set()
+                for _l629, _o629, _m629, _v629 in module_imports:
+                    _r629 = _resolve_module_path(_m629, _v629, main_file)
+                    if _r629 is None:
+                        continue
+                    _process_dependency(_r629, [], cache, deep=deep,
+                                        processing_set=processing_set)
+                    if any(td.get("name") == _tl629 for td in (
+                            cache.get(os.path.abspath(_r629)) or {}).get("type_decls", [])):
+                        _pv629.add(os.path.abspath(_r629))
+                if len(_pv629) > 1:
+                    _amb629 = (f"the bare base `{_tl629}` names a class that "
+                               f"{len(_pv629)} imported modules define")
+                    break
+    if _amb629 is not None:
+        from errors import PyCSLSemanticError
+        raise PyCSLSemanticError(
+            f"{_amb629}: pycsl reads a class base by its bare tail name and would give the "
+            f"subclass the methods, fields and invariant of one module's class while CPython "
+            f"uses the class the base expression actually names (route #629, extends route "
+            f"#345: `class X(liba.Base)` beside `class Y(libb.Base)`, or `from libb import "
+            f"Base` beside `class X(liba.Base)`). FIX: import the base classes under distinct "
+            f"names (`from liba import Base as BaseA`) and use those names as bases.",
+            filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-BASE-CLASS-AMBIGUOUS")
     if not needed:
+        ir_data.pop("_u72_reserved", None)
         return added
 
     for local, orig, module_path, level in module_imports:
@@ -2658,21 +3023,46 @@ def _resolve_imported_base_classes(module_imports: List[Any], main_file: str,
         for bname in list(needed):
             if bname not in dep_types:
                 continue
+            if bname in _src629 and _src629[bname] != os.path.abspath(resolved):
+                continue
             ir_data.setdefault("type_decls", []).append(dict(dep_types[bname]))
             existing_types.add(bname)
             needed.discard(bname)
             added.add(bname)
             prefix = f"{bname.lower()}__"
             injected = 0
+            # (#49) run #9 u72 -- ROUTE #630 (review rt80 R3a, d11): a method that a program
+            # `def base__m` already named was silently skipped and the program's function
+            # became the inherited method. The methods go through `_inject_functions` as
+            # program-bound (reached by the mangled name; a clash is refused), together with
+            # each module helper a method calls whose name is taken by another def or
+            # reserved (R3b: it takes a fresh name and the method copies are rewritten, so an
+            # inlined body calls the library's helper, never the program's).
+            _b72: List[Dict[str, Any]] = []
+            _cl72: Set[str] = set()
             for fname, f in dep_funcs.items():
-                if fname.startswith(prefix) and fname not in existing_funcs:
+                if fname.startswith(prefix):
                     mf = dict(f)
                     mf["trusted"] = True
-                    ir_data["functions"].insert(0, mf)
-                    existing_funcs.add(fname)
-                    injected += 1
+                    mf["_u72_bound"] = True
+                    _b72.append(mf)
+                    _cl72 |= _collect_calls(f)
+            _all72 = {f2["name"] for f2 in ir_data["functions"]}
+            for fname, f in dep_funcs.items():
+                if (not fname.startswith(prefix) and fname in _cl72
+                        and (fname in _all72 or fname in _rs72)):
+                    mf = dict(f)
+                    mf["trusted"] = True
+                    _b72.append(mf)
+            _got72 = _inject_functions(_b72, ir_data)
+            for mf in _b72:
+                if mf["name"] in _got72:
+                    existing_funcs.add(mf["name"])
+                    if mf["name"].startswith(prefix):
+                        injected += 1
             print(f"[*] Imported base class from '{module_path}': {bname} "
                   f"(record + {injected} method stub(s))")
+    ir_data.pop("_u72_reserved", None)
     return added
 
 

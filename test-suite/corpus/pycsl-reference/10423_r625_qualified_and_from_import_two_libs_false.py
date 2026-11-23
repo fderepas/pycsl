@@ -1,7 +1,8 @@
 r"""Test 10423 -- run #9 u70, route #625 (FAIL, PRE-EXISTING). The same collision across two resolvers:
 `from qb70 import helper` (direct) and `qa70.helper()` (module-qualified). pycsl kept qb70's `helper` for
 both calls, so `g() == 2 or g() == 4` PROVED at daa36070b. CPython prints "result 3".
-REFUSED: PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH.
+u70 refused it (NAME-CLASH); since u72 the dependency function keeps its own identity (a fresh
+WhyML name when the name is taken) and each call binds to the def CPython runs: the claim fails.
 """
 # pycsl-expected: FAIL
 import qa70

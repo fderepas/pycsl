@@ -3160,13 +3160,27 @@ the same outcome through the program's search order (how CPython loads it: `sys.
 program's directory, then `--import-path`); otherwise refused
 (`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`); a non-stdlib name with no module from the
 dependency's directory was an unconstrained external there and is admitted; relative imports
-are package-relative in both views; not applied under `--verification-image`. One WhyML name per
-function (u70, review rt77 F1 / F2, routes #624 / #625, PRE-EXISTING): injecting a dependency function
-whose name the IR already holds is admitted only when the entry present IS that dependency function (the
-same origin file and the same IR, e.g. `import m` + `m.f()` beside `from m import f`); a program's own
-`def f` beside `import m` + `m.f()`, or two modules that both define a called `f`, are refused
-(`PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH`) -- the old resolver silently dropped one definition and bound
-every call to the other; `from m import f as g` keeps the two apart and is admitted. Under the declared `--verification-image
+are package-relative in both views; not applied under `--verification-image`. One identity per
+definition (u70 / u72, reviews rt77 F1 / F2 and rt80, routes #624 / #625 / #628 / #629 / #630, PRE-EXISTING):
+a dependency function is injected under its own name when that name is free; when the name is
+already held by ANOTHER definition (the program's own `def`, another module's function) or is
+reserved for another binding of the program (a from-import local bound elsewhere, a builtin the
+program calls), a dependency function that the program does not bind by that bare name (a
+transitive in-file callee, the target of a module-qualified `m.f()`, an imported class's module
+helper) is injected under a fresh name `<name>_from_<module>[_k]` and every call that CPython
+resolves to it (the module-qualified call, the same file's own calls in the injected bodies and
+contracts, an inlined method body) is rewritten to that name; a name the PROGRAM binds to the
+imported def (a from-import local, a wildcard name the program does not redefine, a class method
+reached by its mangled name `<class>__m`) that another definition already holds is refused
+(`PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH`). A module-qualified `m.f` whose module has no in-file
+`def f` follows a statically certain re-export (`f` bound once, by a top-level `from M import f`
+-- relative or in a package `__init__` included -- or by `f = b.f` with `import M as b`) to the
+origin def; otherwise `m.f` stays an opaque call unless no definition, type, bare program call or
+reservation can capture the bare `f`. A class base written `r.T` (r a module import) is taken only
+from the file r resolves to: one tail reached through two modules, also written bare, or naming a
+class the file imports under that name from another module is refused
+(`PYCSL-SEM-IMPORT-BASE-CLASS-AMBIGUOUS`, extends route #345); a bare-only base two module imports
+define is refused too. `from m import f as g` keeps the two apart and is admitted. Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
 roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`

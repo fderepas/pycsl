@@ -1,0 +1,52 @@
+c327a_methodless_classes_casefold :: 
+c327b_lifted_pair_plus_casefold :: 
+e01_classes_C_c_exempt :: 
+e02_method_vs_nested_in_method_exempt :: 
+e04_diverges_upper_vs_lower :: 
+e05_rebind_noreturn_diff_sig :: 
+e06_rebind_diverges_then_def :: 
+e07_conditional_def_exempt :: 
+e08_trusted_parent_nested_noreturn :: 
+e09_import_noreturn_same_name :: 
+e10_async_rebind :: 
+e11_property_noreturn_exempt :: 
+e12_import_call_noreturn :: 
+e13_qualified_noreturn_lib_exempt :: 
+e14_qualified_noreturn_call_local_vacuous :: 
+v01_mutrec3_third_vacuous :: 
+v01f_mutrec3_vac_f :: 
+v01g_mutrec3_vac_g :: 
+v02_mutrec3_third_vacuous_prog :: 
+v02f_mutrec3_prog_vac_f :: 
+v03_mutrec_two_classes :: 
+v04_mutrec_nested :: 
+v04b_mutrec_nested_with_vac :: 
+v05_mutrec_lemma :: 
+v06_mutrec_mixed_prog_first :: 
+v06b_mutrec_mixed_with_prog_vac :: 
+v07_mutrec_three_way_first_logic :: 
+v07a_mutrec3_vac_a :: 
+v07b_mutrec3_vac_b :: 
+w01_conditional_def :: 1
+w02_try_def :: 1
+w03_method_vs_nested_in_method :: 1
+w04_trusted_parent_lift :: 1
+w05_py_constant :: 1
+w06_multifile_mangled :: 1
+w07_classes_C_c :: 1
+w08_unicode :: 1
+w09_rebind_ctl :: 2
+w10_class_rebind :: 2
+w11_multifile_helper_shadow :: 1
+w11b_multifile_helper_shadow :: 1
+w12_property_setter :: 1
+w13_nested_class_same_name :: 1
+w14_module_qualified_call_local_shadow :: 1
+w14b_alias_qualified_call_local_shadow :: 1
+w14c_module_qualified_call_ctl :: 1
+w15_trusted_parent_nested_upper_ctl :: 1 2
+w16_trusted_parent_nested_py_constant_ctl :: 1 2
+w17_from_import_alias_local_shadow :: 1
+w18_method_named_like_imported :: 1
+w19_two_libs_same_function_name :: 3
+w19c_two_libs_ctl :: 3
