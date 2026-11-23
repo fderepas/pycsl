@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/u65/probes/c17_exempt_name_clash.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+nested function 'inner' is lifted to a sibling of its enclosing function, and the lift is not faithful here: another function in the file has the same name. A lifted body reads a captured name as ONE global opaque constant shared by every call, and two lifted helpers with the same name collapse to one. Pass the captured values as parameters and give the helper a unique name, or move it to module level.

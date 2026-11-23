@@ -1,0 +1,36 @@
+[!]   UNWITNESSED CEILING BROKEN: 7 > 5 — a new refusal landed without a witness that proves it can fire.
+[!] refusal-witness-coverage: NOT OK.
+[*] refusal-witness-coverage: 517 raise site(s) in the compiler, 3887 witness(es) censused (3001 refusals); 486 site(s) DEMONSTRATED to fire, 7 not.
+[*]   plus 14 refusal(s) NOT REACHABLE from a `.py` source file, demonstrated executably by bin/check-ir-schema-refusals.py and bin/check-frontend-ir-backstop-refusals.py instead.
+[*]   plus 10 refusal(s) UNMATCHABLE by this instrument: their message has no string literal of 25+ characters, so no witness can ever mark them demonstrated. Closing them is a compiler/census change, not a corpus one.
+    unwitnessed  src/pycsl/frontend/exec_splice.py           :62     -                      exec(...) splice rejects a nested exec(...)
+    unwitnessed  src/pycsl/frontend/ir_inline.py             :561    -                      ' — a chain of global method calls too deep to inl
+    unwitnessed  src/pycsl/module6_whyml/expressions.py      :1589   -                      a list/dict literal with a starred (`*x` / `**m`) 
+    unwitnessed  src/pycsl/module6_whyml/statements.py       :6091   -                      , but none of them is an `array`-typed PARAMETER o
+    unwitnessed  src/pycsl/pycsl.py                          :32434  PYCSL-R31-UNMODELLED-LIST-TRUTHINESS the truthiness of a list local in this module is n
+    unwitnessed  src/pycsl/pycsl.py                          :17861  PYCSL-R327-IDENT-COLLISION '): their types and method symbols would be confus
+    unwitnessed  src/pycsl/pycsl.py                          :17876  PYCSL-R327-IDENT-COLLISION : PYCSL-R327-IDENT-COLLISION (route #327) — the fu
+    elsewhere    src/pycsl/core_ir_semantic.py               :182    PYCSL-SEM-SPAN         not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/core_ir_semantic.py               :1838   PYCSL-TY3-CALLABLE-SHAPE not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/core_ir_semantic.py               :1846   PYCSL-TY3-CALLABLE-SHAPE not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/frontend/Module3_Weaver.py        :132    -                      not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/frontend/pure_ast.py              :2292   -                      not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/ir_schema.py                      :186    PYCSL-IR-NOTDICT       not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/ir_schema.py                      :193    PYCSL-IR-MISSINGTOP    not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/ir_schema.py                      :204    PYCSL-IR-VERSION       not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/ir_schema.py                      :211    PYCSL-IR-FUNCSLIST     not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/ir_schema.py                      :218    PYCSL-IR-FUNCDICT      not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/ir_schema.py                      :226    PYCSL-IR-MISSINGFUNC   not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/ir_schema.py                      :234    PYCSL-IR-CONTRACTSDICT not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/ir_schema.py                      :241    PYCSL-IR-MISSINGCONTRACTS not source-reachable; see bin/check-ir-schema-refusals.py
+    elsewhere    src/pycsl/module6_whyml/statements.py       :5823   PYCSL-IR-OPAQUESTMT    not source-reachable; see bin/check-ir-schema-refusals.py
+    unmatchable  src/pycsl/core_ir_semantic.py               :1405   PYCSL-SEM-CONCURRENCY  no literal of 25+ chars in the raise
+    unmatchable  src/pycsl/core_ir_semantic.py               :1187   PYCSL-SEM-ACT          no literal of 25+ chars in the raise
+    unmatchable  src/pycsl/frontend/Module1_Ingestor.py      :472    -                      no literal of 25+ chars in the raise
+    unmatchable  src/pycsl/frontend/Module1_Ingestor.py      :486    -                      no literal of 25+ chars in the raise
+    unmatchable  src/pycsl/frontend/Module5_IREmitter.py     :1573   -                      no literal of 25+ chars in the raise
+    unmatchable  src/pycsl/frontend/ir_inline.py             :203    -                      no literal of 25+ chars in the raise
+    unmatchable  src/pycsl/frontend/ir_inline.py             :213    -                      no literal of 25+ chars in the raise
+    unmatchable  src/pycsl/frontend/pure_ast.py              :624    -                      no literal of 25+ chars in the raise
+    unmatchable  src/pycsl/frontend/pure_ast.py              :631    -                      no literal of 25+ chars in the raise
+    unmatchable  src/pycsl/pycsl.py                          :1159   -                      no literal of 25+ chars in the raise

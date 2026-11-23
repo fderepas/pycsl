@@ -1,0 +1,101 @@
+rt80 FINDINGS (driver run #9). Defensive review of u70: PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH in
+src/pycsl/frontend/ir_resolve.py::_inject_functions. Head 40f4d17f3 (run9-u70), base daa36070b.
+Trees: /home/fabrice/git/pycsl-rt80 (head), /home/fabrice/git/pycsl-rt80b (base). Both removed at the end.
+Work dir: /home/fabrice/git/pycsl/scratchpad/rt80 (probes/, logs/, tools/). No commits were made: the brief says "No commits".
+Commands:
+- Emission: `HEAVY_QUICK=1 heavy.sh bash tools/q.sh <tree> <out> [--deep] -- <files>` (--no-proof --keep-mlw).
+- Full proof: `HEAVY_PRIO=1 heavy.sh bash tools/p.sh <tree> <out> [--deep] -- <files>`, through tools/chain1.sh
+  and tools/chain2.sh. Settings: cwd = tree root, PYTHON_CPU_COUNT=2, cap 3600 s.
+- oom_kill was 15 -> 15 on every proof, so no result is void.
+- CPython: `timeout 60 bash -c 'ulimit -v 2000000; python3 -B -E -s <probe>'` with cwd = probes/. Output: logs/cpython.txt.
+Proof logs: logs/chain1.txt and logs/chain2.txt (summaries). Per-file logs:
+- head: logs/fp-head/, logs/fp-head2/, logs/fp-head-deep/
+- base: logs/fp-base/, logs/fp-base2/
+- emissions: logs/q-{head,base,x,bx,head-deep,base-deep}/
+
+VERDICT
+- u70 does what it claims. F1/F2 and their package and class-helper siblings are now refused, and each of
+  them was a false proof at base: f01, f03, f04, e02.
+- The question "can a call still bind to the WRONG body and prove a claim CPython contradicts?" is YES, through
+  three PRE-EXISTING families that u70's check never sees:
+  R1. Re-exports. The dependency has no in-file `def` of the name, so nothing is injected and the clash check
+      never runs. The qualified call `m.f()` is then rewritten to the bare `f` and binds to whatever `f` exists.
+  R2. Module-attribute base classes are read by their bare tail. This affects _resolve_imported_base_classes
+      and the route #345 sibling cases.
+  R3. _resolve_imported_classes / _resolve_imported_base_classes inject class methods and module helpers with
+      their own "skip if the name exists" logic. They bypass _inject_functions, so they also bypass the new
+      check, and a local same-named function wins.
+- INTRODUCED over-refusals: 5 CPython-faithful programs that base PROVED correctly are now refused
+  (g01, p01-p04). The most common shape is two libraries, each with a private helper of the same name that
+  is used only internally (p02/p03).
+
+== Findings ==
+| id | probe (probes/) | shape | CPython | base | head | class |
+| R1a | a01_reexport_qualified_local_def | rt80_reex: `from rt80_base import f` (f->1). Program: `import rt80_reex`, local `def f`->2, claims `rt80_reex.f() == 2` | 1 | SUCCESS | SUCCESS (also --deep) | PRE-EXISTING false proof |
+| R1b | a06_reexport_alias_local_def | same, via `import rt80_reex as R; R.f()` | 1 | SUCCESS | SUCCESS | PRE-EXISTING |
+| R1c | a04_reexport_qualified_vs_from_other | `from rt80_base2 import f` (->2) + `rt80_reex.f()`. Claims `f()+rt80_reex.f() == 4` | 3 | SUCCESS | SUCCESS | PRE-EXISTING (binds to the OTHER library's f) |
+| R1d | a05_reexport_qualified_vs_qualified_other | `rt80_base2.f() + rt80_reex.f() == 4`: both calls are module-qualified, which is exactly the F2 shape u70 targets | 3 | SUCCESS | SUCCESS (also --deep) | PRE-EXISTING (escape of the u70 rule) |
+| R1e | a07_pkg_init_reexport_local_def | rt80pkg2/__init__.py `from .a import f`. Program: `import rt80pkg2` + local f->2, claims `rt80pkg2.f() == 2` | 1 | SUCCESS | SUCCESS | PRE-EXISTING |
+| R1f | a09_assign_reexport_local_def | rt80_reex3: `import rt80_base2 as _b; f = _b.f`. Program: local f->1, claims `rt80_reex3.f() == 1` | 2 | SUCCESS | SUCCESS | PRE-EXISTING |
+| R2a | d05_base_two_libs_param | `class X(rt80_cls_a.Base)`, `class Y(rt80_cls_b.Base)` (m->1 / m->2). Claims `x.m()+10*y.m() == 11 or 22`. The emission gives `y__m` `result = 1` | 21 | SUCCESS | SUCCESS | PRE-EXISTING |
+| R2b | d09_base_local_var | same, with local constructors, claims `== 11` | 21 | SUCCESS | SUCCESS | PRE-EXISTING |
+| R2c | d06_base_qualified_vs_from_param | `from rt80_cls_b import Base` + `class X(rt80_cls_a.Base)`, claims `x.m() == 2` | 1 | SUCCESS | SUCCESS | PRE-EXISTING. Route #345 refuses only a LOCAL class with the same tail (d01, refused at both) |
+| R2-ctl | d07_base_two_libs_param_ctl | d05 with the true claim `== 21` | 21 | - | FAILED | confirms the wrong body |
+| R3a | d11_base_method_vs_local_mangled | local `def base__m(k)`->2 + `class X(rt80_cls_a.Base)`. X.m is bound to the LOCAL function (`x__m = 2`), claims `x.m() == 2` | 1 | SUCCESS | SUCCESS | PRE-EXISTING (cross-module mangled-name collision; the base-class resolver skips an existing name) |
+| R3b | e04_class_method_inline_global_local_helper | `from rt80_cls_h import C` (C.m returns the lib's `helper()`->1, ensures ==1) + a local `def helper`->2 + module-level `obj = C()`. Claims `obj.m() == 2`. The inlined method body calls the LOCAL helper | 1 | SUCCESS | SUCCESS | PRE-EXISTING (the class resolver skips the lib's helper because the name exists) |
+| O1 | g01_star_then_local_def_true | `from rt80_liba import *`, THEN a local `def helper`->2, claims `helper() == 2` | 2 | SUCCESS (correct) | REFUSED NAME-CLASH | INTRODUCED over-refusal |
+| O2 | p01_lib_private_helper_vs_local_true | rt80_priv_a: `_h`->1, `x()` returns `_h()` (ensures ==1, the contract does not mention _h). Program: `import rt80_priv_a`, own `def _h`->5, claims `rt80_priv_a.x() + _h() == 6` | 6 | SUCCESS (correct) | REFUSED NAME-CLASH | INTRODUCED over-refusal |
+| O3 | p04_lib_private_helper_vs_local_from_true | same as O2, through `from rt80_priv_a import x` | 6 | SUCCESS | REFUSED | INTRODUCED over-refusal |
+| O4 | p02_two_libs_private_helpers_true | rt80_priv_a.x / rt80_priv_b.y each use their OWN private `_h` (1 / 2). Claims `rt80_priv_a.x()+rt80_priv_b.y() == 3` | 3 | SUCCESS | REFUSED | INTRODUCED over-refusal |
+| O5 | p03_two_libs_private_helpers_from_true | same as O4, through `from ... import x` / `y` | 3 | SUCCESS | REFUSED | INTRODUCED over-refusal |
+Notes on O2-O5. A transitive in-file callee (BFS in _process_dependency) gets the same refusal as a function
+the program called itself. The stubs are trusted `val`s and only their contracts are used, so a callee that is
+used only inside a body and appears in no contract does not need a unique WhyML name. Suggested narrowing:
+- when the clashing entry is a transitive-only callee that no injected contract references, do not refuse.
+  Skip it as base did, or better, do not inject it at all.
+- R3b shows that inlining can splice such bodies (`apply_inline_globals`). Narrowing is therefore sound only if
+  inlined bodies are not admitted when a callee name is shadowed.
+On O1: the star import sits BEFORE the local def, so CPython's binding is the local def and base was faithful.
+Refusing it is fail-safe, but it is new.
+
+Fixed by u70 (false proof at base, refused at head; CPython contradicts base):
+- f01_pkg_two_submodules (`rt80pkg.a.f()+rt80pkg.b.f()`, CPython 3)
+- f03 (the same with aliases)
+- f04_pkg_one_submodule_local_def (CPython 1)
+- e02_class_helper_vs_other_lib_qualified (the class resolver's injected helper vs `rt80_libb.helper()`, CPython 2)
+
+Fail-safe at both trees, with the same refusal:
+- b01-b03: lib `f = h` rebinding
+- c01/c02: conditional or try def in the lib
+- c03: lib redefinition
+- n01-n03: lib `def f` then `from x import f` / `*`
+- g02: local def then star
+- h01/h02: one alias bound to two modules
+- i01: `Val1` vs `val1`, R327
+- d01: route #345
+- q01: module name rebound
+- q02: monkeypatch
+- q03/q04: a dependency that monkeypatches at import
+- a08: a missing attribute under no_exception, route #440
+- f02: R325
+Opaque, so fail-safe:
+- a02/a03: a re-export with no local def gives an unconstrained `val f_0`
+- o01: a module-qualified constructor
+- k02, k03, e03, m01: method calls through `C()` are opaque; FAILED at head, emission identical to base
+Controls:
+- j01 (--deep and default: from-import re-export + qualified original, true claim): SUCCESS at head and base,
+  so there is no --deep over-refusal
+- d10: L3-tc error `unbound ... 'v'` at head and base (inherited field read), fail-safe
+
+Root causes / suggested fixes:
+- R1: in _resolve_module_imports, when `_process_dependency` returns no function for a matched `m.f`, the call
+  must not be rewritten to the bare `f` if the IR already holds an `f` (or any `f` at all). Leave it opaque, or
+  refuse. More generally, rewrite to a name unique to (file, function).
+- R2: _resolve_imported_base_classes keys `needed` by the bare tail. Refuse when the same tail is reached from
+  two different modules, or when it names an existing (imported or local) type from another file. This
+  extends route #345.
+- R3: _resolve_imported_classes and _resolve_imported_base_classes should go through _inject_functions, or apply
+  the same clash test. Their `fname not in existing_funcs` skip is the pre-u70 bug in a second copy.
+
+Session note: an API rate-limit stall left the session idle from about 07:28Z to 11:24Z. Chain2 had finished at
+08:43Z, untouched. No job was restarted twice.

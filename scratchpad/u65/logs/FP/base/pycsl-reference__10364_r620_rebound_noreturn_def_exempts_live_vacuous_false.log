@@ -1,0 +1,10 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u65/test-suite/corpus/pycsl-reference/10364_r620_rebound_noreturn_def_exempts_live_vacuous_false.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_9xyulh9o.mlw", line 9, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 199 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

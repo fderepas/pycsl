@@ -1,0 +1,31 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u65/scratchpad/u65/probes/c12b_norec_control.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_udt5f78g.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 20 steps).
+
+File "/tmp/.pycsl_udt5f78g.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 24 steps).
+
+File "/tmp/.pycsl_udt5f78g.mlw", line 23, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 33 steps).
+
+File "/tmp/.pycsl_udt5f78g.mlw", line 30, characters 20-31:
+Sub-goal precondition of goal f'vc.
+Prover result is: Valid (0.00s, 49 steps).
+
+File "/tmp/.pycsl_udt5f78g.mlw", line 23, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.01s, 83 steps).
+
+[-] NON-VACUITY GATE FAILED: the following function(s) verify VACUOUSLY — their assumed context is logically inconsistent, so every postcondition is discharged for free (the 'green' is meaningless):
+    f  (proves `ensures false`)
+    Root cause is usually several nonlinear integer-division facts coexisting in one context (helper `result == …//…` ensures, division-bound inequalities, disjunctive value-equalities). See getting-better/csys-vacuity-investigation/ROOT-CAUSE.md.
+    (Opt out with --no-check-vacuity; tune with --vacuity-timelimit.)
+
+[-] Verification FAILED (vacuous proof). Check the solver output.

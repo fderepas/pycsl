@@ -1,0 +1,5 @@
+10360_r619_mutrec_with_member_vacuous_false.mlw: base-tc rc 0, 2 probes, 0 rejected
+10361_r619_mutrec_with_member_ctl.mlw: base-tc rc 0, 2 probes, 0 rejected
+10363_r620_method_toplevel_distinct_names_ctl.mlw: base-tc rc 0, 2 probes, 0 rejected
+10364_r620_rebound_noreturn_def_exempts_live_vacuous_false.mlw: base-tc rc 0, 1 probes, 0 rejected
+TOTAL probes 7 rejected 0

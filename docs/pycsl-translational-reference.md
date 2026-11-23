@@ -7708,6 +7708,14 @@ T[[ def f() -> NoReturn: raise E() ]] =
   postcondition — the latter would exempt every genuinely-vacuous function.
   The probe is not emitted for the NoReturn function; a genuinely-vacuous
   function (no NoReturn) is still probed and flagged.
+  The skip-set holds emitted WhyML names, so (route #620, run #9 u65) a name
+  that more than one IR function maps to is NOT exempted (fail closed), and
+  `_run_pipeline` refuses such a program outright (`PYCSL-SEM-WHYML-NAME-CLASH`:
+  two definitions emitted under one WhyML name, e.g. a module-level `def c__m`
+  and a method `C.m`; the emitter used to drop one body silently). Every member
+  of a program `let rec ... with ...` group is probed before its own body `=`
+  (route #619: the `with` members were skipped); `with` members of logic groups
+  (`function` / `predicate` / `type`) are not program functions and are not.
 
 **Runtime plane (Shimmed):** `src/pycsl_lib/typ/__init__.py` provides a
 `NoReturn` alias object (a module-level constant) — introspectable, NO

@@ -3857,11 +3857,71 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # vacuous-looking on its unreachable normal exit (a diverging function satisfies
     # any postcondition), so the gate must NOT flag it. Keyed on the annotation flags,
     # never the inferred postcondition (which would exempt every genuine vacuity).
+    #
+    # (#49) run #9 u65, ROUTE #620 -- TWO DEFINITIONS, ONE WhyML NAME. Every function is
+    # emitted as `let <whyml_ident(IR name)>`, and a method's IR name is
+    # `<class lower>__<method>`, so a module-level `def c__m` and a method `C.m` (or `def F`
+    # and `def f`, `def py_range` and `def range`, ...) map to ONE WhyML name. MEASURED (red
+    # team rt75, probes c19 / c20): the emitter kept ONE of the two bodies and SILENTLY DROPPED
+    # the other (a call may then be proved against the wrong body), and the vacuity-exempt set
+    # below, keyed by that name, let a `-> NoReturn` top-level `c__m` exempt the VACUOUS method
+    # `C.m` from the non-vacuity probe -> Verification SUCCESS on a contradictory `requires`.
+    # RULE (refuse rather than approximate): two distinct IR functions whose emitted WhyML
+    # names coincide are REFUSED here, the first point where every definition of the program
+    # (module functions, methods, lifted nested defs) sits in one list. A lifted nested def
+    # whose name collides is left to route #122's own refusal in Module 6 (its message names
+    # the fix for that shape). Inline; `_run_pipeline`'s mirror twin is `\trusted`.
+    try:
+        from module6_whyml.identifiers import whyml_ident as _wid620
+    except Exception:
+        _wid620 = None
+    _ambig620: "Set[str]" = set()
+    if _wid620 is not None:
+        _by620: "Dict[str, List[dict]]" = {}
+        for _f620 in ir_data.get("functions", []) or []:
+            if isinstance(_f620, dict):
+                _by620.setdefault(_wid620(str(_f620.get("name", ""))), []).append(_f620)
+        for _n620, _fs620 in _by620.items():
+            if len({id(_x620) for _x620 in _fs620}) < 2:
+                continue
+            _ambig620.add(_n620)
+            if any(_x620.get("lifted_name_collision") for _x620 in _fs620):
+                continue
+            # The SAME Python name bound twice in ONE scope (`def f` ... `def f` in the module,
+            # or twice in one class body: same IR name, same kind, same class) is not two
+            # definitions but a rebinding: CPython keeps the LAST one and so does the model,
+            # and a `#@` claim on a dead binding is refused by route #463 (Module 3). MEASURED
+            # before this narrowing: the rule refused exactly 2 corpus files (0 pyref, 0
+            # mirror), both such PASS controls (7194_r463_ctl_unclaimed_def_rebound,
+            # 7548_r476_ctl_two_defs_before_main). The name stays AMBIGUOUS for the exemption
+            # below: a `-> NoReturn` dead binding must not exempt the live one.
+            if (len({str(_x620.get("name", "")) for _x620 in _fs620}) == 1
+                    and len({(_x620.get("kind") or "function", str(_x620.get("self_type")))
+                             for _x620 in _fs620}) == 1):
+                continue
+            from errors import PyCSLSemanticError as _PyCSLSemErr620
+            raise _PyCSLSemErr620(
+                "PYCSL-SEM-WHYML-NAME-CLASH (route #620): %d definitions of this program are "
+                "emitted under the same WhyML function name `%s`: %s. A method `C.m` is "
+                "emitted as `c__m`, and WhyML names start lower-case and avoid reserved "
+                "words, so distinct Python names can meet. The model would keep ONE body "
+                "and silently drop the other (measured: a module-level `def c__m` vanished "
+                "behind method `C.m`, and its `-> NoReturn` exempted the method from the "
+                "non-vacuity gate). Refused (fail closed). Rename one of the definitions."
+                % (len(_fs620), _n620,
+                   ", ".join("'%s' (%s, line %s)" % (
+                       _x620.get("name", "?"), _x620.get("kind") or "function",
+                       _x620.get("lineno") or _x620.get("line") or "?")
+                       for _x620 in _fs620)),
+                stage="ir-semantic", code="PYCSL-SEM-WHYML-NAME-CLASH")
+    # (#49) u65 ROUTE #620 (b) -- the exemption fails CLOSED: a name that more than one
+    # definition maps to (a same-scope rebinding, or a route #122 lifted collision that
+    # Module 6 refuses) is never exempted; nor is any name when the IR cannot be keyed.
     try:
         from module6_whyml.identifiers import whyml_ident as _wid_vac
         args._vacuity_exempt = {
             _wid_vac(f.get("name", "")) for f in ir_data.get("functions", [])
-            if f.get("is_noreturn") or f.get("diverges")}
+            if f.get("is_noreturn") or f.get("diverges")} - _ambig620
     except Exception:
         args._vacuity_exempt = set()
 
@@ -42563,12 +42623,39 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     # treatment before u62); a header is a constant when the first non-blank character after
     # its name is `:` or `=`, or when it is a `let constant <name> : <ty> = ...` (the regex
     # reads `constant` as the name: corpus 2503-2507's `pycsl_float_nan`, u63 census).
+    # (#49) run #9 u65, ROUTE #619 -- EVERY MEMBER OF A `let rec ... with ...` GROUP. The scan
+    # above matched only `^  let` headers, so the 2nd+ member of a program-level mutual
+    # recursion group (`  with [function |ghost |lemma ]<name> (...)`) was never probed: red
+    # team rt75 c12 (`f` with `requires n >= 0 and n < 0`, emitted as `with function f`) got
+    # Verification SUCCESS while the same `f` as its own group (c12b) FAILED as vacuous. Now a
+    # `  with` member of a group OPENED BY `let` is a header like a `let`, probed before its own
+    # body `  =` (and split like a `let` when its body sits on the header line); a `  with`
+    # member of a LOGIC group (`function` / `predicate` / `type` / `lemma` / `inductive` ...,
+    # which are not program functions and carry no body to probe) is not: the group kind is the
+    # keyword of the declaration that opened it, and any other top-level declaration closes a
+    # `let` group. The header name now skips `lemma` too (rt75 F3: `let lemma l1` was probed,
+    # and reported, under the name "lemma"). `_t619[i]` is the header name of output line i, ""
+    # for a line that ends a pending header (a constant `let`, another declaration), else None.
+    _HD619 = _re.compile(r"^  (let (?:rec )?|with )((?:(?:function|ghost|lemma) )*)(\w+)\b")
+    _DECL619 = _re.compile(r"^\S|^  (val|function|predicate|lemma|axiom|goal|type|constant|"
+                           r"inductive|coinductive|exception|use|clone|scope|end|meta)\b")
+    _t619: "List[Optional[str]]" = []
+    _grp619 = False
     _l62: List[str] = []
     for _x62 in lines:
-        _m62 = _LET_FN_RE.match(_x62)
-        if _m62 and (_m62.group(1) == "constant"
+        _m62 = _HD619.match(_x62)
+        if _m62 and _m62.group(1) != "with ":
+            _grp619 = True
+        elif _m62 and not _grp619:
+            _m62 = None
+        elif not _m62 and _DECL619.match(_x62):
+            _grp619 = False
+        _hn619: "Optional[str]" = (_m62.group(3) if _m62
+                                   else ("" if _DECL619.match(_x62) else None))
+        if _m62 and (_m62.group(3) == "constant"
                      or _x62[_m62.end():].lstrip()[:1] in (":", "=")):
             _m62 = None
+            _hn619 = ""
         _cut62 = -1
         if _m62:
             _d62 = 0
@@ -42595,26 +42682,20 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
         if _cut62 >= 0:
             _l62.append(_x62[:_cut62].rstrip())
             _l62.append("  =" + _x62[_cut62 + 1:])
+            _t619.append(_hn619)
+            _t619.append(None)
         else:
             _l62.append(_x62)
+            _t619.append(_hn619)
     lines = _l62
     fns = []
     _cur62: Optional[str] = None
     for _i62, _y62 in enumerate(lines):
-        _mm62 = _LET_FN_RE.match(_y62)
-        if _mm62 and (_mm62.group(1) == "constant"
-                      or _y62[_mm62.end():].lstrip()[:1] in (":", "=")):
-            _cur62 = None
-        elif _mm62:
-            _cur62 = _mm62.group(1)
+        if _t619[_i62] is not None:
+            _cur62 = _t619[_i62] or None
         elif _BODY_EQ_RE.match(_y62):
             if _cur62 is not None:
                 fns.append((_cur62, _i62))
-            _cur62 = None
-        elif (_re.match(r"^\S", _y62)
-              or _re.match(r"^  (val|function|predicate|lemma|axiom|goal|type|constant|"
-                           r"inductive|coinductive|exception|use|clone|scope|end|meta)\b",
-                           _y62)):
             _cur62 = None
     if not fns:
         return []
@@ -42688,9 +42769,11 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
         # dead-by-design philosophy is kept; only callee-INDUCED deadness fails.
         if _vals267:
             _end267 = idx + 1
+            # (u65 #619: a `  with` member ends the previous member's body -- it is probed
+            # on its own now, so its call sites are its own.)
             while _end267 < len(lines) and not _re.match(
                     r"^  (let|val|predicate|function|lemma|goal|axiom|type|use|clone|"
-                    r"scope|exception|constant|inductive|meta)\b|^end\b", lines[_end267]):
+                    r"scope|exception|constant|inductive|meta|with)\b|^end\b", lines[_end267]):
                 _end267 += 1
             _body267 = "\n".join(lines[idx:_end267])
             _sites267: "List[Tuple[int, int, str]]" = []
@@ -42941,6 +43024,7 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                 # never returns says so (`-> NoReturn`, exempt above) or declares the raise.
                 _h260 = idx - 1
                 while (_h260 > 0 and not _LET_FN_RE.match(lines[_h260])
+                       and not lines[_h260].startswith("  with ")
                        and not _BODY_EQ_RE.match(lines[_h260])):
                     _h260 -= 1
                 if any(_re.match(r"^\s+raises \{ [A-Za-z_0-9', ]+ \}\s*$", _l260)

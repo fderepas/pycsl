@@ -1,0 +1,17 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u65/test-suite/corpus/pycsl-reference/10363_r620_method_toplevel_distinct_names_ctl.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_fvolsf6p.mlw", line 11, characters 15-33:
+Sub-goal postcondition of goal c__m'vc.
+Prover result is: Valid (0.00s, 19 steps).
+
+File "/tmp/.pycsl_fvolsf6p.mlw", line 12, characters 15-34:
+Sub-goal postcondition of goal c__m'vc.
+Prover result is: Valid (0.00s, 20 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_fvolsf6p.mlw", line 16, characters 11-12: unused variable x
+
+[+] Verification SUCCESS! All contracts formally proven.
