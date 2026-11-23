@@ -1,0 +1,10 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u74/scratchpad/u74/st/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/struct_format.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+Warning, file "src/self-annotate/src/module6_whyml/struct_format.mlw", line 55, characters 20-23: unused variable sep
+Warning, file "src/self-annotate/src/module6_whyml/struct_format.mlw", line 55, characters 34-36: unused variable xs
+File "src/self-annotate/src/module6_whyml/struct_format.mlw", line 77, characters 12-40:
+The type of top-level exception Return__union_parse_format_0 has mutable components
+rc=1

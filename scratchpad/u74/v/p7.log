@@ -1,0 +1,7 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u74/scratchpad/u74/st/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/struct_format.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+`slots.extend(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause, so the mutation would be SILENTLY ABSENT from the model while the run still reported 'All contracts formally proven' — the method would satisfy `#@ assigns \nothing`, satisfy its emitted frame-preservation `ensures`, and re-establish the class invariant. Rewrite the mutation as an indexed store (`slots[i] = v`), or mark the enclosing function `#@ \trusted`.
+rc=1
