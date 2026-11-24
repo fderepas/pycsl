@@ -20,3 +20,5 @@
 == ap_whole start 2026-11-24T13:55:18Z oom_kill 15
 == ap_whole end 2026-11-24T14:07:49Z rc=0 oom_kill 15 :: [+] Verification SUCCESS! All contracts formally proven.
 == frb (base param-frame probe) 2026-11-24T14:08:11Z rc=1 :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+== mut4 start 2026-11-24T18:13:48Z oom_kill 15
+== mut4 end 2026-11-24T18:15:03Z rc=1 oom_kill 15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
