@@ -1,0 +1,170 @@
+rt83 FINDINGS: defensive red-team review of run9-u73 (src e1b967928) against base main L21 (ghost-assign-bc6 =
+1f8ba8010; src/bin identical to the merge base b959bb1b2). Import resolver, round 5. REPORT ONLY, no commits.
+
+Trees (both removed at the end): /home/fabrice/git/pycsl-rt83 (head e1b967928), /home/fabrice/git/pycsl-rt83b (base 1f8ba8010).
+Tools: tools/ (q.sh / p.sh / qb.sh / pb.sh / cpy.sh are rt81 copies; q2.sh = --no-proof head then base; p2.sh = full
+proof head then base; mk1..mk7.py = probe generators). q = --no-proof --keep-mlw, run through HEAVY_QUICK=1 heavy.sh.
+p = full proof, hoare default, PYTHON_CPU_COUNT=2, timeout 3700 per file, through HEAVY_PRIO=1 heavy.sh (as granted).
+cwd = tree root. TMPDIR = scratchpad/rt83/tmp for every job. No output contains EDQUOT / "Disk quota exceeded".
+oom_kill stayed 15 -> 15 on every full proof (logs/p1.txt, logs/p2.txt): no result is VOID.
+CPython: /usr/bin/python3 and .venv python3 (3.14.4), -B, ulimit -v 2000000, script mode, cwd scratchpad/rt83/tmp.
+Logs: logs/cpy1..7.txt. The two interpreters agree on every probe.
+Probes are benign (tiny int functions, a class K whose one() returns 2; no bytecode, no zip, no pickle data):
+probes/<id>/P/prog.py. Per-run logs: logs/q-rt83{,b}/<id>/, logs/p-rt83{,b}/<id>/. Summaries: logs/q1..q8.txt, logs/p1.txt, logs/p2.txt.
+No safety-classifier stop occurred.
+Process note: QUICK batches q5-q8 ran on slot 3 while my PRIO proof batches were QUEUED. Both proof slots were held
+by other executors' hour-long jobs at the time. No two jobs of mine ever RAN at the same time. My first p1 launch
+was wrapped in `timeout 590`. I killed it while it was still queued (it had not started; I checked the parent
+chain first) and relaunched it without the outer timeout.
+
+| id | layout (claim) | CPython | base L21 | head e1b967928 | class |
+|----|----------------|---------|----------|----------------|-------|
+| s2 | program top level: `import pkg.b; import timeit; timeit.timeit("import pkg, pkg.c; pkg.b = pkg.c", number=1)`; g() = pkg.b.one() ensures 1 (c.one() returns 2) | 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING |
+| s4 | s2 with the timeit call inside a program function called at top level | 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING |
+| s3 | s2 with `code.InteractiveInterpreter().runsource("...")` | 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING |
+| s0 | control: s2 with plain `exec("...")` | 2 | q REFUSED (rebound-name rule: "a constant exec") | same | fail-safe (the rule s2/s3 bypass) |
+| s5 | control: the timeit call at import time in a DEPENDENCY | 5 | q REFUSED (#483: `import timeit` at import time) | same | fail-safe |
+| u1 | program top level: `class _Src: b = K`; `functools.update_wrapper(pkg, _Src, assigned=("b",), updated=())` (stdlib setattr by a string tuple) | 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING |
+| u3 | u1 inside a program function called at top level | 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING |
+| v2 | `functools.update_wrapper(pkg.b, K, assigned=("one",), updated=())` (replaces the FUNCTION pkg.b.one) | 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING |
+| t1 | `from test.support import swap_attr; _cm = swap_attr(pkg, "b", K); _cm.__enter__()` | 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING |
+| v3 | `_cm = swap_attr(pkg.b, "one", _two); _cm.__enter__()` | 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING |
+| u2 | `functools.wraps(_Src, assigned=(), updated=("__dict__",))(pkg)` | 2 | q REFUSED (computed callee) | same | fail-safe |
+| t3 / t4 | `MonkeyPatch().setitem(pkg.__dict__, "b", K)` / `operator.setitem(pkg.__dict__, "b", K)` | 2 | q REFUSED (`.__dict__` namespace rule) | same | fail-safe |
+| s1 / s6 | `_pytest MonkeyPatch().setattr("pkg.b", K)` / `functools.partial(setattr, pkg, "b")(K)` | 2 | q REFUSED (builtin `setattr` reached as attribute / as value) | same | fail-safe |
+| m1 m2 m3 | `operator.methodcaller("__setattr__", "b", K)(pkg)` / `object.__setattr__(pkg, "b", K)` / `vars(pkg).update(b=K)` | 2 | q REFUSED (computed callee / setattr of a name / namespace dict) | same | fail-safe |
+| h12 h12f h13 h13f | `pkg.__setattr__("b", K)` / `pkg.__dict__["b"] = K`, at top level and in a program function | 2 | q REFUSED (rebound-name rule) | same | fail-safe |
+| h2 h2s h14 | package `__init__` (or sibling c.py) swaps the module class to a ModuleType subclass whose `__setattr__` redirects "b" (`_s.__class__ = _M` / `_s.__setattr__("__class__", _M)`), or `_p.__setattr__("b", K)` | 2 | q REFUSED (#483 import-time `.__class__` / `.__setattr__`) | same | fail-safe (the class-body hook escapes MODULE-HOOK, but #483 stops it) |
+| h2c | the class swap done in the PROGRAM | 2 | q REFUSED (rebound-name: `.__class__` written) | same | fail-safe |
+| h11 | class-level `__call__(self): self.b = K` installed by an escape-free `_s.__setattr__("__class__", _M)`; program calls `pkg()` | 2 | q REFUSED (#483 `.__setattr__`) | q REFUSED (REBOUND, rule E) | fail-safe |
+| h5 h7 h8 | program wildcard; `__init__` answers `__all__` through a class-swapped `__getattr__` (h5), `globals().update(__getattr__=_ga)` (h7, keyword not detected by the new hook rule), `globals()["_" + "_all__"] = ["w"]` (h8) | 3 (writer loaded) | q REFUSED (rebound-name / namespace-dict write) | same | fail-safe |
+| h6 h9 | the `__all__` set by a submodule: `setattr(_p, "_" + "_all__", ["w"])` / `getattr(_p, "_" + "_all__").append("w")` | 3 | q REFUSED (#483 module used as a value) | same | fail-safe |
+| r1 | program `pkg.__getattr__ = _ga` (run-time hook), no `import pkg.b` | 2 | q REFUSED (rebound-name: `.__getattr__` written) | same | fail-safe |
+| f1 f6 f7 f8 / f2 | module object from `typing.ForwardRef("pkg", module="__main__").evaluate()` (no name or attribute on u73's escape list) into a local `m`, then `m.b = K` / `setattr(m, "b", K)` in a program function | 2 | q FAIL (WhyML tc: `ref int` type error / `_pyobj_state` left out of the spec) | same | fail-safe today, LATENT (u73 escape list misses ForwardRef.evaluate) |
+| f4 f5 | the same with the ForwardRef chain inline as the setattr receiver | 2 | q REFUSED (REBOUND: the receiver is rooted at `typing`) | same | fail-safe |
+| f1t f3 | at top level / with `#@ assigns \everything` | 2 | q REFUSED (computed receiver at module scope) / parse error | same | fail-safe |
+| y1 | `zv.py` (class b, one() -> 2) beside a directory `zv/` with no `__init__` holding b.py; `import zv; zv.b.one()` ensures 1 | 2 (module file wins) | P FAIL | P FAIL | consistent (pycsl uses zv.py's class) |
+| r1c | `import pkg; pkg.b.one()` with no import of pkg.b | AttributeError | P FAIL | P FAIL | consistent |
+| o5 | rt79 r1 (`self.b = 1` in an unrelated class, b = a submodule name) plus `from typing import List` used in a PARAMETER annotation `def g(xs: List[int])` | 4 (= claim) | P SUCCESS | REFUSED (PACKAGE-SUBMODULE-REBOUND) | INTRODUCED over-refusal (u73 #631 annotation escape) |
+| o4 | rt79 r1 plus `from pkg.k import Base; class D(Base): pass` (an imported CLASS as a base) | 4 (= claim) | P SUCCESS | REFUSED (PACKAGE-SUBMODULE-REBOUND) | INTRODUCED over-refusal (u73 #631 class-base escape) |
+| o5c | control: o5 without the annotation | 4 | P SUCCESS | P SUCCESS | - |
+| o6 | a reached dependency has `class P: __getattr__ = _fwd` (a class attribute, not a module hook) | 4 (= claim) | P SUCCESS | REFUSED (MODULE-HOOK) | INTRODUCED over-refusal (detection bug) |
+| o7 | a reached dependency has `def has_ga(x): return hasattr(x, "__getattr__")` (a string read) | 4 (= claim) | P SUCCESS | REFUSED (MODULE-HOOK) | INTRODUCED over-refusal (literal-string rule) |
+| o1 | `import unittest` + `import pkg.b`; claim true | 1 | P SUCCESS | REFUSED (STATE-MANIPULATED, #633) | INTRODUCED over-refusal, by design (user-visible class) |
+| o2 | `import pickle` + `import pkg.b`; claim true | 1 | P SUCCESS | REFUSED (STATE-MANIPULATED, #633) | INTRODUCED over-refusal, by design |
+
+KEY FINDING 1 (s2 / s3 / s4: string-exec stdlib APIs in the PROGRAM file; PRE-EXISTING; outside #326's new list).
+The program-file rebound-name rule refuses a constant `exec("...")` (s0). The same assignment in a string run by
+`timeit.timeit(stmt)` or `code.InteractiveInterpreter().runsource(src)` is not seen. The string replaces the
+submodule attribute `pkg.b` with the sibling `pkg.c`. Head and L21 both PROVE `pkg.b.one() == 1`, and CPython
+prints 2. This happens at top level and inside a program function.
+Route #483 already refuses `import timeit` at import time in a DEPENDENCY (s5), because it judges dependencies
+against an allow-list (`_OKS483` in pycsl.py). The program file only has route #326's deny-list.
+Also untested but the same class (rule 37 kept me to two): `cProfile.run`, `profile.run`, `pdb.run`,
+`trace.Trace().run`, `doctest.run_docstring_examples`, `code.interact`, `runpy` (already in the list).
+Fix direction: give the program file the same import allow-list #483 uses for dependencies. That is fail-closed
+and covers the whole string-exec / string-resolver family. The minimal fix is to add `timeit`, `code`,
+`codeop`, `cProfile`, `profile`, `pdb`, `bdb`, `trace`, `doctest` and `test` to #326's list (and `functools`,
+finding 2, cannot simply go there).
+Evidence: logs/p-rt83{,b}/{s2,s3,s4}/P__prog.log, logs/q8.txt (s0, s5), logs/cpy1.txt, logs/cpy7.txt.
+
+KEY FINDING 2 (u1 / u3 / v2 / t1 / v3: setattr by a string tuple or by a library helper; PRE-EXISTING).
+Some stdlib helpers call setattr internally:
+- `functools.update_wrapper(wrapper, wrapped, assigned=(...), updated=())` runs `setattr(wrapper, name,
+  getattr(wrapped, name))` for every name in `assigned`.
+- `test.support.swap_attr(obj, "name", v)` sets the attribute with setattr.
+With the package module as `wrapper` / `obj`, they replace the submodule attribute `pkg.b` (u1, u3, t1) or a
+dependency's function `pkg.b.one` (v2, v3). Rule E' records only attribute stores and Name-callee
+`setattr` / `delattr` with a literal name. The module object passed as an argument does set u71's escape flag,
+but the store itself is never recorded, so nothing is judged. The program-file rebound-name rule does not know
+these callees. Head and L21 PROVE `pkg.b.one() == 1`, and CPython prints 2 (both interpreters).
+`functools.wraps(...)(pkg)` (u2) is refused only because its callee is computed.
+Fix direction (fail-closed): once a module object escapes into a call ARGUMENT (u71's "imported name used as a
+value", or a chain rooted at one such as `pkg.b`), refuse the program. Or, narrower: refuse when the callee is
+not a program / verified function, i.e. when an import-bound module is passed to any stdlib or installed-library
+function.
+Evidence: logs/p-rt83{,b}/{u1,u3,v2,t1,v3}/P__prog.log, logs/cpy4..6.txt, logs/q5..q7.txt.
+
+KEY FINDING 3 (o5 / o4: INTRODUCED over-refusal of u73's annotation / class-base escapes).
+u73 made two positions value positions, so that any store receiver is judged:
+- an import-bound name in a parameter, return, module-level or class-level annotation;
+- an import-bound name used as a class base.
+u71's import-bound set `_mc671` holds EVERY from-import target. So `from typing import List` with
+`def g(xs: List[int])` (o5), or `from pkg.k import Base` with `class D(Base)` (o4), now counts as a module-object
+escape. rt79 r1 (a `self.b = 1` in an unrelated class, CPython 4 = claim) is then refused again (REBOUND), while
+L21 PROVES both programs. o5c (no annotation) still proves at head.
+Typed parameters with typing names are ubiquitous, so u71's r1 narrowing is largely undone. It costs only when a
+store's attribute name collides with a submodule name of a reached package. That is why u73's corpus sweeps show
+0 GONE.
+Sound narrowing: in annotation and class-base positions, count only names that CAN denote a module:
+- names bound by `import X [as Y]`;
+- names bound by `from X import n` where X is a package and n is (or may be) a submodule: an entry of X's
+  directory, an unresolvable source, an installed library, or a stdlib package with a submodule n;
+- names bound by `from X import n` where the binding of n in X is not a top-level `def` / `class`.
+A class object base never reaches `__mro_entries__` (PEP 560 consults it only for non-type bases). A typing alias
+such as `List[int]` is not a module, and a class reaches its module only through attributes already on the
+escape list (`__globals__`, `__dict__`, `sys.modules`).
+Evidence: logs/p-rt83b/{o4,o5,o5c}/P__prog.log (SUCCESS), logs/p-rt83/{o4,o5}/P__prog.log (REFUSED),
+logs/p-rt83/o5c/P__prog.log (SUCCESS).
+
+KEY FINDING 4 (o6 / o7: INTRODUCED over-refusal, the MODULE-HOOK detection reaches beyond module level).
+The comment says "a def outside class bodies, a module-scope store / delete". The code, however (`_hkm673` loop
+in ir_resolve.py; the same predicate in the #632 `__init__` check and in pycsl.py's #483 copy), counts:
+- a Name Store of `__getattr__` / `__mro_entries__` ANYWHERE, including a class body (o6: `class P: __getattr__ =
+  _fwd`, a normal proxy idiom) and a function local;
+- the literal string anywhere, including a pure read (o7: `hasattr(x, "__getattr__")`).
+Both programs are CPython-faithful (4 = claim) and L21 PROVES them. Head refuses them with MODULE-HOOK.
+Sound narrowing:
+- apply the existing `_cbd673` class-body exclusion, and a function-local exclusion when the scope has no
+  `global` of the name (that case is already detected), to Name stores as well as defs;
+- drop the literal from read positions (the 2nd argument of `hasattr` / `getattr`). Writes through a literal are
+  already refused independently: `globals()[...]` by the namespace-dict rule (h8), `setattr(mod, ...)` at import
+  time by #483 (h6).
+Evidence: logs/p-rt83b/{o6,o7}/P__prog.log, logs/p-rt83/{o6,o7}/P__prog.log.
+
+OVER-REFUSAL CLASS (o1 / o2: route #633, user-visible, by design).
+Any program that imports `unittest`, `mock`, `pydoc`, `logging.config`, `pickle`, `_pickle` or `shelve` together
+with ANY locally resolved module is now refused. Examples are a test file importing the module under test (o1),
+and a program that pickles its own data (o2). L21 proved both faithfully.
+Narrowing `unittest` is NOT obviously sound: `unittest.main()` / `TestLoader.loadTestsFromName("pkg.x")` import
+modules by string and run their import-time code. Refusing only `unittest.mock` would miss that.
+For pickle, the import-by-name happens only on the load side (`loads`, `load`, `Unpickler`). A narrowing that
+refuses only when the program references those names is sound only together with the escape rule for the pickle
+module itself (`getattr(pickle, ...)` is a value use, flagged).
+Evidence: logs/p-rt83b/{o1,o2}/P__prog.log, logs/p-rt83/{o1,o2}/P__prog.log.
+
+LATENT (f1 / f6 / f7 / f8: a module object from `typing.ForwardRef(name, module="__main__").evaluate()`).
+This evaluates a STRING in the program's namespace and returns the package module object. The receiver is a local
+`m`, so no import-rooted chain exists. No name or attribute on u73's new list (`get_type_hints`,
+`evaluate_forward_ref`, `__annotations__`, ...) appears, and `_esc671` stays unset. A later `m.b = K` /
+`setattr(m, "b", K)` is therefore not judged by rule E'. Today only a WhyML type-check failure stops it, on both
+trees: the `ref int` type error, or `_pyobj_state` left out of the spec. This is the same status rt81 gave p1b / p7
+before u73.
+Fix direction: add `ForwardRef`, `evaluate`, `_evaluate` and `_eval_type` to the escape attribute list. Or (more
+robust) treat any attribute call on `typing` / `annotationlib` / `inspect` as an escape.
+Evidence: logs/q2.txt, logs/q3.txt, logs/q4.txt.
+
+No finding (the new code holds, or older rules stop the attempt):
+- MODULE-HOOK bypasses (FOCUS 1). A class-body hook installed by a module-class swap is invisible to u73's hook
+  scan: `__setattr__` / `__getattr__` / `__call__` on a ModuleType subclass, installed with `_s.__class__ = _M` or
+  the escape-free `_s.__setattr__("__class__", _M)` (h2, h2s, h5, h11). Route #483 still refuses every such swap
+  at import time in a dependency, and the rebound-name rule refuses it in the program (h2c). The same holds for a
+  hook installed with `globals().update(__getattr__=...)` (h7, a keyword the hook scan does not see) and for a
+  run-time `pkg.__getattr__ = f` (r1).
+  I did not build separate metaclass `__prepare__` / `__init_subclass__` / `__set_name__` / `__class_getitem__`
+  probes. Each of them receives a class, or receives the module only through a class base (now an escape) or a
+  class keyword (a value position, already an escape). `class C(*bases)` and `class C(type(m))` put the module in
+  an argument / list, also an escape.
+- `__all__` visibility (FOCUS 2): computed `__all__` through `globals()` (h8), computed setattr / getattr on the
+  package from a submodule (h6 / h9), and a class-swapped `__getattr__` answering `__all__` (h5) are all refused.
+- Store forms in the program file: `pkg.__setattr__`, `object.__setattr__`, `pkg.__dict__[...]`,
+  `vars(pkg).update`, `operator.methodcaller("__setattr__")`, `functools.partial(setattr, ...)`, pytest
+  `MonkeyPatch().setattr("pkg.b", K)` / `.setitem(pkg.__dict__, ...)` are all refused (h12, h12f, h13, h13f, m1-m3,
+  s1, s6, t3, t4).
+- `pkgutil.resolve_name` / `importlib.import_module` under an alias: the modules are already on #326's list
+  (an alias does not change the Import node), so these were not probed separately.
+- y1 (module file vs namespace directory) and r1c (unimported submodule) are consistent with CPython: FAIL, no
+  false proof.
+- No INTRODUCED false proof: every u73 change is refusal-only, and no probe moved from REFUSED / FAIL at L21 to
+  SUCCESS at head.
+Known OPEN V1D / v1f / aliased run-time setattr were not re-probed.
