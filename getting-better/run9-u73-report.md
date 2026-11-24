@@ -164,7 +164,15 @@ First gate run (`L/GATES/`, on 1b2c1f078 + the 5 census rows; one NORMAL job, oo
 FIX for the red plane (0d07f75d3): the 9 helpers now carry `#@ assigns \nothing` as well (a true, stronger contract,
 the u71 helper shape), which takes them out of the vacuous-driver population; no ratchet was touched. Re-gate after the
 fix: `tools/gates3.sh` (vacuous-drivers alone, witnesses + helpers full proofs, census-row re-check, fast planes,
-rwc, corpus-executes), log `L/gates3.txt`, `L/GATES3/`: GATES3_RESULT
+rwc, corpus-executes), log `L/gates3.txt`, `L/GATES3/`:
+
+GATES3 on 875fc4f6c (= 0d07f75d3 src / corpus / census; one NORMAL job 15:53-16:36Z, oom_kill 15 -> 15):
+check-vacuous-drivers rc 0 (pycsl-reference trivial 9 = ratchet 9, empty back at the ratchet); all u73 witnesses and
+helpers re-proved with unchanged verdicts (`L/GATES3/w/`); the re-generated census rows are byte-identical to the
+committed ones; **run-soundness-planes.sh rc 0: all 62 planes green** (`L/GATES3/planes.txt`); check-refusal-witness-
+coverage rc 0 (494 demonstrated, 5 undemonstrated, ceiling 5); check-corpus-executes rc 0. The fidelity and ledger
+planes and the sweeps above are unaffected by the helper edit (no src / mirror change; the helpers are new sources the
+compare ignores) and are not re-run.
 
 ## 6. Commits (branch run9-u73, not pushed)
 
@@ -175,7 +183,8 @@ rwc, corpus-executes), log `L/gates3.txt`, `L/GATES3/`: GATES3_RESULT
 - e50f4e810 WIP: h1 sweep compare, chain2 tools.
 - 1b2c1f078 10471 docstring (its base verdict is FAIL, not a false proof); full-proof batteries + probe table.
 - 0d07f75d3 census rows 10470-10474; helper `assigns \nothing`; gate sweeps and gate logs.
-- final: this report (+ gates3 logs).
+- 875fc4f6c report draft.
+- final: this report + gates3 logs.
 
 ## 7. Open / for the driver
 
