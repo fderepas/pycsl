@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/i01_upper_qualified_local_lower.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt80_upper': ['Val1'] (trusted stubs, module-qualified)
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/i01_upper_qualified_local_lower.py: /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/i01_upper_qualified_local_lower.py: PYCSL-R327-IDENT-COLLISION (route #327) — the functions 'Val1' and 'val1' lower to ONE WhyML identifier 'val1'. Rename one of them.

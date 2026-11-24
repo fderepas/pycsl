@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/d09_base_local_var.py'...
+[*] Memory model: hoare
+[*] Imported base class from 'rt80_cls_a': Base (record + 1 method stub(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_ekz7i_33.mlw", line 23, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 18 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_ekz7i_33.mlw", line 19, characters 15-19: unused variable self
+Warning, file "/tmp/.pycsl_ekz7i_33.mlw", line 26, characters 8-9: unused variable y
+Warning, file "/tmp/.pycsl_ekz7i_33.mlw", line 25, characters 8-9: unused variable x
+Warning, file "/tmp/.pycsl_ekz7i_33.mlw", line 29, characters 12-16: unused variable self
+Warning, file "/tmp/.pycsl_ekz7i_33.mlw", line 32, characters 12-16: unused variable self
+
+[+] Verification SUCCESS! All contracts formally proven.

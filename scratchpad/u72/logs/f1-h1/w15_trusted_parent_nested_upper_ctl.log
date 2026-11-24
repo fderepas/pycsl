@@ -1,0 +1,7 @@
+/home/fabrice/git/pycsl-u72-h1/src/pycsl/frontend/Module3_Weaver.py:388: UserWarning: Function 'outer' (line 3): \trusted has no reviewer — add `reviewer: <name>` to document who is accountable for this trust assumption.
+  self._dispatch_function_contracts(node, self.contracts_map[node.lineno])
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w15_trusted_parent_nested_upper_ctl.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: PYCSL-SEM-WHYML-NAME-CLASH (route #620): 2 definitions of this program are emitted under the same WhyML function name `f`: 'F' (function, line 4), 'f' (function, line 11). A method `C.m` is emitted as `c__m`, and WhyML names start lower-case and avoid reserved words, so distinct Python names can meet. The model would keep ONE body and silently drop the other (measured: a module-level `def c__m` vanished behind method `C.m`, and its `-> NoReturn` exempted the method from the non-vacuity gate). Refused (fail closed). Rename one of the definitions.

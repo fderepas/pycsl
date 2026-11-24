@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w06_multifile_mangled.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] ../pycsl-u72/scratchpad/u72/probes/rt77/rt77lib_cls.py: the imported function `c__m` of `rt77lib_cls.py` has the same name as a function the program defines itself, and the program binds the name `c__m` itself to the imported one (a from-import, a wildcard import, or a class method reached by its mangled name): one name cannot denote both definitions, so a call of it would be verified against the wrong contract while CPython runs the other (routes #624 / #625 / #630). FIX: rename one of the two functions, or import it under a distinct name (`from mod import c__m as other`).

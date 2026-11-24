@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e01_classes_C_c_exempt.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e01_classes_C_c_exempt.py: /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e01_classes_C_c_exempt.py: PYCSL-R327-IDENT-COLLISION (route #327) — the classes 'C' and 'c' lower to ONE WhyML namespace ('c'): their types and method symbols would be confused. Rename one of them.

@@ -1,0 +1,45 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/v04b_mutrec_nested_with_vac.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_18i5iskx.mlw", line 9, characters 15-27:
+Sub-goal postcondition of goal outer'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_18i5iskx.mlw", line 15, characters 15-28:
+Sub-goal postcondition of goal q'vc.
+Prover result is: Valid (0.00s, 25 steps).
+
+File "/tmp/.pycsl_18i5iskx.mlw", line 22, characters 20-31:
+Sub-goal variant decrease of goal q'vc.
+Prover result is: Valid (0.00s, 57 steps).
+
+File "/tmp/.pycsl_18i5iskx.mlw", line 22, characters 20-31:
+Sub-goal precondition of goal q'vc.
+Prover result is: Valid (0.00s, 57 steps).
+
+File "/tmp/.pycsl_18i5iskx.mlw", line 15, characters 15-28:
+Sub-goal postcondition of goal q'vc.
+Prover result is: Valid (0.00s, 29 steps).
+
+File "/tmp/.pycsl_18i5iskx.mlw", line 27, characters 15-28:
+Sub-goal postcondition of goal p'vc.
+Prover result is: Valid (0.00s, 33 steps).
+
+File "/tmp/.pycsl_18i5iskx.mlw", line 34, characters 20-31:
+Sub-goal variant decrease of goal p'vc.
+Prover result is: Valid (0.00s, 61 steps).
+
+File "/tmp/.pycsl_18i5iskx.mlw", line 34, characters 20-31:
+Sub-goal precondition of goal p'vc.
+Prover result is: Valid (0.00s, 57 steps).
+
+File "/tmp/.pycsl_18i5iskx.mlw", line 27, characters 15-28:
+Sub-goal postcondition of goal p'vc.
+Prover result is: Valid (0.00s, 42 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_18i5iskx.mlw", line 8, characters 13-14: unused variable y
+
+[+] Verification SUCCESS! All contracts formally proven.

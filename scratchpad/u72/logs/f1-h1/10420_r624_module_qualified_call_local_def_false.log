@@ -1,0 +1,19 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/10420_r624_module_qualified_call_local_def_false.py'...
+[*] Memory model: hoare
+[*] Imported from 'qa70': ['val1'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_wch450yq.mlw", line 10, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 11 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_wch450yq.mlw", line 15, characters 15-27:
+Sub-goal postcondition of goal val1'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/d01_base_qualified_local_base.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: class 'X' at line 14: its base `rt80_cls_a.Base` is an attribute of another module whose tail `Base` is also the name of a class of this file (route #345: the base would be read as this file's `Base`); import the class under a distinct name (`from m import Base as OtherBase`). The verifier reads a class's bases by NAME, so this base would not be resolved to the class it denotes and 'X' would be modelled as unrelated to it: its inherited fields and invariants, the override checks (routes #277/#278/#338) and the constructor chain (route #335) would all be skipped, while CPython inherits (route #341). Write the base class's own name (the `class` statement's name, or `module.Name` for an imported class) in the class header.

@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/10455_r630_local_def_named_like_inherited_method_false.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] test-suite/corpus/pycsl-reference/qg72.py: the imported function `base__m` of `qg72.py` has the same name as a function the program defines itself, and the program binds the name `base__m` itself to the imported one (a from-import, a wildcard import, or a class method reached by its mangled name): one name cannot denote both definitions, so a call of it would be verified against the wrong contract while CPython runs the other (routes #624 / #625 / #630). FIX: rename one of the two functions, or import it under a distinct name (`from mod import base__m as other`).

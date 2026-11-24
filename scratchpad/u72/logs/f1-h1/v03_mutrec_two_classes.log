@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/v03_mutrec_two_classes.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/v03_mutrec_two_classes.py: the functions ['a__m', 'b__n'] call one another in a cycle that passes through a METHOD or CONSTRUCTOR call ('a__m' -> 'b__n'). PyCSL lowers that call to a bodyless contract stub, so Why3 never sees the cycle: it would ASSUME the callee terminates and satisfies its postcondition — circularly — and no termination measure (`#@ \variant`) is checked across that edge. Without a termination argument this recursion can run forever (CPython: RecursionError). Mark EVERY function of the cycle `#@ \diverges` (partial correctness: the contracts then hold IF it returns; not yet so marked: ['a__m', 'b__n']), or restructure the recursion as module-level functions carrying a `#@ \variant`, whose `let rec` termination Why3 checks.

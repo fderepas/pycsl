@@ -1,0 +1,21 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/d03_base_qualified_vs_from_import.py'...
+[*] Memory model: hoare
+[*] Imported class from 'rt80_cls_b': Base (record + 1 method stub(s) + 0 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_4mx0dsoh.mlw", line 18, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 64 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_4mx0dsoh.mlw", line 14, characters 15-19: unused variable self
+Warning, file "/tmp/.pycsl_4mx0dsoh.mlw", line 22, characters 12-16: unused variable self
+Warning, file "/tmp/.pycsl_4mx0dsoh.mlw", line 14, characters 15-19: unused variable self
+Warning, file "/tmp/.pycsl_4mx0dsoh.mlw", line 22, characters 12-16: unused variable self
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

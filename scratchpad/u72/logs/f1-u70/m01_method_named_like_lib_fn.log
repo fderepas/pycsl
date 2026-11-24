@@ -1,0 +1,23 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/m01_method_named_like_lib_fn.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt80_liba': ['helper'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_i3uijf01.mlw", line 12, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 15 steps).
+
+File "/tmp/.pycsl_i3uijf01.mlw", line 17, characters 15-27:
+Sub-goal postcondition of goal k__helper'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_i3uijf01.mlw", line 18, characters 15-34:
+Sub-goal postcondition of goal k__helper'vc.
+Prover result is: Valid (0.00s, 7 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

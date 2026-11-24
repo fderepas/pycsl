@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/qi72.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_wjtn1xrz.mlw", line 9, characters 15-27:
+Sub-goal postcondition of goal helper'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_wjtn1xrz.mlw", line 14, characters 15-27:
+Sub-goal postcondition of goal c__m'vc.
+Prover result is: Valid (0.00s, 7 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_wjtn1xrz.mlw", line 15, characters 15-34:
+Sub-goal postcondition of goal c__m'vc.
+Prover result is: Valid (0.00s, 8 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

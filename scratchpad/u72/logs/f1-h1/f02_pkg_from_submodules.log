@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/f02_pkg_from_submodules.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/f02_pkg_from_submodules.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'g', the value '_pycsl_seq623828482_0' comes from 'a_f_0', a call PyCSL has no model of: it is lowered to an OPAQUE INT whatever its Python type (a float, a string, a module...), and it is used here as an integer (`) ) in ( _pycsl_seq623828482_0 + ( b_f_0 (`), where every claim true of all integers (`x % 1 == 0`, `x * 0 == 0`, `x < e or x >= e + 1 or x == e`) would be proved of it. Refused (fail closed). Give it a modelled form: an `int` literal / int expression, or pass it in as a typed parameter with an explicit `requires`.

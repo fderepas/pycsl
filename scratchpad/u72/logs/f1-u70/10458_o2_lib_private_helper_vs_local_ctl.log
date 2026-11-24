@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/10458_o2_lib_private_helper_vs_local_ctl.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] ../pycsl-u72-h1/test-suite/corpus/pycsl-reference/qj72.py: the imported function `_h` of `qj72.py` has the same name as a function the program defines itself: pycsl gives every function ONE WhyML name, so one of the two definitions would be dropped and a call meant for it (a module-qualified `mod._h()`, or the dependency's own call of it) would be verified against the other one's contract, while CPython runs each module's own function (routes #624 / #625: `import lib` beside a local `def _h`, or two libraries that both define it). FIX: rename one of the two functions, or import it under a distinct name (`from mod import _h as other`).

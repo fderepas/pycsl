@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/a08_missing_attr_local_def_noexc.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt80_liba': ['f'] (trusted stubs, module-qualified)
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'g' line 14: the method call `rt80_liba.f()` is not admitted: `rt80_liba.f` is a function of an imported module, not of this file: the file's own `f` does not speak for it. Its exceptions are not modelled, while this function claims `#@ no_exception` and the call lowers to an opaque value with no `raises` (route #440; measured: a file class's `def rindex` admitted `path.rindex(".")` -- ValueError -- and `n: int; n.upper()` -- AttributeError -- under `#@ no_exception \all`). Admitted: a method of a file class on a receiver DERIVED as that class, or a builtin method with a row in the signature table (`str.strip` / `find` / `split` ..., `list.append` ..., `dict.get` ..., `set.add` ..., `int.bit_length`) on a receiver derived as that builtin. Declare the receiver with a class that has the method in the table (or a file class that defines it), use a method that has a row (`rfind` for `rindex`, `find` for `index`), or drop the claim.

@@ -1,0 +1,56 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/v06b_mutrec_mixed_with_prog_vac.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_4hohy90k.mlw", line 10, characters 15-47:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 28 steps).
+
+File "/tmp/.pycsl_4hohy90k.mlw", line 17, characters 20-31:
+Sub-goal variant decrease of goal g'vc.
+Prover result is: Valid (0.01s, 52 steps).
+
+File "/tmp/.pycsl_4hohy90k.mlw", line 17, characters 20-31:
+Sub-goal precondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 157 steps).
+
+File "/tmp/.pycsl_4hohy90k.mlw", line 10, characters 15-47:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 137 steps).
+
+File "/tmp/.pycsl_4hohy90k.mlw", line 29, characters 18-42:
+Sub-goal loop invariant init of goal f'vc.
+Prover result is: Valid (0.00s, 41 steps).
+
+File "/tmp/.pycsl_4hohy90k.mlw", line 30, characters 16-24:
+Sub-goal loop variant decrease of goal f'vc.
+Prover result is: Valid (0.00s, 105 steps).
+
+File "/tmp/.pycsl_4hohy90k.mlw", line 29, characters 18-42:
+Sub-goal loop invariant preservation of goal f'vc.
+Prover result is: Valid (0.00s, 73 steps).
+
+File "/tmp/.pycsl_4hohy90k.mlw", line 22, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 65 steps).
+
+File "/tmp/.pycsl_4hohy90k.mlw", line 36, characters 20-31:
+Sub-goal variant decrease of goal f'vc.
+Prover result is: Valid (0.00s, 93 steps).
+
+File "/tmp/.pycsl_4hohy90k.mlw", line 36, characters 20-31:
+Sub-goal precondition of goal f'vc.
+Prover result is: Valid (0.00s, 81 steps).
+
+File "/tmp/.pycsl_4hohy90k.mlw", line 22, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 79 steps).
+
+[-] 2 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

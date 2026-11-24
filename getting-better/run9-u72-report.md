@@ -4,7 +4,6 @@ Branch `run9-u72` (worktree /home/fabrice/git/pycsl-u72) = run9-u70 (40f4d17f3) 
 (L20; the base tree is f6435f70d, whose src / bin / test-suite / docs equal 4acebf73c). Not pushed.
 Logs: `scratchpad/u72/logs/` (relative to the tree root). Tools: `scratchpad/u72/tools/`.
 
-DRAFT -- filled in below as the measurements land.
 
 ## 1. Design (FAITHFUL repair, not a narrowing)
 
@@ -66,3 +65,126 @@ Methods and helpers go through `_inject_functions` as one batch: methods are pro
 `def base__m` / `def c__m` is refused), helpers take a fresh name when their name is taken and the batch's
 method bodies / contracts are rewritten, so an inlined `obj.m()` calls the library's helper. The base-class pass
 also brings, under a fresh name, each module helper a method calls whose name is taken or reserved.
+
+## 2. Over-refusal measure (sweeps; no narrowing was needed)
+
+`scratchpad/u72/tools/S.sh` (byte-diff-sweep + mirror-emit-sweep, cwd = tree root, plain heavy.sh NORMAL).
+Base: detached tree `/home/fabrice/git/pycsl-u72-b0` at f6435f70d (L20 src). Head: snapshot
+`/home/fabrice/git/pycsl-u72-h1` at f158e6395, whose src / bin / test-suite equal the final commit's except the
+census rows and the 10463 control body (section 4). Compare: `tools/CMP.sh` (bin/byte-diff-compare.py + `diff -rq`).
+
+| plane | result | log |
+|---|---|---|
+| root | 3329 base / 3360 head .mlw; 0 MOVED, 0 GONE, 0 APPEARED; 31 new sources (u70's 8 witnesses + qa70 / qb70, u72's 12 emitted witnesses + 9 helpers) | `logs/G/C1/C-root.txt` |
+| pyref | 2185 / 2185; 0 MOVED, 0 GONE, 0 APPEARED | `logs/G/C1/C-pyref.txt` |
+| mirror | 53 / 53; 0 MOVED, 0 GONE, 0 APPEARED; `diff -rq` 0 lines | `logs/G/C1/C-mir.txt`, `logs/G/C1/D-mir.txt` |
+
+GONE list: EMPTY. MOVED list: EMPTY (no moved mirror file). Sweep logs: `logs/S-base.txt`, `logs/S-h1.txt`.
+oom_kill 15 -> 15 on both sweeps.
+
+Refusal-to-refusal message changes are invisible to byte-diff, so `tools/RM.sh` re-ran (`--no-proof`) the 184
+census REFUSAL witnesses that import a local module on L20 and head: exactly ONE message changes,
+`1471_route143_contract_calls_a_helper_the_importer_redefines` (route #143's Call-name carrier): its `lim` is
+now bound to the dependency's own `lim` under a fresh name, so #143 no longer fires, and the program is refused
+by the no_exception reachability rule instead (CPython raises ValueError: still refused, fail-safe). Its census
+row is regenerated (section 4). `logs/RM/{b0,h1}.tsv`, `logs/RM/diff.txt`.
+
+## 3. Probes: CPython and full proofs (u70 40f4d17f3, head f158e6395; L20 column see below)
+
+`tools/P3.sh f1 tools/probes.lst` (p.sh: cwd = tree root, PYTHON_CPU_COUNT=2, cap 3600 s, oom_kill 15 -> 15 on
+every file). Per-file logs: `logs/f1-{u70,h1}/`; summaries `logs/P3-f1.txt`; table built by `tools/table.py`;
+CPython: `logs/cpython-{rt80,rt77,u72,witnesses}.txt` (`python3 -B -E -s`, ulimit'd, cwd = probe dir).
+The first L20 (b0) pass is VOID (61 logs hit "Disk quota exceeded" on /tmp; kept as `logs/f1-b0-VOID-quota/`);
+its re-run with TMPDIR under the worktree (`logs/P3-f1-b0.txt`, `logs/f1-b0/`) was still QUEUED at hand-back
+(see section 6). For the L20 column, rt80 measured the same probes SUCCESS at daa36070b (its fp-base logs);
+L20 differs from daa36070b only by u65 / u68 (#619 / #620), which do not touch the resolvers.
+
+Key rows (head = this branch):
+
+| probe | shape | CPython | u70 | head |
+|---|---|---|---|---|
+| g01 (O1) | star import then local def, true | 2 | REFUSED | SUCCESS |
+| p01 / p04 (O2 / O3) | lib-private `_h` vs program `_h`, true | 6 | REFUSED | SUCCESS |
+| p02 / p03 (O4 / O5) | two libs each with private `_h`, true | 3 | REFUSED | SUCCESS |
+| w19c / 10460-10461 | two libs' `helper`, true claim | 3 | REFUSED | SUCCESS |
+| a01 a04 a05 a06 a07 a09 (R1a-f) | re-export captured by another def, false | 1/3/3/1/1/2 | SUCCESS (false proof) | FAILED |
+| x02 / x08 (new) | direct / star re-export captured by another lib's `f` | 3 | SUCCESS (false proof) | FAILED |
+| x03 (new) | lib `abs` captured the program's builtin `abs` | 10 | SUCCESS (false proof) | FAILED |
+| d05 d06 d08 d09 (R2) | base tail reached from two modules | 21/1/1/21 | SUCCESS (false proof) | REFUSED BASE-CLASS-AMBIGUOUS |
+| x05 (new) | star-imported bare base vs module import | 1 | SUCCESS (false proof) | REFUSED |
+| d11 (R3a), w06 | program `def base__m` / `def c__m` | 1 | SUCCESS / SUCCESS | REFUSED NAME-CLASH |
+| e04 (R3b), x09 (new) | inlined method calls program helper | 1 | SUCCESS (false proof) | FAILED |
+| 10462 / 10464 | re-export / inlined-helper TRUE claims | assert ok | FAILED | SUCCESS |
+| w14 w14b f01 f03 f04 e02 w19 | u70's refusals, false claims | 1/1/3/3/1/2/3 | REFUSED | FAILED (faithful binding) |
+| x04 x07 j01 g03 w14c 10424-10427 | controls | | SUCCESS | SUCCESS |
+
+Every other rt77 / rt80 probe has the same class at head as at u70 (refused by the same pre-existing route, or
+FAILED); the rt77 #619 / #620 vacuity probes FAIL at head as at L20 (e05 / e08 / v04b were SUCCESS only at
+u70's pre-L20 base). No probe is SUCCESS at head with a claim CPython contradicts. Full table:
+`logs/probe-table.md`.
+
+## 4. Witnesses (corpus IDs 10450-10464 of [10450, 10469])
+
+Helpers in the corpus root: qc72 (`f` -> 1), qd72 (`from qc72 import f`), qe72 (`f = _b.f`), qf72 (`f` -> 2),
+qg72 / qh72 (class `Base`, m -> 1 / 2), qi72 (class C whose m calls its own `helper` -> 1), qj72 / qk72
+(private `_h` -> 1 / 2 used by `x` / `y`). All full-prove SUCCESS on u70 and head.
+
+| witness | header | CPython | u70 | head |
+|---|---|---|---|---|
+| 10450_r628_reexport_qualified_local_def_false | FAIL | 1 | SUCCESS | FAILED |
+| 10451_r628_assign_reexport_local_def_false | FAIL | 1 | SUCCESS | FAILED |
+| 10452_r628_reexport_vs_other_lib_qualified_false | FAIL | 3 | SUCCESS | FAILED |
+| 10453_r629_two_libs_same_base_tail_false | FAIL | 21 | SUCCESS | REFUSED BASE-CLASS-AMBIGUOUS |
+| 10454_r629_from_import_vs_qualified_base_false | FAIL | 1 | SUCCESS | REFUSED BASE-CLASS-AMBIGUOUS |
+| 10455_r630_local_def_named_like_inherited_method_false | FAIL | 1 | SUCCESS | REFUSED NAME-CLASH |
+| 10456_r630_inlined_method_calls_local_helper_false | FAIL | 1 | SUCCESS | FAILED |
+| 10457-10461 (O1-O5 controls) | PASS | assert ok | REFUSED | SUCCESS |
+| 10462_r628_reexport_followed_ctl | PASS | assert ok | FAILED | SUCCESS |
+| 10463_r629_single_lib_attribute_base_ctl | PASS | assert ok | see note | see note |
+| 10464_r630_inlined_method_library_helper_ctl | PASS | assert ok | FAILED | SUCCESS |
+
+u70's 10420-10423 (FAIL) are now FAILED (faithful binding) instead of REFUSED; their docstrings say so.
+10424-10427 stay SUCCESS. Note 10463: its first form (`X().m()`) FAILED on u70 and head (the constructor call
+is opaque, pre-existing); it was changed to `g(x: X) -> x.m()` (commit 8e4faccb7, CPython re-checked) and its
+proof on b0 / u70 / head is the first step of `tools/FINAL.sh` (`logs/w63-*`), queued at hand-back.
+Census rows: `tools/CR.sh` (the real `_census_row`, cwd-relative) for 10420-10423, 10450-10456 and 1471, merged
+by `tools/merge_census.py`: also in FINAL.sh, queued at hand-back; the committed TSV still carries u70's rows.
+
+## 5. Gates (NOT RUN: the heavy queue never reached them before the time box)
+
+From ~23:00Z to hand-back both proof slots were held by other executors' and the driver's long jobs (int77 mirror
+proofs, a `--slow` plane run, u73 / u74 / driver chains); my last two jobs (`P3.sh ... b0` and `tools/FINAL.sh`)
+stayed in `flock` and were WITHDRAWN un-started at hand-back so that nothing of mine outlives me.
+What IS measured: byte-diff root / pyref / mirror (section 2, 0 / 0 / 0, rc 0); the refusal-message check; probe
+proofs on u70 and head. Edited mirror twins: none VERIFIED (all `\trusted`), no new `\trusted` (`grep -c` of
+`#@ \trusted` in src/self-annotate unchanged: the mirror is untouched), no tool / gate / allowlist edited,
+ledger file untouched. To run (one NORMAL job, snapshot `/home/fabrice/git/pycsl-u72-h2` = 8e4faccb7, whose
+src / bin / test-suite = the final commit's):
+
+    heavy.sh bash scratchpad/u72/tools/FINAL.sh   # 10463 proofs b0/u70/h2, CR.sh rows, merge_census, GATES.sh
+    heavy.sh bash scratchpad/u72/tools/P3.sh f1 scratchpad/u72/tools/probes.lst b0   # L20 probe column
+
+FINAL.sh writes `logs/CR-rows.tsv` (to be committed into `bin/refusal-witness-census.tsv`: rows for 10420-10423
+change REFUSAL -> VERIFY-FAIL, 10450-10456 new, 1471's message changes) and `logs/GATES/` (fidelity + ledger slow
+planes via LG.sh, fast planes teed, check-refusal-witness-coverage, check-corpus-executes,
+frontend-only-conformance, check-dropped-mutation, \trusted count). Expected risk: check-refusal-witness-coverage
+needs the new rows (the new BASE-CLASS-AMBIGUOUS site is witnessed by 10453 / 10454, the rewritten NAME-CLASH
+site by 10455).
+
+## 6. Open / for the driver
+
+- L20 column of the probe proofs and all gates: NOT RUN (section 5). 10463's final form is not yet proved.
+- Census TSV not yet updated (rows 10420-10423 still say u70's REFUSAL; 1471 still says #143).
+- Residuals I know of: (a) a dependency function passed as a VALUE (`map(_h, xs)`) inside an inlined method body
+  is not renamed (only `Call` nodes are); (b) a module-qualified `m.C()` constructor for two libraries' same-named
+  classes now ends as an R325 refusal (o01), was opaque before; (c) a dependency-internal call whose callee
+  name is also a LOCAL variable (not a parameter) of the caller is rewritten (only formal parameters are
+  excluded); only matters for inlined bodies.
+- The `_same` test (same file + same IR minus `proof`) can fail for a def first injected with rewritten calls and
+  later requested raw under the program's own name: it is then refused (fail-safe, not seen in any sweep).
+
+## 7. Commits (branch run9-u72, not pushed)
+
+b4f20828b merge L20 + untrack progress.txt; 1de6f4d1f core rule + witnesses; e6d824c13 / ce47fd13e / 2fa565c55 /
+f158e6395 #629 refinements, m.C() fix, wildcard reservation; then WIP evidence commits up to 8e4faccb7 (10463
+control) and this report.
