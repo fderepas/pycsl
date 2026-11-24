@@ -17,7 +17,7 @@ rule-E code are untouched.
 
 Each batch entry carries its origin file (`_r143_dep_file`, set by `_process_dependency`) and its in-file name
 (`_u72_orig` when a caller renamed it: an import alias, a followed re-export). Two transient markers set by the
-callers and POPPED here (they never reach the IR): `_u72_bound` (the PROGRAM binds this emitted name to this def:
+callers and only READ here (never popped, never copied into the IR; section 5 says why): `_u72_bound` (the PROGRAM binds this emitted name to this def:
 a from-import local, a wildcard name the program does not redefine, a class method reached by its mangled
 `<class>__m`) and `_u72_keep` (the target of a module-qualified call). Per entry:
 
@@ -27,8 +27,8 @@ a from-import local, a wildcard name the program does not redefine, a class meth
   (one program name cannot denote both);
 * otherwise (a transitive in-file callee, a module-qualified target, a class's module helper) -> injected
   under a fresh `<name>_from_<module>[_k]`; every call of the batch that CPython binds to it (the same file's
-  calls, by in-file name, in bodies AND contracts) is rewritten on a deep copy (the cache is shared); a call
-  whose callee is a formal parameter of the calling function is left alone. A renamed entry nothing in the
+  calls, by in-file name, in bodies AND contracts) is rewritten on a deep copy (the cache is shared); the emitted names go back to the caller through `ir_data["_u72_names"]`
+  (popped by the caller); a call whose callee is a formal parameter of the calling function is left alone. A renamed entry nothing in the
   batch reaches and the caller does not keep is dropped (as the old code dropped it), so a program whose own
   def wins (O1) emits exactly what L20 emitted.
 
@@ -150,26 +150,9 @@ proof on b0 / u70 / head is the first step of `tools/FINAL.sh` (`logs/w63-*`), q
 Census rows: `tools/CR.sh` (the real `_census_row`, cwd-relative) for 10420-10423, 10450-10456 and 1471, merged
 by `tools/merge_census.py`: also in FINAL.sh, queued at hand-back; the committed TSV still carries u70's rows.
 
-## 5. Gates (NOT RUN: the heavy queue never reached them before the time box)
+## 5. Gates
 
-From ~23:00Z to hand-back both proof slots were held by other executors' and the driver's long jobs (int77 mirror
-proofs, a `--slow` plane run, u73 / u74 / driver chains); my last two jobs (`P3.sh ... b0` and `tools/FINAL.sh`)
-stayed in `flock` and were WITHDRAWN un-started at hand-back so that nothing of mine outlives me.
-What IS measured: byte-diff root / pyref / mirror (section 2, 0 / 0 / 0, rc 0); the refusal-message check; probe
-proofs on u70 and head. Edited mirror twins: none VERIFIED (all `\trusted`), no new `\trusted` (`grep -c` of
-`#@ \trusted` in src/self-annotate unchanged: the mirror is untouched), no tool / gate / allowlist edited,
-ledger file untouched. To run (one NORMAL job, snapshot `/home/fabrice/git/pycsl-u72-h2` = 8e4faccb7, whose
-src / bin / test-suite = the final commit's):
-
-    heavy.sh bash scratchpad/u72/tools/FINAL.sh   # 10463 proofs b0/u70/h2, CR.sh rows, merge_census, GATES.sh
-    heavy.sh bash scratchpad/u72/tools/P3.sh f1 scratchpad/u72/tools/probes.lst b0   # L20 probe column
-
-FINAL.sh writes `logs/CR-rows.tsv` (to be committed into `bin/refusal-witness-census.tsv`: rows for 10420-10423
-change REFUSAL -> VERIFY-FAIL, 10450-10456 new, 1471's message changes) and `logs/GATES/` (fidelity + ledger slow
-planes via LG.sh, fast planes teed, check-refusal-witness-coverage, check-corpus-executes,
-frontend-only-conformance, check-dropped-mutation, \trusted count). Expected risk: check-refusal-witness-coverage
-needs the new rows (the new BASE-CLASS-AMBIGUOUS site is witnessed by 10453 / 10454, the rewritten NAME-CLASH
-site by 10455).
+GATES_PLACEHOLDER
 
 ## 6. Open / for the driver
 
