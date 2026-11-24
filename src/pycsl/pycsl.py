@@ -39593,6 +39593,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _tr483 = {_mf483: _t341}    # program module path -> its tree
         _q483 = [_mf483]
         _wpk483 = None    # (u73, route #632) the first wildcard of a package: (module, __init__)
+        _hx483 = None     # (u75, rt83 o7) a hook-name literal admitted as a hasattr / getattr read
         while _q483 and _rf483 is None:
             _f483 = _q483.pop(0)
             for _z483 in _a483.walk(_tr483[_f483]):
@@ -39668,14 +39669,60 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             # `__getattr__` / `__dir__` / `__mro_entries__` hook (a def outside
                             # class bodies, a store / delete, an import binding, a `global`, an
                             # attribute store of it, or its literal string) is unreadable
-                            _cb483 = {id(_s) for _c in _a483.walk(_ti483)
-                                      if isinstance(_c, _a483.ClassDef) for _s in _c.body}
+                            # (#49) run #9 u75 -- review rt83 o6 / o7 (u73 INTRODUCED
+                            # over-refusals): a def / Name store binds in its OWN scope (one in a
+                            # class or function body is no module hook), and the literal is a
+                            # READ as the 2nd argument of a two-argument `hasattr` / `getattr`
+                            # (when the file does not bind those names; refused below if the
+                            # closure mentions `builtins` / `__builtins__`)
+                            _pm483 = {id(_c): _p for _p in _a483.walk(_ti483)
+                                      for _c in _a483.iter_child_nodes(_p)}
+                            _gb483 = any(
+                                (isinstance(_y, _a483.Name) and _y.id in ("getattr", "hasattr")
+                                 and not isinstance(_y.ctx, _a483.Load))
+                                or (isinstance(_y, _a483.alias)
+                                    and (_y.asname or _y.name) in ("getattr", "hasattr"))
+                                or (isinstance(_y, (_a483.FunctionDef, _a483.AsyncFunctionDef,
+                                                    _a483.ClassDef))
+                                    and _y.name in ("getattr", "hasattr"))
+                                or (isinstance(_y, _a483.arg) and _y.arg in ("getattr", "hasattr"))
+                                or (isinstance(_y, (_a483.Global, _a483.Nonlocal))
+                                    and bool({"getattr", "hasattr"} & set(_y.names)))
+                                for _y in _a483.walk(_ti483))
                             for _y483 in _a483.walk(_ti483):
+                                _sc483 = "module"
+                                if isinstance(_y483, (_a483.FunctionDef, _a483.AsyncFunctionDef,
+                                                      _a483.Name)):
+                                    _ch483 = _y483
+                                    _pp483 = _pm483.get(id(_y483))
+                                    while _pp483 is not None:
+                                        if ((isinstance(_pp483, (_a483.FunctionDef,
+                                                                 _a483.AsyncFunctionDef,
+                                                                 _a483.ClassDef))
+                                             and any(_s is _ch483 for _s in _pp483.body))
+                                                or (isinstance(_pp483, _a483.Lambda)
+                                                    and _pp483.body is _ch483)):
+                                            _sc483 = "local"
+                                            break
+                                        _ch483 = _pp483
+                                        _pp483 = _pm483.get(id(_pp483))
+                                _rl483 = False
+                                if isinstance(_y483, _a483.Constant) and not _gb483:
+                                    _pp483 = _pm483.get(id(_y483))
+                                    _rl483 = (isinstance(_pp483, _a483.Call)
+                                              and isinstance(_pp483.func, _a483.Name)
+                                              and _pp483.func.id in ("hasattr", "getattr")
+                                              and len(_pp483.args) == 2 and not _pp483.keywords
+                                              and _pp483.args[1] is _y483)
+                                    if _rl483 and _y483.value in ("__getattr__", "__dir__",
+                                                                  "__mro_entries__"):
+                                        _hx483 = _hx483 or (_rp483, _y483.lineno)
                                 if any(((isinstance(_y483, (_a483.FunctionDef,
                                                             _a483.AsyncFunctionDef))
-                                         and _y483.name == _q and id(_y483) not in _cb483)
+                                         and _y483.name == _q and _sc483 == "module")
                                         or (isinstance(_y483, _a483.Name) and _y483.id == _q
-                                            and not isinstance(_y483.ctx, _a483.Load))
+                                            and not isinstance(_y483.ctx, _a483.Load)
+                                            and _sc483 == "module")
                                         or (isinstance(_y483, _a483.alias)
                                             and _q in (_y483.name, _y483.asname))
                                         or (isinstance(_y483, (_a483.Global, _a483.Nonlocal))
@@ -39685,7 +39732,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                             and not isinstance(_y483.ctx, _a483.Load))
                                         or (isinstance(_y483, _a483.Constant)
                                             and isinstance(_y483.value, str)
-                                            and _y483.value == _q))
+                                            and _y483.value == _q and not _rl483))
                                        for _q in ("__getattr__", "__dir__", "__mro_entries__")):
                                     _ok483 = False
                                     break
@@ -39745,6 +39792,25 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                   f"{_wpk483[0]} has a wildcard import of {_wpk483[1]}, so the "
                                   f"list of submodules the wildcard loads (and their import-time "
                                   f"code) may be changed")
+                        break
+                if _rf483 is not None:
+                    break
+        # (u75, rt83 o7) the admitted `hasattr(x, "__getattr__")` is a read only while the
+        # builtins are the interpreter's own: a closure module mentioning `builtins` /
+        # `__builtins__` (which can rebind `getattr`) makes it a possible hook store again
+        if _rf483 is None and _hx483 is not None:
+            for _f483, _tt483 in _tr483.items():
+                for _y483 in _a483.walk(_tt483):
+                    if ((isinstance(_y483, _a483.alias) and _y483.name.split(".")[0] == "builtins")
+                            or (isinstance(_y483, _a483.ImportFrom)
+                                and (_y483.module or "").split(".")[0] == "builtins")
+                            or (isinstance(_y483, _a483.Name) and _y483.id == "__builtins__")
+                            or (isinstance(_y483, _a483.Attribute)
+                                and _y483.attr == "__builtins__")):
+                        _rf483 = (f"{_f483} (line {getattr(_y483, 'lineno', 0) or 0}) mentions "
+                                  f"the builtins while {_hx483[0]} (line {_hx483[1]}) reads a "
+                                  f"module hook name through `hasattr` / `getattr`, which a "
+                                  f"rebound builtin can turn into a store of the hook")
                         break
                 if _rf483 is not None:
                     break
