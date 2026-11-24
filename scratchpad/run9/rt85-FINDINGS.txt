@@ -1,0 +1,89 @@
+rt85 FINDINGS (driver run #9). Defensive review of u72's multi-module function renaming (run9-u72 6e897ac6a = L20 + u70 + u72)
+compared with base daa36070b (L20).
+Trees: /home/fabrice/git/pycsl-rt85 (head), /home/fabrice/git/pycsl-rt85b (base). Both were removed at the end. No commits.
+Work dir: /home/fabrice/git/pycsl/scratchpad/rt85 (probes/, logs/, tools/).
+
+Commands
+- Emission: `HEAVY_QUICK=1 heavy.sh bash tools/q.sh <tree> <out> [--deep] -- <files>` (--no-proof --keep-mlw, cwd = tree root).
+  Output dirs: logs/q-head, logs/q-base, logs/q-x (head), logs/q-bx (base), logs/q-head-deep.
+- Full proof: `HEAVY_PRIO=1 heavy.sh bash tools/p.sh <tree> <out> -- <files>`, through tools/chain1.sh and tools/chain2.sh.
+  Settings: cwd = tree root, PYTHON_CPU_COUNT=2, cap 3600 s, TMPDIR=scratchpad/rt85/tmp.
+  Summaries: logs/chain1.txt and logs/chain2.txt. Per-file logs: logs/fp-head, logs/fp-base, logs/fp-head2, logs/fp-base2.
+  oom_kill was 15 -> 15 on every proof. No log contains EDQUOT. No result is void.
+- CPython: `timeout 60 bash -c 'ulimit -v 2000000; python3 -B -E -s <probe>'` with cwd = probes/. Output: logs/cpython.txt.
+
+VERDICT
+- I found NO INTRODUCED false proof. Each wrong-body proof below proves at head AND at base. For the chain1 probes the emission
+  is byte-identical between the two trees (comment lines ignored).
+- Several PRE-EXISTING families still bind a name to the wrong definition and prove a claim that CPython contradicts. Four of
+  them (F1-F4) sit right next to the code u72 changed: inlined method bodies, default arguments, class identity, and
+  package-prefix calls.
+- INTRODUCED over-refusals: 4 programs that base full-proves correctly (SUCCESS, CPython agrees) are refused at head. They fail
+  safe, but they are new.
+- --deep gives the same emission as default for p03, f01, b02, k02 and w06, so those false proofs remain under --deep. For i03,
+  --deep resolves the re-export and the binding is faithful.
+
+== Wrong-body false proofs (CPython contradicts, Verification SUCCESS at head AND base) ==
+| id | probe (probes/) | shape | CPython | base | head | class |
+| F1a | i03_inline_method_calls_reexported_helper_local | rt85_ih: `from rt85_hsrc import helper` (->1) and class C with `m` returning `helper()`. Program: own `def helper`->2, `obj = C()`, claims `obj.m() == 2`. The inlined body calls the PROGRAM's helper. u72 #630 renames only IN-FILE helpers. | 1 | SUCCESS | SUCCESS (with --deep: faithful) | PRE-EXISTING |
+| F1b | b02_inline_method_builtin_captured | Lib absa has `def abs`->100, reached as a transitive callee of `uses_abs`. It is injected as the plain name `abs` because the reservation covers only builtins the PROGRAM calls. Class lib rt85_iabs's `m` returns `abs(-1)`. The inlined body calls absa's abs. Claims `obj.m() == 100`. | 1 | SUCCESS | SUCCESS | PRE-EXISTING (sibling of u72's x03, not covered) |
+| F1c | i04_inline_method_dotted_call_alias_rebound | Class lib rt85_ih2: `import rt85_hsrc`, `m` returns `rt85_hsrc.helper()` (->1). Program: `import rt85_other as rt85_hsrc` (helper->2). The module pass rewrites `rt85_hsrc.helper` in ALL functions, inlined lib bodies included. Claims `obj.m()+rt85_hsrc.helper() == 4`. | 3 | SUCCESS | SUCCESS | PRE-EXISTING |
+| F1d | i05_inline_method_reads_lib_const_shadowed | Class lib rt85_ik: `K = 1`, `m` returns `K`. Program: `K = 5`. The inlined body folds the IMPORTER's K. Claims `obj.m() == 5`. | 1 | SUCCESS | SUCCESS | PRE-EXISTING |
+| F2a | f01_default_arg_call_shadowed | rt85_df2: `def f(x: int = _h())`, lib `_h`->1. Program: own `_h`->5. `rt85_df2.f()` is emitted as `f (_h ())`, with the PROGRAM's `_h`. Claims `== 5`. | 1 | SUCCESS | SUCCESS | PRE-EXISTING |
+| F2b | f02_default_arg_module_const_shadowed | rt85_df: `K = 1; def f(x: int = K)`. Program: `from rt85_df import f`, `K = 5`. Emitted as `f (5)`. Claims `f() == 5`. | 1 | SUCCESS | SUCCESS | PRE-EXISTING |
+| F2c | f03_default_arg_module_const_qualified | same as F2b, through `rt85_df.f()` | 1 | SUCCESS | SUCCESS | PRE-EXISTING |
+| F3a | t01_same_class_name_two_libs_param | `from rt85_ka import C` (m->1) and `import rt85_kb` (its own class C, m->2, and `val(c: C)` ensuring `== 2` with body `c.m()`). Program: `g(c: C) = rt85_kb.val(c)`, claims `== 2`. The type `C` is one record keyed by bare name. CPython runs `g(C())` with ka's C. | 1 | SUCCESS | SUCCESS | PRE-EXISTING (class identity by bare name) |
+| F3b | t02_same_class_name_two_libs_from | same as F3a, through `from rt85_kb import val` | 1 | SUCCESS | SUCCESS | PRE-EXISTING |
+| F3c | t03_same_class_name_method_vs_val | claims `val(c) == c.m() + 1` | False | SUCCESS | SUCCESS | PRE-EXISTING |
+| F3d | k02_dep_attr_base_vs_program_from_base | rt85_kc: `import rt85_ba; class D(rt85_ba.Base)` (m->1). Program: `from rt85_bb import Base` (m->2) and `from rt85_kc import D`. D inherits the PROGRAM's Base. Claims `d.m() == 2`. Route #629 parses only the main file's bases. | 1 | SUCCESS | SUCCESS | PRE-EXISTING |
+| F3e | k03_dep_from_base_vs_program_from_base | same, with the dependency's base given as `from rt85_ba import Base` | 1 | SUCCESS | SUCCESS | PRE-EXISTING |
+| F3f | k05_dep_base_vs_program_local_base | same, with a program-LOCAL `class Base` (m->2) | 1 | SUCCESS | SUCCESS | PRE-EXISTING |
+| F3-ctl | k04_dep_base_ctl_true | D from rt85_kd with no conflicting Base, true claim `== 1` | 1 | - | FAILED | the inherited method is opaque when nothing captures `Base`, so F3d-f bind to the capturing Base |
+| F4 | p03_pkg_prefix_strip_plus_pkg_f (head claim 9), p04_..._baseclaim (base claim 12) | `import rt85pp; import rt85pp.rt85q; import rt85q` (pkg f->3, pkg.rt85q.f->1, top rt85q.f->2). Program: `rt85pp.rt85q.f() + rt85pp.f() + 2*rt85q.f()`. The `rt85pp.` module pass strips `rt85pp.rt85q.f` to `rt85q.f`, and the top-level `rt85q` module then claims that call. At head it binds to `f_from_rt85q_1` (TOP rt85q, 2) => 9. At base everything binds to the bare `f` (3) => 12. | 8 | SUCCESS (claim 12) | SUCCESS (claim 9) | PRE-EXISTING family. The wrong binding changed under u72 but remains wrong. Root: `_resolve_module_imports` prefix-matches `m.` against deeper dotted calls (`m.sub.f`) and rewrites them to `sub.f` |
+| F5 | w06_star_vs_lifted_nested_def | `from rt85_a import *` (helper->1). Program: `outer()` holds a NESTED `def helper`->2, which is lifted, and module-level `g()` calls `helper()`. g binds to the lifted nested def: u72's wildcard `_own72` treats the lifted def as the program's own module binding. Claims `g() == 2`. | 1 | SUCCESS | SUCCESS | PRE-EXISTING (u72's `_own72` keeps it). The from-import sibling w08 is refused at both. The qualified sibling w07 was wrong at base and is faithful at head (fixed by u72) |
+
+== INTRODUCED over-refusals (CPython-faithful, full proof SUCCESS at base, refused at head) ==
+| id | probe | shape | CPython | base | head |
+| O1 | o03_star_reexport_same_def_true | `from rt85_a import helper` + `import rt85_starre` (`from rt85_a import *`). Claims `rt85_starre.helper() + helper() == 2`. Base binds both to the same def. At head the star re-export is not followed, the bare name is taken, `m.f` stays opaque, and route #325 refuses it. | 2 | SUCCESS | REFUSED PYCSL-R325-OPAQUE-INT-FALLBACK |
+| O2 | o04_if_reexport_same_def_true | same, with the re-export under `if True:` | 2 | SUCCESS | REFUSED R325 |
+| O3 | o05_star_plus_module_import_bare_base_true | `from rt85_ba import *` + `import rt85_ba` + `class X(Base)`. Claims `x.m() == 1`. | 1 | SUCCESS | REFUSED PYCSL-SEM-IMPORT-BASE-CLASS-AMBIGUOUS (route #629 bare-base wildcard rule, with only ONE module defining Base) |
+| O4 | o08_class_pass_rewritten_helper_then_from_import_true | `from rt85_lc import C, h1` (h1 calls lib h2) + a program-own `def h2`->5. Claims `h1() + h2() == 6`. The class pass injects h1 with its call rewritten to `h2_from_rt85_lc`, the direct pass then sees raw h1 != rewritten h1 (`_same72`), and NAME-CLASH fires. The message says "same name as the function of that name in `rt85_lc.py`", which is the same file. | 6 | SUCCESS | REFUSED PYCSL-SEM-IMPORT-FUNCTION-NAME-CLASH (the `_same72` residual the u72 report predicted, now reproduced) |
+
+== Fail-safe / no finding (emission or refusal at head; details in logs/q-*) ==
+- r01/r02/r04: pkg/y.py does `from rt85_x import f` with a same-named sibling module in pkg/ and in the program dir. Refused at both
+  by route rt72-A1 ("resolved from its own directory ... CPython resolves it through the PROGRAM's sys.path"). The #628 hop is safe here.
+- d01/d02: a decorated dependency def. Refused at head, including through the #628 re-export (d02 was opaque at base).
+- c01/c02: a dependency contract that mentions a helper its body does not call. Refused at both ("Imported contract ... reads
+  the module-level name").
+- c03/c04: a renamed `_h_from_rt85_cb` used in a dependency contract is emitted as `val`, not as a logic function. L3-tc fails with
+  "unbound symbol" at head; base refuses through the imported-contract route. c04 is TRUE (CPython 7) and is refused at both, so it
+  is not an introduced over-refusal. Renamed helpers can never be used in contracts.
+- n01: refused at head (imported-contract route on `helper1_from_rt85_nb`). n02: unbound `helper2_from_rt85_nb` at head.
+- m02: `F` renamed to `F_from_rt85_up` collides in WhyML with the program's `f_from_rt85_up`. Refused by route #620 WHYML-NAME-CLASH.
+- m03: R325. m04/m05/v01: opaque `*_0` vals, no collision with program defs.
+- o01/o02 (`from` import, then local def / `f = g` rebinding), w02/w03/w04 (def, then star or from-import inside try/if): refused at
+  both by the rebinding routes.
+- b01/b03: a dependency contract `abs(x)` is unbound at both.
+- k01: a dotted call in a dependency contract is unsupported at both.
+- t04/t05: an aliased class (`C as K`) gives opaque methods.
+- v02: a function value is refused.
+
+Root causes / suggested fixes
+- F1: inlined bodies (apply_inline_globals) are re-resolved in the IMPORTER's namespace. This covers bare names of re-exported
+  helpers, builtins captured by any injected def, dotted `m.f` calls, and module constants. Refuse an inline when the method body
+  references any free name (call or Var) that is not an in-file def of the method's own file already bound under a batch identity.
+  Alternatively, apply the u72 renaming to every free name (constants included) and exclude injected functions from the module
+  pass's global `_rewrite_ir_calls` loop.
+- F2: default-argument expressions are substituted at the call site with the importer's bindings. Evaluate them in the defining
+  module: fold them to that module's constants, or rename them like a batch callee. Otherwise refuse a non-literal default of an
+  imported function.
+- F3: classes are identified by their bare name across modules. Refuse two classes with the same bare name in one import
+  closure, or a dependency class whose base, resolved in ITS OWN file, differs from the importer's type of that name. This
+  extends #629 to dependency files.
+- F4: in `_resolve_module_imports`, match `m.` only for calls whose remainder has no dot (`m.f`), or process the longest module
+  locals first. A `m.sub.f` call must be left to the `m.sub` import, never stripped to `sub.f`.
+- F5: `_own72` must exclude lifted nested defs (and methods): only top-level program defs bind a module name.
+- O1/O2: when `m.f` cannot be followed but the name is held by the def that the module's own star/conditional import would bind
+  (same file and name as the program's from-import), binding to it is faithful. Optional narrowing.
+- O3: the route #629 wildcard rule could admit a bare base when the star module IS the single module defining it.
+- O4: `_same72` should compare entries modulo the u72 call rewriting (same file + same in-file name), not the raw IR.
