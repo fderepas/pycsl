@@ -1,5 +1,5 @@
-def _fwd(self, name):
-    raise AttributeError(name)
+def _fwd(self: object, name: str) -> int:
+    return 0
 
 
 class P:
