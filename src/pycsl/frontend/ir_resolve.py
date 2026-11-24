@@ -2359,10 +2359,10 @@ def _inject_functions(dep_funcs: List[Dict[str, Any]], ir_data: Dict[str, Any]) 
     # dependency function whose name was taken, so a call meant for it bound to the other def.
     # Every entry of one batch comes from the files `_process_dependency` tagged
     # (`_r143_dep_file`); its in-file name is `_u72_orig` when the caller renamed it (an
-    # import alias, a followed re-export), else its name. Two markers, popped here so they
-    # never reach the IR: `_u72_bound` = the PROGRAM binds this emitted name to this def (a
-    # from-import local, a wildcard name, a class method reached by its mangled name), and
-    # `_u72_orig`. RULE, per entry:
+    # import alias, a followed re-export), else its name. Three markers, never copied into
+    # the IR: `_u72_bound` = the PROGRAM binds this emitted name to this def (a from-import
+    # local, a wildcard name, a class method reached by its mangled name), `_u72_keep` (the
+    # caller needs the entry) and `_u72_orig`. RULE, per entry:
     #   * the name is free and not reserved for another binding of the program -> as before;
     #   * the entry present under the name IS this def (same file, same IR) -> skipped;
     #   * a PROGRAM-BOUND entry whose name is taken by another def -> REFUSED (the program's
@@ -2373,21 +2373,27 @@ def _inject_functions(dep_funcs: List[Dict[str, Any]], ir_data: Dict[str, Any]) 
     #     elsewhere, a builtin the program calls) -> injected under a fresh name
     #     `<name>_from_<module>[_k]`, and every call of the batch that binds to it (the same
     #     file's in-file name, CPython's module-globals lookup) is rewritten to that name, on
-    #     a deep copy (the cache is shared). The caller reads the final names off `dep_funcs`,
-    #     whose entries are replaced in place. A call whose callee is a formal parameter of
+    #     a deep copy (the cache is shared). The caller reads the final names from
+    #     `ir_data["_u72_names"]`. A call whose callee is a formal parameter of
     #     the calling function is left alone (it binds to the parameter).
     # Inline; the mirror twin is `\trusted`.
     _res72 = ir_data.get("_u72_reserved") or {}
     _first72: Dict[str, Any] = {}
     for _f72 in ir_data["functions"]:
         _first72.setdefault(_f72["name"], _f72)
-    _bnd72 = [bool(_e72.pop("_u72_bound", False)) for _e72 in dep_funcs]
-    _kp72 = [bool(_e72.pop("_u72_keep", False)) for _e72 in dep_funcs]
-    _org72 = [_e72.pop("_u72_orig", None) or _e72["name"] for _e72 in dep_funcs]
+    # The markers are READ, never popped: `dep_funcs` and its entries are not written here
+    # (the stub's frame; check-trusted-frame-honesty, route #401). Each entry is injected as a
+    # copy without them, and the emitted names go back through `ir_data["_u72_names"]` (one
+    # per entry, in order; the caller pops it).
+    _bnd72 = [bool(_e72.get("_u72_bound", False)) for _e72 in dep_funcs]
+    _kp72 = [bool(_e72.get("_u72_keep", False)) for _e72 in dep_funcs]
+    _org72 = [_e72.get("_u72_orig", None) or _e72["name"] for _e72 in dep_funcs]
+    _src72 = [{k: v for k, v in _e72.items() if k not in ("_u72_bound", "_u72_keep", "_u72_orig")}
+              for _e72 in dep_funcs]
     _plan72: List[Optional[str]] = [None] * len(dep_funcs)   # emitted name; None = skip
     _taken72: Set[str] = set(existing)
     for _pass72 in (True, False):
-        for _i72, _e72 in enumerate(dep_funcs):
+        for _i72, _e72 in enumerate(_src72):
             if _bnd72[_i72] != _pass72:
                 continue
             _nm72 = _e72["name"]
@@ -2438,22 +2444,22 @@ def _inject_functions(dep_funcs: List[Dict[str, Any]], ir_data: Dict[str, Any]) 
     # A renamed entry that nothing reaches is dropped, as the old code dropped it: no call of
     # the batch binds to it and the caller does not need it (`_u72_keep`: the target of a
     # module-qualified call); the program's own calls of the name bind to the other def.
-    for _i72, _e72 in enumerate(dep_funcs):
+    for _i72, _e72 in enumerate(_src72):
         if (_plan72[_i72] is None or _plan72[_i72] == _e72["name"] or _bnd72[_i72]
                 or _kp72[_i72]):
             continue
         if not any(_j72 != _i72 and _plan72[_j72] is not None
                    and _x72.get("_r143_dep_file") == _e72.get("_r143_dep_file")
                    and _org72[_i72] in _collect_calls(_x72)
-                   for _j72, _x72 in enumerate(dep_funcs)):
+                   for _j72, _x72 in enumerate(_src72)):
             _plan72[_i72] = None
     # the in-file call names of this batch that must be rewritten, per origin file
     _map72: Dict[Tuple[Any, str], str] = {}
-    for _i72, _e72 in enumerate(dep_funcs):
+    for _i72, _e72 in enumerate(_src72):
         _to72 = _plan72[_i72] if _plan72[_i72] is not None else _e72["name"]
         if _to72 != _org72[_i72]:
             _map72[(_e72.get("_r143_dep_file"), _org72[_i72])] = _to72
-    for _i72, _e72 in enumerate(dep_funcs):
+    for _i72, _e72 in enumerate(_src72):
         if _plan72[_i72] is None:
             continue
         _tag72 = _e72.get("_r143_dep_file")
@@ -2471,10 +2477,11 @@ def _inject_functions(dep_funcs: List[Dict[str, Any]], ir_data: Dict[str, Any]) 
             for o, _h in _ph72.items():
                 _rewrite_ir_calls(_e72, _h, _mine72[o])
             _e72["name"] = _plan72[_i72]
-            dep_funcs[_i72] = _e72
         ir_data["functions"].insert(0, _e72)
         imported.add(_e72["name"])
         existing.add(_e72["name"])
+    ir_data["_u72_names"] = [_plan72[_i72] if _plan72[_i72] is not None else _e72["name"]
+                             for _i72, _e72 in enumerate(_src72)]
     return imported
 
 
@@ -2516,6 +2523,7 @@ def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main
                     if local != orig:
                         func_ir["name"] = local
         imported_names |= _inject_functions(dep_funcs, ir_data)
+        ir_data.pop("_u72_names", None)
         # 1111-spec R6 (no-more-int): propagate the imported module's
         # compile-time constant VALUES so the importer folds `SEEK_SET` to its
         # literal `0` (via Module6's `_module_constants`), instead of emitting a
@@ -2694,6 +2702,7 @@ def _resolve_wildcard_imports(wildcard_imports: List[Any], all_calls: Set[str], 
                          or "_u72_orig" in func_ir)):
                 func_ir["_u72_bound"] = True
         imported_names |= _inject_functions(dep_funcs, ir_data)
+        ir_data.pop("_u72_names", None)
         print(f"[*] Imported from '{module_path}.*': {needed_names} (wildcard, trusted stubs)")
 
     return imported_names
@@ -2736,10 +2745,11 @@ def _resolve_module_imports(module_imports: List[Any], all_calls: Set[str], main
                 _req72[_e72["name"]] = _i72
                 _e72["_u72_keep"] = True
         imported_names |= _inject_functions(dep_funcs, ir_data)
+        _nm72 = ir_data.pop("_u72_names", None) or [f["name"] for f in dep_funcs]
         for call in matching_calls:
             bare_name = call[len(prefix):]
             if bare_name in _req72:
-                bare_name = dep_funcs[_req72[bare_name]]["name"]
+                bare_name = _nm72[_req72[bare_name]]
             elif "." not in bare_name:
                 # `m.C(...)` where the program also does `from m import C`: the same class
                 if bare_name in {td.get("name") for td in ir_data.get("type_decls", [])} and any(
@@ -2909,10 +2919,11 @@ def _resolve_imported_classes(direct_imports: List[Any], main_file: str,
                         mf["trusted"] = True
                         _b72.append(mf)
                 _got72 = _inject_functions(_b72, ir_data)
+                _en72 = ir_data.pop("_u72_names", None) or [mf["name"] for mf in _b72]
                 for _i72, mf in enumerate(_b72):
-                    if mf["name"] in _got72:
-                        existing_funcs.add(mf["name"])
-                        injected_fnames.add(mf["name"])
+                    if _en72[_i72] in _got72:
+                        existing_funcs.add(_en72[_i72])
+                        injected_fnames.add(_en72[_i72])
                         if _i72 < _nm72:
                             injected_methods += 1
                         else:
@@ -3144,10 +3155,11 @@ def _resolve_imported_base_classes(module_imports: List[Any], main_file: str,
                     mf["trusted"] = True
                     _b72.append(mf)
             _got72 = _inject_functions(_b72, ir_data)
-            for mf in _b72:
-                if mf["name"] in _got72:
-                    existing_funcs.add(mf["name"])
-                    if mf["name"].startswith(prefix):
+            _nm72 = ir_data.pop("_u72_names", None) or [mf["name"] for mf in _b72]
+            for _i72, mf in enumerate(_b72):
+                if _nm72[_i72] in _got72:
+                    existing_funcs.add(_nm72[_i72])
+                    if _nm72[_i72].startswith(prefix):
                         injected += 1
             print(f"[*] Imported base class from '{module_path}': {bname} "
                   f"(record + {injected} method stub(s))")

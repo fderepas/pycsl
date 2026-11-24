@@ -1,0 +1,16 @@
+FINAL start Tue Nov 24 13:17:34 UTC 2026 8e4faccb7 df: tmpfs               7691  6127      1564  80% /tmp
+13:17:57 10463_r629_single_lib_attribute_base_ctl rc=0 23s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+13:18:20 10463_r629_single_lib_attribute_base_ctl rc=0 23s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+13:18:47 10463_r629_single_lib_attribute_base_ctl rc=0 27s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+CR rc=0 rows=12
+replaced/added 12
+GATES start Tue Nov 24 13:19:09 UTC 2026 8e4faccb7 oom_kill 15
+[LG] emitted 53
+[LG] check-assigns-writes-survival rc=0
+[LG] check-trusted-frame-honesty rc=1
+[LG] check-getattr-erasure rc=0
+[LG] check-self-annotate-sync rc=0
+[LG] self-annotate-mirror-check rc=0
+[LG] doc-coherency rc=0
+[LG] trusted 366
+[LG]  M bin/refusal-witness-census.tsv
