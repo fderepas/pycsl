@@ -1,0 +1,23 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type r = { mutable a: int; mutable b: int }
+
+  let function f (r: r) : int
+    requires { true }
+    ensures  { true }
+  =
+    r.b <- 5;
+    r.a
+
+  let g () : int
+    requires { true }
+    ensures  { (result = 0) }
+  =
+    let r = { a = 1; b = 0 } in
+    let _ = (f r) in ();
+    r.b
+
+end

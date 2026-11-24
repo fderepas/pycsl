@@ -6,7 +6,19 @@ Executor u74, driver run #9, self-tcb-reduction base loop.
 - Base tree (detached at 96eac515d): `/home/fabrice/git/pycsl-u74b`. Head snapshot tree: `/home/fabrice/git/pycsl-u74h`.
 - Paths are relative to `scratchpad/u74/` unless absolute. Never pushed.
 
-__STATUS__
+## Verdict
+
+`_to_cache_payload` (audit_proof_reverify.py) is **VERIFIED**:
+- the live body is ported verbatim;
+- the contract is type-safety plus frame (`requires True / ensures True / assigns \nothing`);
+- the whole-file proof of audit_proof_reverify.py passes, 88 Valid / 0 non-Valid with the non-vacuity gate.
+- The one other moved mirror file, audit_proof.py, also proves whole-file: 111 / 0.
+
+`\trusted` goes **365 → 364** (canonical grep). The corpus is byte-inert (root 3329 and pyref 2185, 0 MOVED), the 62 fast planes and the 3 ledger slow planes are green, and the ledger stays 3.
+
+`parse_format` (≥ 6 links + 2 live rewrites) and `bases_closure` (a termination proof over the finite `EXCEPTION_BASES` universe) were measured, ranked more expensive, and not attempted. §1 has the measured links.
+
+Commits: cdd7db154 (conversion), ec91ef197 (trusted-reasons row), 140894bf6 / 23ac50047 (WIP evidence), b1d9c092f (`target_elts` only for tuple targets), plus this report. Time box: extended by the driver to 20:00Z. The 21:35Z and 22:28Z disk-quota incidents are recorded in §4; every counted result is from a run without a quota error.
 
 ## 1. Measured chains (QUICK `--no-proof` probes of scratch copies; `probe.sh`, variants `v/*.py`, logs `v/*.log`)
 
@@ -99,7 +111,7 @@ The body is byte-verbatim the live body. The emitted body (`pr/whole.mlw`) reads
 | `--fun _to_cache_payload` | `pycsl.py src/self-annotate/src/audit_proof_reverify.py --fun _to_cache_payload --import-path src/pycsl --verification-image src/self-annotate/src` | rc 0, SUCCESS (22:32–22:35Z) | 15 / 15 | `pr/fun.log` |
 | **whole file** audit_proof_reverify.py | same, no `--fun` | **rc 0, "All contracts formally proven"**: 88 Valid, 0 non-Valid; the non-vacuity gate passed (prints only on failure) (22:35–22:41Z) | 15 / 15 | `pr/whole.log`, `pr/whole.mlw` |
 | carry-over to the final head b1d9c092f | the head mirror-sweep emission `sw/head/mir/audit_proof_reverify.mlw` and a worktree re-emission (`v/w_apr.mlw`) are BYTE-IDENTICAL to `pr/whole.mlw`; no proof tooling changed (rule 34) | carries over | — | `cmp` (§7) |
-| **whole file** audit_proof.py (moved mirror file) | `apw.sh` | __APW__ | __APWOOM__ | `pr/ap_whole.log` |
+| **whole file** audit_proof.py (moved mirror file) | `apw.sh` | **rc 0, "All contracts formally proven"**: 111 Valid, 0 non-Valid (13:55–14:07Z); `pr/ap_whole.mlw` is byte-identical to the head mirror-sweep emission `sw/head/mir/audit_proof.mlw` | 15 / 15 | `pr/ap_whole.log` |
 
 Module5_IREmitter.py: its mirror `.mlw` is byte-identical to the base (the re-ported `_comprehension_generators_to_ir` body lowers to the same opaque `list_comp_int`), so its whole-file proof carries over; no Module5 proof was run.
 
@@ -112,9 +124,9 @@ Module5_IREmitter.py: its mirror `.mlw` is byte-identical to the base (the re-po
 | arm (.mlw): INNER fold body (the `seq string` slot) → `absurd; …` | **NOT proved** by z3 and alt-ergo (Timeout), rc 2 | `pr/arm_inner_{z3,alt-ergo}.log` |
 | mutation 1: `report.cached = True` added (violates `assigns \nothing`) | **PROVED** (rc 0) — see finding F1 | `pr/mut_frame.log` |
 | mutation 2: `report.compile_stdout[0]` | **PROVED** (rc 0) — see finding F2 | `pr/mut2.log`, `pr/mut2.mlw` |
-| mutation 3: `report.compile_ok // len(report.qualname_results)` | __MUT3__ | `pr/mut3.log` |
+| mutation 3: `report.compile_ok // len(report.qualname_results)` | **rejected at Why3 type-check** (rc 1): `len(<seq field>)` still lowers to the int-typed `len` (`seq (string, int, seq string)` vs `int`), fail-closed, not a VC failure (`len` of the new seq-typed field is NOT modelled; a verified body that takes it fails closed) | `pr/mut3.log` |
 
-**F1 (PRE-EXISTING, not introduced): `#@ assigns \nothing` is not enforced on a record PARAMETER of a module function.** The mutant emits `report.cached <- 1;` with no frame `ensures` for `report` and no `writes`; Why3 infers the write effect from the `let` body, so a CALLER sees it (no false proof through the effect system), but the source annotation is decorative for record params (lesson-10 class). Base-tree reproduction (`rt/fr1.py`, `frb.sh` on pycsl-u74b): __FRB__.
+**F1 (PRE-EXISTING, not introduced): `#@ assigns \nothing` is not enforced on a record PARAMETER of a module function.** The mutant emits `report.cached <- 1;` with no frame `ensures` for `report` and no `writes`; Why3 infers the write effect from the `let` body, so a CALLER sees it (no false proof through the effect system), but the source annotation is decorative for record params (lesson-10 class). Base-tree reproduction (`rt/fr1.py`, `frb.sh` on pycsl-u74b): both caller probes FAIL CLOSED at Why3 type-check: `rt/fr1.py` (`f(r: R) -> int` writing `r.b = 5` under `assigns \nothing`; caller `g` claims `r.b == 0`, CPython 5) is emitted as a `let function f` and Why3 rejects it ("This function has side effects, it cannot be used as pure"; full proof `rt/frb.log`, base tree, rc 1); `rt/fr2.py` (same with `-> Dict[str, PyVal]`, CPython 5) is rejected the same way (QUICK emission `rt/fr2q.log`; its full proof was cancelled as redundant). The mutant of `_to_cache_payload` proves only because its body has a `for` fold, so it is a program `let`, whose write effect Why3 INFERS and exposes to every caller: no caller can prove `report.cached` unchanged. So no false proof was found; the `#@ assigns` on a record parameter is decorative (logged by the driver as route #634). Exact mutant: `report.cached = True` inserted before `return {` in `_to_cache_payload`; emitted `report.cached <- 1;` (`v/mut1.mlw`); proof log `pr/mut_frame.log` (rc 0).
 
 **F2 (PRE-EXISTING, plan §5 item 4):** a `str` subscript outside `no_exception` lowers to the slice `str_sub_op s 0 1` with no IndexError VC, so `s[0]` on a possibly-empty string proves.
 
