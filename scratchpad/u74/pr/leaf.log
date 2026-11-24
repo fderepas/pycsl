@@ -1,0 +1,267 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u74/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/audit_proof_reverify.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Imported from 'proof_axiom_allowlist': ['is_lean_axiom_allowed', 'is_rocq_assumption_allowed', 'parse_lean_axioms_line', 'parse_rocq_assumptions_block'] (trusted stubs)
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+[*] Imported from 'json': ['loads', 'dumps'] (trusted stubs, module-qualified)
+[*] Import 'subprocess.run': external module, no local source found — skipping
+[*] Import 'time.monotonic': external module, no local source found — skipping
+[*] --fun filter: verifying ['_to_cache_payload'], trusting ['_cache_key', '_cache_load', '_cache_root', '_cache_store', '_coqc_version', '_lean_version', '_sha256_file', '_split_rocq_print_assumptions', 'detect_encoding', 'dumps', 'is_lean_axiom_allowed', 'is_rocq_assumption_allowed', 'loads', 'parse_lean_axioms_line', 'parse_rocq_assumptions_block', 'reverifyreport__ok', 'reverifyreport__summary', 'verify_lean_file', 'verify_rocq_file']
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 31, characters 7-14:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 31, characters 34-41:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 31, characters 51-58:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 30, characters 14-79:
+Sub-goal postcondition of goal pycsl_div'vc.
+Prover result is: Valid (0.02s, 19 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 36, characters 7-14:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 36, characters 34-41:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 36, characters 51-58:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 35, characters 14-79:
+Sub-goal postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.01s, 10848 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 65, characters 80-97:
+Sub-goal variant decrease of goal pairs_set'vc.
+Prover result is: Valid (0.00s, 4232 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 71, characters 50-62:
+Sub-goal variant decrease of goal hpairs_len'vc.
+Prover result is: Valid (0.00s, 3558 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 74, characters 72-85:
+Sub-goal variant decrease of goal pairs_nodup'vc.
+Prover result is: Valid (0.00s, 3826 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 77, characters 66-83:
+Sub-goal variant decrease of goal pairs_keys_in'vc.
+Prover result is: Valid (0.00s, 3812 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 80, characters 64-79:
+Sub-goal variant decrease of goal hpairs_keys'vc.
+Prover result is: Valid (0.00s, 3558 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 102, characters 46-58:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3893 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 103, characters 42-54:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3897 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 104, characters 42-56:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3861 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 105, characters 44-55:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3873 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 111, characters 48-59:
+Sub-goal variant decrease of goal hlist_eq'vc.
+Prover result is: Valid (0.00s, 3601 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 111, characters 63-75:
+Sub-goal variant decrease of goal hlist_eq'vc.
+Prover result is: Valid (0.00s, 3601 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 117, characters 59-70:
+Sub-goal variant decrease of goal pairs_incl'vc.
+Prover result is: Valid (0.00s, 3246 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 118, characters 26-40:
+Sub-goal variant decrease of goal pairs_incl'vc.
+Prover result is: Valid (0.00s, 3239 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 125, characters 27-42:
+Sub-goal variant decrease of goal hval_canon'vc.
+Prover result is: Valid (0.01s, 3850 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 130, characters 68-83:
+Sub-goal variant decrease of goal hlist_canon'vc.
+Prover result is: Valid (0.01s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 130, characters 53-67:
+Sub-goal variant decrease of goal hlist_canon'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 135, characters 20-36:
+Sub-goal variant decrease of goal hval_hashable'vc.
+Prover result is: Valid (0.00s, 3850 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 140, characters 47-62:
+Sub-goal variant decrease of goal hlist_hashable'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 140, characters 66-82:
+Sub-goal variant decrease of goal hlist_hashable'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 159, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 164, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 3590 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 183, characters 63-83:
+Sub-goal variant decrease of goal hval_list_snoc'vc.
+Prover result is: Valid (0.01s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 192, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 4408 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 258, characters 52-452:
+Sub-goal PyCSL-R4 distinct literal keys of goal _to_cache_payload'vc.
+Prover result is: Valid (0.00s, 1529 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 259, characters 13-20:
+Sub-goal assertion of goal _to_cache_payload'vc.
+Prover result is: Timeout (30.00s, 15159990 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 0, characters 0-0:
+Sub-goal out of loop bounds of goal _to_cache_payload'vc.
+Prover result is: Valid (0.00s, 1721 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 256, characters 15-19:
+Sub-goal postcondition of goal _to_cache_payload'vc.
+Prover result is: Valid (0.00s, 1615 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 256, characters 15-19:
+Sub-goal goal of goal _to_cache_payload'vc.
+Prover result is: Valid (0.00s, 1615 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 215, characters 20-24: unused variable path
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 217, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 219, characters 18-28: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 219, characters 39-48: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 219, characters 65-71: unused variable prover
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 219, characters 82-96: unused variable prover_version
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 221, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 223, characters 19-31: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 225, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 13-14: unused variable s
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 22-25: unused variable cls
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 33-44: unused variable object_hook
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 52-63: unused variable parse_float
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 71-80: unused variable parse_int
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 88-102: unused variable parse_constant
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 110-127: unused variable object_pairs_hook
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 232, characters 19-31: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 232, characters 42-48: unused variable prover
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 232, characters 59-62: unused variable key
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 234, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 238, characters 20-32: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 238, characters 43-49: unused variable prover
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 238, characters 60-63: unused variable key
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 238, characters 74-81: unused variable payload
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 244, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 248, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 250, characters 37-43: unused variable stdout
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 250, characters 54-63: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 252, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 256, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 262, characters 29-33: unused variable name
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 264, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 266, characters 34-38: unused variable name
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 268, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 270, characters 30-34: unused variable line
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 272, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 274, characters 36-41: unused variable block
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 276, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 278, characters 26-30: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 280, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 282, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 284, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 286, characters 24-34: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 286, characters 45-54: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 286, characters 71-83: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 286, characters 94-103: unused variable use_cache
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 288, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 290, characters 24-34: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 290, characters 45-54: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 290, characters 71-83: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 290, characters 94-103: unused variable use_cache
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 292, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 215, characters 20-24: unused variable path
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 217, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 219, characters 18-28: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 219, characters 39-48: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 219, characters 65-71: unused variable prover
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 219, characters 82-96: unused variable prover_version
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 221, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 223, characters 19-31: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 225, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 13-14: unused variable s
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 22-25: unused variable cls
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 33-44: unused variable object_hook
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 52-63: unused variable parse_float
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 71-80: unused variable parse_int
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 88-102: unused variable parse_constant
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 229, characters 110-127: unused variable object_pairs_hook
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 232, characters 19-31: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 232, characters 42-48: unused variable prover
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 232, characters 59-62: unused variable key
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 234, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 238, characters 20-32: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 238, characters 43-49: unused variable prover
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 238, characters 60-63: unused variable key
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 238, characters 74-81: unused variable payload
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 244, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 248, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 250, characters 37-43: unused variable stdout
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 250, characters 54-63: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 252, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 256, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 262, characters 29-33: unused variable name
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 264, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 266, characters 34-38: unused variable name
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 268, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 270, characters 30-34: unused variable line
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 272, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 274, characters 36-41: unused variable block
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 276, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 278, characters 26-30: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 280, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 282, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 284, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 286, characters 24-34: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 286, characters 45-54: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 286, characters 71-83: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 286, characters 94-103: unused variable use_cache
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 288, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 290, characters 24-34: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 290, characters 45-54: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 290, characters 71-83: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 290, characters 94-103: unused variable use_cache
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/tmp/.pycsl_9ti782ft.mlw", line 292, characters 15-19: unused variable result
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 15159990 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

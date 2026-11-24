@@ -1,0 +1,260 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u74/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/audit_proof_reverify.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Imported from 'proof_axiom_allowlist': ['is_lean_axiom_allowed', 'is_rocq_assumption_allowed', 'parse_lean_axioms_line', 'parse_rocq_assumptions_block'] (trusted stubs)
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+[*] Imported from 'json': ['loads', 'dumps'] (trusted stubs, module-qualified)
+[*] Import 'subprocess.run': external module, no local source found — skipping
+[*] Import 'time.monotonic': external module, no local source found — skipping
+[*] --fun filter: verifying ['_to_cache_payload'], trusting ['_cache_key', '_cache_load', '_cache_root', '_cache_store', '_coqc_version', '_lean_version', '_sha256_file', '_split_rocq_print_assumptions', 'detect_encoding', 'dumps', 'is_lean_axiom_allowed', 'is_rocq_assumption_allowed', 'loads', 'parse_lean_axioms_line', 'parse_rocq_assumptions_block', 'reverifyreport__ok', 'reverifyreport__summary', 'verify_lean_file', 'verify_rocq_file']
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 31, characters 7-14:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.01s, 814 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 31, characters 34-41:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 31, characters 51-58:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 30, characters 14-79:
+Sub-goal postcondition of goal pycsl_div'vc.
+Prover result is: Valid (0.02s, 19 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 36, characters 7-14:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 36, characters 34-41:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 36, characters 51-58:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 35, characters 14-79:
+Sub-goal postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.01s, 10848 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 65, characters 80-97:
+Sub-goal variant decrease of goal pairs_set'vc.
+Prover result is: Valid (0.00s, 4232 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 71, characters 50-62:
+Sub-goal variant decrease of goal hpairs_len'vc.
+Prover result is: Valid (0.00s, 3558 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 74, characters 72-85:
+Sub-goal variant decrease of goal pairs_nodup'vc.
+Prover result is: Valid (0.00s, 3826 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 77, characters 66-83:
+Sub-goal variant decrease of goal pairs_keys_in'vc.
+Prover result is: Valid (0.00s, 3812 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 80, characters 64-79:
+Sub-goal variant decrease of goal hpairs_keys'vc.
+Prover result is: Valid (0.00s, 3558 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 102, characters 46-58:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.01s, 3893 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 103, characters 42-54:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3897 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 104, characters 42-56:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3861 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 105, characters 44-55:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3873 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 111, characters 48-59:
+Sub-goal variant decrease of goal hlist_eq'vc.
+Prover result is: Valid (0.00s, 3601 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 111, characters 63-75:
+Sub-goal variant decrease of goal hlist_eq'vc.
+Prover result is: Valid (0.00s, 3601 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 117, characters 59-70:
+Sub-goal variant decrease of goal pairs_incl'vc.
+Prover result is: Valid (0.00s, 3246 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 118, characters 26-40:
+Sub-goal variant decrease of goal pairs_incl'vc.
+Prover result is: Valid (0.01s, 3239 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 125, characters 27-42:
+Sub-goal variant decrease of goal hval_canon'vc.
+Prover result is: Valid (0.00s, 3850 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 130, characters 68-83:
+Sub-goal variant decrease of goal hlist_canon'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 130, characters 53-67:
+Sub-goal variant decrease of goal hlist_canon'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 135, characters 20-36:
+Sub-goal variant decrease of goal hval_hashable'vc.
+Prover result is: Valid (0.01s, 3850 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 140, characters 47-62:
+Sub-goal variant decrease of goal hlist_hashable'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 140, characters 66-82:
+Sub-goal variant decrease of goal hlist_hashable'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 159, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 164, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 3590 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 183, characters 63-83:
+Sub-goal variant decrease of goal hval_list_snoc'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 192, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 4408 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 258, characters 52-452:
+Sub-goal PyCSL-R4 distinct literal keys of goal _to_cache_payload'vc.
+Prover result is: Valid (0.01s, 1529 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 0, characters 0-0:
+Sub-goal out of loop bounds of goal _to_cache_payload'vc.
+Prover result is: Valid (0.01s, 1808 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 256, characters 15-19:
+Sub-goal postcondition of goal _to_cache_payload'vc.
+Prover result is: Valid (0.00s, 1650 steps).
+
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 256, characters 15-19:
+Sub-goal goal of goal _to_cache_payload'vc.
+Prover result is: Valid (0.00s, 1658 steps).
+
+Warnings/Errors from Why3:
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 215, characters 20-24: unused variable path
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 217, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 219, characters 18-28: unused variable proof_file
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 219, characters 39-48: unused variable qualnames
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 219, characters 65-71: unused variable prover
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 219, characters 82-96: unused variable prover_version
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 221, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 223, characters 19-31: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 225, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 13-14: unused variable s
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 22-25: unused variable cls
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 33-44: unused variable object_hook
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 52-63: unused variable parse_float
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 71-80: unused variable parse_int
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 88-102: unused variable parse_constant
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 110-127: unused variable object_pairs_hook
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 232, characters 19-31: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 232, characters 42-48: unused variable prover
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 232, characters 59-62: unused variable key
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 234, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 238, characters 20-32: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 238, characters 43-49: unused variable prover
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 238, characters 60-63: unused variable key
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 238, characters 74-81: unused variable payload
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 244, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 248, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 250, characters 37-43: unused variable stdout
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 250, characters 54-63: unused variable qualnames
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 252, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 256, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 261, characters 29-33: unused variable name
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 263, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 265, characters 34-38: unused variable name
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 267, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 269, characters 30-34: unused variable line
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 271, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 273, characters 36-41: unused variable block
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 275, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 277, characters 26-30: unused variable self
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 279, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 281, characters 31-35: unused variable self
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 283, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 285, characters 24-34: unused variable proof_file
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 285, characters 45-54: unused variable qualnames
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 285, characters 71-83: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 285, characters 94-103: unused variable use_cache
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 287, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 289, characters 24-34: unused variable proof_file
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 289, characters 45-54: unused variable qualnames
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 289, characters 71-83: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 289, characters 94-103: unused variable use_cache
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 291, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 215, characters 20-24: unused variable path
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 217, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 219, characters 18-28: unused variable proof_file
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 219, characters 39-48: unused variable qualnames
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 219, characters 65-71: unused variable prover
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 219, characters 82-96: unused variable prover_version
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 221, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 223, characters 19-31: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 225, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 13-14: unused variable s
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 22-25: unused variable cls
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 33-44: unused variable object_hook
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 52-63: unused variable parse_float
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 71-80: unused variable parse_int
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 88-102: unused variable parse_constant
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 229, characters 110-127: unused variable object_pairs_hook
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 232, characters 19-31: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 232, characters 42-48: unused variable prover
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 232, characters 59-62: unused variable key
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 234, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 238, characters 20-32: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 238, characters 43-49: unused variable prover
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 238, characters 60-63: unused variable key
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 238, characters 74-81: unused variable payload
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 244, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 248, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 250, characters 37-43: unused variable stdout
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 250, characters 54-63: unused variable qualnames
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 252, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 256, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 261, characters 29-33: unused variable name
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 263, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 265, characters 34-38: unused variable name
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 267, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 269, characters 30-34: unused variable line
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 271, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 273, characters 36-41: unused variable block
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 275, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 277, characters 26-30: unused variable self
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 279, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 281, characters 31-35: unused variable self
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 283, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 285, characters 24-34: unused variable proof_file
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 285, characters 45-54: unused variable qualnames
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 285, characters 71-83: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 285, characters 94-103: unused variable use_cache
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 287, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 289, characters 24-34: unused variable proof_file
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 289, characters 45-54: unused variable qualnames
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 289, characters 71-83: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 289, characters 94-103: unused variable use_cache
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 291, characters 15-19: unused variable result
+
+[+] Verification SUCCESS for _to_cache_payload ONLY (--fun): its own goals are proved, and the contract of every function it calls is ASSUMED, including any frame the emitter SYNTHESIZED from a missing `#@ assigns`. This is NOT a claim about the module — run without `--fun` for that (route #221).
