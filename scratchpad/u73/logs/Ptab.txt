@@ -1,0 +1,193 @@
+probe | CPython | b0 (L19) | bh (08e65645c) | head (h1) | changed
+u73/a1 | result 2 | TC-FAIL (q) | TC-FAIL (q) | REFUSED (q) | *
+u73/c1 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+u73/c1f | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+u73/c2 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+u73/g1 | result 2 | FAIL | FAIL | REFUSED (q) | *
+u73/k1 | result 2 | SUCCESS | SUCCESS | REFUSED (q) | *
+u73/k2 | result 2 | SUCCESS | SUCCESS | REFUSED (q) | *
+u73/l1 | result 2 | TC-FAIL (q) | TC-FAIL (q) | REFUSED (q) | *
+u73/m1 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+u73/m2 | result 2 | SUCCESS | SUCCESS | REFUSED (q) | *
+u73/o1 | result 1 | SUCCESS | SUCCESS | REFUSED (q) | *
+u73/q1 | result 3 | SUCCESS | SUCCESS | REFUSED (q) | *
+u73/q2 | result 2 | SUCCESS | SUCCESS | REFUSED (q) | *
+u73/q4 | result 5 | SUCCESS | SUCCESS | REFUSED (q) | *
+rt81/a1 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a10 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a11 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a12 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a13 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a2 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a3 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a4 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a5 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a6 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a7 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a8 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/a9 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/p1 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/p1b | result 2 | TC-FAIL (q) | TC-FAIL (q) | REFUSED (q) | *
+rt81/p2 | result 2 | SUCCESS | SUCCESS | REFUSED (q) | *
+rt81/p2b | result 2 | SUCCESS | SUCCESS | REFUSED (q) | *
+rt81/p3 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/p3b | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/p4 | result 2 | SUCCESS | SUCCESS | REFUSED (q) | *
+rt81/p4b | result 2 | SUCCESS | SUCCESS | REFUSED (q) | *
+rt81/p5 | result 2 | TC-FAIL (q) | TC-FAIL (q) | REFUSED (q) | *
+rt81/p6 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/p6b | result 2 | TC-FAIL (q) | TC-FAIL (q) | REFUSED (q) | *
+rt81/p7 | result 2 | TC-FAIL (q) | TC-FAIL (q) | REFUSED (q) | *
+rt81/p8 | result 2 | SUCCESS | SUCCESS | REFUSED (q) | *
+rt81/x1 | writer loaded result 5 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/x1b | writer loaded result 5 | SUCCESS | SUCCESS | REFUSED (q) | *
+rt81/x2 | writer loaded result 5 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/x3 | writer loaded result 5 | SUCCESS | SUCCESS | REFUSED (q) | *
+rt81/x4 | writer loaded result 5 | SUCCESS | SUCCESS | REFUSED (q) | *
+rt81/x5 | writer loaded result 5 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+rt81/x6 | writer loaded result 5 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+rt81/x7 | writer loaded result 5 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/x8 | writer loaded result 5 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+rt81/x9 | writer loaded result 5 | SUCCESS | SUCCESS | REFUSED (q) | *
+rt81/z1 | result 1 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+rt81/z1n | from zz81z1 import one ModuleNotFoundError: No module named 'zz81z1' | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+rt81/z2 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+rt81/z3 | result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+rt81/z4 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+rt81/z5 | result 1 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+rt81/z6 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+rt81/z7 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+rt81/z8 | result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+r1 | P/zr76/c.py loaded result 2 | FAIL | REFUSED (q) | REFUSED (q) | 
+r2 | P/zr76/c.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+r5 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+r5b | ^^^^^ AttributeError: 'function' object has no attribute 'one' | FAIL | FAIL | FAIL | 
+r4 | result 1 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+r3 | P/zr76/c.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+r9 | X2/pkr76/c.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+r6 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+r6-treecwd | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+r2s | P/zr76/c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+r7 | P/zr76/c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+r8 | P/zpa76_alt/b.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+r2d | X2/zr76/c.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+r2r | X2/pkr76/c.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+r14 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+r12 | X/zz76.py loaded result 2 | SUCCESS | FAIL | FAIL | 
+r2d-dep | X2/zr76/c.py loaded | SUCCESS | REFUSED (q) | REFUSED (q) | 
+r2r-dep | from . import b ImportError: attempted relative import with no known parent package | FAIL | FAIL | FAIL | 
+r15 | X2/zn76/b.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+r16 | result 1 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+r17 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+v2d | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/u64/v2d/P/zpa74_alt/b.py result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+w5 | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/u64/w5/P/zpa74_alt/b.py result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+v2 | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/u64/v2/P/zpa74_alt/b.py result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+x1 | P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/u64/x1/P/zpa74_alt/b.py result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+x2 | from zpb74.b import one ModuleNotFoundError: No module named 'zpb74.b' | SUCCESS | REFUSED (q) | REFUSED (q) | 
+x3 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+v2down |  | SUCCESS | SUCCESS | SUCCESS | 
+v1f | result 2 | SUCCESS | SUCCESS | SUCCESS | 
+r12c | X/zz76.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+b21 | result 1 | FAIL | REFUSED (q) | REFUSED (q) | 
+a22 | from zd66 import b ImportError: cannot import name 'b' from 'zd66' (/home/fabrice/git/pycsl-u71/scratchpad/u71/probes/u66/a22/P/zd66/__init__.py) | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+s1 | P/hz78.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+s1-dep |  | REFUSED (q) | SUCCESS | SUCCESS | 
+s7 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+s7-dep | from hz78 import one ModuleNotFoundError: No module named 'hz78' | SUCCESS | REFUSED (q) | REFUSED (q) | 
+s7-treecwd | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+s1f | result 2 | SUCCESS | SUCCESS | SUCCESS | 
+c1 | result 1 | REFUSED (q) | SUCCESS | SUCCESS | 
+o1 | result 1 | SUCCESS | SUCCESS | SUCCESS | 
+t4 | c.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+t8 | c.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+t1 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+t2 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+t3 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+t5 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+t6 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+t7 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+a1 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+a1-noX | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+a3 | X2/za783/b.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+a3-noX | from .b import one as _q ModuleNotFoundError: No module named 'za783.b' | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+t9 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+t10 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+t11 | c.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+t12 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+t13 | c.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+o2 | return b() TypeError: 'module' object is not callable | SUCCESS | REFUSED (q) | REFUSED (q) | 
+s8 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+o3 | ~~~~~~~^^ TypeError: 'module' object is not callable | SUCCESS | REFUSED (q) | REFUSED (q) | 
+o4 | b.py loaded result 2 | FAIL | REFUSED (q) | REFUSED (q) | 
+a2 | P/hza792 loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+d1 | ~~~~~~~^^ TypeError: 'module' object is not callable | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+d2 | ~~~~~~~^^ TypeError: 'module' object is not callable | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+d3 | ~~~~~~~^^ TypeError: 'module' object is not callable | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+d4 | b.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+d5 | b.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+d6 | b.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+d7 | b.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+d8 | b.py loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+d9 | return b() TypeError: 'module' object is not callable | SUCCESS | REFUSED (q) | REFUSED (q) | 
+e1 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+e2 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+e3 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+e4 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+e5 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+e6 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+e7 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+e8 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+e9 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+e10 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+e11 | c.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+g1 | c.py loaded result 7 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+g2 | ^^^^^^^ AttributeError: module 'zv7g2' has no attribute 'c' | FAIL | FAIL | FAIL | 
+g3 | alt.py loaded result 2 | FAIL | FAIL | REFUSED (q) | *
+g4 | alt.py loaded result 2 | FAIL | FAIL | REFUSED (q) | *
+g5 | c.py loaded result 5 | FAIL | FAIL | REFUSED (q) | *
+w1 | b.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+w2 | b.py loaded result 5 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+w3 | b.py loaded result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+z1 | zip zhz79 loaded result 2 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+w2-dep | b.py loaded | SUCCESS | REFUSED (q) | REFUSED (q) | 
+w2-hw |  | SUCCESS | SUCCESS | SUCCESS | 
+n1 | result 5 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+n2 | result 5 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+n3 | result 3 | SUCCESS | SUCCESS | SUCCESS | 
+n4 | result 5 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+n5 | result 5 | SUCCESS | REFUSED (q) | REFUSED (q) | 
+n6 | result 5 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+n7 | result 4 | SUCCESS | SUCCESS | SUCCESS | 
+y2 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+y3 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+y4 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+y5 | result 2 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+y6 | result 4 | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+n1-dep |  | SUCCESS | REFUSED (q) | REFUSED (q) | 
+10470_r631_module_mro_entries_class_base_rebinds_submodule_false.py |  | SUCCESS | SUCCESS | REFUSED (q) | *
+10471_r631_module_getattr_answers_submodule_from_import_false.py |  | FAIL | FAIL | REFUSED (q) | *
+10472_r632_dependency_wildcard_all_from_module_getattr_false.py |  | SUCCESS | SUCCESS | REFUSED (q) | *
+10473_r632_dependency_wildcard_all_extended_through_import_alias_false.py |  | SUCCESS | SUCCESS | REFUSED (q) | *
+10474_r633_mock_patch_string_rebinds_submodule_false.py |  | SUCCESS | SUCCESS | REFUSED (q) | *
+10475_r631o_class_with_imported_base_class_ctl.py |  | SUCCESS | SUCCESS | SUCCESS | 
+10476_r632o_program_wildcard_literal_all_no_getattr_ctl.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73d.py |  | SUCCESS | SUCCESS | REFUSED (q) | *
+zu73h.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73i.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73j.py |  | SUCCESS | SUCCESS | REFUSED (q) | *
+zu73q.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73a___init__.py |  | TC-FAIL (q) | TC-FAIL (q) | TC-FAIL (q) | 
+zu73a_b.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73c___init__.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73c_b.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73e___init__.py |  | TC-FAIL (q) | TC-FAIL (q) | TC-FAIL (q) | 
+zu73e_w.py |  | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+zu73k___init__.py |  | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+zu73k_k.py |  | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+zu73k_w.py |  | REFUSED (q) | REFUSED (q) | REFUSED (q) | 
+zu73m___init__.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73m_b.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73n___init__.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73n_b.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73o___init__.py |  | SUCCESS | SUCCESS | SUCCESS | 
+zu73o_k.py |  | SUCCESS | SUCCESS | SUCCESS | 

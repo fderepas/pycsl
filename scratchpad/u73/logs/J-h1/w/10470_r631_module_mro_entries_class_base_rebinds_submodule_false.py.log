@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10470_r631_module_mro_entries_class_base_rebinds_submodule_false.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] test-suite/corpus/pycsl-reference/10470_r631_module_mro_entries_class_base_rebinds_submodule_false.py: the local module test-suite/corpus/pycsl-reference/zu73a/__init__.py, which the program reaches, binds the module-level hook `__mro_entries__` (line 7): CPython calls a module-level `__getattr__` for every attribute the module does not bind (a from-import target, `pkg.<name>`, `__mro_entries__`), and a module's `__mro_entries__(bases)` with the module object itself when the module is a class base (PEP 560 / 562), running code that no statement of the program names and that can replace or shadow the module's attributes (review rt81 p2: `def __mro_entries__(bases): setattr(bases[0], "b", K)` in zv81p2/__init__.py and `class C(zv81p2)` in the program; CPython printed 2 where pycsl PROVED `zv81p2.b.one() == 1`). FIX: remove the module-level hook, or do not use a module as a class base.

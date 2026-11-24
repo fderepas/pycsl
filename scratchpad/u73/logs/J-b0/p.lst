@@ -1,0 +1,53 @@
+r1||rt76/r1/P/prog.py|
+r2||rt76/r2/P/prog.py|
+r5||rt76/r5/P/prog.py|
+r5b||rt76/r5b/P/prog.py|
+r3|--import-path @P@/rt76/r3/X2|rt76/r3/P/prog.py|
+r9|--import-path @P@/rt76/r9/X2|rt76/r9/P/prog.py|
+r6||rt76/r6/P/prog.py|rt76/r6/C
+r6-treecwd||rt76/r6/P/prog.py|
+r2d|--import-path @P@/rt76/r2d/X2|rt76/r2d/P/prog.py|
+r2r|--import-path @P@/rt76/r2r/X2|rt76/r2r/P/prog.py|
+r14|--import-path @P@/rt76/r14/X2|rt76/r14/P/prog.py|
+r12|--import-path @P@/rt76/r12/X|rt76/r12/P/prog.py|
+r2d-dep||rt76/r2d/X2/depr76.py|
+r2r-dep||rt76/r2r/X2/pkr76/dep.py|
+r17|--import-path @P@/rt76/r17/X2|rt76/r17/P/prog.py|
+v2d|--import-path @P@/u64/v2d/X2|u64/v2d/P/prog.py|
+w5|--import-path @P@/u64/w5/X2|u64/w5/P/prog.py|
+x2|--import-path @P@/u64/x2/X|u64/x2/P/prog.py|
+x3|--import-path @P@/u64/x3/X2|u64/x3/P/prog.py|
+v2down||u64/v2d/X2/depv2.py|
+v1f||u64/v1f/P/prog.py|
+r12c|--import-path @P@/u66/r12c/X|u66/r12c/P/prog.py|u66/r12c/P
+b21||u66/b21/P/prog.py|
+s7||rt78/s7/P/prog.py|rt78/s7/P
+s7-dep||rt78/s7/P/dep78.py|rt78/s7/P
+s7-treecwd||rt78/s7/P/prog.py|
+s1f||rt78/s1f/P/prog.py|
+o1||rt78/o1/P/prog.py|
+t4||rt78/t4/P/prog.py|
+t8||rt78/t8/P/prog.py|
+t11||u69/t11/P/prog.py|
+t13||u69/t13/P/prog.py|
+o2||u69/o2/P/prog.py|
+o3||u69/o3/P/prog.py|
+o4||u69/o4/P/prog.py|
+d8||rt79/d8/P/prog.py|
+d9||rt79/d9/P/prog.py|
+g2||rt79/g2/P/prog.py|
+g3||rt79/g3/P/prog.py|
+g4||rt79/g4/P/prog.py|
+g5||rt79/g5/P/prog.py|
+r1||rt79/r1/P/prog.py|
+w2||rt79/w2/P/prog.py|
+z1|--import-path @P@/rt79/z1/X/lib.zip --import-path @P@/rt79/z1/Y|rt79/z1/P/prog.py|
+w2-dep||rt79/w2/P/depw792.py|
+w2-hw||rt79/w2/P/hw792.py|
+n1||u71/n1/P/prog.py|
+n2||u71/n2/P/prog.py|
+n3||u71/n3/P/prog.py|
+n4||u71/n4/P/prog.py|
+n5||u71/n5/P/prog.py|
+n7||u71/n7/P/prog.py|
+n1-dep||u71/n1/P/depn1.py|

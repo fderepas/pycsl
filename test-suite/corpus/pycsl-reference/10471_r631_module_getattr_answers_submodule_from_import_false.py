@@ -1,7 +1,8 @@
-r"""Test 10471 -- run #9 u73, route #631 (u73 probe g1; FAIL if PRE-EXISTING, see the u73 report). The
+r"""Test 10471 -- run #9 u73, route #631 (u73 probe g1; FAIL). The
 package zu73c has a submodule b.py and a module-level PEP 562 `__getattr__` that answers "b" with a class
 whose `one()` returns 2. CPython's `from zu73c import b` looks the attribute up FIRST, so `__getattr__`
 answers and the submodule is never loaded: `cd <tree root> && python <this file>` prints "result 2".
+L19 c115e0a5a and 08e65645c did NOT prove it (verification FAIL, fail-safe); it witnesses the new site.
 REFUSED: PYCSL-SEM-IMPORT-MODULE-HOOK (u73: a module-level `__getattr__` / `__mro_entries__` in a reached
 module other than the program).
 """
