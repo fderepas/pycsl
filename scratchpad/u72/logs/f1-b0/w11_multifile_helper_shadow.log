@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w11_multifile_helper_shadow.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt77lib_api': ['api'] (trusted stubs)
+
+[!] PIPELINE ERROR:
+Imported contract of 'api' (from 'rt77lib_api.py') reads the module-level name 'helper', which denotes THAT module's binding; in 'w11_multifile_helper_shadow.py' the name is bound by the importing module itself, and the contract would be lowered against the wrong binding (route #143). Rename one of the two bindings.

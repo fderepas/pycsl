@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w05_py_constant.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w05_py_constant.py: /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w05_py_constant.py: PYCSL-R327-IDENT-COLLISION (route #327) — the functions 'constant' and 'py_constant' lower to ONE WhyML identifier 'py_constant'. Rename one of them.

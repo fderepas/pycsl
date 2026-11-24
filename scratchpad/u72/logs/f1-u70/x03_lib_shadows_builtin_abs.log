@@ -1,0 +1,15 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x03_lib_shadows_builtin_abs.py'...
+[*] Memory model: hoare
+[*] Imported from 'u72_absl': ['h'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_qj0tf2n8.mlw", line 14, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 19 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_qj0tf2n8.mlw", line 6, characters 11-12: unused variable x
+Warning, file "/tmp/.pycsl_qj0tf2n8.mlw", line 9, characters 9-10: unused variable x
+
+[+] Verification SUCCESS! All contracts formally proven.

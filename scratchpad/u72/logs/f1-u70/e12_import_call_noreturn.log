@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e12_import_call_noreturn.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] ../pycsl-u72/scratchpad/u72/probes/rt77/rt77lib_nr.py: the imported function `stop` of `rt77lib_nr.py` has the same name as a function the program defines itself: pycsl gives every function ONE WhyML name, so one of the two definitions would be dropped and a call meant for it (a module-qualified `mod.stop()`, or the dependency's own call of it) would be verified against the other one's contract, while CPython runs each module's own function (routes #624 / #625: `import lib` beside a local `def stop`, or two libraries that both define it). FIX: rename one of the two functions, or import it under a distinct name (`from mod import stop as other`).

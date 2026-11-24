@@ -1,0 +1,15 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/p04_lib_private_helper_vs_local_from_true.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt80_priv_a': ['x'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_w4z6tokq.mlw", line 7, characters 15-27:
+Sub-goal postcondition of goal _h'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_w4z6tokq.mlw", line 15, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 15 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,15 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/g01_star_then_local_def_true.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt80_liba.*': ['helper'] (wildcard, trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_0dlukyk3.mlw", line 7, characters 15-27:
+Sub-goal postcondition of goal helper'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_0dlukyk3.mlw", line 12, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 7 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

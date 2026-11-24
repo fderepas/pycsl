@@ -1,0 +1,54 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/v06_mutrec_mixed_prog_first.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_vl3dliq1.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 33 steps).
+
+File "/tmp/.pycsl_vl3dliq1.mlw", line 17, characters 20-31:
+Sub-goal variant decrease of goal g'vc.
+Prover result is: Valid (0.00s, 61 steps).
+
+File "/tmp/.pycsl_vl3dliq1.mlw", line 17, characters 20-31:
+Sub-goal precondition of goal g'vc.
+Prover result is: Valid (0.00s, 49 steps).
+
+File "/tmp/.pycsl_vl3dliq1.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 42 steps).
+
+File "/tmp/.pycsl_vl3dliq1.mlw", line 29, characters 18-42:
+Sub-goal loop invariant init of goal f'vc.
+Prover result is: Valid (0.00s, 50 steps).
+
+File "/tmp/.pycsl_vl3dliq1.mlw", line 30, characters 16-24:
+Sub-goal loop variant decrease of goal f'vc.
+Prover result is: Valid (0.00s, 305 steps).
+
+File "/tmp/.pycsl_vl3dliq1.mlw", line 29, characters 18-42:
+Sub-goal loop invariant preservation of goal f'vc.
+Prover result is: Valid (0.00s, 367 steps).
+
+File "/tmp/.pycsl_vl3dliq1.mlw", line 22, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 52 steps).
+
+File "/tmp/.pycsl_vl3dliq1.mlw", line 36, characters 20-31:
+Sub-goal variant decrease of goal f'vc.
+Prover result is: Valid (0.00s, 84 steps).
+
+File "/tmp/.pycsl_vl3dliq1.mlw", line 36, characters 20-31:
+Sub-goal precondition of goal f'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 291 steps).
+
+File "/tmp/.pycsl_vl3dliq1.mlw", line 22, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 56 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

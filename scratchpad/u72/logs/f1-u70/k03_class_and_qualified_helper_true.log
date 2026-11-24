@@ -1,0 +1,21 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/k03_class_and_qualified_helper_true.py'...
+[*] Memory model: hoare
+[*] Imported class from 'rt80_cls_h': C (record + 1 method stub(s) + 1 helper(s))
+[*] Imported from 'rt80_cls_h': ['C'] (trusted stubs)
+[*] Imported from 'rt80_cls_h': ['helper'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_kp86gpvr.mlw", line 19, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 68 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_kp86gpvr.mlw", line 15, characters 12-16: unused variable self
+Warning, file "/tmp/.pycsl_kp86gpvr.mlw", line 15, characters 12-16: unused variable self
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

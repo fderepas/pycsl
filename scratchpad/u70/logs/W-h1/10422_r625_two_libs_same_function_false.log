@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10422_r625_two_libs_same_function_false.py'...
+[*] Memory model: hoare
+[*] Imported from 'qa70': ['helper'] (trusted stubs, module-qualified)
+
+[!] PIPELINE ERROR:
+[imports] test-suite/corpus/pycsl-reference/qb70.py: the imported function `helper` of `qb70.py` has the same name as the function of that name in `qa70.py`: pycsl gives every function ONE WhyML name, so one of the two definitions would be dropped and a call meant for it (a module-qualified `mod.helper()`, or the dependency's own call of it) would be verified against the other one's contract, while CPython runs each module's own function (routes #624 / #625: `import lib` beside a local `def helper`, or two libraries that both define it). FIX: rename one of the two functions, or import it under a distinct name (`from mod import helper as other`).

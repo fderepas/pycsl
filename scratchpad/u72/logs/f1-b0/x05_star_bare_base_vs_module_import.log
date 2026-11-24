@@ -1,0 +1,16 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x05_star_bare_base_vs_module_import.py'...
+[*] Memory model: hoare
+[*] Imported base class from 'rt80_cls_b': Base (record + 1 method stub(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_0fbjl6dd.mlw", line 19, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_0fbjl6dd.mlw", line 15, characters 15-19: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_0fbjl6dd.mlw", line 18, characters 18-19: unused variable x
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_0fbjl6dd.mlw", line 23, characters 12-16: unused variable self
+
+[+] Verification SUCCESS! All contracts formally proven.

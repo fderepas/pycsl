@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u70/scratchpad/u70/probes/u01_same_dep_twice_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt77lib_val': ['val1'] (trusted stubs)
+[*] Imported from 'rt77lib_val': ['val1'] (trusted stubs, module-qualified)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

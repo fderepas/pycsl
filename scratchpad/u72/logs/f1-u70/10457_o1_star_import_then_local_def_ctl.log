@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/10457_o1_star_import_then_local_def_ctl.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] ../pycsl-u72-h1/test-suite/corpus/pycsl-reference/qa70.py: the imported function `helper` of `qa70.py` has the same name as a function the program defines itself: pycsl gives every function ONE WhyML name, so one of the two definitions would be dropped and a call meant for it (a module-qualified `mod.helper()`, or the dependency's own call of it) would be verified against the other one's contract, while CPython runs each module's own function (routes #624 / #625: `import lib` beside a local `def helper`, or two libraries that both define it). FIX: rename one of the two functions, or import it under a distinct name (`from mod import helper as other`).

@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w19c_two_libs_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt77liba': ['helper'] (trusted stubs, module-qualified)
+
+[!] PIPELINE ERROR:
+[imports] ../pycsl-u72/scratchpad/u72/probes/rt77/rt77libb.py: the imported function `helper` of `rt77libb.py` has the same name as the function of that name in `rt77liba.py`: pycsl gives every function ONE WhyML name, so one of the two definitions would be dropped and a call meant for it (a module-qualified `mod.helper()`, or the dependency's own call of it) would be verified against the other one's contract, while CPython runs each module's own function (routes #624 / #625: `import lib` beside a local `def helper`, or two libraries that both define it). FIX: rename one of the two functions, or import it under a distinct name (`from mod import helper as other`).

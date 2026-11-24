@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/o01_qualified_ctor_two_libs.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt80_cls_a': ['Base'] (trusted stubs, module-qualified)
+[*] Imported from 'rt80_cls_b': ['Base'] (trusted stubs, module-qualified)
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/o01_qualified_ctor_two_libs.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'g', the value 'y_m_0' comes from 'y_m_0', a call PyCSL has no model of: it is lowered to an OPAQUE INT whatever its Python type (a float, a string, a module...), and it is used here as an integer (`+ ( 10 * ( y_m_0 ( ) ) ) ) ) end`), where every claim true of all integers (`x % 1 == 0`, `x * 0 == 0`, `x < e or x >= e + 1 or x == e`) would be proved of it. Refused (fail closed). Give it a modelled form: an `int` literal / int expression, or pass it in as a typed parameter with an explicit `requires`.

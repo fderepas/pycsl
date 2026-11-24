@@ -1,0 +1,23 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e12_import_call_noreturn.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt77lib_nr': ['stop'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl__x3uszfe.mlw", line 8, characters 15-28:
+Sub-goal postcondition of goal stop'vc.
+Prover result is: Valid (0.00s, 199 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl__x3uszfe.mlw", line 16, characters 12-20:
+Sub-goal precondition of goal py_use'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 235 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl__x3uszfe.mlw", line 14, characters 15-27:
+Sub-goal postcondition of goal py_use'vc.
+Prover result is: Valid (0.00s, 19 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

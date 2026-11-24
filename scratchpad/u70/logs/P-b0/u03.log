@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u70/scratchpad/u70/probes/u03_from_import_and_qualified_two_libs.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt77libb': ['helper'] (trusted stubs)
+[*] Imported from 'rt77liba': ['helper'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_2kmj4x0n.mlw", line 10, characters 15-45:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 22 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

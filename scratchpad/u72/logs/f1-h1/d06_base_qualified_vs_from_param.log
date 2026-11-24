@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/d06_base_qualified_vs_from_param.py'...
+[*] Memory model: hoare
+[*] Imported class from 'rt80_cls_b': Base (record + 1 method stub(s) + 0 helper(s))
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/d06_base_qualified_vs_from_param.py: `Base` is written as an attribute base of a module import AND names the class this file imports under that name from another module: pycsl reads a class base by its bare tail name and would give the subclass the methods, fields and invariant of one module's class while CPython uses the class the base expression actually names (route #629, extends route #345: `class X(liba.Base)` beside `class Y(libb.Base)`, or `from libb import Base` beside `class X(liba.Base)`). FIX: import the base classes under distinct names (`from liba import Base as BaseA`) and use those names as bases.
