@@ -1,0 +1,1 @@
+IDENTICAL after replacing the absolute program path with the cwd-relative one

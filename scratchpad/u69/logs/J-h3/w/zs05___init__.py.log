@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/zs05/__init__.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] test-suite/corpus/pycsl-reference/zs05/__init__.py: the local module test-suite/corpus/pycsl-reference/zs05/d.py, which the program reaches, stores (line 6) to an attribute named `b`, the name of a submodule of the package directory test-suite/corpus/pycsl-reference/zs05: CPython looks a dotted submodule up as an attribute of its package module object, and any store to that attribute -- from any module, through any alias, at import time or in a function the program calls -- replaces the submodule pycsl resolves the dotted name to, so the contracts pycsl would believe describe another module than the one the program runs (review rt78 t4: zt784/d.py `import zt784; zt784.b = c0`; pycsl PROVED `zt784.b.one() == 1` with b.py, CPython ran c.one() and printed 2). FIX: give the attribute another name than the package's submodules.

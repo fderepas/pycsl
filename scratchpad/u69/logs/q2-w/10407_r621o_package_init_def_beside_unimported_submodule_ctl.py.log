@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10407_r621o_package_init_def_beside_unimported_submodule_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'zs07': ['b'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

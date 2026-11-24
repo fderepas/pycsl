@@ -1,0 +1,14 @@
+start Sat Nov 21 22:51:02 UTC 2026 oom_kill 15
+## base 2873a902d
+10340_r613y_dependency_dotted_prefix_package_false rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+10341_r613y_dotted_import_prefix_regular_package_elsewhere rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+10343_r613y_dependency_dotted_module_import_prefix_false rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+10344_r613y_dependency_relative_dotted_import_ctl rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+prog rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+## head 83752df95
+10340_r613y_dependency_dotted_prefix_package_false rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: 
+10341_r613y_dotted_import_prefix_regular_package_elsewhere rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: 
+10343_r613y_dependency_dotted_module_import_prefix_false rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: 
+10344_r613y_dependency_relative_dotted_import_ctl rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+prog rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. 
+end Sat Nov 21 22:51:26 UTC 2026 oom_kill 15

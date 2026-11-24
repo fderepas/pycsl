@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10341_r613y_dotted_import_prefix_regular_package_elsewhere.py'...
+[*] Memory model: hoare
+[*] Imported from 'zpy62.b': ['one'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

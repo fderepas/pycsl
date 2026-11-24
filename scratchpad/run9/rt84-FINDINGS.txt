@@ -1,0 +1,55 @@
+rt84 FINDINGS (driver run #9) -- red-team of run9-u74 b6c0e8b39 vs base 96eac515d (merge base with ghost-assign-bc6)
+Trees: head /home/fabrice/git/pycsl-rt84 (b6c0e8b39), base /home/fabrice/git/pycsl-rt84b (96eac515d), both removed at the end.
+All runs: run.sh (heavy.sh; QUICK for --no-proof via q.sh, PRIO for full proofs via all.sh / leaf.sh), hoare, PYTHON_CPU_COUNT=2,
+TMPDIR=scratchpad/rt84/tmp. oom_kill 15 before/after every proof. No EDQUOT / quota string in any log.
+CPython: `timeout 60 bash -c 'ulimit -v 2000000; python3 -I <file>'` (each file has a __main__ printing the value).
+Paths below are relative to /home/fabrice/git/pycsl/scratchpad/rt84/ ; candidates c/<n>.py, head logs c/h/<n>.{log,mlw}, base c/b/<n>.{log,mlw}.
+(QUICK --no-proof logs that were later overwritten by the full proof are kept in c/hq, c/bq.)
+
+| id | what | CPython | head full proof | base full proof | class |
+|----|------|---------|-----------------|-----------------|-------|
+| F1 | c/f1.py: `@dataclass R: x: float`; `d: Dict[str,PyVal] = {"a": r.x}`; `if d.get("a") == 1.5: return 0; return 1`, `ensures \result == 1` | f(R(1.5)) = 0 | PROVED ("All contracts formally proven", rc 0) | fail-closed (L3-tc: `real` vs `int`) | **INTRODUCED** (false proof) |
+| F1b | c/f2.py: same, `v = d["a"]; if v != 0.5: return 1`, `ensures \result == 1` | f(R(0.5)) = 0 | PROVED (rc 0) | fail-closed (L3-tc) | **INTRODUCED** (false proof) |
+| -- | c/f3.py: `isinstance(d.get("a"), float)` claim False | 1 | NOT proved (HInt isinstance is opaque) | fail-closed | fail-safe |
+| F2 | route #634: c/m634.py `f(r: R) -> int` with `#@ assigns \nothing`, `ensures \result == r.a`, body writes `r.b = 5` inside a 1-iteration while (program `let`); c/x634.py (`from m634 import R, f`) `g(r)` `requires r.b == 0`, calls f(r), `ensures \result == 0` (returns r.b) | g(R(1,0)) = 5 | m634 PROVED (rc 0) AND x634 PROVED (rc 0) | m634 PROVED AND x634 PROVED | **PRE-EXISTING** (end-to-end false proof across modules) |
+| -- | c/fr2.py: same f and g in ONE module | 5 | NOT proved (Why3 infers f's write effect on r.b) | NOT proved | fail-safe (same-module) |
+| -- | c/fr.py: straight-line `r.b = 5` body | 5 | fail-closed (L3-tc "has side effects, cannot be used as pure") | same | fail-safe |
+| -- | c/k1.py, c/k2.py: local `R({}, [...])` (+ list alias append), len of `[a for (a,b) in r.f]` | 1 / 2 | fail-closed L3-tc (array vs seq: a seq-typed field cannot be constructed) | NOT proved (base: `f = any_array ()`, `HInt (list_comp 0)`, opaque len) | fail-safe |
+| -- | c/k3.py: `isinstance([b for (a,b) in r.f] value, list)` claim False | 1 | NOT proved (HArr decides list -> true, claim false) | NOT proved | fail-safe |
+| -- | c/k5.py: comprehension target `a` shadows outer `a = "outer"`; claim outer a unchanged (honest) | 0 | PROVED (faithful: fresh `_u74x*` binders) | PROVED | fail-safe (correct) |
+| -- | c/k8.py: honest `len([a..]) == len([b..])` over the same field | 0 | NOT proved (Unknown; incompleteness only) | NOT proved | fail-safe |
+| -- | c/k4.py (`if r.f:`), c/k6.py/k7.py (`R()` default, `s.f = r.f`), c/k9.py (`r.f[0]`, `len(t[1])`) | -- | all fail-closed at L3-tc at head (k6/k7 also at base: unrelated Dict[int,List[int]] default) | k4/k9 type-check at base (array int erasure) | fail-safe at head |
+| L | leaf: `#@ assert 1 == 2` at the head of `_to_cache_payload` (its only block) in the head mirror, `--fun _to_cache_payload --verification-image src/self-annotate/src` | -- | NOT proved (assertion Timeout 30 s, rc 1); log leaf.log; the mirror file was restored with git checkout | -- | body reachable (OK) |
+
+F1 detail (INTRODUCED, expressions.py `_pyval_wrap` arm (a), u74 link 1):
+  a `float` record-field read in hval position is emitted as `HInt (real_hcarrier_op r.x)` (c/h/f1.mlw line ~190):
+    let d = ref (map_update_some (const (None: option hval)) "a" (HInt (real_hcarrier_op r.x))) in
+    if (match (match Map.get !d "a" with | Some v_ -> v_ | None -> HNone end) with HFloat f -> hreal_eq f 1.5 | _ -> false end) ...
+  The pre-existing `==`/`!=` lowering against a NON-integral float literal (expressions.py ~6176-6181, the certified
+  `hval_eq_float_lit` unfolding) answers `false` for every non-HFloat tag, i.e. it relies on the invariant "HInt never
+  carries a Python float". Before u74 that held (a float into the HInt carrier was an L3-tc error, base fails closed);
+  arm (a) breaks it. Same family expected for `hval_eq <float-field hval> <HFloat literal hval>` (not run).
+  The report's rationale (not `HFloat` because a float slot may hold an int) is right about isinstance (f3 is fail-safe),
+  but the erased-HInt carrier is NOT neutral for equality: the r4 equality arms treat HInt as an int.
+  Fix direction (not applied): give the float-field read a carrier no `==` arm decides (e.g. an opaque `hval` from a
+  law-free `val real_hval_op (x: real) : hval`), or refuse the float-field arm; then re-run c/f1.py, c/f2.py.
+  Reachability in the converted mirror: `_to_cache_payload` puts `report.elapsed_compile_s` through this arm; its
+  contract is `ensures True` so the mirror proof itself is not affected, but any caller claim of `payload[..] == <float lit>`
+  would be.
+
+F2 detail (PRE-EXISTING, route #634 measured): the imported f is emitted as `val f (r: r) : int requires {true} ensures
+  {result = r.a}` with NO `writes` (c/h/x634.mlw), so the caller keeps `r.b = 0` across the call. The defining module
+  proves f under `assigns \nothing` although the body writes `r.b` (c/h/m634.mlw: `let f` with no frame check on the
+  record parameter). Each module "proves", the composition is false (CPython 5, claim 0). Identical at base and head:
+  not introduced by u74. In-module callers are protected only because Why3 infers the `let` effect (fr2 fail-safe).
+
+Axes with no candidate: nested/starred/mismatched-arity tuple targets (target_elts gets "_" or wrong length -> fail-closed
+by construction: `"_" not in _u74n`, `len(_u74sl) == len(_u74n)`); generator / set / dict comprehensions (GenExp /
+SetComp / DictComp IR types are not "ListComp" -> arm (b) unreachable; target_elts is consumed nowhere else);
+side-effecting iterators/conditions (only a record-field iterator, `ifs` must be empty); bool slot (`int` slot, erased
+HInt, isinstance opaque); str subclasses / None (no new positive tag beyond HStr on `str` slots); `{t:.2f}` formatting:
+not added by this branch. A user program cannot construct a value of the new `seq (.., seq string)` field (k1/k2/k6/k7
+fail closed), so the aliasing axis (snapshot vs live list) is unreachable at head.
+
+Commands: QUICK `HEAVY_QUICK=1 scratchpad/heavy/heavy.sh ./q.sh <names>`; full `HEAVY_PRIO=1 scratchpad/heavy/heavy.sh ./all.sh`
+(all.out); leaf `HEAVY_PRIO=1 scratchpad/heavy/heavy.sh ./leaf.sh` (leaf.out, leaf.log). No commits.

@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt78/s1/P/dep78.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt78/s1/P/dep78.py: `import hz78`: the import root /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt78/s1/P holds an importable module artifact that is not Python source (/home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt78/s1/Q/hz78). CPython's FileFinder loads an extension module before `hz78.py` and a sourceless `hz78.pyc` when no source exists, so the module the program runs is not one pycsl can read, and neither the local source nor a standard-library model may be believed for it (route #611: a sourceless `hashlib.pyc` made a two-digest equality PROVE; CPython False). FIX: remove the artifact (or rename the module) so that the module CPython imports is the one pycsl verifies.

@@ -1,0 +1,131 @@
+r1 | result 4 | SUCCESS | REFUSED | SUCCESS
+r2 | P/zr76/c.py loaded result 2 | SUCCESS | REFUSED | REFUSED
+r5 | result 1 | SUCCESS | SUCCESS | SUCCESS
+r5b | ^^^ AttributeError: 'function' object has no attribute 'one' | FAIL | FAIL | FAIL
+r4 | result 1 | REFUSED | REFUSED | REFUSED
+r3 | P/zr76/c.py loaded result 2 | SUCCESS | REFUSED | REFUSED
+r9 | X2/pkr76/c.py loaded result 2 | SUCCESS | REFUSED | REFUSED
+r6 | result 1 | SUCCESS | SUCCESS | SUCCESS
+r6-treecwd | result 1 | SUCCESS | SUCCESS | SUCCESS
+r2s | P/zr76/c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+r7 | P/zr76/c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+r8 | P/zpa76_alt/b.py loaded result 2 | REFUSED | REFUSED | REFUSED
+r2d | X2/zr76/c.py loaded result 2 | SUCCESS | REFUSED | REFUSED
+r2r | X2/pkr76/c.py loaded result 2 | SUCCESS | REFUSED | REFUSED
+r14 | result 1 | SUCCESS | SUCCESS | SUCCESS
+r12 | X/zz76.py loaded result 2 | SUCCESS | FAIL | FAIL
+r2d-dep | X2/zr76/c.py loaded | SUCCESS | REFUSED | REFUSED
+r2r-dep | rror: attempted relative import with no known parent package | FAIL | FAIL | FAIL
+r15 | X2/zn76/b.py loaded result 2 | REFUSED | REFUSED | REFUSED
+r16 | result 1 | REFUSED (SEM-IMPORT-NAMESPACE-PORTION-SHADOWED) | REFUSED (SEM-IMPORT-NAMESPACE-PORTION-SHADOWED) | REFUSED (SEM-IMPORT-NAMESPACE-PORTION-SHADOWED)
+r17 | result 1 | SUCCESS | SUCCESS | SUCCESS
+v2d | -u71/scratchpad/u71/probes/u64/v2d/P/zpa74_alt/b.py result 2 | SUCCESS | REFUSED | REFUSED
+w5 | l-u71/scratchpad/u71/probes/u64/w5/P/zpa74_alt/b.py result 2 | SUCCESS | REFUSED | REFUSED
+v2 | l-u71/scratchpad/u71/probes/u64/v2/P/zpa74_alt/b.py result 2 | REFUSED | REFUSED | REFUSED
+x1 | l-u71/scratchpad/u71/probes/u64/x1/P/zpa74_alt/b.py result 2 | REFUSED | REFUSED | REFUSED
+x2 | .b import one ModuleNotFoundError: No module named 'zpb74.b' | SUCCESS | REFUSED | REFUSED
+x3 | result 1 | SUCCESS | SUCCESS | SUCCESS
+v2down |  | SUCCESS | SUCCESS | SUCCESS
+v1f | result 2 | SUCCESS | SUCCESS | SUCCESS
+r12c | X/zz76.py loaded result 2 | SUCCESS | REFUSED | REFUSED
+b21 | result 1 | FAIL | REFUSED | REFUSED
+a22 | /pycsl-u71/scratchpad/u71/probes/u66/a22/P/zd66/__init__.py) | REFUSED | REFUSED | REFUSED
+s1 | P/hz78.py loaded result 2 | REFUSED | REFUSED | REFUSED
+s1-dep |  | REFUSED | SUCCESS | SUCCESS
+s7 | result 1 | SUCCESS | SUCCESS | SUCCESS
+s7-dep |  hz78 import one ModuleNotFoundError: No module named 'hz78' | SUCCESS | REFUSED | REFUSED
+s7-treecwd | result 1 | SUCCESS | SUCCESS | SUCCESS
+s1f | result 2 | SUCCESS | SUCCESS | SUCCESS
+c1 | result 1 | REFUSED | SUCCESS | SUCCESS
+o1 | result 1 | SUCCESS | SUCCESS | SUCCESS
+t4 | c.py loaded result 2 | SUCCESS | REFUSED | REFUSED
+t8 | c.py loaded result 2 | SUCCESS | REFUSED | REFUSED
+t1 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+t2 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+t3 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+t5 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+t6 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+t7 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+a1 | P/hza79 loaded result 2 | REFUSED | REFUSED | REFUSED
+a1-noX | result 2 | REFUSED | REFUSED | REFUSED
+a3 | X2/za783/b.py loaded result 2 | REFUSED | REFUSED | REFUSED
+a3-noX | ort one as _q ModuleNotFoundError: No module named 'za783.b' | REFUSED | REFUSED | REFUSED
+t9 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+t10 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+t11 | c.py loaded result 2 | SUCCESS | REFUSED | REFUSED
+t12 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+t13 | c.py loaded result 2 | SUCCESS | REFUSED | REFUSED
+o2 | return b() TypeError: 'module' object is not callable | SUCCESS | REFUSED | REFUSED
+s8 | result 2 | REFUSED | REFUSED | REFUSED
+o3 | ~~~~~~~^^ TypeError: 'module' object is not callable | SUCCESS | REFUSED | REFUSED
+o4 | b.py loaded result 2 | FAIL | REFUSED | REFUSED
+a2 | P/hza792 loaded result 2 | REFUSED | REFUSED | REFUSED
+d1 | ~~~~~~~^^ TypeError: 'module' object is not callable | REFUSED | REFUSED | REFUSED
+d2 | ~~~~~~~^^ TypeError: 'module' object is not callable | REFUSED | REFUSED | REFUSED
+d3 | ~~~~~~~^^ TypeError: 'module' object is not callable | REFUSED | REFUSED | REFUSED
+d4 | b.py loaded result 2 | REFUSED | REFUSED | REFUSED
+d5 | b.py loaded result 2 | REFUSED | REFUSED | REFUSED
+d6 | b.py loaded result 2 | REFUSED | REFUSED | REFUSED
+d7 | b.py loaded result 2 | REFUSED | REFUSED | REFUSED
+d8 | b.py loaded result 2 | SUCCESS | SUCCESS | REFUSED
+d9 | return b() TypeError: 'module' object is not callable | SUCCESS | SUCCESS | REFUSED
+e1 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+e2 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+e3 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+e4 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+e5 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+e6 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+e7 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+e8 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+e9 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+e10 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+e11 | c.py loaded result 2 | REFUSED | REFUSED | REFUSED
+g1 | c.py loaded result 7 | REFUSED | REFUSED | REFUSED
+g2 | ^^^^^^^ AttributeError: module 'zv7g2' has no attribute 'c' | FAIL | FAIL | FAIL
+g3 | alt.py loaded result 2 | FAIL | FAIL | FAIL
+g4 | alt.py loaded result 2 | FAIL | FAIL | FAIL
+g5 | c.py loaded result 5 | FAIL | FAIL | FAIL
+w1 | b.py loaded result 2 | REFUSED | REFUSED | REFUSED
+w2 | b.py loaded result 5 | SUCCESS | SUCCESS | REFUSED
+w3 | b.py loaded result 2 | REFUSED | REFUSED | REFUSED
+z1 | zip zhz79 loaded result 2 | SUCCESS | SUCCESS | REFUSED
+w2-dep | b.py loaded | SUCCESS | SUCCESS | REFUSED
+w2-hw |  | SUCCESS | SUCCESS | SUCCESS
+n1 | result 5 | SUCCESS | SUCCESS | REFUSED
+n2 | result 5 | SUCCESS | SUCCESS | REFUSED
+n3 | result 3 | SUCCESS | SUCCESS | SUCCESS
+n4 | result 5 | SUCCESS | SUCCESS | REFUSED
+n5 | result 5 | SUCCESS | SUCCESS | REFUSED
+n6 | result 5 | REFUSED | REFUSED | REFUSED
+n7 | result 4 | SUCCESS | SUCCESS | SUCCESS
+y2 | result 2 | REFUSED | REFUSED | REFUSED
+y3 | result 2 | REFUSED (VAL-ARG-UNFRAMED) | REFUSED | REFUSED
+y4 | result 2 | REFUSED | REFUSED | REFUSED
+y5 | result 2 | REFUSED | REFUSED | REFUSED
+y6 | result 4 | REFUSED (R325-OPAQUE-INT-FALLBACK) | REFUSED | REFUSED
+n1-dep |  | SUCCESS | SUCCESS | REFUSED
+10435_r626x_dependency_wildcard_all_loads_writer_submodule_false.py | (see witness) | SUCCESS | SUCCESS | REFUSED
+10436_r626x_dependency_wildcard_of_subpackage_all_loads_writer_false.py | (see witness) | SUCCESS | SUCCESS | REFUSED
+10437_r626x_dependency_wildcard_of_computed_all_false.py | (see witness) | SUCCESS | SUCCESS | REFUSED
+10438_r627x_zip_archive_on_import_path_false.py | (see witness) | SUCCESS | SUCCESS | REFUSED
+10439_r626o_program_wildcard_literal_all_benign_submodule_ctl.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+10440_r621o_unrelated_self_store_named_like_submodule_ctl.py | (see witness) | SUCCESS | REFUSED | SUCCESS
+zh35.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zh36.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zh37.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zd35.py | (see witness) | SUCCESS | SUCCESS | REFUSED
+zd36.py | (see witness) | SUCCESS | SUCCESS | REFUSED
+zd37.py | (see witness) | SUCCESS | SUCCESS | REFUSED
+zp35___init__.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zp35_b.py | (see witness) | REFUSED | REFUSED | REFUSED
+zp36___init__.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zp36_sub___init__.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zp36_sub_b.py | (see witness) | REFUSED | REFUSED | REFUSED
+zp37___init__.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zp37_b.py | (see witness) | REFUSED | REFUSED | REFUSED
+multi_file_lib_u71y_zh38.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zp39___init__.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zp39_k.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zp40___init__.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zp40_b.py | (see witness) | SUCCESS | SUCCESS | SUCCESS
+zp40_k.py | (see witness) | SUCCESS | SUCCESS | SUCCESS

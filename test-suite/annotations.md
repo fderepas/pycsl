@@ -1485,7 +1485,52 @@ model) and the program's order gives anything else (another file, nothing, a ref
 program is REFUSED (`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`: `lib/dep.py`'s `from zqh72
 import one` took `lib/zqh72.py` in pycsl and the program directory's `zqh72.py` in CPython); a
 non-stdlib name that resolves to nothing from the module's directory was an unconstrained
-external there (no contract), so it is admitted. Relative imports stay package-relative; the
+external there (no contract), so it is admitted (an OPEN gap, review rt74 V1D: that file's code
+runs unjudged; see `getting-better/run8-u61-report.md`). Every dotted PREFIX `a`, `a.b`, ... of an
+import is compared and followed as well, and through the program's order each prefix that is a
+file must be a package `__init__.py` whose directory holds the file pycsl reads for the full name
+(u61, review rt74 V2D: CPython stops at the first root with a regular package `a` and searches
+`a.b` only in its `__path__`, which `P/zpa74/__init__.py` redirected, while pycsl fell through to
+an `--import-path` `zpa74/b.py`). A from-import target `pkg.name` is checked as a dotted
+module only where CPython can import it as one (u66, review rt76 r5 / r14): not when `pkg` is a
+module file, nor when `pkg/__init__.py` binds `name` in a top-level statement without a `del` /
+`global` of it; and a prefix the import statements do not spell is resolved in CPython's roots,
+never in pycsl's cwd (u66, rt76 r6). A package `__init__.py` the program reaches that binds, at
+import time, the name of one of its own submodules to anything but that submodule (`from . import
+c as b` beside `b.py`; any import, assignment, `def` / `class`, `del`, `global`, or a wildcard
+import) is REFUSED (`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`, u66, route #621: CPython leaves
+`pkg.b` bound to `c` and `import pkg.b; pkg.b.one()` runs `c.one()`). A program FILE that is a
+symlink into another directory resolves its absolute imports from that realpath directory, as
+CPython's `sys.path[0]` does (u66, route #622, review rt76 r12). A DEPENDENCY that is itself such a
+symlink (its own run's first root is its realpath directory) is compared through both views like any
+other dependency, since the program's run resolves its absolute imports from the PROGRAM's first root
+(u69, review rt78 s1: P/dep78.py -> ../Q/dep78.py, Q/hz78.py returning 1, P/hz78.py returning 2; u66
+PROVED the claim, CPython printed 2); the import-time closure check (routes #483 / #484) and the
+`type`-alias export scan follow a dependency's absolute imports from the program's first root as well
+(u69, rt78 s7 / s8). Any module the program reaches (the program included) that stores to, or deletes,
+an attribute named like a submodule of a package the walk meets (`import pkg; pkg.b = c0`, `import pkg
+as _p; _p.b = ...`, `setattr(pkg, "b", ...)`; any receiver, at import time or in a function body) is
+REFUSED too (`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`, u69, review rt78 t4 / t8: CPython looks
+`pkg.b` up as an attribute, so `zt784.b.one()` ran `c.one()`). A package `__init__.py` whose top level
+holds ONE undecorated `def` of a submodule's name is admitted when no reached module names a module of
+that name in an import (any `import a.b`, the module of any `from a.b import`, and, outside the program,
+every from-import target, a wildcard included) and none reads `<x>.<name>.<y>`: CPython then never loads the submodule over
+the function (u69, review rt78 o1); a wildcard import in the PROGRAM counts as such a name too (u71,
+review rt79 d8). The attribute-store rule only judges receivers that can denote the package module object:
+a store / delete / literal-name `setattr` whose receiver is rooted at a name an import statement binds;
+any receiver is judged again as soon as some reached module lets a module object escape (an import-bound
+name used as a value, a wildcard import, an import in a class body, reflective names such as `globals` /
+`vars` / `__import__`, `sys.modules` / `__dict__` / frame attributes, an import of `importlib` /
+`inspect` / ..., or of an installed library) (u71, review rt79 r1: `self.b = 1` in an unrelated class is
+admitted). A wildcard import of a package (`from pkg import *`, `from pkg.sub import *`, `from . import *`)
+is followed as `from pkg import <each __all__ name>`, since CPython loads every `__all__` submodule the
+package does not bind yet, in the import walk and in the import-time closure (routes #483 / #484); an
+`__all__` that is not one top-level literal list / tuple of identifier strings (computed, extended,
+re-bound) or that other code can change is REFUSED (`PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN`, u71, route
+#626, review rt79 w2: the `__all__` submodule's import-time writer made CPython print 5 where pycsl
+PROVED 4). Every `--import-path` entry must be an existing directory (`PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY`,
+u71, route #627, review rt79 z1: CPython's zipimport loads modules from a zip archive on sys.path, which
+pycsl skipped). Relative imports stay package-relative; the
 check is skipped under the declared `--verification-image`, which makes no CPython-run
 claim): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or

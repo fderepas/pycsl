@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u69/scratchpad/u69/probes/u69/t13/P/prog.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u69/scratchpad/u69/probes/u69/t13/P/prog.py: the local module /home/fabrice/git/pycsl-u69/scratchpad/u69/probes/u69/t13/P/zu695/d.py, which the program reaches, stores (line 7) to an attribute named `b`, the name of a submodule of the package directory /home/fabrice/git/pycsl-u69/scratchpad/u69/probes/u69/t13/P/zu695: CPython looks a dotted submodule up as an attribute of its package module object, and any store to that attribute -- from any module, through any alias, at import time or in a function the program calls -- replaces the submodule pycsl resolves the dotted name to, so the contracts pycsl would believe describe another module than the one the program runs (review rt78 t4: zt784/d.py `import zt784; zt784.b = c0`; pycsl PROVED `zt784.b.one() == 1` with b.py, CPython ran c.one() and printed 2). FIX: give the attribute another name than the package's submodules.

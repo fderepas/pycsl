@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt79/d4/P/prog.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt79/d4/P/prog.py: the program manipulates the import system (`import importlib (with `zv7d4` resolved to a local file)`), so what its `import` statements load is decided at run time, while pycsl resolves them statically from the source tree — the contracts it would believe may belong to a different module than the one CPython runs (route #326: after `sys.path.insert(0, '.../alt')` CPython imported `alt/sp19.py` and pycsl PROVED the script-directory copy's contract). FIX: import the module by its package path instead of editing sys.path / sys.modules or loading it dynamically.

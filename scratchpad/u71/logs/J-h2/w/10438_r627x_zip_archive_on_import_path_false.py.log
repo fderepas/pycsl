@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10438_r627x_zip_archive_on_import_path_false.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports]: the `--import-path` entry test-suite/corpus/pycsl-reference/multi_file_lib/u71z/lib.zip is not an existing directory: pycsl resolves imports only from directory roots, while CPython's sys.path also imports from a zip archive (zipimport), so the module pycsl reads from a later root may not be the one the program runs (review rt79 z1: --import-path X/lib.zip then Y; pycsl PROVED Y's `\result == 1`, CPython ran the zip's module and printed 2). FIX: extract the archive into a directory and pass that directory, or drop the entry.

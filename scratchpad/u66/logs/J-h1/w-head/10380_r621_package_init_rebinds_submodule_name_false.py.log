@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10380_r621_package_init_rebinds_submodule_name_false.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] test-suite/corpus/pycsl-reference/10380_r621_package_init_rebinds_submodule_name_false.py: the package __init__ test-suite/corpus/pycsl-reference/zr80/__init__.py, which the program reaches, has at import time (line 5) a binding of `b`, the name of its submodule: CPython sets the package attribute of a submodule only when it loads that submodule, so after such a binding `pkg.<name>` may be another object than the submodule pycsl resolves the dotted name to, and the contracts pycsl would believe describe another module than the one the program runs (review rt76 r2: `from . import b as b0; from . import c as b` in zr76/__init__.py; pycsl PROVED `zr76.b.one() == 1` with b.py, CPython ran c.one() and printed 2). FIX: bind the submodule itself (`from . import <name>`) or give the other binding another name.

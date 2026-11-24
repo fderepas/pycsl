@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt76/r2d/X2/depr76.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt76/r2d/X2/depr76.py: the package __init__ /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/rt76/r2d/X2/zr76/__init__.py, which the program reaches, has at import time (line 2) a binding of `b`, the name of its submodule: CPython sets the package attribute of a submodule only when it loads that submodule, so after such a binding `pkg.<name>` may be another object than the submodule pycsl resolves the dotted name to, and the contracts pycsl would believe describe another module than the one the program runs (review rt76 r2: `from . import b as b0; from . import c as b` in zr76/__init__.py; pycsl PROVED `zr76.b.one() == 1` with b.py, CPython ran c.one() and printed 2). FIX: bind the submodule itself (`from . import <name>`) or give the other binding another name.

@@ -3159,8 +3159,42 @@ contracts are verified) to a file -- or, for a stdlib name, to pycsl's model -- 
 the same outcome through the program's search order (how CPython loads it: `sys.path[0]` = the
 program's directory, then `--import-path`); otherwise refused
 (`PYCSL-SEM-IMPORT-DEPENDENCY-SEARCH-ORDER`); a non-stdlib name with no module from the
-dependency's directory was an unconstrained external there and is admitted; relative imports
-are package-relative in both views; not applied under `--verification-image`. Under the declared `--verification-image
+dependency's directory was an unconstrained external there and is admitted (OPEN: rt74 V1D);
+every dotted prefix of an import is compared too, and in the program's order each prefix that
+resolves to a file must be a package `__init__.py` whose directory holds the file read for the
+full name (u61, rt74 V2D: CPython stops at the first root holding a regular package for a
+prefix); a from-import target `pkg.name` that no import statement names as a module is checked
+so only when `pkg` can lack the attribute (u66, rt76 r5 / r14: skipped when `pkg` resolves to a
+module file, or to an `__init__.py` that binds `name` in a top-level statement and never
+`del`s / declares it `global`); prefixes the statements do not spell resolve in CPython's roots
+(cwd = the anchor's first root; u66, rt76 r6). Every package `__init__.py` reached is refused
+(`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`; u66, route #621, rt76 r2 / r2d) when its
+import-time code binds the name of one of the package's submodules (an entry of its directory
+CPython imports as `pkg.<name>`) other than by `from . import <name>` (also `del`, a `global`
+of it, a wildcard import). The first root of an absolute import is the directory of the
+file's realpath whenever that is another directory than the one the file is named in (u66,
+route #622, rt76 r12: a symlinked program file); a reached module shares the program's single
+view only when it is in the program's raw directory AND has the program's first root (u69, rt78 s1:
+a symlinked DEPENDENCY is compared through both views); routes #483 / #484 and the `type`-alias
+export scan follow a dependency's absolute imports from the program's first root too (u69, rt78
+s7 / s8). Any reached module (the program included) with an attribute store / delete, or a
+literal-name `setattr` / `delattr`, whose name is a submodule of a package the walk meets is
+refused (`PYCSL-SEM-IMPORT-PACKAGE-SUBMODULE-REBOUND`; u69, rt78 t4 / t8); one undecorated
+top-level `def` of a submodule's name in an `__init__.py` is admitted when no reached module
+names a module of that name in an import (outside the program also as a from-import target or any wildcard) and
+none reads `<x>.<name>.<y>` (u69, rt78 o1), a wildcard in the program counting as such a name (u71,
+rt79 d8); the attribute-store rule judges only receivers rooted (through attribute / subscript / call)
+at an import-bound name of the module, and every receiver once any reached module lets a module object
+escape into a value (an import-bound name in a value position, a wildcard, an import in a class body,
+reflective names, `modules` / `__dict__` / frame attributes, an import of `importlib` / `inspect` / ...
+or of an installed library) (u71, rt79 r1); a wildcard import of a package `__init__.py` is followed
+as a from-import of each `__all__` name, in this walk and in routes #483 / #484, and an `__all__` that
+is not one top-level literal list / tuple of identifier strings mentioned nowhere else, or that a
+reached module can change (`pkg.__all__`, a literal `"__all__"`), is refused
+(`PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN`; u71, route #626, rt79 w2 / d8); relative imports are
+package-relative in both views; not applied under `--verification-image`. Every `--import-path` entry
+must be an existing directory, in every mode (`PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY`; u71, route #627,
+rt79 z1: zipimport). Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
 roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`

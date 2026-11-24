@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u71/scratchpad/u71/probes/u71/n1/P/prog.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/u71/n1/P/prog.py: the local module /home/fabrice/git/pycsl-u71/scratchpad/u71/probes/u71/n1/P/depn1.py, which the program reaches, has a wildcard import of the package `zun1` (/home/fabrice/git/pycsl-u71/scratchpad/u71/probes/u71/n1/P/zun1/__init__.py) whose `__all__` pycsl cannot read: its `__all__` is not one top-level assignment of a literal list / tuple of identifier strings (it is computed, extended, re-bound or mentioned elsewhere). CPython's `from pkg import *` imports every `__all__` name the package does not bind yet, i.e. LOADS those submodules and runs their import-time code, so the modules the program runs are not known (review rt79 w2: `from zv7w2 import *` with `__all__ = ["b"]` ran zv7w2/b.py, whose `hw792.one = _two` made CPython print 5 where pycsl PROVED 4). FIX: give the package one literal `__all__ = ["name", ...]`, or import the names explicitly.
