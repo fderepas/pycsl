@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x06_assign_bare_base_true.py'...
+[*] Memory model: hoare
+[*] Imported base class from 'rt80_cls_b': Base (record + 1 method stub(s))
+
+[!] PIPELINE ERROR:
+[ir-semantic]: class 'X' at line 6: its base `Base` names `Base`, which this file also binds otherwise than by a `class` statement or an import (an alias such as `Base = ...`, a tuple / annotated / loop target, a `def`, a parameter). The verifier reads a class's bases by NAME, so this base would not be resolved to the class it denotes and 'X' would be modelled as unrelated to it: its inherited fields and invariants, the override checks (routes #277/#278/#338) and the constructor chain (route #335) would all be skipped, while CPython inherits (route #341). Write the base class's own name (the `class` statement's name, or `module.Name` for an imported class) in the class header.

@@ -1,0 +1,20 @@
+/home/fabrice/git/pycsl-u72-b0/src/pycsl/frontend/Module3_Weaver.py:388: UserWarning: Function 'outer' (line 6): \trusted has no reviewer — add `reviewer: <name>` to document who is accountable for this trust assumption.
+  self._dispatch_function_contracts(node, self.contracts_map[node.lineno])
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e08_trusted_parent_nested_noreturn.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_t2ie_3r5.mlw", line 9, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 199 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_t2ie_3r5.mlw", line 13, characters 13-14: unused variable y
+
+[-] NON-VACUITY GATE FAILED: the following function(s) verify VACUOUSLY — their assumed context is logically inconsistent, so every postcondition is discharged for free (the 'green' is meaningless):
+    f  (proves `ensures false`)
+    Root cause is usually several nonlinear integer-division facts coexisting in one context (helper `result == …//…` ensures, division-bound inequalities, disjunctive value-equalities). See getting-better/csys-vacuity-investigation/ROOT-CAUSE.md.
+    (Opt out with --no-check-vacuity; tune with --vacuity-timelimit.)
+
+[-] Verification FAILED (vacuous proof). Check the solver output.

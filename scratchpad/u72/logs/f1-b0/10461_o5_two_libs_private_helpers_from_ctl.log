@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/10461_o5_two_libs_private_helpers_from_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'qj72': ['x'] (trusted stubs)
+[*] Imported from 'qk72': ['y'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_fp4kdkvc.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 14 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

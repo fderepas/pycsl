@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/e05_class_method_contract_helper_local.py'...
+[*] Memory model: hoare
+[*] Imported class from 'rt80_cls_h2': C (record + 1 method stub(s) + 0 helper(s))
+
+[!] PIPELINE ERROR:
+Imported contract of 'c__m' (from 'rt80_cls_h2.py') reads the module-level name 'helper', which denotes THAT module's binding; in 'e05_class_method_contract_helper_local.py' the name is bound by the importing module itself, and the contract would be lowered against the wrong binding (route #143). Rename one of the two bindings.

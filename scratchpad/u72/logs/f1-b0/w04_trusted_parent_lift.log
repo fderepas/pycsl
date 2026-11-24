@@ -1,0 +1,20 @@
+/home/fabrice/git/pycsl-u72-b0/src/pycsl/frontend/Module3_Weaver.py:388: UserWarning: Function 'outer' (line 3): \trusted has no reviewer — add `reviewer: <name>` to document who is accountable for this trust assumption.
+  self._dispatch_function_contracts(node, self.contracts_map[node.lineno])
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w04_trusted_parent_lift.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_240sypm1.mlw", line 7, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_240sypm1.mlw", line 12, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 12 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

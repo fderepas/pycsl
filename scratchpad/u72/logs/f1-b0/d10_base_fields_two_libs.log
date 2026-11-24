@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/d10_base_fields_two_libs.py'...
+[*] Memory model: hoare
+[*] Imported base class from 'rt80_fld_a': Base (record + 0 method stub(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_8eizhjq6.mlw", line 17, characters 7-8:
+unbound function or predicate symbol 'v'
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

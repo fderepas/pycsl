@@ -1,0 +1,74 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/v07_mutrec_three_way_first_logic.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal c'vc.
+Prover result is: Valid (0.00s, 33 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 17, characters 20-31:
+Sub-goal variant decrease of goal c'vc.
+Prover result is: Valid (0.00s, 61 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 17, characters 20-31:
+Sub-goal precondition of goal c'vc.
+Prover result is: Valid (0.00s, 49 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal c'vc.
+Prover result is: Valid (0.00s, 42 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 22, characters 15-28:
+Sub-goal postcondition of goal b'vc.
+Prover result is: Valid (0.00s, 20 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 29, characters 20-31:
+Sub-goal variant decrease of goal b'vc.
+Prover result is: Valid (0.00s, 52 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 29, characters 20-31:
+Sub-goal precondition of goal b'vc.
+Prover result is: Valid (0.00s, 101 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 22, characters 15-28:
+Sub-goal postcondition of goal b'vc.
+Prover result is: Valid (0.00s, 29 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 34, characters 15-28:
+Sub-goal postcondition of goal a'vc.
+Prover result is: Valid (0.00s, 20 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 41, characters 35-46:
+Sub-goal variant decrease of goal a'vc.
+Prover result is: Valid (0.00s, 52 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 41, characters 35-46:
+Sub-goal precondition of goal a'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 157 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 41, characters 21-32:
+Sub-goal variant decrease of goal a'vc.
+Prover result is: Valid (0.00s, 52 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 41, characters 21-32:
+Sub-goal precondition of goal a'vc.
+Prover result is: Valid (0.00s, 101 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 34, characters 15-28:
+Sub-goal postcondition of goal a'vc.
+Prover result is: Valid (0.00s, 226 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 49, characters 4-9:
+Sub-goal precondition of goal py_use'vc.
+Prover result is: Valid (0.00s, 15 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nxk2v9of.mlw", line 47, characters 15-28:
+Sub-goal postcondition of goal py_use'vc.
+Prover result is: Valid (0.00s, 47 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

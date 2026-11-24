@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/i01_upper_qualified_local_lower.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt80_upper': ['Val1'] (trusted stubs, module-qualified)
+
+[!] PIPELINE ERROR:
+[ir-semantic]: PYCSL-SEM-WHYML-NAME-CLASH (route #620): 2 definitions of this program are emitted under the same WhyML function name `val1`: 'Val1' (function, line 3), 'val1' (function, line 6). A method `C.m` is emitted as `c__m`, and WhyML names start lower-case and avoid reserved words, so distinct Python names can meet. The model would keep ONE body and silently drop the other (measured: a module-level `def c__m` vanished behind method `C.m`, and its `-> NoReturn` exempted the method from the non-vacuity gate). Refused (fail closed). Rename one of the definitions.
