@@ -1653,12 +1653,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `HFloat`: the positive tag DECIDES `isinstance(.., float)` (the isinstance arm
             # below), and a `float`-annotated slot may hold a Python int (the numeric tower;
             # this is why `isinstance(<float param>, float)` stays the opaque `typeof_op`).
-            # So it is the ERASED `HInt` carrier of a law-free program `val` that reads the
-            # real: a fresh int per evaluation, no law, no axiom (ledger stays 3).
+            # run #9 u76 (rt84 F1, INTRODUCED FALSE PROOF repaired): the u74 carrier was the
+            # erased `HInt (real_hcarrier_op x)`, but the `==` arms are NOT erasure-neutral:
+            # `hval_eq_float_lit` (`match .. with HFloat f -> hreal_eq f c | _ -> false`) and
+            # `hval_eq (HInt _) (HFloat c)` answer FALSE for every HInt when `c` is
+            # non-integral, so `{"a": r.x}` then `d.get("a") != 1.5` PROVED with r.x = 1.5
+            # (CPython: equal). The value is now the FAITHFUL tag of what the slot can hold:
+            # a Python float `HFloat x`, or -- only when `x` is integral -- a Python int
+            # `HInt i` with `from_int i = x` (the numeric tower), chosen by `any bool`
+            # (definitional, no `val` law, no axiom: ledger stays 3). Every arm that decides
+            # a tag (hval_eq, the literal unfoldings, hval_truthy, isinstance, `or`, canon,
+            # hashable) then agrees with CPython on either branch, and `isinstance(.., float)`
+            # stays undecided for an integral value (HInt is opaque there) as for a float
+            # param. Program context only (a spec has no `any`: falls through, fail-closed).
             if (t in ("Attribute", "FieldGet") and not self._in_spec
                     and self._field_type_of(v_ir) == "float"):
-                self._add_abstract_op("val real_hcarrier_op (x: real) : int")
-                return f"(HInt (real_hcarrier_op {self._expr_to_whyml(v_ir, local_refs)}))"
+                return (f"(let _u76f = {self._expr_to_whyml(v_ir, local_refs)} in "
+                        f"if any bool then HFloat _u76f else "
+                        f"(match hreal_int_of _u76f with Some _u76i -> HInt _u76i "
+                        f"| None -> HFloat _u76f end))")
             # run #9 u74 (b): a list comprehension `[[a, b, c] for (a, b, c) in <r>.<f>]` (or
             # `[a for (a, ..) in ..]`, a tuple element, any order) over a record FIELD typed
             # `seq (t1, .., tn)` (Module5's tuple-element field, slots `string` / `int` /
