@@ -1,0 +1,25 @@
+[*] trusted-reasons histogram over 337 live marker(s):
+      correctness       1
+      cost-scale      124
+      spent-rc0         0
+      unclassified    212
+        correctness:ast-rewrite-not-reproducible    1
+        cost-scale:array-local-reassign             1
+        cost-scale:codepoint-str-model              1
+        cost-scale:context-manager-model            6
+        cost-scale:dict-param-get-receiver          1
+        cost-scale:emit-ir-item-store-model         1
+        cost-scale:erasure-ledger                   1
+        cost-scale:exception-payload-model          1
+        cost-scale:family-b-list-boundary           2
+        cost-scale:generator-sequence-model         2
+        cost-scale:heterogeneous-list-model         3
+        cost-scale:in-place-mutator                25
+        cost-scale:int-erasure-seam                63
+        cost-scale:name-rebinding-model             5
+        cost-scale:nested-closure-lift             11
+        cost-scale:stmt-handler-dispatch            1
+[*] trusted-reasons: 337 live marker(s) in 53 mirror file(s) · 337 row(s) · missing 0 · orphan 0 · duplicate 0
+[*] trusted-reasons: 25 `#@ declared_in` stub(s) OUT of this ledger (a distinct class: certified cross-mixin declarations, bin/check-declaration-conformance.py)
+[+] trusted-reasons: unclassified 212 < ratchet 225 — lower MAX_UNCLASSIFIED.
+[+] trusted-reasons: OK — 337 marker(s) <-> 337 row(s), both directions; unclassified 212 (ratchet 225)

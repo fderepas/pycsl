@@ -1,0 +1,53 @@
+#### v2d
+== /usr/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2d/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2d/X2
+P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2d/P/zpa74_alt/b.py
+result 2
+== /home/fabrice/git/pycsl/.venv/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2d/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2d/X2
+P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2d/P/zpa74_alt/b.py
+result 2
+#### w5
+== /usr/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/w5/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/w5/X2
+P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/w5/P/zpa74_alt/b.py
+result 2
+== /home/fabrice/git/pycsl/.venv/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/w5/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/w5/X2
+P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/w5/P/zpa74_alt/b.py
+result 2
+#### v2
+== /usr/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2/X
+P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2/P/zpa74_alt/b.py
+result 2
+== /home/fabrice/git/pycsl/.venv/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2/X
+P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2/P/zpa74_alt/b.py
+result 2
+#### x1
+== /usr/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x1/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x1/X
+P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x1/P/zpa74_alt/b.py
+result 2
+== /home/fabrice/git/pycsl/.venv/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x1/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x1/X
+P/zpa74_alt/b.py loaded: /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x1/P/zpa74_alt/b.py
+result 2
+#### x2
+== /usr/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x2/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x2/X
+Traceback (most recent call last):
+  File "/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x2/P/prog.py", line 1, in <module>
+    from zpb74.b import one
+ModuleNotFoundError: No module named 'zpb74.b'
+== /home/fabrice/git/pycsl/.venv/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x2/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x2/X
+Traceback (most recent call last):
+  File "/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x2/P/prog.py", line 1, in <module>
+    from zpb74.b import one
+ModuleNotFoundError: No module named 'zpb74.b'
+#### x3
+== /usr/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x3/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x3/X2
+result 1
+== /home/fabrice/git/pycsl/.venv/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x3/P/prog.py PYTHONPATH=/home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x3/X2
+result 1
+#### v1f
+== /usr/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v1f/P/prog.py 
+result 2
+== /home/fabrice/git/pycsl/.venv/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v1f/P/prog.py 
+result 2
+#### v2down
+== /usr/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2d/X2/depv2.py 
+== /home/fabrice/git/pycsl/.venv/bin/python3 /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2d/X2/depv2.py 
+v2down loads /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2d/X2/zpa74/b.py 1

@@ -1,0 +1,42 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u67/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/sertop.py'...
+[*] Memory model: hoare
+[*] Import 'shutil.which': external module, no local source found — skipping
+[*] --fun filter: verifying ['run_sertop_batch', 'sertopsession__type_of_batch'], trusting ['_extract_stmid', '_process_sertop_line', '_sexp_parse', '_sexp_tokens', 'extract_via_sertop', 'parse_sexp', 'sertop_available', 'sertop_version', 'sertopsession____enter__', 'sertopsession____exit__']
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 32, characters 22-35: unused variable added_payload
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 34, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 38, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 42, characters 20-21: unused variable s
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 44, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 46, characters 18-19: unused variable s
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 48, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 51, characters 28-32: unused variable line
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 51, characters 43-58: unused variable payloads_by_tag
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 53, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 55, characters 26-36: unused variable proof_file
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 55, characters 47-56: unused variable qualnames
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 57, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 59, characters 24-34: unused variable load_paths
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 59, characters 48-51: unused variable cwd
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 59, characters 62-76: unused variable require_module
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 59, characters 87-96: unused variable qualnames
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 59, characters 113-122: unused variable timeout_s
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 59, characters 131-145: unused variable require_prefix
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 61, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 65, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 69, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 71, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 73, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 75, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 75, characters 53-61: unused variable exc_type
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 75, characters 69-76: unused variable exc_val
+Warning, file "/tmp/.pycsl__yaam3ml.mlw", line 75, characters 84-90: unused variable exc_tb
+File "/tmp/.pycsl__yaam3ml.mlw", line 88, characters 18-26:
+This expression has type ref int @rho, it cannot be applied
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

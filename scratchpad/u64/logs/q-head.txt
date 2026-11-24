@@ -1,0 +1,8 @@
+P__prog rc=1 no-code :: [imports] /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2d/P/prog.py: the local module scratchpad/u64/probes/v2d/X2/depv2.py, which the program reaches, imports `zpa74` absolutely: resolved from its own directory (h
+P__prog rc=1 no-code :: [imports] /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/w5/P/prog.py: the local module scratchpad/u64/probes/w5/X2/depv2.py, which the program reaches, imports `zpa74` absolutely: resolved from its own directory (how
+P__prog rc=1 no-code :: [imports] /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/v2/P/prog.py: the local module scratchpad/u64/probes/v2/P/prog.py, which the program reaches, imports `zpa74.b`: through the program's sys.path its package pref
+P__prog rc=1 no-code :: [imports] /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x1/P/prog.py: the local module scratchpad/u64/probes/x1/P/depx1.py, which the program reaches, imports `zpa74.b`: through the program's sys.path its package pre
+P__prog rc=1 no-code :: [imports] /home/fabrice/git/pycsl-u64/scratchpad/u64/probes/x2/P/prog.py: the local module scratchpad/u64/probes/x2/P/prog.py, which the program reaches, imports `zpb74.b`: through the program's sys.path its package pref
+P__prog rc=0 no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+X2__depv2 rc=0 no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+P__prog rc=0 no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

@@ -1,0 +1,29 @@
+r1 rc=1 69s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the package __init__ scratchpad/u66/probes/rt76/r1/P/zr76/__init__.py, which the program reaches, has at impor :: [!] PIPELINE ERROR:
+r2 rc=1 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the package __init__ scratchpad/u66/probes/rt76/r2/P/zr76/__init__.py, which the program reaches, has at impor :: [!] PIPELINE ERROR:
+r5 rc=0 7s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+r5b rc=0 5s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+r4 rc=1 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: `import lark.zr76`: pycsl's resolution took scratchpad/u66/probes/rt76/r4/P/lark/zr76.py through the directory :: [!] PIPELINE ERROR:
+r3 rc=1 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the package __init__ scratchpad/u66/probes/rt76/r3/X2/zr76/__init__.py, which the program reaches, has at impo :: [!] PIPELINE ERROR:
+r9 rc=1 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the package __init__ scratchpad/u66/probes/rt76/r9/X2/pkr76/__init__.py, which the program reaches, has at imp :: [!] PIPELINE ERROR:
+r6 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r6/C :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+r6-treecwd rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+r2s rc=1 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the package __init__ scratchpad/u66/probes/rt76/r2s/P/zr76/__init__.py, which the program reaches, has at impo :: [!] PIPELINE ERROR:
+r7 rc=1 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: [ir-semantic]: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r7/P/zr76/__init__.py (line 3) runs, at  :: [!] PIPELINE ERROR:
+r8 rc=1 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: [ir-semantic]: /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/rt76/r8/P/zpa76/__init__.py (line 2) runs, at :: [!] PIPELINE ERROR:
+r2d rc=1 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the package __init__ scratchpad/u66/probes/rt76/r2d/X2/zr76/__init__.py, which the program reaches, has at imp :: [!] PIPELINE ERROR:
+r2r rc=1 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the package __init__ scratchpad/u66/probes/rt76/r2r/X2/pkr76/__init__.py, which the program reaches, has at im :: [!] PIPELINE ERROR:
+r14 rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+r12 rc=0 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+r2d-dep rc=1 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the package __init__ scratchpad/u66/probes/rt76/r2d/X2/zr76/__init__.py, which the program reaches, has at imp :: [!] PIPELINE ERROR:
+r2r-dep rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+r15 rc=1 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: `import zn76.b`: pycsl's resolution took scratchpad/u66/probes/rt76/r15/P/zn76/b.py through the directory scra :: [!] PIPELINE ERROR:
+r16 rc=1 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the local module scratchpad/u66/probes/rt76/r16/X2/depr76.py, which the program reaches, imports `zn76.b` abso :: [!] PIPELINE ERROR:
+r17 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+v2d rc=1 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the local module scratchpad/u66/probes/u64/v2d/X2/depv2.py, which the program reaches, imports `zpa74` absolut :: [!] PIPELINE ERROR:
+w5 rc=1 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the local module scratchpad/u66/probes/u64/w5/X2/depv2.py, which the program reaches, imports `zpa74` absolute :: [!] PIPELINE ERROR:
+v2 rc=1 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the local module scratchpad/u66/probes/u64/v2/P/prog.py, which the program reaches, imports `zpa74.b`: through :: [!] PIPELINE ERROR:
+x1 rc=1 4s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the local module scratchpad/u66/probes/u64/x1/P/depx1.py, which the program reaches, imports `zpa74.b`: throug :: [!] PIPELINE ERROR:
+x2 rc=1 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: the local module scratchpad/u66/probes/u64/x2/P/prog.py, which the program reaches, imports `zpb74.b`: through :: [!] PIPELINE ERROR:
+x3 rc=0 2s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+v2down rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+v1f rc=0 3s oom 15->15 cwd=/home/fabrice/git/pycsl-u66 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

@@ -1,0 +1,7 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u67/scratchpad/u67/st/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/struct_format.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'parse_format' line 98: the construction `StructFormat(raw=fmt, prefix=prefix, slots=tuple(slots), chars=tuple(chars))` got an unexpected keyword argument 'chars' — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succeeding (route #369). Call the constructor with exactly its parameters (for a `@dataclass`: its fields in declaration order, `InitVar`s included, `ClassVar` / `init=False` members excluded, keyword-only fields by keyword).
+rc=1

@@ -1127,6 +1127,27 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # model assumption (CLASS-EXACT, listed by `--soundness-report`).
     if not getattr(args, "assume_class_exact", False):
         args.check_behavioral_subtyping = True
+    # (#49) run #9 u71 -- review rt79 z1 (route #627, PRE-EXISTING since `--import-path`).
+    # pycsl only ever probes an `--import-path` entry as a DIRECTORY (`<entry>/<name>.py`,
+    # `<entry>/<name>/__init__.py`), so a ZIP archive on it is silently skipped, while CPython's
+    # zipimport loads modules from that sys.path entry in order (measured: --import-path
+    # X/lib.zip then Y; lib.zip's zhz79.py returns 2, Y/zhz79.py `ensures \result == 1`; pycsl
+    # PROVED `g() == 1` from Y, CPython with PYTHONPATH=X/lib.zip:Y loaded the zip's module and
+    # printed 2). RULE (refusal-only, fail-closed): every `--import-path` entry must be an
+    # existing directory; any other entry (a zip or other file, a missing path) REFUSES,
+    # since pycsl cannot read what CPython may import from it.
+    for _ip627 in (getattr(args, "import_path", None) or []):
+        if not os.path.isdir(str(_ip627)):
+            from errors import PyCSLSemanticError as _PyCSLSemErr627
+            raise _PyCSLSemErr627(
+                f"the `--import-path` entry {_ip627} is not an existing directory: pycsl "
+                f"resolves imports only from directory roots, while CPython's sys.path also "
+                f"imports from a zip archive (zipimport), so the module pycsl reads from a "
+                f"later root may not be the one the program runs (review rt79 z1: --import-path "
+                f"X/lib.zip then Y; pycsl PROVED Y's `\\result == 1`, CPython ran the zip's "
+                f"module and printed 2). FIX: extract the archive into a directory and pass "
+                f"that directory, or drop the entry.",
+                stage="imports", code="PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY")
 
     # [Modules 1-3] Ingest, Parse, and Weave
     ingestor = Module1_Ingestor(source_code)
@@ -2119,11 +2140,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                       and isinstance(_c510.name, _sa510.Name))
                     elif isinstance(_s510, _sa510.ImportFrom) and (_s510.module or _s510.level):
                         _mm510 = _s510.module or ""
+                        # (#49) run #9 u69 -- review rt78 s7: in the program's run a
+                        # dependency's ABSOLUTE import resolves from the PROGRAM's sys.path
+                        # (its first root), as CPython loads it; only a relative one is
+                        # anchored at the dependency (a symlinked dependency's own first root
+                        # raised CWD-ROOT here while the program's run was faithful).
                         for _al510 in _s510.names:
                             _sb510 = None if _al510.name == "*" else _rmp510(
                                 f"{_mm510}.{_al510.name}" if _mm510 else _al510.name,
-                                _s510.level or 0, _pp510)
-                            _qq510 = _rmp510(_mm510, _s510.level or 0, _pp510) if _mm510 else None
+                                _s510.level or 0, _pp510 if _s510.level else str(args.file))
+                            _qq510 = _rmp510(_mm510, _s510.level or 0, _pp510 if _s510.level
+                                             else str(args.file)) if _mm510 else None
                             if _al510.name == "*" and _qq510:
                                 _dinf510[_pp510][2].append(_qq510)
                                 _dq510.append(_qq510)
@@ -39578,16 +39605,78 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 # every package on a dotted path runs its `__init__` first
                 _mq483 = _mq483 + [(".".join(_mn.split(".")[:_i]), _lv)
                                    for _mn, _lv in _mq483 for _i in range(1, _mn.count(".") + 1)]
-                for _mn483, _lv483 in _mq483:
+                # (#49) run #9 u69 -- review of rt78 s1 (u66 INTRODUCED, measured s8): CPython
+                # resolves a dependency's ABSOLUTE import from the PROGRAM's first root; the
+                # dependency-anchored resolution alone (a symlinked dependency's own first root is
+                # its realpath directory) missed the program-directory module CPython runs, and
+                # that module's import-time writer went unjudged. Both are followed (union).
+                _mq483 = [(_mn, _lv, _f483) for _mn, _lv in _mq483] + [
+                    (_mn, 0, _mf483) for _mn, _lv in _mq483 if not _lv and _f483 != _mf483]
+                for _mn483, _lv483, _an483 in _mq483:
                     if _lv483 == 0 and (not _mn483 or _mn483.split(".")[0] in _std483):
                         continue
                     try:
-                        _rp483 = _rmp483(_mn483, _lv483, _f483)
+                        _rp483 = _rmp483(_mn483, _lv483, _an483)
                     except Exception:
                         _rp483 = None
                     if not _rp483:
                         continue    # an installed library (or nothing): not program code
                     _rp483 = _o483.path.abspath(_rp483)
+                    # (#49) run #9 u71 -- review rt79 w2 (route #626, PRE-EXISTING): a wildcard
+                    # import of a package LOADS every `__all__` name the package does not bind
+                    # yet (CPython's `_handle_fromlist`), so those submodules' import-time code
+                    # runs; the closure dropped the `*` (measured: `from zv7w2 import *` with
+                    # `__all__ = ["b"]` ran b.py's `hw792.one = _two`, CPython 5, pycsl PROVED
+                    # 4). It is followed as `from pkg import <each __all__ name>`; an `__all__`
+                    # that is not one top-level literal list / tuple of identifier strings with
+                    # no other mention of the name REFUSES (no `__all__` at all loads nothing).
+                    if (isinstance(_z483, _a483.ImportFrom) and _mn483 == (_z483.module or "")
+                            and _lv483 == (_z483.level or 0)
+                            and any(_al.name == "*" for _al in _z483.names)
+                            and _o483.path.basename(_rp483) == "__init__.py"):
+                        try:
+                            _ti483 = _a483.parse(open(_rp483, "rb").read())
+                        except Exception:
+                            _ti483 = None
+                        _nl483 = None
+                        if _ti483 is not None:
+                            _cn483 = 0
+                            _ok483 = True
+                            for _y483 in _a483.walk(_ti483):
+                                if isinstance(_y483, _a483.Name) and _y483.id == "__all__":
+                                    _cn483 += 1
+                                elif any(getattr(_y483, _k483, None) == "__all__" for _k483 in (
+                                        "attr", "value", "name", "asname", "arg", "rest")) or (
+                                        isinstance(_y483, (_a483.Global, _a483.Nonlocal))
+                                        and "__all__" in _y483.names):
+                                    _ok483 = False
+                            _as483 = [_y for _y in _ti483.body
+                                      if (isinstance(_y, _a483.Assign) and len(_y.targets) == 1
+                                          and isinstance(_y.targets[0], _a483.Name)
+                                          and _y.targets[0].id == "__all__")
+                                      or (isinstance(_y, _a483.AnnAssign)
+                                          and _y.value is not None
+                                          and isinstance(_y.target, _a483.Name)
+                                          and _y.target.id == "__all__")]
+                            if _ok483 and _cn483 == 0:
+                                _nl483 = []
+                            elif (_ok483 and _cn483 == 1 and len(_as483) == 1
+                                  and isinstance(_as483[0].value, (_a483.List, _a483.Tuple))
+                                  and all(isinstance(_y, _a483.Constant)
+                                          and isinstance(_y.value, str)
+                                          and _y.value.isidentifier()
+                                          for _y in _as483[0].value.elts)):
+                                _nl483 = [_y.value for _y in _as483[0].value.elts]
+                        if _nl483 is None:
+                            _rf483 = (f"{_f483} (line {_z483.lineno}) has a wildcard import of "
+                                      f"{_rp483}, whose `__all__` is not one literal list / tuple "
+                                      f"of identifier strings, so the submodules it loads (and "
+                                      f"their import-time code) are unknown")
+                            break
+                        for _y483 in _nl483:
+                            _e483 = (((_mn483 + ".") if _mn483 else "") + _y483, _lv483, _an483)
+                            if _e483 not in _mq483:
+                                _mq483.append(_e483)
                     if _rp483 == _mf483:
                         if _f483 != _mf483:
                             _rf483 = (f"{_f483} (line {_z483.lineno}) imports the claimed file "

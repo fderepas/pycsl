@@ -1,0 +1,288 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u67/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/sertop.py'...
+[*] Memory model: hoare
+[*] Import 'shutil.which': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 95, characters 15-19:
+Sub-goal postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 866 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 95, characters 15-19:
+Sub-goal postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 873 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 95, characters 15-19:
+Sub-goal postcondition of goal _extract_stmid'vc.
+Prover result is: Valid (0.00s, 877 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 133, characters 18-27:
+Sub-goal loop invariant init of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 1161 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 136, characters 33-67:
+Sub-goal assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 9318 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 137, characters 41-75:
+Sub-goal assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 940 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 134, characters 16-25:
+Sub-goal loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 10963 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 133, characters 18-27:
+Sub-goal loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 10779 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 134, characters 16-25:
+Sub-goal loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 21257 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 133, characters 18-27:
+Sub-goal loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 21085 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 134, characters 16-25:
+Sub-goal loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 21266 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 133, characters 18-27:
+Sub-goal loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 21094 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 154, characters 22-31:
+Sub-goal loop invariant init of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 12179 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 153, characters 63-97:
+Sub-goal assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 43844 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 157, characters 39-73:
+Sub-goal assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 11687 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 155, characters 20-29:
+Sub-goal loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 63048 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 154, characters 22-31:
+Sub-goal loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 62806 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 155, characters 20-29:
+Sub-goal loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 63397 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 154, characters 22-31:
+Sub-goal loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 63155 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 134, characters 16-25:
+Sub-goal loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 67107 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 133, characters 18-27:
+Sub-goal loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 65237 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 170, characters 20-30:
+Sub-goal loop invariant init of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 11086 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 169, characters 77-111:
+Sub-goal assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 40279 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 169, characters 203-237:
+Sub-goal assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 6536 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 169, characters 326-360:
+Sub-goal assertion of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 6719 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 171, characters 18-27:
+Sub-goal loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 52016 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 170, characters 20-30:
+Sub-goal loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.01s, 51802 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 134, characters 16-25:
+Sub-goal loop variant decrease of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 63701 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 133, characters 18-27:
+Sub-goal loop invariant preservation of goal _sexp_tokens'vc.
+Prover result is: Valid (0.02s, 57235 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 123, characters 15-19:
+Sub-goal postcondition of goal _sexp_tokens'vc.
+Prover result is: Valid (0.00s, 1301 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 185, characters 33-49:
+Sub-goal precondition of goal parse_sexp'vc.
+Prover result is: Valid (0.00s, 799 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 186, characters 4-25:
+Sub-goal precondition of goal parse_sexp'vc.
+Prover result is: Valid (0.00s, 1163 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 182, characters 15-19:
+Sub-goal postcondition of goal parse_sexp'vc.
+Prover result is: Valid (0.00s, 1163 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 190, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1090 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 201, characters 16-33:
+Sub-goal precondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1107 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 190, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1174 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 190, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1181 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 190, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1194 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 190, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1564 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 190, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1315 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 190, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1107 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 244, characters 15-19:
+Sub-goal postcondition of goal sertop_available'vc.
+Prover result is: Valid (0.00s, 799 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 254, characters 15-19:
+Sub-goal postcondition of goal sertopsession____enter__'vc.
+Prover result is: Valid (0.00s, 1043 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 255, characters 15-38:
+Sub-goal postcondition of goal sertopsession____enter__'vc.
+Prover result is: Valid (0.00s, 1044 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 256, characters 15-52:
+Sub-goal postcondition of goal sertopsession____enter__'vc.
+Prover result is: Valid (0.00s, 1045 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 257, characters 15-40:
+Sub-goal postcondition of goal sertopsession____enter__'vc.
+Prover result is: Valid (0.00s, 1046 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 258, characters 15-38:
+Sub-goal postcondition of goal sertopsession____enter__'vc.
+Prover result is: Valid (0.00s, 1047 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 264, characters 15-19:
+Sub-goal postcondition of goal sertopsession____exit__'vc.
+Prover result is: Valid (0.00s, 1043 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 265, characters 15-38:
+Sub-goal postcondition of goal sertopsession____exit__'vc.
+Prover result is: Valid (0.00s, 1044 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 266, characters 15-52:
+Sub-goal postcondition of goal sertopsession____exit__'vc.
+Prover result is: Valid (0.00s, 1045 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 267, characters 15-40:
+Sub-goal postcondition of goal sertopsession____exit__'vc.
+Prover result is: Valid (0.00s, 1046 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 268, characters 15-38:
+Sub-goal postcondition of goal sertopsession____exit__'vc.
+Prover result is: Valid (0.00s, 1047 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 282, characters 4-84:
+Sub-goal precondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1056 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 274, characters 15-19:
+Sub-goal postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1069 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 276, characters 15-38:
+Sub-goal postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1070 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 277, characters 15-52:
+Sub-goal postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1071 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 278, characters 15-40:
+Sub-goal postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1072 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 279, characters 15-38:
+Sub-goal postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1073 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 282, characters 4-84:
+Sub-goal precondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.01s, 1052 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 274, characters 15-19:
+Sub-goal postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1065 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 276, characters 15-38:
+Sub-goal postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1066 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 277, characters 15-52:
+Sub-goal postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1067 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 278, characters 15-40:
+Sub-goal postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1068 steps).
+
+File "src/self-annotate/src/proof2why3/sertop.mlw", line 279, characters 15-38:
+Sub-goal postcondition of goal sertopsession__type_of_batch'vc.
+Prover result is: Valid (0.00s, 1069 steps).
+
+Warnings/Errors from Why3:
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 95, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 117, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 123, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 182, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 190, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 234, characters 26-36: unused variable proof_file
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 234, characters 47-56: unused variable qualnames
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 236, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 238, characters 24-34: unused variable load_paths
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 238, characters 48-51: unused variable cwd
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 238, characters 62-76: unused variable require_module
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 238, characters 87-96: unused variable qualnames
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 238, characters 113-122: unused variable timeout_s
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 238, characters 131-145: unused variable require_prefix
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 240, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 244, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 250, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 254, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 262, characters 53-61: unused variable exc_type
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 262, characters 69-76: unused variable exc_val
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 262, characters 84-90: unused variable exc_tb
+Warning, file "src/self-annotate/src/proof2why3/sertop.mlw", line 274, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

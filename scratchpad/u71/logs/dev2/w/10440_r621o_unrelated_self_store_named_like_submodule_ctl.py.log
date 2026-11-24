@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10440_r621o_unrelated_self_store_named_like_submodule_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'zp40.k': ['three'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

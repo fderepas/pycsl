@@ -9227,6 +9227,15 @@ class PreambleEmissionMixin:
                                 ftype = "option term"
                             else:
                                 ftype = "option int"
+                        elif _ov == "path_str":
+                            # u67 (run #9): an allow-listed `Optional[Path]` field (Module5
+                            # `_M5_OPTION_FIELD_ALLOWLIST`, value_type "path_str") is the
+                            # faithful `option string`: None, or the Path's string form (the
+                            # #31 Path model of a `Path` parameter). Read by the option match
+                            # of `self.f or <path>` (expressions `_handle_binop`); any other
+                            # use of the option is a Why3 type error (fail closed). Only the
+                            # allow-list produces the tag -> corpus byte-inert.
+                            ftype = "option string"
                         elif (_ov in ("string", "emit_ir")
                                 and (getattr(self, "_mutable_state_classes", None)
                                      or getattr(self, "_uses_ir_node_param", False))):

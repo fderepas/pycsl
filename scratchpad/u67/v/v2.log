@@ -1,0 +1,8 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u67/scratchpad/u67/st/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/sertop.py'...
+[*] Memory model: hoare
+[*] Import 'shutil.which': external module, no local source found — skipping
+
+[!] PIPELINE ERROR:
+[ir-semantic] src/self-annotate/src/proof2why3/sertop.py: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'sertopsession__type_of_batch', the value 'cwd' comes from 'field 'SertopSession.cwd'', a non-int field PyCSL has no model of: it is lowered to an OPAQUE INT whatever its Python type (a float, a string, a module...), and it is used here as an integer (`run_sertop_batch self . load_paths !cwd require_module qualnames 60.0 pycsl_none`), where every claim true of all integers (`x % 1 == 0`, `x * 0 == 0`, `x < e or x >= e + 1 or x == e`) would be proved of it. Refused (fail closed). Give it a modelled form: an `int` literal / int expression, or pass it in as a typed parameter with an explicit `requires`.
+rc=1

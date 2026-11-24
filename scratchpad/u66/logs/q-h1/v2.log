@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2/P/prog.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u66/scratchpad/u66/probes/u64/v2/P/prog.py: the local module scratchpad/u66/probes/u64/v2/P/prog.py, which the program reaches, imports `zpa74.b`: through the program's sys.path its package prefix `zpa74` is scratchpad/u66/probes/u64/v2/P/zpa74/__init__.py, and CPython stops at the first root that holds a regular package (or module) for a prefix, searching `zpa74.b` only in that package's `__path__` -- which its `__init__` may redirect -- while pycsl read scratchpad/u66/probes/u64/v2/X/zpa74/b.py, outside it, so the file pycsl verified against is not the one CPython runs (review rt74 V2D: P/zpa74/__init__.py redirecting `__path__`, an --import-path X2/zpa74/b.py; pycsl PROVED `\result == 1`, CPython ran P/zpa74_alt/b.py and printed 2). FIX: rename the package (or the module) so that one root holds the whole dotted path.
