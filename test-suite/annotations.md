@@ -1547,7 +1547,23 @@ module, make the wildcard's `__all__` unknown (`PYCSL-SEM-IMPORT-WILDCARD-ALL-UN
 #483 in the import-time closure, which now applies the outside-mention rule too) (u73, route #632,
 review rt81 x3 / x4 / x1b). `unittest` (`mock.patch("pkg.b", K)` sets a module attribute by its dotted
 name), `mock`, `pydoc`, `logging.config`, `pickle`, `_pickle` and `shelve` join route #326's dynamic-import
-list (u73, route #633, review rt81 p4). Relative imports stay package-relative; the
+list (u73, route #633, review rt81 p4). The class-base / annotation escape counts only a name that can
+be a MODULE object (bound by `import X`, by a from-import of a submodule / an unresolvable or installed
+module / a name the source module binds by an import or not at all): a class or function a local module
+binds only by `def` / `class`, a typing alias such as `List[int]` (read from the interpreter's own
+module) or a local constant count only once a reflective escape exists (u75, review rt83 o4 / o5). The
+hook scan binds a def / Name store in its own scope (a class-body `__getattr__ = f` or a function local is
+no module hook) and reads `hasattr(x, "__getattr__")` / `getattr(x, "__getattr__")` as a read unless a
+reached module mentions `builtins` (u75, review rt83 o6 / o7). `timeit`, `code`, `codeop`, `cProfile`,
+`profile`, `pdb`, `bdb`, `trace`, `doctest` and `test` (the standard library's, not a local module of
+that name) join route #326's list, and any reached module other than the program importing a module of
+that list is REFUSED (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`; u75, route #635, review rt83 s2 / s3: a
+string run by `timeit.timeit` replaced a submodule, CPython printed 2 where pycsl PROVED 1). An
+import-bound module object, or a submodule / function / class of a local module, used as a VALUE (a call
+argument to any callee, an assigned / returned / stored / iterated value, an operand; only an identity
+test, and for a module object a truth test / unary operand / f-string field, is exempt) is REFUSED (`PYCSL-SEM-IMPORT-MODULE-VALUE`; u75, route #636, review rt83 u1 / v2 / t1:
+`functools.update_wrapper(pkg, _Src, assigned=("b",))` sets `pkg.b` inside the standard library).
+Relative imports stay package-relative; the
 check is skipped under the declared `--verification-image`, which makes no CPython-run
 claim): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or

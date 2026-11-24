@@ -6311,7 +6311,15 @@ when the package `__init__` has a module-level `__getattr__` / `__dir__` / `__mr
 reached import alias names or binds `__all__`, in the walk and in routes #483 / #484 (u73, route #632,
 rt81 x3 / x4). Importing `unittest`, `mock`, `pydoc`, `logging.config`, `pickle`, `_pickle` or `shelve`
 with a locally-resolved import has no image (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`; u73, route #633, rt81
-p4: `mock.patch("pkg.b", K)` sets a module attribute by name). $\rho$ is a function of the
+p4: `mock.patch("pkg.b", K)` sets a module attribute by name). The class-base / annotation escape counts a
+name only when it can denote a module object (u75, rt83 o4 / o5); a class- or function-scope hook binding
+and a `hasattr` / `getattr` read of the hook name are no module hook (u75, rt83 o6 / o7). Importing
+`timeit`, `code`, `codeop`, `cProfile`, `profile`, `pdb`, `bdb`, `trace`, `doctest` or `test` with a
+locally-resolved import, or any module of route #326's list from a reached module other than $P$, has no
+image (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`; u75, route #635, rt83 s2: a string run by `timeit` rebinds a
+submodule). A module object, or a submodule / function / class of a local module, used as a value has no
+image (`PYCSL-SEM-IMPORT-MODULE-VALUE`; u75, route #636, rt83 u1: library code sets its attributes where
+$\rho$ sees no store). $\rho$ is a function of the
 source tree only, so a program that can change CPython's binding has no image
 (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
 path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a

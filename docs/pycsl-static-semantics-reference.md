@@ -3205,7 +3205,15 @@ has a module-level `__getattr__` / `__dir__` / `__mro_entries__` hook, or a reac
 or binding `__all__`, makes `__all__` unknown, in the walk and in route #483's closure (u73, route #632,
 rt81 x3 / x4 / x1b); route #326's dynamic-import list gains `unittest`, `mock`, `pydoc`,
 `logging.config`, `pickle`, `_pickle`, `shelve` (u73, route #633, rt81 p4: string-resolved
-`mock.patch`). Under the declared `--verification-image
+`mock.patch`). The class-base / annotation escape is narrowed to names that can denote a module object;
+a local `def` / `class` binding, a typing alias and a local constant count only with a reflective escape
+(u75, rt83 o4 / o5); the hook scan binds a def / Name store in its own scope and reads the 2nd argument of
+a two-argument `hasattr` / `getattr` as a read unless a reached module mentions `builtins` (u75, rt83 o6
+/ o7); route #326's list gains `timeit`, `code`, `codeop`, `cProfile`, `profile`, `pdb`, `bdb`, `trace`,
+`doctest`, `test`, and a reached non-program module importing one of the list is refused
+(`PYCSL-SEM-IMPORT-STATE-MANIPULATED`; u75, route #635, rt83 s2 / s3); a module object (or a submodule /
+function / class of a local module) used as a value is refused (`PYCSL-SEM-IMPORT-MODULE-VALUE`; u75,
+route #636, rt83 u1 / v2 / t1). Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
 roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`
