@@ -5213,6 +5213,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and (((getattr(self, "_module_func_raises", {}) or {}).get(ir.get("func"))
                       or [{}])[0].get("ext") in ("Path.cwd", "json.dumps"))):
             return True
+        # u67 (run #9): `self.f or <str>` over an `Optional[Path]` field `f` (`option string`,
+        # value_type "path_str") lowers to the option match of `_handle_binop`, a `string`.
+        if (t == "BinOp" and ir.get("op") == "or" and isinstance(ir.get("left"), dict)
+                and ir["left"].get("type") == "FieldGet"
+                and (ir["left"].get("object") == "self"
+                     or ir["left"].get("object") == {"type": "Var", "name": "self"})
+                and isinstance(ir.get("right"), dict) and self._is_string_expr(ir["right"])):
+            _st67 = getattr(self, "_current_self_type", None)
+            for _rt67 in (getattr(self, "_record_types", None) or {}).values():
+                if (isinstance(_rt67, dict) and _st67
+                        and _rt67.get("whyml_name") == _st67
+                        and (_rt67.get("field_types") or {}).get(ir["left"].get("field"))
+                        == "option"
+                        and (_rt67.get("field_value_types") or {}).get(
+                            ir["left"].get("field")) == "path_str"):
+                    return True
         # lvZ2 (run #8): a modelled `Path(<str>)` is NOT a `string` any more (lvX's rule is
         # withdrawn): it is the abstract `py_path` (`_handle_call_expr`), so neither it nor a
         # local holding it is string-typed, and `p == str(p)` cannot become `str_eq_op p p`.
@@ -8200,6 +8216,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             right_b = self._to_bool(right, expr["right"])
             if self._in_spec:
                 return f"({left_b} {op} {right_b})"
+            # u67 (run #9) THE OPTIONAL-PATH FIELD `self.f or <path>` ARM. `f` is a record
+            # field declared `Optional[Path]` and modelled as `option string` (Module5's
+            # `_M5_OPTION_FIELD_ALLOWLIST` + value_type "path_str"; the Path is its string
+            # form, as for a `Path` parameter, #31). A `pathlib.Path` is ALWAYS truthy (no
+            # `__bool__` / `__len__`), so CPython's `self.f or y` is `self.f` when the field
+            # holds a Path and `y` when it is None: exactly the option match. The right
+            # operand is emitted unchanged, so a non-string `y` is a Why3 type error (fail
+            # closed). Exact IR shape only (`self.<f>` on the left, body context).
+            _l_ir67 = expr.get("left")
+            if (op == "||" and isinstance(_l_ir67, dict)
+                    and _l_ir67.get("type") == "FieldGet"
+                    and (_l_ir67.get("object") == "self"
+                         or _l_ir67.get("object") == {"type": "Var", "name": "self"})):
+                _st67 = getattr(self, "_current_self_type", None)
+                _f67 = _l_ir67.get("field")
+                for _rt67 in (getattr(self, "_record_types", None) or {}).values():
+                    if (isinstance(_rt67, dict) and _st67
+                            and _rt67.get("whyml_name") == _st67
+                            and (_rt67.get("field_types") or {}).get(_f67) == "option"
+                            and (_rt67.get("field_value_types") or {}).get(_f67)
+                            == "path_str"):
+                        return f"(match {left} with Some _p67 -> _p67 | None -> {right} end)"
             # ROUTE #35 (relaunch #45) — PYTHON'S `and`/`or` RETURN AN OPERAND, NOT A
             # BOOLEAN, and the comment that used to sit here ("In body context, Python's
             # and/or return int") was the mistake in one line. `x = 0 or 5` is 5 in
@@ -13468,7 +13506,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     dflt_ir = defaults[nm]
                     pwt = getattr(self, "_module_method_param_whyml_types", {}).get(
                         func_name, {}).get(nm, "int")
-                    if dflt_ir.get("type") == "None" and pwt.startswith("map "):
+                    # u67 (run #9): an omitted `Optional[τ] = None` parameter whose callee
+                    # declares it as the synthesized union `_union_*` (Module5 per-function
+                    # union, the type of the emitted `val` / `let` parameter) is filled with
+                    # that union's OWN nullary None arm: CPython binds `None`, which is
+                    # exactly that arm. The int `pycsl_none` it replaces is ill-typed against
+                    # the union (an L3-tc error, fail closed), so no type-checking program
+                    # changes. The callee's symbol table is read from this unit's IR.
+                    _un67 = None
+                    if dflt_ir.get("type") == "None" and pwt == "int":
+                        for _f67 in ((getattr(self, "ir", None) or {}).get("functions") or []):
+                            if isinstance(_f67, dict) and _f67.get("name") == func_name:
+                                _sy67 = (_f67.get("symbol_table") or {}).get(nm)
+                                if isinstance(_sy67, str) and _sy67.startswith("_union_"):
+                                    _un67 = self._union_ctors(_sy67)[0]
+                                break
+                    if _un67 is not None:
+                        filled = _un67
+                    elif dflt_ir.get("type") == "None" and pwt.startswith("map "):
                         # (#49) cap-none-default-map-param: the module-function twin of
                         # `_handle_dotted_call`'s fill — `None` is not the empty dict, so
                         # an omitted `Optional[Dict[..]]` default is the opaque

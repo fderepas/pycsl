@@ -1,0 +1,17 @@
+== fun start 2026-11-23T05:56:52Z oom_kill=15
+== fun end 2026-11-23T05:57:37Z rc=0 oom_kill=15 :: [+] Verification SUCCESS for sertopsession__type_of_batch ONLY (--fun): its own goals are proved, and the contract of every function it calls is ASSUMED, including any frame the emitter SYNTHESIZED from a missing `#@ assigns`. This is NOT a claim about the module — run without `--fun` for that (route #221). 
+== whole start 2026-11-23T05:57:37Z oom_kill=15
+== whole end 2026-11-23T06:03:35Z rc=0 oom_kill=15 :: [+] Verification SUCCESS! All contracts formally proven. 
+== leaf start 2026-11-23T06:03:35Z oom_kill=15
+== leaf end 2026-11-23T06:04:38Z rc=1 oom_kill=15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. 
+== mut_frame start 2026-11-23T06:04:38Z oom_kill=15
+== mut_frame end 2026-11-23T06:06:39Z rc=1 oom_kill=15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. 
+== mut_type start 2026-11-23T06:06:39Z oom_kill=15
+== mut_type end 2026-11-23T06:06:41Z rc=1 oom_kill=15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. 
+== arm_some start 2026-11-23T06:06:41Z oom_kill=15
+== arm_some z3 end rc=2 oom_kill=15 :: 58 Valid / 1 non-Valid; sertopsession__type_of_batch non-Valid: 7
+== arm_some alt-ergo end rc=2 oom_kill=15 :: 58 Valid / 1 non-Valid; sertopsession__type_of_batch non-Valid: 7
+== arm_none start 2026-11-23T06:07:46Z oom_kill=15
+== arm_none z3 end rc=1 oom_kill=15 :: 0 Valid / 0 non-Valid; sertopsession__type_of_batch non-Valid: 0
+== arm_none alt-ergo end rc=1 oom_kill=15 :: 0 Valid / 0 non-Valid; sertopsession__type_of_batch non-Valid: 0
+== ALL DONE 2026-11-23T06:07:46Z

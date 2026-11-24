@@ -130,7 +130,14 @@ def census():
                 targets.append(os.path.join(root, fn))
     for path in targets:
         try:
-            r = subprocess.run([sys.executable, "-c", _DRIVER, ROOT, path],
+            # (#49) run #9 driver: the driver patches sys.argv in-process, so the DECLARED
+            # `--verification-image` must also be on THIS process's real command line: the
+            # resolver honours the mode only through a process whose /proc cmdline carries
+            # the flag (u58 pid-token rule). Without it every mirror file is judged as a
+            # CPython script (route #613 then rightly refuses e.g. module6_whyml/types.py
+            # shadowing stdlib `types`) and the census comes back empty.
+            r = subprocess.run([sys.executable, "-c", _DRIVER, ROOT, path,
+                                "--verification-image"],
                                capture_output=True, text=True, timeout=900,
                                env=env, cwd=ROOT)
         except subprocess.TimeoutExpired:

@@ -1,4 +1,6 @@
 #!/bin/bash
+# run #9 2026-11-23 22:35Z: /tmp (shared tmpfs) is over user 1000's quota: all temp files go to the repo volume
+export TMPDIR=/home/fabrice/git/pycsl/scratchpad/run9/tmp
 # battery.sh <name> <int-tree> <base-tree> [witness-dir ...]
 # Driver integration battery (run #7). Every heavy step through heavy.sh, sequential. Output in scratchpad/run9/<name>/.
 # Steps: A new corpus files full verdict vs header; B witnesses x 3 models (--no-proof); C corpus byte-diff root+pyref

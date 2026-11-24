@@ -3258,6 +3258,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ("IRCrossCheckResult", "rocq_canon"),
         ("IRCrossCheckResult", "lean_canon"),
         ("IRCrossCheckResult", "registry_canon"),
+        # u67 (run #9): the `Optional[Path]` session cwd (proof2why3/sertop.py) is a
+        # faithful `option string` (value_type "path_str": a Path is its string form, as a
+        # `Path` parameter is, #31), so `self.cwd or Path.cwd()` lowers to the option match.
+        ("SertopSession", "cwd"),
     })
 
     @staticmethod
@@ -3296,6 +3300,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return None  # Optional[List[..]]/Optional[Dict[..]]/etc — not a scalar
         if nm == "str":
             return "string"
+        if nm == "Path":
+            # u67 (run #9): `Optional[Path]` -> "path_str" (Module6: `option string`).
+            # Allow-listed fields only (above), so every other Optional[Path] is unchanged.
+            return "path_str"
         if nm in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
             return "emit_ir"
         if nm == "Term":

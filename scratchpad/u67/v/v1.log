@@ -1,0 +1,8 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u67/scratchpad/u67/st/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/sertop.py'...
+[*] Memory model: hoare
+[*] Import 'shutil.which': external module, no local source found — skipping
+
+[!] PIPELINE ERROR:
+[whyml] src/self-annotate/src/proof2why3/sertop.py: an `and` / `or` expression whose operand is not a bool or an int (a list, str, dict, set, float, Optional or object) is used as a VALUE. Python's `x or y` / `x and y` returns one of its OPERANDS (the list, the string, ...), not True / False; PyCSL models such an expression only as a truth test (an `if` / `while` / `assert` condition, `not`, a nested `and` / `or` in a condition), where its truth value is exact. Bound to a name, returned, passed, compared or used in arithmetic, the model would compute on 0 / 1 where CPython computes on the selected object (measured: `b = a or a; b *= 2` proved `len(a) == 2` while CPython extends `a` to 4 elements). Test the operand and use each one in its own branch instead: `if a: return len(a)` / `return len(c)` for `return len(a or c)`.
+rc=1

@@ -1,0 +1,7 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u67/scratchpad/u67/st/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/sertop.py'...
+[*] Memory model: hoare
+[*] Import 'shutil.which': external module, no local source found — skipping
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+rc=0
