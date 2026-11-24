@@ -2852,6 +2852,7 @@ dotted call takes the union over every method of that name. A `\trusted` callee 
 | Code | Condition | Witnesses |
 |------|-----------|-----------|
 | `PYCSL-METHOD-FRAME` | A verified method declares `#@ assigns` (including `\nothing` / only `self.<f>`) and $W$ contains a parameter the frame does not name. | `4070`, `4078` |
+| `PYCSL-FUNCTION-FRAME` | A module-level function declares `#@ assigns` and $W$ contains a parameter the frame does not name (route #634). Checked in the defining unit (its `let`) and in every importer (its `val`, where $W$ is measured on the imported body, not taken from the declaration). | `10520`-`10522` |
 | `PYCSL-METHOD-GLOBAL-WRITE` | A verified method may write a module-level object (directly or through a callee). | `4083` |
 | `PYCSL-OVERRIDE-FRAME` | An override writes a parameter position its overridden base method does not write (route #277 pairs). | `4082` |
 | `PYCSL-METHOD-ARG-UNFRAMED` | A call resolved exactly to a method that writes a parameter whose stub type is not an `array`. | `4084` |

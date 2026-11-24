@@ -1,0 +1,119 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 41, characters 80-97:
+Sub-goal variant decrease of goal pairs_set'vc.
+Prover result is: Valid (0.00s, 4242 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 47, characters 50-62:
+Sub-goal variant decrease of goal hpairs_len'vc.
+Prover result is: Valid (0.01s, 3568 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 50, characters 72-85:
+Sub-goal variant decrease of goal pairs_nodup'vc.
+Prover result is: Valid (0.00s, 3836 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 53, characters 66-83:
+Sub-goal variant decrease of goal pairs_keys_in'vc.
+Prover result is: Valid (0.00s, 3822 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 56, characters 64-79:
+Sub-goal variant decrease of goal hpairs_keys'vc.
+Prover result is: Valid (0.01s, 3568 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 78, characters 46-58:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3903 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 79, characters 42-54:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3907 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 80, characters 42-56:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.01s, 3871 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 81, characters 44-55:
+Sub-goal variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3883 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 87, characters 48-59:
+Sub-goal variant decrease of goal hlist_eq'vc.
+Prover result is: Valid (0.00s, 3611 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 87, characters 63-75:
+Sub-goal variant decrease of goal hlist_eq'vc.
+Prover result is: Valid (0.00s, 3611 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 93, characters 59-70:
+Sub-goal variant decrease of goal pairs_incl'vc.
+Prover result is: Valid (0.00s, 3256 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 94, characters 26-40:
+Sub-goal variant decrease of goal pairs_incl'vc.
+Prover result is: Valid (0.00s, 3249 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 101, characters 27-42:
+Sub-goal variant decrease of goal hval_canon'vc.
+Prover result is: Valid (0.00s, 3860 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 106, characters 68-83:
+Sub-goal variant decrease of goal hlist_canon'vc.
+Prover result is: Valid (0.00s, 3564 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 106, characters 53-67:
+Sub-goal variant decrease of goal hlist_canon'vc.
+Prover result is: Valid (0.00s, 3564 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 111, characters 20-36:
+Sub-goal variant decrease of goal hval_hashable'vc.
+Prover result is: Valid (0.00s, 3860 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 116, characters 47-62:
+Sub-goal variant decrease of goal hlist_hashable'vc.
+Prover result is: Valid (0.00s, 3564 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 116, characters 66-82:
+Sub-goal variant decrease of goal hlist_hashable'vc.
+Prover result is: Valid (0.01s, 3564 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 135, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 3564 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 140, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 3600 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 159, characters 63-83:
+Sub-goal variant decrease of goal hval_list_snoc'vc.
+Prover result is: Valid (0.00s, 3564 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 168, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.01s, 4418 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 0, characters 0-0:
+Sub-goal out of loop bounds of goal g'vc.
+Prover result is: Valid (0.00s, 1915 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 191, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(unknown)) (0.46s, 629402 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 191, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 1931 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k3.mlw", line 0, characters 0-0:
+Sub-goal out of loop bounds of goal g'vc.
+Prover result is: Valid (0.01s, 19226 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
+rc=1 args= oom0=[oom_kill 15] oom1=[oom_kill 15]
