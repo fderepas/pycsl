@@ -79,7 +79,8 @@ census rows and the 10463 control body (section 4). Compare: `tools/CMP.sh` (bin
 | pyref | 2185 / 2185; 0 MOVED, 0 GONE, 0 APPEARED | `logs/G/C1/C-pyref.txt` |
 | mirror | 53 / 53; 0 MOVED, 0 GONE, 0 APPEARED; `diff -rq` 0 lines | `logs/G/C1/C-mir.txt`, `logs/G/C1/D-mir.txt` |
 
-GONE list: EMPTY. MOVED list: EMPTY (no moved mirror file). Sweep logs: `logs/S-base.txt`, `logs/S-h1.txt`.
+GONE list: EMPTY. MOVED list: EMPTY (no moved mirror file). Re-measured on the FINAL code 6e897ac6a (snapshot
+`/home/fabrice/git/pycsl-u72-h3`, `logs/G/h3/`, compare `logs/G/C3/`): identical result (0 / 0 / 0, 31 new sources). Sweep logs: `logs/S-base.txt`, `logs/S-h1.txt`.
 oom_kill 15 -> 15 on both sweeps.
 
 Refusal-to-refusal message changes are invisible to byte-diff, so `tools/RM.sh` re-ran (`--no-proof`) the 184
@@ -95,28 +96,28 @@ row is regenerated (section 4). `logs/RM/{b0,h1}.tsv`, `logs/RM/diff.txt`.
 every file). Per-file logs: `logs/f1-{u70,h1}/`; summaries `logs/P3-f1.txt`; table built by `tools/table.py`;
 CPython: `logs/cpython-{rt80,rt77,u72,witnesses}.txt` (`python3 -B -E -s`, ulimit'd, cwd = probe dir).
 The first L20 (b0) pass is VOID (61 logs hit "Disk quota exceeded" on /tmp; kept as `logs/f1-b0-VOID-quota/`);
-its re-run with TMPDIR under the worktree (`logs/P3-f1-b0.txt`, `logs/f1-b0/`) was still QUEUED at hand-back
-(see section 6). For the L20 column, rt80 measured the same probes SUCCESS at daa36070b (its fp-base logs);
-L20 differs from daa36070b only by u65 / u68 (#619 / #620), which do not touch the resolvers.
+its re-run with TMPDIR under the worktree is `logs/P3-f1-b0.txt`, `logs/f1-b0/` (0 quota hits, oom 15 -> 15).
+Full table (CPython, L20, u70, head for all 152 files): `logs/probe-table.md`.
 
 Key rows (head = this branch):
 
-| probe | shape | CPython | u70 | head |
-|---|---|---|---|---|
-| g01 (O1) | star import then local def, true | 2 | REFUSED | SUCCESS |
-| p01 / p04 (O2 / O3) | lib-private `_h` vs program `_h`, true | 6 | REFUSED | SUCCESS |
-| p02 / p03 (O4 / O5) | two libs each with private `_h`, true | 3 | REFUSED | SUCCESS |
-| w19c / 10460-10461 | two libs' `helper`, true claim | 3 | REFUSED | SUCCESS |
-| a01 a04 a05 a06 a07 a09 (R1a-f) | re-export captured by another def, false | 1/3/3/1/1/2 | SUCCESS (false proof) | FAILED |
-| x02 / x08 (new) | direct / star re-export captured by another lib's `f` | 3 | SUCCESS (false proof) | FAILED |
-| x03 (new) | lib `abs` captured the program's builtin `abs` | 10 | SUCCESS (false proof) | FAILED |
-| d05 d06 d08 d09 (R2) | base tail reached from two modules | 21/1/1/21 | SUCCESS (false proof) | REFUSED BASE-CLASS-AMBIGUOUS |
-| x05 (new) | star-imported bare base vs module import | 1 | SUCCESS (false proof) | REFUSED |
-| d11 (R3a), w06 | program `def base__m` / `def c__m` | 1 | SUCCESS / SUCCESS | REFUSED NAME-CLASH |
-| e04 (R3b), x09 (new) | inlined method calls program helper | 1 | SUCCESS (false proof) | FAILED |
-| 10462 / 10464 | re-export / inlined-helper TRUE claims | assert ok | FAILED | SUCCESS |
-| w14 w14b f01 f03 f04 e02 w19 | u70's refusals, false claims | 1/1/3/3/1/2/3 | REFUSED | FAILED (faithful binding) |
-| x04 x07 j01 g03 w14c 10424-10427 | controls | | SUCCESS | SUCCESS |
+| probe | shape | CPython | L20 | u70 | head |
+|---|---|---|---|---|---|
+| g01 (O1) | star import then local def, true | 2 | SUCCESS | REFUSED | SUCCESS |
+| p01 / p04 (O2 / O3) | lib-private `_h` vs program `_h`, true | 6 | SUCCESS | REFUSED | SUCCESS |
+| p02 / p03 (O4 / O5) | two libs each with private `_h`, true | 3 | SUCCESS | REFUSED | SUCCESS |
+| 10460-10461 (O4 / O5 witnesses) | two libs' private `_h`, true | assert ok | SUCCESS | REFUSED | SUCCESS |
+| w19c | two libs' `helper`, true claim | 3 | FAILED (wrong body) | REFUSED | SUCCESS |
+| a01 a04 a05 a06 a07 a09 (R1a-f) | re-export captured by another def, false | 1/3/3/1/1/2 | SUCCESS (false proof) | SUCCESS (false proof) | FAILED |
+| x02 / x08 (new) | direct / star re-export captured by another lib's `f` | 3 | SUCCESS (false proof) | SUCCESS (false proof) | FAILED |
+| x03 (new) | lib `abs` captured the program's builtin `abs` | 10 | SUCCESS (false proof) | SUCCESS (false proof) | FAILED |
+| d05 d06 d08 d09 (R2) | base tail reached from two modules | 21/1/1/21 | SUCCESS (false proof) | SUCCESS (false proof) | REFUSED BASE-CLASS-AMBIGUOUS |
+| x05 (new) | star-imported bare base vs module import | 1 | SUCCESS (false proof) | SUCCESS (false proof) | REFUSED |
+| d11 (R3a), w06 | program `def base__m` / `def c__m` | 1 | SUCCESS | SUCCESS / SUCCESS | REFUSED NAME-CLASH |
+| e04 (R3b), x09 (new) | inlined method calls program helper | 1 | SUCCESS (false proof) | SUCCESS (false proof) | FAILED |
+| 10462 / 10464 | re-export / inlined-helper TRUE claims | assert ok | FAILED (wrong body) | FAILED | SUCCESS |
+| w14 w14b f01 f03 f04 e02 w19 | u70's refusals, false claims | 1/1/3/3/1/2/3 | SUCCESS | REFUSED | FAILED (faithful binding) |
+| x04 x07 j01 g03 w14c 10424-10427 | controls | | SUCCESS | SUCCESS | SUCCESS |
 
 Every other rt77 / rt80 probe has the same class at head as at u70 (refused by the same pre-existing route, or
 FAILED); the rt77 #619 / #620 vacuity probes FAIL at head as at L20 (e05 / e08 / v04b were SUCCESS only at
@@ -146,18 +147,50 @@ qg72 / qh72 (class `Base`, m -> 1 / 2), qi72 (class C whose m calls its own `hel
 u70's 10420-10423 (FAIL) are now FAILED (faithful binding) instead of REFUSED; their docstrings say so.
 10424-10427 stay SUCCESS. Note 10463: its first form (`X().m()`) FAILED on u70 and head (the constructor call
 is opaque, pre-existing); it was changed to `g(x: X) -> x.m()` (commit 8e4faccb7, CPython re-checked) and its
-proof on b0 / u70 / head is the first step of `tools/FINAL.sh` (`logs/w63-*`), queued at hand-back.
+final form full-proves SUCCESS on L20, u70 and head (`logs/w63-*`).
 Census rows: `tools/CR.sh` (the real `_census_row`, cwd-relative) for 10420-10423, 10450-10456 and 1471, merged
-by `tools/merge_census.py`: also in FINAL.sh, queued at hand-back; the committed TSV still carries u70's rows.
+by `tools/merge_census.py` into `bin/refusal-witness-census.tsv` (`logs/CR-rows.tsv`).
+L20 verdicts: 10450-10456 SUCCESS (false proofs); 10457-10461 SUCCESS; 10462 / 10464 FAILED (the true claim is
+unprovable against the wrong body); 10463 SUCCESS; u70's 10420-10423 SUCCESS (false proofs). `logs/probe-table.md`
+shows 10463's FIRST form (FAILED everywhere); its final form is in `logs/w63-*`.
 
 ## 5. Gates
 
-GATES_PLACEHOLDER
+All on the final snapshot `/home/fabrice/git/pycsl-u72-h3` = 6e897ac6a (src / bin / test-suite / docs equal the
+final commit's), ONE NORMAL job `tools/FINAL2.sh` run with HEAVY_PRIO=1 (driver grant), TMPDIR under the worktree,
+oom_kill 15 -> 15. Summary `logs/FINAL2.txt`; details `logs/GATES3/`.
+
+| gate | result | log |
+|---|---|---|
+| check-assigns-writes-survival / check-trusted-frame-honesty / check-getattr-erasure | rc 0 / 0 / 0 (emit dir `logs/GATES3/lg/mir_emit`, 53 .mlw) | `logs/GATES3/lg/*.txt` |
+| check-self-annotate-sync / self-annotate-mirror-check / doc-coherency | rc 0 / 0 / 0 | `logs/GATES3/lg/{sync,mircheck,doccoh}.txt` |
+| run-soundness-planes.sh (fast + conversion tier, full tee) | rc 0, 62 / 62 ok | `logs/GATES3/planes.txt` |
+| check-refusal-witness-coverage | rc 0: 490 demonstrated (u70: 488), 5 undemonstrated (ceiling 5), 10 unmatchable (ceiling 10) | `logs/GATES3/rwc.txt` |
+| check-corpus-executes | rc 0 (only the KNOWN load failures) | `logs/GATES3/ce.txt` |
+| frontend-only-conformance | rc 0 | `logs/GATES3/foc.txt` |
+| check-dropped-mutation | rc 0: 0 dropped / 49 ctxbind (ratchet 51) / 5 tryfinal / 0 dangling | `logs/GATES3/cdm.txt` |
+| \trusted | 366 | `logs/FINAL2.txt` [LG] |
+| proof-axiom ledger | 3 (`proof_axiom_allowlist.py` untouched; `git diff ghost-assign-bc6 HEAD -- src bin` = ir_resolve.py + census rows) | -- |
+| byte-diff root / pyref / mirror on 6e897ac6a | re-swept on h3: root 3329 / 3360, pyref 2185 / 2185, mirror 53 / 53; 0 MOVED, 0 GONE, 0 APPEARED; mirror `diff -rq` 0; rc 0 | `logs/G/C3/` |
+
+**Ratchet found and repaired (check-trusted-frame-honesty, route #401).** The first gate run, on 8e4faccb7
+(`logs/GATES/lg/check-trusted-frame-honesty.txt`), was RED: `param-frame-honesty: trusted RATCHET BROKEN -- 10 > 9`,
+`[!] UNNAMED frontend/ir_resolve.py _inject_functions dep_funcs ['.pop() L2384', '.pop() L2385']`. The live body
+popped the transient markers off the entries of its parameter `dep_funcs` (and replaced entries in place), a write
+the `\trusted` stub's frame does not declare, so every caller would be allowed to assume `dep_funcs` unchanged.
+Fix (6e897ac6a): the markers are only READ, every entry is injected as a marker-free copy, and the emitted names
+return through `ir_data["_u72_names"]` (popped by each caller). After: `param-frame-honesty(trusted): ... 9 declare
+a frame omitting a parameter ... 17 of them ledgered`, rc 0 (`logs/GATES3/lg/check-trusted-frame-honesty.txt`).
+The 151 probe / witness emissions are byte-identical before and after the fix (`logs/e2-h1` vs `logs/e3-head`,
+`logs/E-e3-head.txt`). That first run was then stopped by me (its remaining gates ran on the superseded code).
+
 
 ## 6. Open / for the driver
 
-- L20 column of the probe proofs and all gates: NOT RUN (section 5). 10463's final form is not yet proved.
-- Census TSV not yet updated (rows 10420-10423 still say u70's REFUSAL; 1471 still says #143).
+- Census rows (real `_census_row`, `logs/CR-rows.tsv`, merged into `bin/refusal-witness-census.tsv`): 10420-10423
+  REFUSAL -> VERIFY-FAIL, 10450-10452 / 10456 VERIFY-FAIL, 10453-10455 REFUSAL, 1471 new message (it embeds the
+  snapshot path `/home/fabrice/git/pycsl-u72-h2/...` of the dependency, as any absolute-path refusal does).
+- 10463 (final form) full-proves SUCCESS on L20, u70 and head (`logs/w63-*`).
 - Residuals I know of: (a) a dependency function passed as a VALUE (`map(_h, xs)`) inside an inlined method body
   is not renamed (only `Call` nodes are); (b) a module-qualified `m.C()` constructor for two libraries' same-named
   classes now ends as an R325 refusal (o01), was opaque before; (c) a dependency-internal call whose callee

@@ -15,3 +15,11 @@ frontend-only-conformance rc=0 front-end-only: no core/Module6/prover module in 
 check-dropped-mutation rc=0 [+] dropped-mutation: CTXBIND 49 < ratchet 51 — lower the constant. [+] dropped-mutation: OK — measured 0 dropped / 49 ctxbind / 5 tryfinal / 0 dangling (ratchets 0 / 51 / 5 / 0). 
 GATES end Tue Nov 24 17:50:22 UTC 2026 oom_kill 15
 tree /home/fabrice/git/pycsl-u72-h3 6e897ac6ac14cbb4548d261c022fe9eddd62aa89 start Tue Nov 24 17:50:22 UTC 2026 oom_kill 15
+byte-diff-sweep rc=0 emitted 3361 of 6397 source file(s) into /home/fabrice/git/pycsl-u72/scratchpad/u72/logs/G/h3/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u72/scratchpad/u72/logs/G/h3/bd/pyref (6 jobs) 
+mirror-emit-sweep rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u72/scratchpad/u72/logs/G/h3/mir --min-files 45
+end Tue Nov 24 18:48:06 UTC 2026 oom_kill 15
+compare root rc=0 [*] byte-diff-compare: 3329 baseline / 3360 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 31 new source file(s) ignored. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare pyref rc=0 [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare mirror rc=0 [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+diff -rq mirror lines=0
+FINAL2 end Tue Nov 24 18:48:49 UTC 2026
