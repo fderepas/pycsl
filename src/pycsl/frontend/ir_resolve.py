@@ -5062,13 +5062,21 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                 # a call argument (`functools.update_wrapper(pkg, _Src,
                                 # assigned=("b",))`, `swap_attr(pkg.b, "one", f)` set its
                                 # attributes inside the standard library, where no store is
-                                # seen), an assigned / returned / stored value -- REFUSES; only
-                                # an operator operand or a test consumes it in place
-                                if not (isinstance(_p671, (_a613.BinOp, _a613.UnaryOp,
-                                                           _a613.Compare, _a613.FormattedValue))
-                                        or (isinstance(_p671, (_a613.If, _a613.While,
-                                                               _a613.Assert, _a613.IfExp))
-                                            and _p671.test is _y671)):
+                                # seen), an assigned / returned / stored value, an operand
+                                # (`x == pkg` and `x + pkg` hand it to the other operand's
+                                # method) -- REFUSES. Exempt: an identity test (`is` / `is not`),
+                                # and, for a MODULE object (whose special methods are ModuleType's
+                                # C code: a module-level hook is never looked up for them), a
+                                # truth test, a unary operand or an f-string field
+                                if not ((isinstance(_p671, _a613.Compare)
+                                         and all(isinstance(_y, (_a613.Is, _a613.IsNot))
+                                                 for _y in _p671.ops))
+                                        or (_ml675 and (
+                                            isinstance(_p671, (_a613.UnaryOp,
+                                                               _a613.FormattedValue))
+                                            or (isinstance(_p671, (_a613.If, _a613.While,
+                                                                   _a613.Assert, _a613.IfExp))
+                                                and _p671.test is _y671)))):
                                     _w675 = (f"`{_a613.unparse(_y671)}` ("
                                              + {"F": "a local module", "S": "a module",
                                                 "M": "possibly a module object",
