@@ -1561,7 +1561,12 @@ that list is REFUSED (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`; u75, route #635, rev
 string run by `timeit.timeit` replaced a submodule, CPython printed 2 where pycsl PROVED 1). An
 import-bound module object, or a submodule / function / class of a local module, used as a VALUE (a call
 argument to any callee, an assigned / returned / stored / iterated value, an operand; only an identity
-test, and for a module object a truth test / unary operand / f-string field, is exempt) is REFUSED (`PYCSL-SEM-IMPORT-MODULE-VALUE`; u75, route #636, review rt83 u1 / v2 / t1:
+test, and for a module object a truth test / unary operand / f-string field or a read by an unshadowed
+`hasattr` (literal name) / `print` / `repr` / `str` / `id` / `len` / `type` / `dir` / `hash` / `bool` /
+`callable` while no reached module mentions `builtins`, is exempt; a re-export `from X import a` is
+followed to X; a byte-identical standard-library copy such as the repo-root `json/` is not judged; a
+standard-library attribute counts as a possible module only once a reflective escape AND a planting
+store (an import-rooted attribute store, `__dict__` / `vars` / `globals`, a computed `setattr`) exist) is REFUSED (`PYCSL-SEM-IMPORT-MODULE-VALUE`; u75, route #636, review rt83 u1 / v2 / t1:
 `functools.update_wrapper(pkg, _Src, assigned=("b",))` sets `pkg.b` inside the standard library).
 Relative imports stay package-relative; the
 check is skipped under the declared `--verification-image`, which makes no CPython-run
