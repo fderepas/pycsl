@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp; mkdir -p "$TMPDIR"
 # Q.sh <tree> <tag> : --no-proof (q) of every probe and the u73 witnesses/helpers with <tree>'s pycsl (QUICK job)
 U=/home/fabrice/git/pycsl-u73/scratchpad/u73; L=$U/logs/Q-$2; mkdir -p $L; T=$1
 echo "## $2 $T $(git -C $T rev-parse --short HEAD) $(date -u)"

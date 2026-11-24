@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp; mkdir -p "$TMPDIR"
 # CMP.sh <tag> : compare sweep G/<tag> against base G/base (root, pyref, mirror + diff -rq), cwd = u71 tree root
 W=/home/fabrice/git/pycsl-u73; G=$W/scratchpad/u73/logs/G; t=$1; cd $W
 python3 bin/byte-diff-compare.py $G/base/bd $G/$t/bd > $G/C-$t-root.txt 2>&1; echo "compare root rc=$? $(tail -2 $G/C-$t-root.txt | tr '\n' ' ')"

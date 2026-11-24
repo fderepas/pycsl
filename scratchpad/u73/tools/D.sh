@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp; mkdir -p "$TMPDIR"
 # D.sh <mode q|p> <tree> <outdir> <probe-dir-rel>... : probe dirs (relative to u73/probes) holding P/prog.py,
 # optional `flags` (one arg per line, @P = probe dir; an empty line is an empty arg) and `cwd` (relative to the
 # probe dir; default the tree root). q = --no-proof --keep-mlw ; p = full proof, hoare default, PYTHON_CPU_COUNT=2,

@@ -1,0 +1,9 @@
+chain1 start Tue Nov 24 05:00:01 UTC 2026
+tree /home/fabrice/git/pycsl-u73-h1 3922736984cd3a92718077133dbb613da6428cf1 start Tue Nov 24 05:00:01 UTC 2026 oom_kill 15
+byte-diff-sweep rc=0 emitted 3349 of 6402 source file(s) into /home/fabrice/git/pycsl-u73/scratchpad/u73/logs/G/h1/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u73/scratchpad/u73/logs/G/h1/bd/pyref (6 jobs) 
+mirror-emit-sweep rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u73/scratchpad/u73/logs/G/h1/mir --min-files 45
+end Tue Nov 24 06:00:47 UTC 2026 oom_kill 15
+compare root rc=0 [*] byte-diff-compare: 3343 baseline / 3348 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 5 new source file(s) ignored. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare pyref rc=0 [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare mirror rc=0 [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+mirror diff -rq lines=0

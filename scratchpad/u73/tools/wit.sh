@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp; mkdir -p "$TMPDIR"
 # wit.sh <mode q|p> <tree> <outdir> [witness-tree] : u73 witnesses 10470-10476 + helpers, run with <tree>'s pycsl,
 # flags from `# pycsl-flags:`, cwd = the witness tree root (default the u73 h1 snapshot; relative paths as the corpus)
 source /home/fabrice/git/pycsl/scratchpad/g29/env.sh; export PYTHON_CPU_COUNT=2

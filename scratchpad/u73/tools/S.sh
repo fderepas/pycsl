@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp; mkdir -p "$TMPDIR"
 # S.sh <tree> <outdir> : byte-diff sweep (root + pyref) and mirror sweep of <tree>, cwd = tree root.
 source /home/fabrice/git/pycsl/scratchpad/g29/env.sh
 T=$1; O=$2; mkdir -p $O; cd $T || exit 2

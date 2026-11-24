@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp; mkdir -p "$TMPDIR"
 # J.sh <tree> <tag> : full proofs (p) with <tree>'s pycsl of every probe whose --no-proof run (logs/Q-<tag>, Q.sh)
 # reached "Verification SUCCESS" (a refusal / type-check failure at q is final and is reported from the q log),
 # plus every u73 witness / helper. One NORMAL job.

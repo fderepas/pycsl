@@ -1,4 +1,5 @@
 #!/bin/bash
+export TMPDIR=/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp; mkdir -p "$TMPDIR"
 # chain1.sh : (one NORMAL job, after the base sweep) sweep h1 + compare vs base; probe battery on bh, b0, h1.
 U=/home/fabrice/git/pycsl-u73/scratchpad/u73
 echo "chain1 start $(date -u)"
