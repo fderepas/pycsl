@@ -1716,3 +1716,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-25T19:19Z | 1442 | STATUS (run hour 93.9). Main = L24 (\trusted 364), ledger 3, oom_kill 15. v86 (L25) F 75 / 85 ok, none red; it is the only heavy job running. ~2 h left. |
 2026-11-25T19:45Z | 1443 | STATUS (run hour 94.3). Main = L24 (\trusted 364), ledger 3, oom_kill 15. v86 (L25) F 77 / 85 ok (check-assumed-facts sweep, the long plane), none red. |
 2026-11-25T20:14Z | 1444 | STATUS (run hour 94.8). Main = L24 (\trusted 364), ledger 3, oom_kill 15. v86 (L25) F 82 / 85 ok, none red (the last 3 slow planes took ~1 h on the v81b / v85 runs). |
+2026-11-25T20:40Z | 1445 | STATUS (run hour 95.2). Main = L24 (\trusted 364), ledger 3, oom_kill 15. v86 (L25) F 82 / 85 ok, none red. If F is not green by 21:05Z, L25 is not landed: run9-u78 is carried to run #10 and v86 is stopped (verified PIDs) before the end. |
