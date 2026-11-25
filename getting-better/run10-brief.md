@@ -52,3 +52,5 @@ Written 2026-11-25 during run #9, at the user's request. The run #10 driver read
   - any that u77 left open.
 
   Until the user decides, they stay declared.
+
+- 2026-11-25T13:15Z (run #9 driver): L23 LANDED (af47df99f = u73 + u75; routes #631 / #632 / #633 / #635 (listed modules) / #636 closed). Declared over-refusals it adds to the "waiting on the user" list: rt86 o3 / m1 / m4, 6026, and the `f = b.f` assign re-export (qe72, 10451; log 1409). L24 = run9-u77 (u74 + u76 + u77) is in battery v85; rt88 found no false proof in u77 but a latent fail-closed defect K1 (descendant overrides missing from the receiver family; repair u78 in flight).
