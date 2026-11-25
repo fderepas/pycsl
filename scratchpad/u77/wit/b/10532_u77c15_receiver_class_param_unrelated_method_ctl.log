@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u77/scratchpad/u77/wit/b/src/10532_u77c15_receiver_class_param_unrelated_method_ctl.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+PYCSL-FUNCTION-FRAME: the function `f` declares `#@ assigns` but its body may write the parameter(s) `r` (a store rooted at it, an in-place mutator, or forwarding it to a callee that writes it), which the declared frame does not name. A caller in another module reads the declared frame, so it would assume the argument UNCHANGED across the call (route #634). Add the written location to the frame (`#@ assigns r.<field>` / `r[..]`), or stop writing it.
+rc=1 flags=[] tree=/home/fabrice/git/pycsl-u77b oom0=[oom_kill 15] oom1=[oom_kill 15]

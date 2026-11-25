@@ -1,0 +1,2 @@
+[*] corpus-executes: 2685 of 2693 PASS-expected proof-on file(s) LOAD under CPython; 1722 of 1722 with a `__main__` block pass their OWN self-check. (6175 skipped: expected-FAIL or `--no-proof`.)
+[+] corpus-executes: OK — every PASS-expected corpus file loads as Python, and every self-check its author wrote passes.

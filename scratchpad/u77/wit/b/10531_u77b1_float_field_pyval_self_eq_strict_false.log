@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u77/scratchpad/u77/wit/b/src/10531_u77b1_float_field_pyval_self_eq_strict_false.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'f' line 23: `d['a'] == d['a']` compares a PyVal value with a non-literal operand under `--strict-float-finite`: a PyVal float is a Why3 real in the value model (`hval_eq` / `hreal_eq` are reflexive), so a NaN is not modelled and the FLOAT-FINITE assumption this flag drops would still be relied on (route #606; CPython: `v == v` is False for v = float("nan")). Compare the PyVal value with a literal instead, or drop `--strict-float-finite`.
+rc=1 flags=[ --strict-float-finite] tree=/home/fabrice/git/pycsl-u77b oom0=[oom_kill 15] oom1=[oom_kill 15]

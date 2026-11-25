@@ -1,0 +1,16 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u77/scratchpad/u77/wit/h/src/10537_u77c15_imported_receiver_class_unrelated_method_ctl.py'...
+[*] Memory model: hoare
+[*] Imported class from 'zu77a': R (record + 1 method stub(s) + 2 helper(s))
+[*] Imported from 'zu77a': ['f'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u77/scratchpad/u77/tmp/.pycsl_ujmvkm27.mlw", line 15, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 23 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u77/scratchpad/u77/tmp/.pycsl_ujmvkm27.mlw", line 23, characters 16-20: unused variable self
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0 flags=[] tree=/home/fabrice/git/pycsl-u77 oom0=[oom_kill 15] oom1=[oom_kill 15]

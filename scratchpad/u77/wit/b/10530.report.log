@@ -1,0 +1,63 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u77/scratchpad/u77/wit/b/src/10530_u77b1_float_field_pyval_self_eq_float_finite_assumed.py'...
+[*] Memory model: hoare
+=== SOUNDNESS REPORT (JSON) ===
+{
+  "file": "/home/fabrice/git/pycsl-u77/scratchpad/u77/wit/b/src/10530_u77b1_float_field_pyval_self_eq_float_finite_assumed.py",
+  "summary": {
+    "Modelled": 1,
+    "Specified": 0,
+    "Stubbed": 0,
+    "Confinement": 0
+  },
+  "vcs": [
+    {
+      "function": "f",
+      "bucket": "Modelled",
+      "has_contract": true,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    }
+  ],
+  "model_assumptions": [
+    {
+      "name": "BUILTIN-EXACT",
+      "statement": "a value whose static type is a builtin (int/float/str/bool/bytes/tuple/list/dict/set) is an exact instance of it, not a subclass overriding a dunder",
+      "counterexample": "class I(int): __sub__ -> 7; x - x == 7 for x = I(5) (corpus 2506)",
+      "strict_mode": null,
+      "relied_on_by": [
+        "f: `==` on \\result: int",
+        "f: `==` on d: dict"
+      ]
+    },
+    {
+      "name": "LATIN1-STR",
+      "statement": "every str value consists of code points 0..255 (str is modelled as the Why3 string of string.Char, whose codes are < 256): ord(c) < 256, and chr(n) is modelled only for 0 <= n < 256; str values in general rely on it (the str sort is the 8-bit string), ord/chr sites directly",
+      "counterexample": "s = '\u20ac': ord(s) == 8364, yet ord(s) < 256 proves; ord(chr(300)) != 300 proves (corpus 3020-3021)",
+      "strict_mode": "--strict-latin1",
+      "relied_on_by": [
+        "f: str values (8-bit string model) a string literal"
+      ]
+    }
+  ],
+  "cited_lemmas": []
+}
+
+=== SOUNDNESS REPORT (summary) ===
+file: /home/fabrice/git/pycsl-u77/scratchpad/u77/wit/b/src/10530_u77b1_float_field_pyval_self_eq_float_finite_assumed.py   functions/VCs: 1
+  Modelled    : 1
+  Specified   : 0
+  Stubbed     : 0
+  Confinement : 0
+  --- declared model assumptions (not proved; see the reference docs) ---
+    BUILTIN-EXACT: a value whose static type is a builtin (int/float/str/bool/bytes/tuple/list/dict/set) is an exact instance of it, not a subclass overriding a dunder
+      counterexample: class I(int): __sub__ -> 7; x - x == 7 for x = I(5) (corpus 2506)
+      strict mode: none (always assumed)
+      relied on by f: `==` on \result: int
+      relied on by f: `==` on d: dict
+    LATIN1-STR: every str value consists of code points 0..255 (str is modelled as the Why3 string of string.Char, whose codes are < 256): ord(c) < 256, and chr(n) is modelled only for 0 <= n < 256; str values in general rely on it (the str sort is the 8-bit string), ord/chr sites directly
+      counterexample: s = '€': ord(s) == 8364, yet ord(s) < 256 proves; ord(chr(300)) != 300 proves (corpus 3020-3021)
+      strict mode: --strict-latin1
+      relied on by f: str values (8-bit string model) a string literal
+rc=0

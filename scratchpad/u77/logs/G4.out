@@ -1,0 +1,7 @@
+G4 start Wed Nov 25 10:17:35 UTC 2026 85b031a88 u7 oom_kill 15
+check-corpus-executes rc=0 [+] corpus-executes: OK — every PASS-expected corpus file loads as Python, and every self-check its author wrote passes.
+check-corpus-contract-truth-args rc=0 [+] corpus-contract-truth-args: OK — every parameterized postcondition this oracle can evaluate is TRUE of its own program on the pool (12097 evaluations); 14 inherited disagreement(s) at the ceiling.
+check-claim-vacuity rc=0 [+] claim-vacuity: OK — 1791/8876 claim-vacuous file(s) at the ceiling (1791); the two families whose names assert opposite outcomes (`*_call_proves.py`, `*_call_fails.py`) still carry the SAME contra
+check-refusal-witness-coverage rc=0 [+] refusal-witness-coverage: OK — 494 demonstrated, 5 undemonstrated (floor 208 / ceiling 5); 14 not source-reachable, 10 unmatchable (ceiling 10).
+dup corpus ids: 0
+G4 end Wed Nov 25 10:18:04 UTC 2026 oom_kill 15
