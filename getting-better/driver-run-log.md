@@ -1685,3 +1685,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-25T08:31Z | 1411 | STATUS (run hour 83.1). Main = L22 (\trusted 365), ledger 3, oom_kill 15. v81b F --slow: 62 / 85 ok, none red so far. u77 head sweep running. |
 2026-11-25T09:03Z | 1412 | STATUS (run hour 83.6). Main = L22 (\trusted 365), ledger 3, oom_kill 15. v81b F --slow: 64 / 85 ok, none red. u77 running its gates (slow planes). |
 2026-11-25T09:31Z | 1413 | STATUS (run hour 84.1). Main = L22 (\trusted 365), ledger 3, oom_kill 15. v81b F --slow: 69 / 85 ok, none red. u77 gates (slow planes) running; its time box 11:00Z. |
+2026-11-25T10:00Z | 1414 | STATUS (run hour 84.6). Main = L22 (\trusted 365), ledger 3, oom_kill 15. v81b F --slow: 69 / 85 ok, none red (the long tail planes). u77: its own gates running; corpus-contract-truth red on its new witness files, fix staged. |
