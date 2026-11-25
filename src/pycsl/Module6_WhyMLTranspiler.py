@@ -871,6 +871,60 @@ class Module6_WhyMLTranspiler(
                     # a store through a computed object (`f()[0] = v`) may write
                     # whatever that object aliases: every tainted name in it, and a global
                     _w316.add("<global>")
+            # (run #9 u77, rt87 c15) RECEIVER CLASSES for the PYCSL-FUNCTION-FRAME
+            # measurement only (`_npx316` below; the effective frame `_eff316` is NOT
+            # narrowed). A dotted call `r.total()` is resolved to EVERY method named `total`
+            # of any class (`c.endswith("__total")`), so an unrelated class's self-writing
+            # `total` made an honest `f(r: R)` `#@ assigns \nothing` refused. A name whose
+            # class is STATICLY KNOWN narrows it: a parameter annotated with a record class,
+            # or a local whose every binding is a constructor call of one record class --
+            # and, for both, the name occurs in the (SSA-renamed) body ONLY as a `Var` read,
+            # a field-access/store `object`, or that constructor binding's `target`. Any
+            # other occurrence (a rebinding, a `for`/unpack/walrus/with/except target, a
+            # shadowing nested parameter, a `global`/`nonlocal` list) disqualifies it, and
+            # the conservative any-class rule applies.
+            _rc77: Dict[str, Any] = {}
+            for _p316 in _pp316:
+                if _ann316.get(_p316) in _rec316:
+                    _rc77[_p316] = _ann316[_p316]
+            for _t316, _v316 in _bind316:
+                _c77 = (_v316.get("func") if isinstance(_v316, dict)
+                        and _v316.get("type") == "Call"
+                        and not isinstance(_v316.get("receiver"), dict) else None)
+                if (_t316 not in _pp316 and _t316 != "self" and _t316 not in _glob316
+                        and isinstance(_c77, str) and _c77 in _rec316
+                        and _rc77.get(_t316, _c77) == _c77):
+                    _rc77[_t316] = _c77
+                else:
+                    _rc77[_t316] = None
+            _wk77: List[Any] = [_bd316]
+            while _wk77 and any(_rc77.values()):
+                _x77 = _wk77.pop()
+                if isinstance(_x77, list):
+                    for _y77 in _x77:
+                        if isinstance(_y77, str) and _y77 in _rc77:
+                            _rc77[_y77] = None
+                        elif isinstance(_y77, (dict, list)):
+                            _wk77.append(_y77)
+                    continue
+                if not isinstance(_x77, dict):
+                    continue
+                for _k77, _y77 in _x77.items():
+                    if isinstance(_y77, (dict, list)):
+                        _wk77.append(_y77)
+                    elif isinstance(_y77, str) and _y77 in _rc77 and not (
+                            (_k77 == "name" and _x77.get("type") == "Var")
+                            or _k77 == "object"
+                            or (_k77 == "target" and _x77.get("stmt") in (
+                                "Assign", "GhostAssign") and _y77 not in _pp316
+                                and isinstance(_x77.get("value"), dict)
+                                and _x77["value"].get("type") == "Call"
+                                and _x77["value"].get("func") == _rc77[_y77])):
+                        _rc77[_y77] = None
+            _bs77: Dict[str, List[str]] = {
+                td.get("name"): [str(_b77) for _b77 in (td.get("bases") or [])]
+                for td in (type_decls or []) if isinstance(td, dict) and td.get("name")}
+            _npx316: List[Any] = []
             # calls: in-place mutators on a tainted receiver are direct writes; every
             # call with a tainted receiver/argument is a fixpoint edge.
             _edges316: List[tuple] = []
@@ -950,6 +1004,32 @@ class Module6_WhyMLTranspiler(
                         _w316 |= _acc316
                 if _rs316 or any(_as316) or any(_kw316.values()):
                     _edges316.append((_fn316, _rs316, _as316, _kw316))
+                    # (u77 c15) the allowed method-name prefixes of this edge: the
+                    # receiver's class, its ancestors and its descendants (an inherited
+                    # method is cloned under the subclass prefix, an override under its own),
+                    # lower-cased as the method names are; None = not narrowed.
+                    _h77 = _fn316.split(".")[0] if _fn316.count(".") == 1 else None
+                    _C77 = _rc77.get(_h77) if _h77 else None
+                    if isinstance(_C77, str):
+                        _an77 = {_C77}
+                        _de77 = {_C77}
+                        _chg77 = True
+                        while _chg77:
+                            _chg77 = False
+                            for _n77, _bl77 in _bs77.items():
+                                _up77 = {_q77 for _b77 in _bl77
+                                         for _q77 in (_b77, _b77.rsplit(".", 1)[-1])}
+                                # ancestors: the bases of an ancestor (C itself included)
+                                if _n77 in _an77 and not _up77 <= _an77:
+                                    _an77 |= _up77
+                                    _chg77 = True
+                                # descendants: a class having a descendant as a base
+                                if _n77 not in _de77 and _up77 & _de77:
+                                    _de77.add(_n77)
+                                    _chg77 = True
+                        _npx316.append({_q77.lower() for _q77 in (_an77 | _de77)})
+                    else:
+                        _npx316.append(None)
             # declared frame: roots of `assigns` targets
             _dcl316: Set[str] = set()
             _asg316 = (_f316.get("contracts", {}) or {}).get("assigns", []) or []
@@ -969,7 +1049,7 @@ class Module6_WhyMLTranspiler(
                     _dcl316.add(_r316 if (_r316 in _pp316 or _r316 == "self")
                                 else "<global>")
             _info316[_nm316] = {"params": _pp316, "direct": set(_w316),
-                                "edges": _edges316, "declared": _dcl316,
+                                "edges": _edges316, "npx": _npx316, "declared": _dcl316,
                                 "has_assigns": bool(_asg316),
                                 "trusted": bool(_f316.get("trusted") or _f316.get("abstract")),
                                 "method": _f316.get("kind") == "method",
@@ -1018,10 +1098,107 @@ class Module6_WhyMLTranspiler(
                     if not _add316 <= _eff316[_nm316]:
                         _eff316[_nm316] |= _add316
                         _chg316 = True
+        # (run #9 u77, rt87 c15) the NARROWED fixpoint, used ONLY for the `undeclared`
+        # measurement of a NON-method (PYCSL-FUNCTION-FRAME): the same propagation as above,
+        # except that a dotted call whose receiver class is statically known (`npx`) is
+        # resolved to the methods of that class's family (itself, ancestors, descendants),
+        # falling back to every same-named method when none matches. `_eff316` (written /
+        # positions / global, every emitted `writes`) and the method refusals are unchanged.
+        _effn316: Dict[str, Set[str]] = {k: set(v) for k, v in _eff316.items()}
+        for _nm316, _i316 in _info316.items():
+            if not (_i316["trusted"] and _i316["has_assigns"]):
+                _effn316[_nm316] = set(_i316["direct"]) | set(_i316["declared"])
+        _chg316 = True
+        while _chg316:
+            _chg316 = False
+            for _nm316, _i316 in _info316.items():
+                if _i316["trusted"] and _i316["has_assigns"]:
+                    continue
+                for _ix77, (_fn316, _rs316, _as316, _kw316) in enumerate(_i316["edges"]):
+                    _tail316 = _fn316.rsplit(".", 1)[-1]
+                    if "." in _fn316:
+                        _cands316 = [c for c in _names316 if c.endswith("__" + _tail316)]
+                        _px77 = _i316["npx"][_ix77]
+                        _nc77 = ([c for c in _cands316
+                                  if c[:-len("__" + _tail316)] in _px77]
+                                 if isinstance(_px77, set) else [])
+                        if _nc77:
+                            _cands316 = _nc77
+                    elif _fn316 in _info316:
+                        _cands316 = [_fn316]
+                    else:
+                        _cands316 = [c for c in _names316
+                                     if c == _fn316.lower() + "____init__"]
+                    _add316: Set[str] = set()
+                    for _c316 in _cands316:
+                        _ce316 = _effn316.get(_c316, set())
+                        _cp316 = _info316[_c316]["params"]
+                        for _ix316, _acc316 in enumerate(_as316):
+                            if _ix316 < len(_cp316) and _cp316[_ix316] in _ce316:
+                                _add316 |= _acc316
+                            elif _ix316 >= len(_cp316) and (_ce316 - {"self", "<global>"}):
+                                _add316 |= _acc316
+                        for _k316, _acc316 in _kw316.items():
+                            if _k316 in _ce316:
+                                _add316 |= _acc316
+                        if "self" in _ce316 and "." in _fn316:
+                            _add316 |= _rs316
+                        if "<global>" in _ce316:
+                            _add316.add("<global>")
+                    if not _add316 <= _effn316[_nm316]:
+                        _effn316[_nm316] |= _add316
+                        _chg316 = True
         # Kept ON EACH FUNCTION'S IR dict (`func["_r316_frame"]`, the `func["uses"]`
         # precedent): not a new transpiler field (it would move the record type of every
         # mirror that imports this module, lesson (a4)) and not a write to a declared field.
         _byf316 = {f["name"]: f for f in _fs316}
+        # (run #9 u76) ROUTE #634 — an IMPORTED function is injected as a `\trusted` stub
+        # (ir_resolve), so its effective frame above is its DECLARATION and `undeclared` was
+        # always empty: the importer's `val` trusted an `assigns \nothing` whose body writes
+        # a record parameter's field. For an imported MODULE-LEVEL function that declares
+        # `assigns`, `undeclared` is measured on its BODY instead (its direct stores plus the
+        # final effect of every callee it forwards a parameter to, one pass over the settled
+        # fixpoint), so `_emit_function_block` can refuse it (PYCSL-FUNCTION-FRAME). The
+        # effective frame itself (`written`, `positions`) is NOT changed. "Imported" = not
+        # one of the functions THIS file defined before import resolution (`own_names_r521`,
+        # set by pycsl.py; `imported_names_r521` misses a function injected alongside an
+        # imported class, measured on rt84 x634). Absent attribute -> nothing is measured.
+        _own634 = getattr(self, "own_names_r521", None)
+        _bodyw634: Dict[str, Set[str]] = {}
+        for _nm316, _i316 in _info316.items():
+            if not (isinstance(_own634, set) and _nm316 not in _own634
+                    and _i316["trusted"] and _i316["has_assigns"]
+                    and not _i316["method"]):
+                continue
+            _b634 = set(_i316["direct"])
+            for _ix77, (_fn316, _rs316, _as316, _kw316) in enumerate(_i316["edges"]):
+                _tail316 = _fn316.rsplit(".", 1)[-1]
+                if "." in _fn316:
+                    _cands316 = [c for c in _names316 if c.endswith("__" + _tail316)]
+                    _px77 = _i316["npx"][_ix77]
+                    _nc77 = ([c for c in _cands316 if c[:-len("__" + _tail316)] in _px77]
+                             if isinstance(_px77, set) else [])
+                    if _nc77:
+                        _cands316 = _nc77
+                elif _fn316 in _info316:
+                    _cands316 = [_fn316]
+                else:
+                    _cands316 = [c for c in _names316
+                                 if c == _fn316.lower() + "____init__"]
+                for _c316 in _cands316:
+                    _ce316 = _effn316.get(_c316, set())
+                    _cp316 = _info316[_c316]["params"]
+                    for _ix316, _acc316 in enumerate(_as316):
+                        if _ix316 < len(_cp316) and _cp316[_ix316] in _ce316:
+                            _b634 |= _acc316
+                        elif _ix316 >= len(_cp316) and (_ce316 - {"self", "<global>"}):
+                            _b634 |= _acc316
+                    for _k316, _acc316 in _kw316.items():
+                        if _k316 in _ce316:
+                            _b634 |= _acc316
+                    if "self" in _ce316 and "." in _fn316:
+                        _b634 |= _rs316
+            _bodyw634[_nm316] = _b634
         for _nm316, _i316 in _info316.items():
             _wp316 = [p for p in _i316["params"] if p in _eff316[_nm316]]
             _byf316[_nm316]["_r316_frame"] = {
@@ -1030,7 +1207,10 @@ class Module6_WhyMLTranspiler(
                 "positions": [i for i, p in enumerate(_i316["params"]) if p in _wp316],
                 "global": "<global>" in _eff316[_nm316],
                 "undeclared": [p for p in _i316["params"]
-                               if p in _eff316[_nm316] and p not in _i316["declared"]],
+                               if p in _bodyw634.get(_nm316, _effn316[_nm316]
+                                                     if not _i316["method"]
+                                                     else _eff316[_nm316])
+                               and p not in _i316["declared"]],
                 "declared": sorted(_i316["declared"]),
                 "has_assigns": _i316["has_assigns"], "trusted": _i316["trusted"],
                 "method": _i316["method"], "init": _i316["init"]}

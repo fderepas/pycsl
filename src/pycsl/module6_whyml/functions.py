@@ -12540,6 +12540,34 @@ class FunctionEmissionMixin:
                     "frame, so they would assume the argument UNCHANGED across the call "
                     "(route #316). Add the parameter to the frame (`#@ assigns "
                     + _u316[0] + "[..]`), or stop writing it.")
+            # (run #9 u76) ROUTE #634 — THE SAME CHECK FOR A MODULE-LEVEL FUNCTION. The
+            # refusal above was gated on `is_method`, so a plain function declaring `#@
+            # assigns \nothing` whose body writes a field of its RECORD parameter (`r.b =
+            # 5` in a loop, a program `let`) proved in its own module (Why3 infers the
+            # effect, nothing compares it with the declaration), and an IMPORTER, which
+            # emits it as a bodyless `val` from the DECLARED frame (`val f (r: r) : int`,
+            # no `writes`), proved `r.b == 0` after the call (CPython 5; rt84 m634/x634).
+            # Fail closed in BOTH units, from the same conservative body frame: the owner's
+            # `let` and the importer's `val` of a non-`\trusted` function that declares
+            # `#@ assigns` but may write a parameter the frame does not name are refused.
+            # (A user `\trusted` function's frame is its declaration, so it is never
+            # `undeclared`; an IMPORTED one -- injected as a trusted stub -- has its
+            # `undeclared` measured on its body by `transpile`; a function with NO
+            # `assigns` keeps its inferred/#317 frame.)
+            if (not is_method and _r316.get("has_assigns") and _u316
+                    and (not _r316.get("trusted")
+                         or (isinstance(getattr(self, "own_names_r521", None), set)
+                             and func.get("name") not in self.own_names_r521))):
+                raise PyCSLIRError(
+                    "PYCSL-FUNCTION-FRAME: the function `" + str(func["name"]) + "` declares "
+                    "`#@ assigns` but its body may write the parameter(s) "
+                    + ", ".join("`" + p + "`" for p in _u316) + " (a store rooted at it, "
+                    "an in-place mutator, or forwarding it to a callee that writes it), "
+                    "which the declared frame does not name. A caller in another module "
+                    "reads the declared frame, so it would assume the argument UNCHANGED "
+                    "across the call (route #634). Add the written location to the frame "
+                    "(`#@ assigns " + _u316[0] + ".<field>` / `" + _u316[0] + "[..]`), "
+                    "or stop writing it.")
             for _ov316 in (self.ir.get("overrides", []) or []):
                 if not isinstance(_ov316, dict) or _ov316.get("sub_method") != func["name"]:
                     continue

@@ -1837,6 +1837,9 @@ no single method takes the union over every method of that name). This is the wh
 effect Why3 infers for a plain function's `let`. Fail-closed rules:
 `PYCSL-METHOD-FRAME` — a method that declares `#@ assigns` but may write a parameter the
 frame does not name (`#@ assigns \nothing` / `#@ assigns self.n` with `xs[0] = 5`);
+`PYCSL-FUNCTION-FRAME` — the same rule for a MODULE-LEVEL function (route #634), checked in
+its own unit and in every importer, where the imported body is measured instead of trusting
+its declared frame (witnesses `10520`-`10522`, controls `10523`, `10525`);
 `PYCSL-METHOD-GLOBAL-WRITE` — a method that may write a module-level object (the stub is
 declared before the global, so no `writes` can name it); `PYCSL-OVERRIDE-FRAME` — an
 override that writes a parameter position its overridden base does not;

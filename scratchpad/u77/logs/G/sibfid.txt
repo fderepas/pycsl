@@ -1,0 +1,2 @@
+[*] sibling-concrete-fidelity: 26 un-trusted mirror-only def(s) resolve to a VERBATIM live twin in a sibling file; 0 diverge; 0 unresolved; 2 class view(s) OK; 26 \trusted cross-mixin stub(s) (by design).
+[+] sibling-concrete-fidelity: OK — no new divergence, every mirror-only def resolves, every class view is a subset of live.

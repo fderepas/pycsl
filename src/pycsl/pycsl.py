@@ -497,6 +497,44 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
         _ma_pv = any("PyVal" in str(_ma_t)
                      for _ma_src in (f.get("symbol_table") or {}, f.get("param_annotations") or {})
                      for _ma_t in _ma_src.values()) or "PyVal" in str(f.get("return_annotation") or "")
+        # (run #9 u77, rt87 b1) ROUTE #606 -- the u74/u76 float-field carrier: a `float`
+        # record FIELD read in a PyVal (hval) position is wrapped `HFloat x` (or `HInt i`
+        # when integral) by `_pyval_wrap`, so the value enters the dict value model as a
+        # Why3 real and every later `hval_eq` / `hreal_eq` on it is reflexive: `{"a": r.x}`
+        # then `d["a"] == d["a"]` PROVES while CPython gives False for r.x = nan. The
+        # `_ma_pv` test above misses it (`PyVal = Any` is recorded as `dict`, and the field
+        # is read inside the dict literal, not as a comparison operand), and the PyVal value
+        # may be compared in ANOTHER function (a returned / stored dict). So FLOAT-FINITE is
+        # reported for every function whose BODY reads a `float`-typed record field at all:
+        # a superset of the program-context sites `_pyval_wrap` wraps (fields matched by
+        # name only, as `_ma_fields`; over-, never under-reported), independent of whether
+        # a comparison appears in that function.
+        _u77_fs: List[Any] = [f.get("body", [])]
+        _u77_hit: Set[str] = set()
+        while _u77_fs:
+            _u77_n = _u77_fs.pop()
+            if isinstance(_u77_n, list):
+                _u77_fs.extend(_u77_n)
+                continue
+            if not isinstance(_u77_n, dict):
+                continue
+            _u77_fs.extend(_u77_n.values())
+            if _u77_n.get("type") == "FieldGet":
+                _u77_fld = _u77_n.get("field")
+                _u77_obj = _u77_n.get("object")
+            elif _u77_n.get("type") == "Attribute":
+                _u77_fld = _u77_n.get("attr")
+                _u77_r = _u77_n.get("value") or _u77_n.get("object") or {}
+                _u77_obj = _u77_r.get("name") if isinstance(_u77_r, dict) else _u77_r
+            else:
+                continue
+            if isinstance(_u77_fld, str) and _ma_fields.get(_u77_fld) == "float":
+                _u77_hit.add("%s.%s" % (_u77_obj, _u77_fld))
+        if _u77_hit:
+            _ma_float_uses.append(
+                "%s: a `float` record field read (%s): a PyVal value built from it is "
+                "`HFloat`, a Why3 real (`hval_eq` reflexive; route #606, rt87 b1)"
+                % (f["name"], ", ".join(sorted(_u77_hit))))
         _ma_stack: List[Any] = [f.get("body", []), f.get("contracts", {})]
         while _ma_stack:
             _ma_node = _ma_stack.pop()

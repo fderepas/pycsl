@@ -1,0 +1,13 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u74/scratchpad/u74/st/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/audit_proof_reverify.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Imported from 'proof_axiom_allowlist': ['is_lean_axiom_allowed', 'is_rocq_assumption_allowed', 'parse_lean_axioms_line', 'parse_rocq_assumptions_block'] (trusted stubs)
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+[*] Import 'json.loads': external module, no local source found — skipping
+[*] Import 'json.dumps': external module, no local source found — skipping
+[*] Import 'subprocess.run': external module, no local source found — skipping
+[*] Import 'time.monotonic': external module, no local source found — skipping
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+rc=0

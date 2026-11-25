@@ -1,0 +1,8 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/x634f.py'...
+[*] Memory model: hoare
+[*] Imported class from 'm634f': R (record + 0 method stub(s) + 2 helper(s))
+[*] Imported from 'm634f': ['f'] (trusted stubs)
+
+[!] PIPELINE ERROR:
+PYCSL-VAL-ARG-UNFRAMED: `h` is emitted as a bodyless `val` (`\trusted` or imported) with no `#@ assigns`, and its body may write the parameter `r`, which is not a list, so no `writes` clause can name it. Without one every caller would assume the argument UNCHANGED (route #317). Declare the frame with `#@ assigns`, or verify the function instead of trusting it.
+rc=1 args= oom0=[oom_kill 15] oom1=[oom_kill 15]

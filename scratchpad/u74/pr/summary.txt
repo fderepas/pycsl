@@ -1,0 +1,24 @@
+== fun start 2026-11-23T22:32:43Z oom_kill=15
+== fun end 2026-11-23T22:35:32Z rc=0 oom_kill=15 :: [+] Verification SUCCESS for _to_cache_payload ONLY (--fun): its own goals are proved, and the contract of every function it calls is ASSUMED, including any frame the emitter SYNTHESIZED from a missing `#@ assigns`. This is NOT a claim about the module — run without `--fun` for that (route #221). 
+== whole start 2026-11-23T22:35:32Z oom_kill=15
+== whole end 2026-11-23T22:41:20Z rc=0 oom_kill=15 :: [+] Verification SUCCESS! All contracts formally proven. 
+== leaf start 2026-11-23T22:41:20Z oom_kill=15
+== leaf end 2026-11-23T22:42:29Z rc=1 oom_kill=15 :: Prover result is: Timeout (30.00s, 15159990 steps).     Prover result is: Timeout (30.00s, 15159990 steps). [-] Verification FAILED or INCOMPLETE. Check the solver output. 
+== mut_frame start 2026-11-23T22:42:29Z oom_kill=15
+== mut_frame end 2026-11-23T22:45:18Z rc=0 oom_kill=15 :: [+] Verification SUCCESS for _to_cache_payload ONLY (--fun): its own goals are proved, and the contract of every function it calls is ASSUMED, including any frame the emitter SYNTHESIZED from a missing `#@ assigns`. This is NOT a claim about the module — run without `--fun` for that (route #221). 
+== arm_outer start 2026-11-23T22:45:18Z oom_kill=15
+== arm_outer z3 end rc=2 oom_kill=15 :: _to_cache_payload goals: 4 lines, non-Valid: 4
+== arm_outer alt-ergo end rc=2 oom_kill=15 :: _to_cache_payload goals: 4 lines, non-Valid: 4
+== arm_inner start 2026-11-23T22:46:59Z oom_kill=15
+== arm_inner z3 end rc=2 oom_kill=15 :: _to_cache_payload goals: 5 lines, non-Valid: 5
+== arm_inner alt-ergo end rc=2 oom_kill=15 :: _to_cache_payload goals: 5 lines, non-Valid: 5
+== ALL DONE 2026-11-23T22:48:40Z
+== mut2 start 2026-11-24T06:18:54Z oom_kill 15
+== mut2 end 2026-11-24T06:21:46Z rc=0 oom_kill 15 :: [+] Verification SUCCESS for _to_cache_payload ONLY (--fun): its own goals are proved, and the contract of every function it calls is ASSUMED, including any frame the emitter SYNTHESIZED from a missing `#@ assigns`. This is NOT a claim about the module — run without `--fun` for that (route #221).
+== mut3 start 2026-11-24T13:54:56Z oom_kill 15
+== mut3 end 2026-11-24T13:55:18Z rc=1 oom_kill 15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+== ap_whole start 2026-11-24T13:55:18Z oom_kill 15
+== ap_whole end 2026-11-24T14:07:49Z rc=0 oom_kill 15 :: [+] Verification SUCCESS! All contracts formally proven.
+== frb (base param-frame probe) 2026-11-24T14:08:11Z rc=1 :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+== mut4 start 2026-11-24T18:13:48Z oom_kill 15
+== mut4 end 2026-11-24T18:15:03Z rc=1 oom_kill 15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output.

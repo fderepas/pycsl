@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10522_r634x_imported_assigns_nothing_list_elem_write_false.py'...
+[*] Memory model: hoare
+[*] Imported from 'zu76d': ['f'] (trusted stubs)
+
+[!] PIPELINE ERROR:
+PYCSL-FUNCTION-FRAME: the function `f` declares `#@ assigns` but its body may write the parameter(s) `xs` (a store rooted at it, an in-place mutator, or forwarding it to a callee that writes it), which the declared frame does not name. A caller in another module reads the declared frame, so it would assume the argument UNCHANGED across the call (route #634). Add the written location to the frame (`#@ assigns xs.<field>` / `xs[..]`), or stop writing it.

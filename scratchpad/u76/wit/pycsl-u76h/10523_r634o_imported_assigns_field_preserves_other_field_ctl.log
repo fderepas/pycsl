@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10523_r634o_imported_assigns_field_preserves_other_field_ctl.py'...
+[*] Memory model: hoare
+[*] Imported class from 'zu76b': R (record + 0 method stub(s) + 1 helper(s))
+[*] Imported from 'zu76b': ['f'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/tmp/.pycsl_gf3bf3t6.mlw", line 14, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 52 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,428 @@
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 229, characters 25-28: unused variable obj
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 229, characters 35-41: unused variable indent
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 230, characters 25-26: unused variable p
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 230, characters 37-44: unused variable parents
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 230, characters 53-61: unused variable exist_ok
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 231, characters 30-31: unused variable p
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 232, characters 30-31: unused variable p
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 232, characters 42-43: unused variable s
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 236, characters 31-32: unused variable s
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 254, characters 20-23: unused variable sep
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 254, characters 34-36: unused variable xs
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 264, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 271, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 279, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 288, characters 13-14: unused variable s
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 288, characters 22-25: unused variable cls
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 288, characters 33-44: unused variable object_hook
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 288, characters 52-63: unused variable parse_float
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 288, characters 71-80: unused variable parse_int
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 288, characters 88-102: unused variable parse_constant
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 288, characters 110-127: unused variable object_pairs_hook
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 291, characters 19-31: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 291, characters 42-48: unused variable prover
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 291, characters 59-62: unused variable key
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 293, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 296, characters 13-16: unused variable obj
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 296, characters 24-32: unused variable skipkeys
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 296, characters 40-52: unused variable ensure_ascii
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 296, characters 60-74: unused variable check_circular
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 296, characters 82-91: unused variable allow_nan
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 296, characters 99-102: unused variable cls
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 296, characters 110-116: unused variable indent
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 296, characters 124-134: unused variable separators
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 296, characters 142-149: unused variable default
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 296, characters 157-166: unused variable sort_keys
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 311, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 315, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 328, characters 8-14: unused variable py_end
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 326, characters 8-14: unused variable marker
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 321, characters 8-24: unused variable block_starts_len
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 319, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 381, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 386, characters 29-33: unused variable name
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 388, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 390, characters 34-38: unused variable name
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 392, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 394, characters 30-34: unused variable line
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 396, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 398, characters 36-41: unused variable block
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 400, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 404, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 422, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 424, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 426, characters 24-34: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 426, characters 45-54: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 426, characters 71-83: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 426, characters 94-103: unused variable use_cache
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 428, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 431, characters 24-34: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 431, characters 45-54: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 431, characters 71-83: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 431, characters 94-103: unused variable use_cache
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 433, characters 15-19: unused variable result
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 48, characters 7-14:
+Sub-goal Precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 48, characters 34-41:
+Sub-goal Precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 48, characters 51-58:
+Sub-goal Precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.01s, 1018 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 47, characters 14-79:
+Sub-goal Postcondition of goal pycsl_div'vc.
+Prover result is: Out of memory (4.38s).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 53, characters 7-14:
+Sub-goal Precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 53, characters 34-41:
+Sub-goal Precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 53, characters 51-58:
+Sub-goal Precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 52, characters 14-79:
+Sub-goal Postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.01s, 10848 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 82, characters 80-97:
+Sub-goal Variant decrease of goal pairs_set'vc.
+Prover result is: Valid (0.00s, 4232 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 88, characters 50-62:
+Sub-goal Variant decrease of goal hpairs_len'vc.
+Prover result is: Valid (0.00s, 3558 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 91, characters 72-85:
+Sub-goal Variant decrease of goal pairs_nodup'vc.
+Prover result is: Valid (0.00s, 3826 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 94, characters 66-83:
+Sub-goal Variant decrease of goal pairs_keys_in'vc.
+Prover result is: Valid (0.00s, 3812 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 97, characters 64-79:
+Sub-goal Variant decrease of goal hpairs_keys'vc.
+Prover result is: Valid (0.00s, 3558 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 119, characters 46-58:
+Sub-goal Variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.01s, 3893 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 120, characters 42-54:
+Sub-goal Variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3897 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 121, characters 42-56:
+Sub-goal Variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3861 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 122, characters 44-55:
+Sub-goal Variant decrease of goal hval_eq'vc.
+Prover result is: Valid (0.00s, 3873 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 128, characters 48-59:
+Sub-goal Variant decrease of goal hlist_eq'vc.
+Prover result is: Valid (0.00s, 3601 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 128, characters 63-75:
+Sub-goal Variant decrease of goal hlist_eq'vc.
+Prover result is: Valid (0.00s, 3601 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 134, characters 59-70:
+Sub-goal Variant decrease of goal pairs_incl'vc.
+Prover result is: Valid (0.00s, 3246 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 135, characters 26-40:
+Sub-goal Variant decrease of goal pairs_incl'vc.
+Prover result is: Valid (0.00s, 3239 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 142, characters 27-42:
+Sub-goal Variant decrease of goal hval_canon'vc.
+Prover result is: Valid (0.00s, 3850 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 147, characters 68-83:
+Sub-goal Variant decrease of goal hlist_canon'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 147, characters 53-67:
+Sub-goal Variant decrease of goal hlist_canon'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 152, characters 20-36:
+Sub-goal Variant decrease of goal hval_hashable'vc.
+Prover result is: Valid (0.00s, 3850 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 157, characters 47-62:
+Sub-goal Variant decrease of goal hlist_hashable'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 157, characters 66-82:
+Sub-goal Variant decrease of goal hlist_hashable'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 176, characters 48-63:
+Sub-goal Variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 181, characters 43-66:
+Sub-goal Variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.00s, 3590 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 200, characters 63-83:
+Sub-goal Variant decrease of goal hval_list_snoc'vc.
+Prover result is: Valid (0.00s, 3554 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 209, characters 99-120:
+Sub-goal Variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.00s, 4408 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 264, characters 15-19:
+Sub-goal Postcondition of goal _sha256_file'vc.
+Prover result is: Valid (0.00s, 1222 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 274, characters 42-69:
+Sub-goal Precondition of goal _cache_key'vc.
+Prover result is: Valid (0.00s, 1213 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 274, characters 29-69:
+Sub-goal Array creation size of goal _cache_key'vc.
+Prover result is: Valid (0.00s, 1217 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 274, characters 73-133:
+Sub-goal Index in array bounds of goal _cache_key'vc.
+Prover result is: Valid (0.00s, 2284 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 274, characters 135-153:
+Sub-goal Index in array bounds of goal _cache_key'vc.
+Prover result is: Valid (0.00s, 2464 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 274, characters 155-181:
+Sub-goal Index in array bounds of goal _cache_key'vc.
+Prover result is: Valid (0.00s, 2527 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 271, characters 15-19:
+Sub-goal Postcondition of goal _cache_key'vc.
+Prover result is: Valid (0.00s, 1769 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 279, characters 15-19:
+Sub-goal Postcondition of goal _cache_root'vc.
+Prover result is: Valid (0.00s, 1213 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 304, characters 30-56:
+Sub-goal Precondition of goal _cache_store'vc.
+Prover result is: Valid (0.00s, 1213 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 301, characters 15-19:
+Sub-goal Postcondition of goal _cache_store'vc.
+Prover result is: Valid (0.00s, 1242 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 335, characters 18-29:
+Sub-goal Loop invariant init of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.00s, 1755 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 341, characters 20-37:
+Sub-goal Loop invariant init of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.00s, 2651 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 343, characters 20-68:
+Sub-goal Loop invariant init of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 2668 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 342, characters 18-64:
+Sub-goal Loop variant decrease of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 41360 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 341, characters 20-37:
+Sub-goal Loop invariant preservation of goal
+_split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 41200 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 343, characters 20-68:
+Sub-goal Loop invariant preservation of goal
+_split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 42781 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 342, characters 18-64:
+Sub-goal Loop variant decrease of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 42569 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 341, characters 20-37:
+Sub-goal Loop invariant preservation of goal
+_split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 42429 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 343, characters 20-68:
+Sub-goal Loop invariant preservation of goal
+_split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.00s, 4825 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 362, characters 18-40:
+Sub-goal Loop invariant init of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 3130 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 366, characters 21-51:
+Sub-goal Index in array bounds of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.00s, 5269 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 363, characters 16-60:
+Sub-goal Loop variant decrease of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 47378 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 362, characters 18-40:
+Sub-goal Loop invariant preservation of goal
+_split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 47192 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 363, characters 16-60:
+Sub-goal Loop variant decrease of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 51012 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 362, characters 18-40:
+Sub-goal Loop invariant preservation of goal
+_split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 50826 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 319, characters 15-19:
+Sub-goal Postcondition of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.00s, 3323 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 336, characters 16-47:
+Sub-goal Loop variant decrease of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 54837 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 335, characters 18-29:
+Sub-goal Loop invariant preservation of goal
+_split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 53282 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 362, characters 18-40:
+Sub-goal Loop invariant init of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.00s, 2646 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 366, characters 21-51:
+Sub-goal Index in array bounds of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 4753 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 363, characters 16-60:
+Sub-goal Loop variant decrease of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 43762 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 362, characters 18-40:
+Sub-goal Loop invariant preservation of goal
+_split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 43588 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 363, characters 16-60:
+Sub-goal Loop variant decrease of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 47196 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 362, characters 18-40:
+Sub-goal Loop invariant preservation of goal
+_split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.01s, 47022 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 319, characters 15-19:
+Sub-goal Postcondition of goal _split_rocq_print_assumptions'vc.
+Prover result is: Valid (0.00s, 2839 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 383, characters 52-452:
+Sub-goal PyCSL-R4 distinct literal keys of goal _to_cache_payload'vc.
+Prover result is: Valid (0.00s, 1529 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 384, characters 678-684:
+Sub-goal Unreachable point of goal _to_cache_payload'vc.
+Prover result is: Timeout (30.00s, 21189570 steps).
+
+File /home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw:
+Sub-goal Out of loop bounds of goal _to_cache_payload'vc.
+Prover result is: Valid (0.00s, 1808 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 381, characters 15-19:
+Sub-goal Postcondition of goal _to_cache_payload'vc.
+Prover result is: Valid (0.00s, 1650 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 381, characters 15-19:
+Goal _to_cache_payload'vc.
+Prover result is: Valid (0.00s, 1658 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 404, characters 15-19:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1422 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 405, characters 15-44:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1423 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 406, characters 15-52:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1424 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 407, characters 15-60:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1425 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 408, characters 15-60:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1426 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 409, characters 15-66:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1427 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 410, characters 15-52:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1428 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 411, characters 15-44:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1429 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 412, characters 15-64:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1430 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 404, characters 15-19:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1452 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 405, characters 15-44:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1453 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 406, characters 15-52:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1454 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 407, characters 15-60:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1455 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 408, characters 15-60:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1456 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 409, characters 15-66:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1457 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 410, characters 15-52:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1458 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 411, characters 15-44:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1459 steps).
+
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/pr/arm_inner.mlw", line 412, characters 15-64:
+Sub-goal Postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1460 steps).
+

@@ -1,0 +1,85 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u77/scratchpad/u77/c/b/c15i/c15i.py'...
+[*] Memory model: hoare
+=== SOUNDNESS REPORT (JSON) ===
+{
+  "file": "/home/fabrice/git/pycsl-u77/scratchpad/u77/c/b/c15i/c15i.py",
+  "summary": {
+    "Modelled": 4,
+    "Specified": 0,
+    "Stubbed": 0,
+    "Confinement": 0
+  },
+  "vcs": [
+    {
+      "function": "b__total",
+      "bucket": "Modelled",
+      "has_contract": true,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    },
+    {
+      "function": "s__total",
+      "bucket": "Modelled",
+      "has_contract": true,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    },
+    {
+      "function": "f",
+      "bucket": "Modelled",
+      "has_contract": true,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    },
+    {
+      "function": "r__total",
+      "bucket": "Modelled",
+      "has_contract": true,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    }
+  ],
+  "model_assumptions": [
+    {
+      "name": "BUILTIN-EXACT",
+      "statement": "a value whose static type is a builtin (int/float/str/bool/bytes/tuple/list/dict/set) is an exact instance of it, not a subclass overriding a dunder",
+      "counterexample": "class I(int): __sub__ -> 7; x - x == 7 for x = I(5) (corpus 2506)",
+      "strict_mode": null,
+      "relied_on_by": [
+        "b__total: `+` on self.a: int",
+        "b__total: `==` on \\result: int",
+        "f: `==` on \\result: int",
+        "r__total: `+` on self.a: int",
+        "r__total: `==` on \\result: int",
+        "s__total: `==` on \\result: int, self.n: int"
+      ]
+    }
+  ],
+  "cited_lemmas": []
+}
+
+=== SOUNDNESS REPORT (summary) ===
+file: /home/fabrice/git/pycsl-u77/scratchpad/u77/c/b/c15i/c15i.py   functions/VCs: 4
+  Modelled    : 4
+  Specified   : 0
+  Stubbed     : 0
+  Confinement : 0
+  --- declared model assumptions (not proved; see the reference docs) ---
+    BUILTIN-EXACT: a value whose static type is a builtin (int/float/str/bool/bytes/tuple/list/dict/set) is an exact instance of it, not a subclass overriding a dunder
+      counterexample: class I(int): __sub__ -> 7; x - x == 7 for x = I(5) (corpus 2506)
+      strict mode: none (always assumed)
+      relied on by b__total: `+` on self.a: int
+      relied on by b__total: `==` on \result: int
+      relied on by f: `==` on \result: int
+      relied on by r__total: `+` on self.a: int
+      relied on by r__total: `==` on \result: int
+      relied on by s__total: `==` on \result: int, self.n: int
+rc=0 args=--no-proof --soundness-report oom0=[oom_kill 15] oom1=[oom_kill 15]

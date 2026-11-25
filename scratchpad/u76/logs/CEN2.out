@@ -1,0 +1,32 @@
+10510_u76f1_float_field_pyval_eq_nonintegral_literal_false.py	VERIFY-FAIL	
+10511_u76f1_float_field_pyval_ne_literal_false.py	VERIFY-FAIL	
+10512_u76f1_float_field_pyval_eq_stored_float_false.py	VERIFY-FAIL	
+10513_u76f1_float_field_pyval_eq_integral_literal_false.py	VERIFY-FAIL	
+10514_u76f1_float_field_pyval_truthiness_false.py	VERIFY-FAIL	
+10515_u76f1_float_field_pyval_isinstance_int_false.py	VERIFY-FAIL	
+10520_r634x_imported_assigns_nothing_record_field_write_false.py	REFUSAL	PYCSL-FUNCTION-FRAME: the function `f` declares `#@ assigns` but its body may write the parameter(s) `r` (a store rooted at it, an in-place mutator, or forwarding it to a callee that writes it), which the declared frame does not name. A caller in another module reads the declared frame, so it would assume the argument UNCHANGED across the call (route #634). Add the written location to the frame (`#@ assigns r.<field>` / `r[..]`), or stop writing it.
+10521_r634x_assigns_nothing_record_field_loop_write_owner_false.py	REFUSAL	PYCSL-FUNCTION-FRAME: the function `f` declares `#@ assigns` but its body may write the parameter(s) `r` (a store rooted at it, an in-place mutator, or forwarding it to a callee that writes it), which the declared frame does not name. A caller in another module reads the declared frame, so it would assume the argument UNCHANGED across the call (route #634). Add the written location to the frame (`#@ assigns r.<field>` / `r[..]`), or stop writing it.
+10522_r634x_imported_assigns_nothing_list_elem_write_false.py	REFUSAL	PYCSL-FUNCTION-FRAME: the function `f` declares `#@ assigns` but its body may write the parameter(s) `xs` (a store rooted at it, an in-place mutator, or forwarding it to a callee that writes it), which the declared frame does not name. A caller in another module reads the declared frame, so it would assume the argument UNCHANGED across the call (route #634). Add the written location to the frame (`#@ assigns xs.<field>` / `xs[..]`), or stop writing it.
+10524_r634x_imported_assigns_field_written_field_false.py	VERIFY-FAIL	
+9063_u30_r568_w04_any_receiver_pure_caller.py	REFUSAL	PYCSL-FUNCTION-FRAME: the function `caller` declares `#@ assigns` but its body may write the parameter(s) `c` (a store rooted at it, an in-place mutator, or forwarding it to a callee that writes it), which the declared frame does not name. A caller in another module reads the declared frame, so it would assume the argument UNCHANGED across the call (route #634). Add the written location to the frame (`#@ assigns c.<field>` / `c[..]`), or stop writing it.
+cen rc=0
+h k1 rc=1 line 191, characters 36-50
+h k2 rc=1 line 193, characters 36-50
+h k4 rc=1 line 194, characters 21-26
+b k4 rc=0 Verification SUCCESS
+h k6 rc=1 line 190, characters 18-44
+b k6 rc=1 line 190, characters 18-44
+h k7 rc=1 line 190, characters 18-44
+b k7 rc=1 line 190, characters 18-44
+h k9 rc=1 line 23, characters 9-12
+b k9 rc=0 Verification SUCCESS
+k1 CPython: CPython g(0) = 1
+k2 CPython: CPython g(0) = 2
+k3 CPython: CPython g(R({}, [])) = 1
+k4 CPython: CPython g(R({}, [('a', [])])) = 1
+k5 CPython: CPython g(R({}, [('a', [])])) = 0
+k6 CPython: CPython g(0) = 0
+k7 CPython: CPython g(R({}, [('a', [])])) = 1
+k8 CPython: CPython g(R({}, [('a', [])])) = 0
+k9 CPython: CPython g(R({}, [('a', ['z'])])) = 1
+CEN2 done

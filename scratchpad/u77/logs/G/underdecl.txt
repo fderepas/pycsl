@@ -1,0 +1,29 @@
+[*] assigns-underdeclaration DECLARED-CALLEE arm: HOLE-D 0 (ceiling 0), HOLE-DI 4 (ceiling 4: field declared in `__init__` only), TRAP-D 108 (callee field absent from the caller's class), 1 ambiguous callee frame(s) skipped.
+[*] assigns-underdeclaration DISPATCH arm: TRAP-V 1750, HOLE-V 8 (5 on `\trusted` frames, 3 on verified; baseline 30/3) — visitor/getattr/table dispatch, receiver-family resolution, container-mutator writes, `\nothing` clauses, `__init__`-declared fields.
+[*] assigns-underdeclaration: 25 HOLE-V baseline row(s) no longer fire — REMOVE them from HOLE_V_BASELINE (the ratchet only shrinks):
+    frontend/Module5_IREmitter.py        PyCSLToJSONEmitter       visit_FunctionDef              self._m5_dc_unknown
+    frontend/Module5_IREmitter.py        PyCSLToJSONEmitter       visit_Module                   self._m5_dc_unknown
+    module6_whyml/statements.py          StatementEmissionMixin   _handle_return_stmt            self._abstract_ops
+    module6_whyml/statements.py          StatementEmissionMixin   _handle_return_stmt            self._dict_locals
+    module6_whyml/statements.py          StatementEmissionMixin   _handle_return_stmt            self._get_return_raw_option
+    module6_whyml/statements.py          StatementEmissionMixin   _handle_return_stmt            self._quant_record_binders
+    module6_whyml/statements.py          StatementEmissionMixin   _handle_return_stmt            self._quant_scalar_binders
+    module6_whyml/statements.py          StatementEmissionMixin   _track_collection_metadata     self._known_collection_elements
+    module6_whyml/statements.py          StatementEmissionMixin   _track_collection_metadata     self._known_collection_sizes
+    module6_whyml/statements.py          StatementEmissionMixin   _track_collection_metadata     self._record_array_locals
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _expr_to_whyml                 self._dict_locals
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _expr_to_whyml                 self._quant_record_binders
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _expr_to_whyml                 self._quant_scalar_binders
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._comp_content_counter
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._current_params
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._current_self_type
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._dict_locals
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._frame_trigger_active
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._func_return_type
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._in_spec
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._needs_array_init
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._quant_record_binders
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._quant_scalar_binders
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._string_local_vars
+    module6_whyml/stmt_control_flow.py   ControlFlowStmtMixin     _match_pattern_cond            self._todict_arg_wants_pymap
+[+] assigns-underdeclaration: OK — 540 non-empty `#@ assigns` clause(s) (invisible to check-trusted-frame-honesty, which is scoped to `\nothing`); TRAP 3 field-occurrence(s) across 2 method(s), HOLE 0. Every omitted field is UNDECLARED in its class, hence absent from the emitted record, hence unmentionable.
