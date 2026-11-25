@@ -1,5 +1,6 @@
 # Driver run #9: final report (self-tcb-reduction-driver, AUTONOMOUS, 96 h)
 
+- **End state:** main = L25 `9c8f8ac4c`; `\trusted` 364; ledger 3; oom_kill 15; only the main worktree is left; no job or agent is running.
 - **Window:** 2026-11-21T21:25:23Z to 2026-11-25T21:25:23Z (`.driver-deadline` = 1795641923).
 - **Branch:** `ghost-assign-bc6`. COMMIT-ONLY: nothing was pushed.
 - **Run log:** entries 1269 to the "RUN #9 END" entry in `getting-better/driver-run-log.md`.
@@ -29,9 +30,9 @@
 
 | | start of run #9 | end of run #9 |
 |---|---|---|
-| `\trusted` in the mirror | 366 | 365 at L23; **364** once L24 lands (§2) |
+| `\trusted` in the mirror | 366 | **364** |
 | proof-axiom ledger | 3 | 3 (no new axiom) |
-| landings | L18 | L19-L23 (+ L24 / L25: see §2) |
+| landings | L18 | L19-L25 (7 landings) |
 | non-vacuity gate on main | FAILED (`is_pstr` probe) | green |
 
 - **Conversions:**
@@ -50,8 +51,8 @@ Every landing passed its own battery: A new-corpus witnesses, C byte-diff (root 
 | L21 | d2f5bfd4c | V2D import-resolver batch (u64 / u66 / u69 / u71: #621 / #622 / #626 / #627) + u67 (type_of_batch VERIFIED, 366 -> 365) + bespoke-model-drift plane fix | v79: D 1 mover proved 64 / 64; F 85 / 85 |
 | L22 | 3a7b323c7 | u70 + u72: one identity per definition (#624 / #625 / #628 / #629 / #630) | v80: C 0 / 0 / 0, D 0 diff, F 85 / 85 |
 | L23 | af47df99f | u73 + u75: import-resolver escapes (#631 / #632 / #633 / #635 / #636) | v81b: C 3 declared GONE, D 0 diff, F 85 / 85 |
-| L24 | (see end state) | u74 + u76 + u77 (int85 115c761cb): `_to_cache_payload` VERIFIED (365 -> 364), F1 repair, #634 `PYCSL-FUNCTION-FRAME`, honest FLOAT-FINITE report, c15 narrowing | v85: A 42 / 42, C 5 declared GONE, D 2 movers proved (88 / 88, 111 / 111) |
-| L25 | (see end state) | u78 (int86 cfbb04668): K1 / f19 refusal-only repair | v86: C 5 declared GONE (the same as v85), D == int85 |
+| L24 | 84d964595 | u74 + u76 + u77 (int85 115c761cb): `_to_cache_payload` VERIFIED (365 -> 364), F1 repair, #634 `PYCSL-FUNCTION-FRAME`, honest FLOAT-FINITE report, c15 narrowing | v85: A 42 / 42, C 5 declared GONE, D 2 movers proved (88 / 88, 111 / 111), F 85 / 85 |
+| L25 | 9c8f8ac4c | u78 (int86 cfbb04668): K1 / f19 refusal-only repair | v86: C 5 declared GONE (the same as v85), D == int85, F 85 / 85 |
 
 ## 3. Red teams (one round per batch, run BEFORE landing)
 
@@ -80,7 +81,7 @@ These are all fail-safe; each one only refuses more.
   - 9063, which was expected to FAIL and is now refused;
   - w19c.
 - **Data-only bin/ changes:** census rows do not void proofs (strace audit, log 1291).
-- **Batches were folded to fit the deadline:** L23 went first (u73 + u75), then L24 (u74 + u76 + u77), then L25 (u78).
+- **Batches were folded to fit the deadline:** L23 went first (u73 + u75), then L24 (u74 + u76 + u77, landed 18:55Z), then L25 (u78, landed 21:03Z).
 
 ## 5. User-visible items, waiting on the user
 
@@ -95,7 +96,7 @@ These are all fail-safe; each one only refuses more.
 - **50 files** were whole-file proved, vacuity included, in campaign c20 on int77. int77's mirror emission is identical to main through L23, checked by every battery's D leg. One exception: proof2why3/sertop moved in L21 and was re-proved on int80 (64 / 64).
 - **`stmt_control_flow.py`:** the main phase is proved (16326 / 16326). Vacuity shards 1-7 did not run.
 - **Not re-proved under run #9 tooling: `statements.py` and `expressions.py`.** Their jobs are in `scratchpad/run9/c20-jobs.HOLD.txt`.
-- **`audit_proof_reverify.py` and `audit_proof.py`** moved in L24. Both are whole-file proved on int85: 88 / 88 and 111 / 111, rc 0. int86's emission of both is byte-identical, so the proofs carry to L25.
+- **`audit_proof_reverify.py` and `audit_proof.py`** moved in L24. Both are whole-file proved on int85: 88 / 88 and 111 / 111, rc 0. int86's emission of both is byte-identical, so the proofs carry to L25 (main).
 - **Per-file logs:**
   - `scratchpad/run9/c20-results.txt`;
   - `scratchpad/run9/p85-proofs.txt`;
@@ -122,7 +123,7 @@ These are all fail-safe; each one only refuses more.
 
 ## 9. Run #10 inputs
 
-- **The run #10 brief is `getting-better/run10-brief.md`** (commit 9f83c3b0c). The supervisor wrote it on the user's request. It puts `\trusted` reduction first, and says that L24 = run9-u77 lands first if run #9 does not land it. This driver appended dated lines to its "Open inputs" list before the deadline.
+- **The run #10 brief is `getting-better/run10-brief.md`** (commit 9f83c3b0c). The supervisor wrote it on the user's request. It puts `\trusted` reduction first, and says that L24 = run9-u77 lands first if run #9 does not land it. **L24 and L25 both landed in run #9**, so that item is done. This driver appended dated lines to its "Open inputs" list before the deadline.
 - **Inputs:**
   - the §8 queue;
   - the §5 user decisions;
