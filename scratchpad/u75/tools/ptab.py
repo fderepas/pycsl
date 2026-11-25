@@ -18,12 +18,23 @@ def cls(l):
 def key(l):
     m = re.match(r"^\[[pq]:[a-z0-9]+\] (\S+) ", l)
     return m.group(1) if m else None
+def logcls(tag, l, k):
+    c = cls(l)
+    if c != "REF": return c
+    sub = {"[q:p]": "qp", "[q:w]": "qw"}.get(l[:5], "qd")
+    n = k.replace("/", "_") if sub == "qd" else (k.replace("/", "_").replace(".py", "") if sub == "qw" else k)
+    for f in (f"{L}/PB-{tag}/{sub}/{n}.log", f"{L}/PB-{tag}/{sub}/{k.replace('/', '_')}.log"):
+        if os.path.exists(f):
+            t = open(f, errors="replace").read()
+            i = t.find("PIPELINE ERROR")
+            return cls(":: [!] PIPELINE ERROR: :: " + t[i:i + 1200].replace("\n", " "))
+    return c
 def load(tag):
     q, p = {}, {}
     for l in open(f"{L}/PB-{tag}.txt"):
         k = key(l)
         if not k: continue
-        (q if l.startswith("[q:") else p)[k] = cls(l)
+        (q if l.startswith("[q:") else p)[k] = logcls(tag, l, k) if l.startswith("[q:") else cls(l)
     return {k: (p.get(k, v) if v == "SUCCESS" else v) for k, v in q.items()}
 cp = {}
 for f in ("cpy-rt83.txt", "cpy-u75.txt", "cpy-rt81-u73.txt", "cpy-wit.txt"):
