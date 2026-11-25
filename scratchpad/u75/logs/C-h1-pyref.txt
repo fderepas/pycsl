@@ -1,0 +1,18 @@
+[!]   GONE pyref__0115.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__0115.
+[!]   GONE pyref__0117.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__0117.
+[!]   GONE pyref__0200.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__0200.
+[!]   GONE pyref__stdlib_json_JSONDecoder_decode_call_fails.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_JSONDecoder_decode_call_fails.
+[!]   GONE pyref__stdlib_json_JSONDecoder_decode_call_proves.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_JSONDecoder_decode_call_proves.
+[!]   GONE pyref__stdlib_json_JSONDecoder_raw_decode_call_fails.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_JSONDecoder_raw_decode_call_fails.
+[!]   GONE pyref__stdlib_json_JSONDecoder_raw_decode_call_proves.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_JSONDecoder_raw_decode_call_proves.
+[!]   GONE pyref__stdlib_json_JSONEncoder_default_call_fails.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_JSONEncoder_default_call_fails.
+[!]   GONE pyref__stdlib_json_JSONEncoder_default_call_proves.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_JSONEncoder_default_call_proves.
+[!]   GONE pyref__stdlib_json_JSONEncoder_encode_call_fails.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_JSONEncoder_encode_call_fails.
+[!]   GONE pyref__stdlib_json_JSONEncoder_encode_call_proves.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_JSONEncoder_encode_call_proves.
+[!]   GONE pyref__stdlib_json_JSONEncoder_iterencode_call_fails.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_JSONEncoder_iterencode_call_fails.
+[!]   GONE pyref__stdlib_json_JSONEncoder_iterencode_call_proves.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_JSONEncoder_iterencode_call_proves.
+[!]   GONE pyref__stdlib_json_dump_call_fails.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_dump_call_fails.
+[!]   GONE pyref__stdlib_json_dump_call_proves.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_dump_call_proves.
+[!]   GONE pyref__stdlib_json_dumps_proves.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone pyref__stdlib_json_dumps_proves.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 2185 baseline / 2169 candidate .mlw; 0 MOVED (0 unexpected), 16 GONE (16 unexpected), 0 APPEARED.

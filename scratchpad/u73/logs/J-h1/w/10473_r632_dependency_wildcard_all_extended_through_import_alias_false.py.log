@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10473_r632_dependency_wildcard_all_extended_through_import_alias_false.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] test-suite/corpus/pycsl-reference/10473_r632_dependency_wildcard_all_extended_through_import_alias_false.py: the local module test-suite/corpus/pycsl-reference/zu73j.py, which the program reaches, has a wildcard import of the package `zu73k` (test-suite/corpus/pycsl-reference/zu73k/__init__.py) whose `__all__` pycsl cannot read: /home/fabrice/git/pycsl-u73-h1/test-suite/corpus/pycsl-reference/zu73k/k.py (line 1) names `__all__` outside a package's own literal assignment, so the list the wildcard loads may be changed. CPython's `from pkg import *` imports every `__all__` name the package does not bind yet, i.e. LOADS those submodules and runs their import-time code, so the modules the program runs are not known (review rt79 w2: `from zv7w2 import *` with `__all__ = ["b"]` ran zv7w2/b.py, whose `hw792.one = _two` made CPython print 5 where pycsl PROVED 4). FIX: give the package one literal `__all__ = ["name", ...]`, or import the names explicitly.

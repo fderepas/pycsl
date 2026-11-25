@@ -6307,7 +6307,25 @@ that reached code can change, has no image (`PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNO
 rt79 w2). Relative imports are
 package-relative in both and not compared; not applied under `--verification-image`. A program run
 with an `--import-path` entry that is not an existing directory has no image
-(`PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY`; u71, route #627, rt79 z1: $R$ would omit a zipimport root). $\rho$ is a function of the
+(`PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY`; u71, route #627, rt79 z1: $R$ would omit a zipimport root).
+A module object also escapes through an import-bound class base, a non-function-local annotation and
+the loader / spec / annotation-reader attributes (u73, route #631, rt81 p2 / p1b / p7). A reached module
+other than $P$ with a module-level `__mro_entries__` / `__getattr__` hook (in $P$: once a module can be a
+class base or escapes) has no image (`PYCSL-SEM-IMPORT-MODULE-HOOK`; u73, route #631: $\rho$ does not
+model the code CPython runs for a class base or a missing attribute). A wildcard's `__all__` has no image
+when the package `__init__` has a module-level `__getattr__` / `__dir__` / `__mro_entries__` hook or a
+reached import alias names or binds `__all__`, in the walk and in routes #483 / #484 (u73, route #632,
+rt81 x3 / x4). Importing `unittest`, `mock`, `pydoc`, `logging.config`, `pickle`, `_pickle` or `shelve`
+with a locally-resolved import has no image (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`; u73, route #633, rt81
+p4: `mock.patch("pkg.b", K)` sets a module attribute by name). The class-base / annotation escape counts a
+name only when it can denote a module object (u75, rt83 o4 / o5); a class- or function-scope hook binding
+and a `hasattr` / `getattr` read of the hook name are no module hook (u75, rt83 o6 / o7). Importing
+`timeit`, `code`, `codeop`, `cProfile`, `profile`, `pdb`, `bdb`, `trace`, `doctest` or `test` with a
+locally-resolved import, or any module of route #326's list from a reached module other than $P$, has no
+image (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`; u75, route #635, rt83 s2: a string run by `timeit` rebinds a
+submodule). A module object, or a submodule / function / class of a local module, used as a value has no
+image (`PYCSL-SEM-IMPORT-MODULE-VALUE`; u75, route #636, rt83 u1: library code sets its attributes where
+$\rho$ sees no store). $\rho$ is a function of the
 source tree only, so a program that can change CPython's binding has no image
 (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
 path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a

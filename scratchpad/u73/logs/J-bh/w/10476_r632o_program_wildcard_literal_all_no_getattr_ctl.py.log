@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10476_r632o_program_wildcard_literal_all_no_getattr_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'zu73q': ['one'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp/.pycsl_v5fb7ka8.mlw", line 10, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.01s, 6 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

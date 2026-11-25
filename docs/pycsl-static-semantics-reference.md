@@ -3215,7 +3215,26 @@ from the file r resolves to: one tail reached through two modules, also written 
 class the file imports under that name from another module is refused
 (`PYCSL-SEM-IMPORT-BASE-CLASS-AMBIGUOUS`, extends route #345); a bare-only base whose name is
 bound by a wildcard import, a from-import of another source or another binding (or that two module
-imports define) is refused too. `from m import f as g` keeps the two apart and is admitted. Under the declared `--verification-image
+imports define) is refused too. `from m import f as g` keeps the two apart and is admitted. The module-object escapes also include an import-bound name as a class base, in a
+non-function-local annotation, the loader / spec / annotation-reader attributes and names
+(`__loader__`, `__spec__`, `load_module`, `exec_module`, `module_from_spec`, `__annotations__`,
+`__annotate__`, `get_type_hints`, `get_annotations`) and an import of `annotationlib` or of an annotation
+evaluator (u73, route #631, rt81 p2 / p1b / p7); a module-level `__mro_entries__` / `__getattr__` hook in
+a reached module other than the program (in the program: once a module can be a class base or escapes)
+is refused (`PYCSL-SEM-IMPORT-MODULE-HOOK`; u73, route #631); a wildcard of a package whose `__init__`
+has a module-level `__getattr__` / `__dir__` / `__mro_entries__` hook, or a reached import alias naming
+or binding `__all__`, makes `__all__` unknown, in the walk and in route #483's closure (u73, route #632,
+rt81 x3 / x4 / x1b); route #326's dynamic-import list gains `unittest`, `mock`, `pydoc`,
+`logging.config`, `pickle`, `_pickle`, `shelve` (u73, route #633, rt81 p4: string-resolved
+`mock.patch`). The class-base / annotation escape is narrowed to names that can denote a module object;
+a local `def` / `class` binding, a typing alias and a local constant count only with a reflective escape
+(u75, rt83 o4 / o5); the hook scan binds a def / Name store in its own scope and reads the 2nd argument of
+a two-argument `hasattr` / `getattr` as a read unless a reached module mentions `builtins` (u75, rt83 o6
+/ o7); route #326's list gains `timeit`, `code`, `codeop`, `cProfile`, `profile`, `pdb`, `bdb`, `trace`,
+`doctest`, `test`, and a reached non-program module importing one of the list is refused
+(`PYCSL-SEM-IMPORT-STATE-MANIPULATED`; u75, route #635, rt83 s2 / s3); a module object (or a submodule /
+function / class of a local module) used as a value is refused (`PYCSL-SEM-IMPORT-MODULE-VALUE`; u75,
+route #636, rt83 u1 / v2 / t1). Under the declared `--verification-image
 ROOT` (a verification model CPython never executes: the mirror gates, the pycsl_lib plane; the
 `--soundness-report` lists VERIFICATION-IMAGE: no CPython-run claim) only the closure check's
 roots move to ROOT; the program's imports resolve as pycsl resolves them. `--as-package-module`

@@ -1,0 +1,196 @@
+## b0 /home/fabrice/git/pycsl-u73-b0 c115e0a5a Mon Nov 23 18:45:57 UTC 2026
+[d] u73/a1 rc=1 46s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[d] u73/c1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] u73/c1f rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] u73/c2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] u73/g1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] u73/k1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] u73/k2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] u73/l1 rc=1 2s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[d] u73/m1 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `hw83m1...` at l
+[d] u73/m2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] u73/o1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] u73/q1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] u73/q2 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] u73/q4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/a1 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.b` written on `m...` at line 15)
+[d] rt81/a10 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt81/a10/P/sw81a10.py (line 8) runs, at impor
+[d] rt81/a11 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt81/a11/P/sw81a11.py (line 9) runs, at impor
+[d] rt81/a12 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.b` written on `D...` at line 12)
+[d] rt81/a13 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt81/a13/P/sw81a13.py (line 10) runs, at impo
+[d] rt81/a2 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt81/a2/P/sw81a2.py (line 5) runs, at import 
+[d] rt81/a3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-emit]: in-place field mutation `<Subscript base>.b = ...` is out of scope: a record reached through a subs
+[d] rt81/a4 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+[d] rt81/a5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (the namespace builtin `setattr` read as a value at line
+[d] rt81/a6 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`from sys import modules`), so what its `import` statements load is
+[d] rt81/a7 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt81/a7/P/sx81a7.py (line 8) runs, at import 
+[d] rt81/a8 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt81/a8/P/sx81a8.py (line 8) runs, at import 
+[d] rt81/a9 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt81/a9/P/sw81a9.py (line 10) runs, at import
+[d] rt81/p1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+[d] rt81/p1b rc=1 3s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[d] rt81/p2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/p2b rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/p3 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+[d] rt81/p3b rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: an element store through a value the model does not represent as a list is out of scope: the store lowers to t
+[d] rt81/p4 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/p4b rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/p5 rc=1 2s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[d] rt81/p6 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+[d] rt81/p6b rc=1 4s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[d] rt81/p7 rc=1 2s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[d] rt81/p8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/x1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime binding is not the `def` the model resolves it to (`from zw81x1 import *` at line 2 after a b
+[d] rt81/x1b rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/x2 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime binding is not the `def` the model resolves it to (`from zw81x2 import *` at line 2 after a b
+[d] rt81/x3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/x4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/x5 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/x6 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/x7 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt81/x7/P/zw81x7/w.py (line 9) runs, at impor
+[d] rt81/x8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/x9 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/z1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/z1n rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import zz81z1` resolves only through pycsl's own working directory (zz81z1.py), and CPython never searches th
+[d] rt81/z2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/z3 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/z4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/z5 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/z6 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/z7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[d] rt81/z8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r5 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r5b rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r4 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import lark.zr76`: pycsl's resolution took /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt76/r4/P/lark/z
+[p] r3 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r9 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r6 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r6-treecwd rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r2s rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt76/r2s/P/zr76/__init__.py (line 3) runs, at
+[p] r7 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt76/r7/P/zr76/__init__.py (line 3) runs, at 
+[p] r8 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt76/r8/P/zpa76/__init__.py (line 2) runs, at
+[p] r2d rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r2r rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r14 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r12 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r2d-dep rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r2r-dep rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r15 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import zn76.b`: pycsl's resolution took /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt76/r15/P/zn76/b.p
+[p] r16 rc=1 2s oom 15->15 :: PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt76/r16/X2/depr76.py, which the program re
+[p] r17 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] v2d rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] w5 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] v2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/u64/v2/P/zpa74/__init__.py (line 2) runs, at 
+[p] x1 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/u64/x1/P/zpa74/__init__.py (line 2) runs, at 
+[p] x2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] x3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] v2down rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] v1f rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r12c rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] b21 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] a22 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`b` rebound at line 6). Every call is resolv
+[p] s1 rc=1 4s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import hz78.one`: the import root /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/s1/P holds an import
+[p] s1-dep rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import hz78`: the import root /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/s1/P holds an importable
+[p] s7 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] s7-dep rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] s7-treecwd rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] s1f rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] c1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import hz78c`: the import root /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/c1/P holds an importabl
+[p] o1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] t4 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] t8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] t1 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/t1/P/zt781/__init__.py (line 3) runs, at
+[p] t2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/t2/P/zt782/__init__.py (line 4) runs, at
+[p] t3 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/t3/P/zt783/d.py (line 4) runs, at import
+[p] t5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/t5/P/zt785/__init__.py (line 3) runs, at
+[p] t6 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.b` written on `zt786...` at line
+[p] t7 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/t7/P/zt787/__init__.py (line 4) runs, at
+[p] a1 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`b` rebound at line 7). Every call is resolv
+[p] a1-noX rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`b` rebound at line 7). Every call is resolv
+[p] a3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import za783.b`: pycsl's resolution took /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/a3/X2/za783/b
+[p] a3-noX rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/a3/P/za783/__init__.py (line 2) runs, at
+[p] t9 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.b` written on `_p...` at line 4)
+[p] t10 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+[p] t11 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] t12 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.b` written on `zu694...` at line
+[p] t13 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] o2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] s8 rc=1 4s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/u69/s8/P/hz88.py (line 2) runs, at import tim
+[p] o3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] o4 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] a1 rc=1 4s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/a1/P/sub79/dep.py, which the program r
+[p] a2 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import hza792.one`: the import root /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/a2/P holds an impo
+[p] d1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/d1/P/ldd1.py (line 1) runs, at import ti
+[p] d2 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/d2/P/ldd2.py (line 1) runs, at import ti
+[p] d3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/d3/P/ldd3.py (line 1) runs, at import ti
+[p] d4 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`import importlib (with `zv7d4` resolved to a local file)`), so wha
+[p] d5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/d5/P/ldd5.py (line 1) runs, at import ti
+[p] d6 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`import importlib (with `zv7d6` resolved to a local file)`), so wha
+[p] d7 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/d7/P/zv7od7/b.py (line 11) runs, at impo
+[p] d8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] d9 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] e1 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/e1/P/zv7e1/d.py (line 7) runs, at import
+[p] e2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/e2/P/zv7e2/d.py (line 7) runs, at import
+[p] e3 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/e3/P/zv7e3/d.py (line 7) runs, at import
+[p] e4 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/e4/P/zv7e4/d.py (line 7) runs, at import
+[p] e5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/e5/P/zv7e5/d.py (line 7) runs, at import
+[p] e6 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/e6/P/zv7e6/d.py (line 7) runs, at import
+[p] e7 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/e7/P/zv7e7/d.py (line 7) runs, at import
+[p] e8 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/e8/P/zv7e8/d.py (line 4) runs, at import
+[p] e9 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 5).
+[p] e10 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 5).
+[p] e11 rc=1 4s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/e11/P/zv7e11/d.py (line 3) runs, at impo
+[p] g1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/g1/P/zv7g1/__init__.py (line 7) runs, at
+[p] g2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] g3 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] g4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] g5 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] r1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] w1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime binding is not the `def` the model resolves it to (`from zv7w1 import *` at line 2 after a bi
+[p] w2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] w3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt79/w3/P/zv7w3/b.py (line 9) runs, at import
+[p] z1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] w2-dep rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] w2-hw rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] n1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] n2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] n3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] n4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] n5 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] n6 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime binding is not the `def` the model resolves it to (`from zun6 import *` at line 2 after a bin
+[p] n7 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[p] y2 rc=1 3s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.b` written on `q...` at line 7).
+[p] y3 rc=1 2s oom 15->15 :: PYCSL-VAL-ARG-UNFRAMED :: [!] PIPELINE ERROR: :: PYCSL-VAL-ARG-UNFRAMED: `swap` is emitted as a bodyless `val` (`\trusted` or imported) with no `#@ assigns`, a
+[p] y4 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.b` written on `K...` at line 9).
+[p] y5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.b` written on `get...` at line 1
+[p] y6 rc=1 3s oom 15->15 :: PYCSL-R325-OPAQUE-INT-FALLBACK :: [!] PIPELINE ERROR: :: PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in 'g', the value 'f' comes from 'three', a constant PyCSL has n
+[p] n1-dep rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[w] 10470_r631_module_mro_entries_class_base_rebinds_submodule_false.py hdr=FAIL rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] 10471_r631_module_getattr_answers_submodule_from_import_false.py hdr=FAIL rc=0 4s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] 10472_r632_dependency_wildcard_all_from_module_getattr_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] 10473_r632_dependency_wildcard_all_extended_through_import_alias_false.py hdr=FAIL rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] 10474_r633_mock_patch_string_rebinds_submodule_false.py hdr=FAIL rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] 10475_r631o_class_with_imported_base_class_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] 10476_r632o_program_wildcard_literal_all_no_getattr_ctl.py hdr=PASS rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73d.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73h.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73i.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73j.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73q.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73a___init__.py hdr=none rc=1 2s oom 15->15 :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[w] zu73a_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73c___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73c_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73e___init__.py hdr=none rc=1 3s oom 15->15 :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[w] zu73e_w.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `zu73h...` at line 8). Eve
+[w] zu73k___init__.py hdr=none rc=1 3s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73-h1/test-suite/corpus/pycsl-reference/zu73k/k.py (line 1) imports the claimed 
+[w] zu73k_k.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73-h1/test-suite/corpus/pycsl-reference/zu73k/__init__.py (line 2) imports the c
+[w] zu73k_w.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `zu73i...` at line 8). Eve
+[w] zu73m___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73m_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73n___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73n_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73o___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[w] zu73o_k.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+## end Mon Nov 23 18:54:59 UTC 2026

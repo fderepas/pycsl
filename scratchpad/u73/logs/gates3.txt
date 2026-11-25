@@ -1,0 +1,34 @@
+GATES3 start Tue Nov 24 15:53:24 UTC 2026 875fc4f6c oom_kill 15
+check-vacuous-drivers rc=0 [*] vacuous-drivers: pycsl-reference       9 of 2875 annotated function(s) are TRIVIALLY DISCHARGED by their tail `return` (ratchet 9).         test-suite/corpus/pycsl-reference/0008.py::test_number_literal 
+[w] 10470_r631_module_mro_entries_class_base_rebinds_submodule_false.py hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73a/__init__.py, which the program reaches, binds the module-level 
+[w] 10471_r631_module_getattr_answers_submodule_from_import_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73c/__init__.py, which the program reaches, binds the module-level 
+[w] 10472_r632_dependency_wildcard_all_from_module_getattr_false.py hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73d.py, which the program reaches, has a wildcard import of the pac
+[w] 10473_r632_dependency_wildcard_all_extended_through_import_alias_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73j.py, which the program reaches, has a wildcard import of the pac
+[w] 10474_r633_mock_patch_string_rebinds_submodule_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the program manipulates the import system (`from unittest import ... (with `zu73m.b` resolved to a local file)`), so wha
+[w] 10475_r631o_class_with_imported_base_class_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] 10476_r632o_program_wildcard_literal_all_no_getattr_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73d.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73d.py, which the program reaches, has a wildcard import of the pac
+[w] zu73h.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73i.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73j.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73j.py, which the program reaches, has a wildcard import of the pac
+[w] zu73q.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73a___init__.py hdr=none rc=1 1s oom 15->15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[w] zu73a_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73c___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73c_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73e___init__.py hdr=none rc=1 2s oom 15->15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[w] zu73e_w.py hdr=none rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `zu73h...` at line 8). Eve
+[w] zu73k___init__.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/test-suite/corpus/pycsl-reference/zu73k/k.py (line 1) imports the claimed fil
+[w] zu73k_k.py hdr=none rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73/test-suite/corpus/pycsl-reference/zu73k/__init__.py (line 2) imports the clai
+[w] zu73k_w.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `zu73i...` at line 8). Eve
+[w] zu73m___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73m_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73n___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73n_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73o___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[w] zu73o_k.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+census rows identical
+planes rc=0     check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival     and check-stdlib-modules-verify. Re-run with --slow before a GATE. 
+rwc rc=0 [+] refusal-witness-coverage: OK — 494 demonstrated, 5 undemonstrated (floor 208 / ceiling 5); 14 not source-reachable, 10 unmatchable (ceiling 10).
+corpus-executes rc=0 [+] corpus-executes: OK — every PASS-expected corpus file loads as Python, and every self-check its author wrote passes.
+GATES3 end Tue Nov 24 16:36:32 UTC 2026 oom_kill 15

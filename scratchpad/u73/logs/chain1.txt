@@ -1,0 +1,267 @@
+chain1 start Tue Nov 24 05:00:01 UTC 2026
+tree /home/fabrice/git/pycsl-u73-h1 3922736984cd3a92718077133dbb613da6428cf1 start Tue Nov 24 05:00:01 UTC 2026 oom_kill 15
+byte-diff-sweep rc=0 emitted 3349 of 6402 source file(s) into /home/fabrice/git/pycsl-u73/scratchpad/u73/logs/G/h1/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u73/scratchpad/u73/logs/G/h1/bd/pyref (6 jobs) 
+mirror-emit-sweep rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u73/scratchpad/u73/logs/G/h1/mir --min-files 45
+end Tue Nov 24 06:00:47 UTC 2026 oom_kill 15
+compare root rc=0 [*] byte-diff-compare: 3343 baseline / 3348 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 5 new source file(s) ignored. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare pyref rc=0 [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare mirror rc=0 [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+mirror diff -rq lines=0
+[J h1] ## h1 /home/fabrice/git/pycsl-u73-h1 392273698 Tue Nov 24 06:02:28 UTC 2026
+[J h1] ## d-list 7: u73/c1 u73/c1f u73/c2 rt81/z2 rt81/z4 rt81/z6 rt81/z7
+[J h1] [d] u73/c1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [d] u73/c1f rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [d] u73/c2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [d] rt81/z2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [d] rt81/z4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [d] rt81/z6 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [d] rt81/z7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] ## p-list 23
+[J h1] [p] r1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt76/r1/P/zr76/__init__.py, which the p
+[J h1] [p] r5 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] r5b rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J h1] [p] r6 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] r6-treecwd rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] r14 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] r12 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J h1] [p] r2r-dep rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J h1] [p] r17 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] x3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] v2down rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] v1f rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] s1-dep rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] s7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] s7-treecwd rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] s1f rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] c1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] o1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] g2 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J h1] [p] r1 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] w2-hw rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] n3 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [p] n7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] 10470_r631_module_mro_entries_class_base_rebinds_submodule_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73a/__init__.py, which the program reaches, binds the module-level 
+[J h1] [w] 10471_r631_module_getattr_answers_submodule_from_import_false.py hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73c/__init__.py, which the program reaches, binds the module-level 
+[J h1] [w] 10472_r632_dependency_wildcard_all_from_module_getattr_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73d.py, which the program reaches, has a wildcard import of the pac
+[J h1] [w] 10473_r632_dependency_wildcard_all_extended_through_import_alias_false.py hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73j.py, which the program reaches, has a wildcard import of the pac
+[J h1] [w] 10474_r633_mock_patch_string_rebinds_submodule_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the program manipulates the import system (`from unittest import ... (with `zu73m.b` resolved to a local file)`), so wha
+[J h1] [w] 10475_r631o_class_with_imported_base_class_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] 10476_r632o_program_wildcard_literal_all_no_getattr_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73d.py hdr=none rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73d.py, which the program reaches, has a wildcard import of the pac
+[J h1] [w] zu73h.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73i.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73j.py hdr=none rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu73j.py, which the program reaches, has a wildcard import of the pac
+[J h1] [w] zu73q.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73a___init__.py hdr=none rc=1 1s oom 15->15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J h1] [w] zu73a_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73c___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73c_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73e___init__.py hdr=none rc=1 2s oom 15->15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J h1] [w] zu73e_w.py hdr=none rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `zu73h...` at line 8). Eve
+[J h1] [w] zu73k___init__.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73-h1/test-suite/corpus/pycsl-reference/zu73k/k.py (line 1) imports the claimed 
+[J h1] [w] zu73k_k.py hdr=none rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73-h1/test-suite/corpus/pycsl-reference/zu73k/__init__.py (line 2) imports the c
+[J h1] [w] zu73k_w.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `zu73i...` at line 8). Eve
+[J h1] [w] zu73m___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73m_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73n___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73n_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73o___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] [w] zu73o_k.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J h1] ## end Tue Nov 24 06:04:47 UTC 2026
+[J bh] ## bh /home/fabrice/git/pycsl-u73-bh 08e65645c Tue Nov 24 06:04:47 UTC 2026
+[J bh] ## d-list 24: u73/c1 u73/c1f u73/c2 u73/g1 u73/k1 u73/k2 u73/m2 u73/o1 u73/q1 u73/q2 u73/q4 rt81/p2 rt81/p2b rt81/p4 rt81/p4b rt81/p8 rt81/x1b rt81/x3 rt81/x4 rt81/x9 rt81/z2 rt81/z4 rt81/z6 rt81/z7
+[J bh] [d] u73/c1 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] u73/c1f rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] u73/c2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] u73/g1 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [d] u73/k1 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] u73/k2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] u73/m2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] u73/o1 rc=0 14s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] u73/q1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] u73/q2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] u73/q4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/p2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/p2b rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/p4 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/p4b rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/p8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/x1b rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/x3 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/x4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/x9 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/z2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/z4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/z6 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [d] rt81/z7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] ## p-list 26
+[J bh] [p] r1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt76/r1/P/zr76/__init__.py, which the p
+[J bh] [p] r5 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] r5b rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [p] r6 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] r6-treecwd rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] r14 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] r12 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [p] r2r-dep rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [p] r17 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] x3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] v2down rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] v1f rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] s1-dep rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] s7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] s7-treecwd rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] s1f rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] c1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] o1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] g2 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [p] g3 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [p] g4 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [p] g5 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [p] r1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] w2-hw rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] n3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [p] n7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] 10470_r631_module_mro_entries_class_base_rebinds_submodule_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] 10471_r631_module_getattr_answers_submodule_from_import_false.py hdr=FAIL rc=1 2s oom 15->15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [w] 10472_r632_dependency_wildcard_all_from_module_getattr_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] 10473_r632_dependency_wildcard_all_extended_through_import_alias_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] 10474_r633_mock_patch_string_rebinds_submodule_false.py hdr=FAIL rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] 10475_r631o_class_with_imported_base_class_ctl.py hdr=PASS rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] 10476_r632o_program_wildcard_literal_all_no_getattr_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73d.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73h.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73i.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73j.py hdr=none rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73q.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73a___init__.py hdr=none rc=1 1s oom 15->15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [w] zu73a_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73c___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73c_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73e___init__.py hdr=none rc=1 1s oom 15->15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J bh] [w] zu73e_w.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `zu73h...` at line 8). Eve
+[J bh] [w] zu73k___init__.py hdr=none rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73-h1/test-suite/corpus/pycsl-reference/zu73k/k.py (line 1) imports the claimed 
+[J bh] [w] zu73k_k.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73-h1/test-suite/corpus/pycsl-reference/zu73k/__init__.py (line 2) imports the c
+[J bh] [w] zu73k_w.py hdr=none rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `zu73i...` at line 8). Eve
+[J bh] [w] zu73m___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73m_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73n___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73n_b.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73o___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] [w] zu73o_k.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J bh] ## end Tue Nov 24 06:08:17 UTC 2026
+[J b0] ## b0 /home/fabrice/git/pycsl-u73-b0 c115e0a5a Tue Nov 24 06:08:17 UTC 2026
+[J b0] ## d-list 31: u73/c1 u73/c1f u73/c2 u73/g1 u73/k1 u73/k2 u73/m2 u73/o1 u73/q1 u73/q2 u73/q4 rt81/p2 rt81/p2b rt81/p4 rt81/p4b rt81/p8 rt81/x1b rt81/x3 rt81/x4 rt81/x5 rt81/x6 rt81/x8 rt81/x9 rt81/z1 rt81/z2 rt81/z3 rt81/z4 rt81/z5 rt81/z6 rt81/z7 rt81/z8
+[J b0] [d] u73/c1 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] u73/c1f rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] u73/c2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] u73/g1 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [d] u73/k1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] u73/k2 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] u73/m2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] u73/o1 rc=0 13s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] u73/q1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] u73/q2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] u73/q4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/p2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/p2b rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/p4 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/p4b rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/p8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/x1b rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/x3 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/x4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/x5 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/x6 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/x8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/x9 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/z1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/z2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/z3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/z4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/z5 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/z6 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/z7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [d] rt81/z8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] ## p-list 53
+[J b0] [p] r1 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [p] r2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r5 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r5b rc=1 1s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [p] r3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r9 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r6 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r6-treecwd rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r2d rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r2r rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r14 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r12 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r2d-dep rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r2r-dep rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [p] r17 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] v2d rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] w5 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] x2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] x3 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] v2down rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] v1f rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] r12c rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] b21 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [p] s7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] s7-dep rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] s7-treecwd rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] s1f rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] o1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] t4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] t8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] t11 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] t13 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] o2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] o3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] o4 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [p] d8 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] d9 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] g2 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [p] g3 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [p] g4 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [p] g5 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [p] r1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] w2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] z1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] w2-dep rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] w2-hw rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] n1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] n2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] n3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] n4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] n5 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] n7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [p] n1-dep rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] 10470_r631_module_mro_entries_class_base_rebinds_submodule_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] 10471_r631_module_getattr_answers_submodule_from_import_false.py hdr=FAIL rc=1 2s oom 15->15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [w] 10472_r632_dependency_wildcard_all_from_module_getattr_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] 10473_r632_dependency_wildcard_all_extended_through_import_alias_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] 10474_r633_mock_patch_string_rebinds_submodule_false.py hdr=FAIL rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] 10475_r631o_class_with_imported_base_class_ctl.py hdr=PASS rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] 10476_r632o_program_wildcard_literal_all_no_getattr_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73d.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73h.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73i.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73j.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73q.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73a___init__.py hdr=none rc=1 2s oom 15->15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [w] zu73a_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73c___init__.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73c_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73e___init__.py hdr=none rc=1 1s oom 15->15 :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[J b0] [w] zu73e_w.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `zu73h...` at line 8). Eve
+[J b0] [w] zu73k___init__.py hdr=none rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73-h1/test-suite/corpus/pycsl-reference/zu73k/k.py (line 1) imports the claimed 
+[J b0] [w] zu73k_k.py hdr=none rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u73-h1/test-suite/corpus/pycsl-reference/zu73k/__init__.py (line 2) imports the c
+[J b0] [w] zu73k_w.py hdr=none rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.one` written on `zu73i...` at line 8). Eve
+[J b0] [w] zu73m___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73m_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73n___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73n_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73o___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] [w] zu73o_k.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[J b0] ## end Tue Nov 24 06:13:14 UTC 2026
+chain1 end Tue Nov 24 06:13:14 UTC 2026

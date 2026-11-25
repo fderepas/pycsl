@@ -1,0 +1,2 @@
+[*] getattr-erasure: 102 fall-through site(s) over 194 file(s) — DECLARED 0 · ABSENT 27 · UNKNOWN 75
+[+] getattr-erasure: OK — DECLARED 0 (pinned); 43 file(s) with sites, every one at or below its row; totals ABSENT 27, UNKNOWN 75 (reported, not gated).

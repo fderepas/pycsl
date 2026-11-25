@@ -1,0 +1,156 @@
+[*] vacuous-drivers: pycsl-reference       9 of 2875 annotated function(s) are TRIVIALLY DISCHARGED by their tail `return` (ratchet 9).
+        test-suite/corpus/pycsl-reference/0008.py::test_number_literal
+        test-suite/corpus/pycsl-reference/0039.py::test_no_string_literals
+        test-suite/corpus/pycsl-reference/0040.py::test_no_true_false_none
+        test-suite/corpus/pycsl-reference/0047.py::test_exit_code_zero
+        test-suite/corpus/pycsl-reference/0048.py::test_exit_code_one
+        test-suite/corpus/pycsl-reference/0080.py::test_zero_literal
+        test-suite/corpus/pycsl-reference/0153.py::test_one
+        test-suite/corpus/pycsl-reference/0154.py::test_exit_code_one_a
+        test-suite/corpus/pycsl-reference/0505.py::opaque_chainmap
+[*] vacuous-drivers: pycsl-reference       8 of them are EMPTY PLACEHOLDERS — a docstring and a single `return <literal>` UNDER a contract the tail return alone discharges, so the body exercises nothing (ratchet 8).
+        EMPTY test-suite/corpus/pycsl-reference/0008.py::test_number_literal
+        EMPTY test-suite/corpus/pycsl-reference/0039.py::test_no_string_literals
+        EMPTY test-suite/corpus/pycsl-reference/0040.py::test_no_true_false_none
+        EMPTY test-suite/corpus/pycsl-reference/0047.py::test_exit_code_zero
+        EMPTY test-suite/corpus/pycsl-reference/0048.py::test_exit_code_one
+        EMPTY test-suite/corpus/pycsl-reference/0080.py::test_zero_literal
+        EMPTY test-suite/corpus/pycsl-reference/0153.py::test_one
+        EMPTY test-suite/corpus/pycsl-reference/0154.py::test_exit_code_one_a
+[*] vacuous-drivers: python-reference     80 of 2175 annotated function(s) are TRIVIALLY DISCHARGED by their tail `return` (ratchet 80).
+        test-suite/corpus/python-reference/0012.py::test_end_marker
+        test-suite/corpus/python-reference/0032.py::test_t_strings
+        test-suite/corpus/python-reference/0033.py::test_formal_grammar_for_f_strings
+        test-suite/corpus/python-reference/0036.py::test_imaginary_literals
+        test-suite/corpus/python-reference/0052.py::test_generator_functions
+        test-suite/corpus/python-reference/0053.py::test_coroutine_functions
+        test-suite/corpus/python-reference/0054.py::test_asynchronous_generator_functions
+        test-suite/corpus/python-reference/0063.py::test_special_methods
+        test-suite/corpus/python-reference/0064.py::test_special_attributes
+        test-suite/corpus/python-reference/0066.py::test_special_read_only_attributes
+        test-suite/corpus/python-reference/0067.py::test_methods_on_code_objects
+        test-suite/corpus/python-reference/0068.py::test_special_read_only_attributes
+        test-suite/corpus/python-reference/0069.py::test_special_writable_attributes
+        test-suite/corpus/python-reference/0070.py::test_frame_object_methods
+        test-suite/corpus/python-reference/0071.py::test_traceback_objects
+        test-suite/corpus/python-reference/0073.py::test_static_method_objects
+        test-suite/corpus/python-reference/0074.py::test_class_method_objects
+        test-suite/corpus/python-reference/0077.py::test_customizing_module_attr_access
+        test-suite/corpus/python-reference/0079.py::test_slots
+        test-suite/corpus/python-reference/0081.py::test_resolving_mro
+        test-suite/corpus/python-reference/0082.py::test_determining_metaclass
+        test-suite/corpus/python-reference/0083.py::test_preparing_class_namespace
+        test-suite/corpus/python-reference/0084.py::test_executing_the_class_body
+        test-suite/corpus/python-reference/0085.py::test_creating_the_class_object
+        test-suite/corpus/python-reference/0086.py::test_uses_for_metaclasses
+        test-suite/corpus/python-reference/0088.py::test_the_purpose_of_class_getitem
+        test-suite/corpus/python-reference/0089.py::test_class_getitem_versus_getitem
+        test-suite/corpus/python-reference/0094.py::test_type_annotation_objects
+        test-suite/corpus/python-reference/0095.py::test_buffer_types
+        test-suite/corpus/python-reference/0096.py::test_annotations
+        test-suite/corpus/python-reference/0097.py::test_special_method_lookup
+        test-suite/corpus/python-reference/0100.py::test_asynchronous_iterators
+        test-suite/corpus/python-reference/0101.py::test_asynchronous_context_managers
+        test-suite/corpus/python-reference/0105.py::test_annotation_scopes
+        test-suite/corpus/python-reference/0106.py::test_lazy_evaluation
+        test-suite/corpus/python-reference/0107.py::test_builtins_and_restricted_execution
+        test-suite/corpus/python-reference/0108.py::test_interaction_with_dynamic_features
+        test-suite/corpus/python-reference/0109.py::test_interaction_dynamic_features
+        test-suite/corpus/python-reference/0112.py::test_importlib
+        test-suite/corpus/python-reference/0113.py::test_regular_packages
+        test-suite/corpus/python-reference/0114.py::test_namespace_packages
+        test-suite/corpus/python-reference/0115.py::test_module_cache
+        test-suite/corpus/python-reference/0116.py::test_finders_and_loaders
+        test-suite/corpus/python-reference/0117.py::test_import_hooks
+        test-suite/corpus/python-reference/0118.py::test_meta_path
+        test-suite/corpus/python-reference/0119.py::test_loaders
+        test-suite/corpus/python-reference/0120.py::test_submodules
+        test-suite/corpus/python-reference/0121.py::test_module_specs
+        test-suite/corpus/python-reference/0122.py::test_path_attributes_on_modules
+        test-suite/corpus/python-reference/0123.py::test_module_reprs
+        test-suite/corpus/python-reference/0124.py::test_cached_bytecode_invalidation
+        test-suite/corpus/python-reference/0125.py::test_path_entry_finders
+        test-suite/corpus/python-reference/0126.py::test_path_entry_finder_protocol
+        test-suite/corpus/python-reference/0127.py::test_replacing_import
+        test-suite/corpus/python-reference/0128.py::test_package_relative_imports
+        test-suite/corpus/python-reference/0129.py::test_module_spec
+        test-suite/corpus/python-reference/0130.py::test_references
+        test-suite/corpus/python-reference/0142.py::test_generator_iterator_methods
+        test-suite/corpus/python-reference/0143.py::test_examples
+        test-suite/corpus/python-reference/0144.py::test_asynchronous_generator_functions
+        test-suite/corpus/python-reference/0145.py::test_asynchronous_generator_iterator_methods
+        test-suite/corpus/python-reference/0149.py::test_subscription_class_objects
+        test-suite/corpus/python-reference/0150.py::test_formal_subscription_grammar
+        test-suite/corpus/python-reference/0167.py::test_operator_precedence
+        test-suite/corpus/python-reference/0168.py::test_expression_statements
+        test-suite/corpus/python-reference/0171.py::test_assert_statement
+        test-suite/corpus/python-reference/0172.py::test_pass_statement
+        test-suite/corpus/python-reference/0173.py::test_del_statement
+        test-suite/corpus/python-reference/0177.py::test_break_statement
+        test-suite/corpus/python-reference/0178.py::test_continue_statement
+        test-suite/corpus/python-reference/0179.py::test_compatibility_via_lazy_modules
+        test-suite/corpus/python-reference/0180.py::test_future_statements
+        test-suite/corpus/python-reference/0183.py::test_type_statement
+        test-suite/corpus/python-reference/0188.py::test_except_clause
+        test-suite/corpus/python-reference/0211.py::test_generic_classes
+        test-suite/corpus/python-reference/0212.py::test_generic_type_aliases
+        test-suite/corpus/python-reference/0214.py::test_complete_programs
+        test-suite/corpus/python-reference/0215.py::test_file_input
+        test-suite/corpus/python-reference/0216.py::test_interactive_input
+        test-suite/corpus/python-reference/0218.py::test_full_grammar
+[*] vacuous-drivers: python-reference     54 of them are EMPTY PLACEHOLDERS — a docstring and a single `return <literal>` UNDER a contract the tail return alone discharges, so the body exercises nothing (ratchet 54).
+        EMPTY test-suite/corpus/python-reference/0012.py::test_end_marker
+        EMPTY test-suite/corpus/python-reference/0032.py::test_t_strings
+        EMPTY test-suite/corpus/python-reference/0033.py::test_formal_grammar_for_f_strings
+        EMPTY test-suite/corpus/python-reference/0036.py::test_imaginary_literals
+        EMPTY test-suite/corpus/python-reference/0052.py::test_generator_functions
+        EMPTY test-suite/corpus/python-reference/0053.py::test_coroutine_functions
+        EMPTY test-suite/corpus/python-reference/0054.py::test_asynchronous_generator_functions
+        EMPTY test-suite/corpus/python-reference/0063.py::test_special_methods
+        EMPTY test-suite/corpus/python-reference/0064.py::test_special_attributes
+        EMPTY test-suite/corpus/python-reference/0066.py::test_special_read_only_attributes
+        EMPTY test-suite/corpus/python-reference/0067.py::test_methods_on_code_objects
+        EMPTY test-suite/corpus/python-reference/0068.py::test_special_read_only_attributes
+        EMPTY test-suite/corpus/python-reference/0069.py::test_special_writable_attributes
+        EMPTY test-suite/corpus/python-reference/0070.py::test_frame_object_methods
+        EMPTY test-suite/corpus/python-reference/0071.py::test_traceback_objects
+        EMPTY test-suite/corpus/python-reference/0073.py::test_static_method_objects
+        EMPTY test-suite/corpus/python-reference/0074.py::test_class_method_objects
+        EMPTY test-suite/corpus/python-reference/0077.py::test_customizing_module_attr_access
+        EMPTY test-suite/corpus/python-reference/0083.py::test_preparing_class_namespace
+        EMPTY test-suite/corpus/python-reference/0084.py::test_executing_the_class_body
+        EMPTY test-suite/corpus/python-reference/0085.py::test_creating_the_class_object
+        EMPTY test-suite/corpus/python-reference/0086.py::test_uses_for_metaclasses
+        EMPTY test-suite/corpus/python-reference/0088.py::test_the_purpose_of_class_getitem
+        EMPTY test-suite/corpus/python-reference/0089.py::test_class_getitem_versus_getitem
+        EMPTY test-suite/corpus/python-reference/0096.py::test_annotations
+        EMPTY test-suite/corpus/python-reference/0097.py::test_special_method_lookup
+        EMPTY test-suite/corpus/python-reference/0100.py::test_asynchronous_iterators
+        EMPTY test-suite/corpus/python-reference/0101.py::test_asynchronous_context_managers
+        EMPTY test-suite/corpus/python-reference/0105.py::test_annotation_scopes
+        EMPTY test-suite/corpus/python-reference/0106.py::test_lazy_evaluation
+        EMPTY test-suite/corpus/python-reference/0107.py::test_builtins_and_restricted_execution
+        EMPTY test-suite/corpus/python-reference/0108.py::test_interaction_with_dynamic_features
+        EMPTY test-suite/corpus/python-reference/0113.py::test_regular_packages
+        EMPTY test-suite/corpus/python-reference/0114.py::test_namespace_packages
+        EMPTY test-suite/corpus/python-reference/0119.py::test_loaders
+        EMPTY test-suite/corpus/python-reference/0120.py::test_submodules
+        EMPTY test-suite/corpus/python-reference/0121.py::test_module_specs
+        EMPTY test-suite/corpus/python-reference/0122.py::test_path_attributes_on_modules
+        EMPTY test-suite/corpus/python-reference/0123.py::test_module_reprs
+        EMPTY test-suite/corpus/python-reference/0124.py::test_cached_bytecode_invalidation
+        EMPTY test-suite/corpus/python-reference/0125.py::test_path_entry_finders
+        EMPTY test-suite/corpus/python-reference/0126.py::test_path_entry_finder_protocol
+        EMPTY test-suite/corpus/python-reference/0128.py::test_package_relative_imports
+        EMPTY test-suite/corpus/python-reference/0130.py::test_references
+        EMPTY test-suite/corpus/python-reference/0142.py::test_generator_iterator_methods
+        EMPTY test-suite/corpus/python-reference/0143.py::test_examples
+        EMPTY test-suite/corpus/python-reference/0144.py::test_asynchronous_generator_functions
+        EMPTY test-suite/corpus/python-reference/0145.py::test_asynchronous_generator_iterator_methods
+        EMPTY test-suite/corpus/python-reference/0179.py::test_compatibility_via_lazy_modules
+        EMPTY test-suite/corpus/python-reference/0180.py::test_future_statements
+        EMPTY test-suite/corpus/python-reference/0188.py::test_except_clause
+        EMPTY test-suite/corpus/python-reference/0214.py::test_complete_programs
+        EMPTY test-suite/corpus/python-reference/0215.py::test_file_input
+        EMPTY test-suite/corpus/python-reference/0216.py::test_interactive_input
+[+] vacuous-drivers: OK — every suite at or below its ratchet.

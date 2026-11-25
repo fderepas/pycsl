@@ -1,0 +1,26 @@
+r1||rt76/r1/P/prog.py|
+r5||rt76/r5/P/prog.py|
+r5b||rt76/r5b/P/prog.py|
+r6||rt76/r6/P/prog.py|rt76/r6/C
+r6-treecwd||rt76/r6/P/prog.py|
+r14|--import-path @P@/rt76/r14/X2|rt76/r14/P/prog.py|
+r12|--import-path @P@/rt76/r12/X|rt76/r12/P/prog.py|
+r2r-dep||rt76/r2r/X2/pkr76/dep.py|
+r17|--import-path @P@/rt76/r17/X2|rt76/r17/P/prog.py|
+x3|--import-path @P@/u64/x3/X2|u64/x3/P/prog.py|
+v2down||u64/v2d/X2/depv2.py|
+v1f||u64/v1f/P/prog.py|
+s1-dep||rt78/s1/P/dep78.py|
+s7||rt78/s7/P/prog.py|rt78/s7/P
+s7-treecwd||rt78/s7/P/prog.py|
+s1f||rt78/s1f/P/prog.py|
+c1||rt78/c1/P/prog.py|
+o1||rt78/o1/P/prog.py|
+g2||rt79/g2/P/prog.py|
+g3||rt79/g3/P/prog.py|
+g4||rt79/g4/P/prog.py|
+g5||rt79/g5/P/prog.py|
+r1||rt79/r1/P/prog.py|
+w2-hw||rt79/w2/P/hw792.py|
+n3||u71/n3/P/prog.py|
+n7||u71/n7/P/prog.py|
