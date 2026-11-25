@@ -1,0 +1,17 @@
+h 10530_u77b1_float_field_pyval_self_eq_float_finite_assumed rc=0 All contracts formally proven
+h 10531_u77b1_float_field_pyval_self_eq_strict_false rc=1 
+h 10532_u77c15_receiver_class_param_unrelated_method_ctl rc=0 All contracts formally proven
+h 10533_u77c15_receiver_class_param_own_method_writes_false rc=1 PYCSL-FUNCTION-FRAME
+h 10534_u77c15_receiver_class_inherited_method_writes_false rc=1 PYCSL-FUNCTION-FRAME
+h 10535_u77c15_receiver_class_local_ctor_ctl rc=0 All contracts formally proven
+h 10536_u77c15_receiver_alias_rebound_fallback_false rc=1 PYCSL-FUNCTION-FRAME
+h 10537_u77c15_imported_receiver_class_unrelated_method_ctl rc=0 All contracts formally proven
+b 10530_u77b1_float_field_pyval_self_eq_float_finite_assumed rc=0 All contracts formally proven
+b 10531_u77b1_float_field_pyval_self_eq_strict_false rc=1 
+b 10532_u77c15_receiver_class_param_unrelated_method_ctl rc=1 PYCSL-FUNCTION-FRAME
+b 10533_u77c15_receiver_class_param_own_method_writes_false rc=1 PYCSL-FUNCTION-FRAME
+b 10534_u77c15_receiver_class_inherited_method_writes_false rc=1 PYCSL-FUNCTION-FRAME
+b 10535_u77c15_receiver_class_local_ctor_ctl rc=1 PYCSL-FUNCTION-FRAME
+b 10536_u77c15_receiver_alias_rebound_fallback_false rc=1 PYCSL-FUNCTION-FRAME
+b 10537_u77c15_imported_receiver_class_unrelated_method_ctl rc=1 PYCSL-FUNCTION-FRAME
+WDONE

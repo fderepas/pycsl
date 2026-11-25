@@ -2034,6 +2034,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "iter": self._py_expr_to_ir(gen.iter),
                 "ifs": [self._py_expr_to_ir(if_) for if_ in gen.ifs],
             }
+            # run #9 u74: a TUPLE target keeps its slot names in order (`for (qn, ok,
+            # axs) in xs` -> ["qn", "ok", "axs"]; a non-Name slot is "_"), so a consumer
+            # can bind each slot by position instead of the erased `_comp_var`. The key
+            # is ADDED only for a tuple target, so every other comprehension's IR (and
+            # every `repr`-hashed temp name derived from it) is unchanged.
+            | ({"target_elts": [e.id if isinstance(e, ast.Name) else "_"
+                                for e in gen.target.elts]}
+               if isinstance(gen.target, ast.Tuple) else {})
             for gen in generators
         ]
 
@@ -4454,6 +4462,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                                     break
                                         if len(_tq_ip) >= 2:
                                             _tq_parts.append("seq (" + ", ".join(_tq_ip) + ")")
+                                            _tq_deep = True
+                                        elif (isinstance(_tq_i, ast.Name)
+                                                and _tq_i.id == "str"):
+                                            # run #9 u74: a nested `List[str]` slot
+                                            # (`ReverifyReport.qualname_results:
+                                            # List[tuple[str, bool, List[str]]]`) is the
+                                            # pure `seq string`, as the nested
+                                            # `List[Tuple[..]]` slot above is a `seq`.
+                                            _tq_parts.append("seq string")
                                             _tq_deep = True
                                         else:
                                             _tq_parts = []

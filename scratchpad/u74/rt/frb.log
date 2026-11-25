@@ -1,0 +1,13 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u74/scratchpad/u74/rt/frb.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u74/scratchpad/u74/rt/frb.mlw", line 10, characters 15-19: unused variable result
+File "/home/fabrice/git/pycsl-u74/scratchpad/u74/rt/frb.mlw", line 8, characters 15-16:
+This function has side effects, it cannot be used as pure
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
+rc=1

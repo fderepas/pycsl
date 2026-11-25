@@ -1,0 +1,23 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/m634n.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/m634n.mlw", line 17, characters 18-42:
+Sub-goal loop invariant init of goal f'vc.
+Prover result is: Valid (0.01s, 50 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/m634n.mlw", line 18, characters 16-24:
+Sub-goal loop variant decrease of goal f'vc.
+Prover result is: Valid (0.01s, 378 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/m634n.mlw", line 17, characters 18-42:
+Sub-goal loop invariant preservation of goal f'vc.
+Prover result is: Valid (0.00s, 503 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/m634n.mlw", line 10, characters 15-29:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 43 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0 args= oom0=[oom_kill 15] oom1=[oom_kill 15]

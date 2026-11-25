@@ -1,0 +1,17 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/x634p.py'...
+[*] Memory model: hoare
+[*] Imported class from 'm634b': R (record + 0 method stub(s) + 1 helper(s))
+[*] Imported from 'm634b': ['f'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/x634p.mlw", line 17, characters 12-17:
+Sub-goal precondition of goal g'vc.
+Prover result is: Valid (0.00s, 15 steps).
+
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/x634p.mlw", line 15, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 52 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0 args= oom0=[oom_kill 15] oom1=[oom_kill 15]

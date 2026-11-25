@@ -1,0 +1,7 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u76/scratchpad/u76/c/b/e6.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/b/e6.mlw", line 191, characters 84-87:
+This expression has type real, but is expected to have type int
+rc=1 args=--no-proof oom0=[oom_kill 15] oom1=[oom_kill 15]

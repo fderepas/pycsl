@@ -1,0 +1,8 @@
+10530_u77b1_float_field_pyval_self_eq_float_finite_assumed.py: CPython f(R(nan)) = 0 , claim 1
+10531_u77b1_float_field_pyval_self_eq_strict_false.py: CPython f(R(nan)) = 0 , claim 1
+10532_u77c15_receiver_class_param_unrelated_method_ctl.py: 3 R(a=1, b=2)
+10533_u77c15_receiver_class_param_own_method_writes_false.py: 0 R(a=2, b=2)
+10534_u77c15_receiver_class_inherited_method_writes_false.py: 0 R(a=2, b=2)
+10535_u77c15_receiver_class_local_ctor_ctl.py: 3 R(a=1, b=2)
+10536_u77c15_receiver_alias_rebound_fallback_false.py: 0 R(a=1, b=2) S(n=1)
+10537_u77c15_imported_receiver_class_unrelated_method_ctl.py: CPython g(R(1,2)) = 1

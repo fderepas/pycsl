@@ -1,0 +1,3 @@
+[*] claim-vacuity: 8876 corpus file(s); 1791 carry a TRIVIALLY TRUE postcondition (1847 occurrence(s)); 1131 carry `requires True`.
+[*] claim-vacuity: top name families — proves: 840, fails: 839, twin: 20, projection: 8
+[+] claim-vacuity: OK — 1791/8876 claim-vacuous file(s) at the ceiling (1791); the two families whose names assert opposite outcomes (`*_call_proves.py`, `*_call_fails.py`) still carry the SAME contract.

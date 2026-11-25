@@ -1,0 +1,13 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k2.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/c/h/k2.mlw", line 193, characters 36-50:
+This expression has type array.Array.array 'mu @rho,
+but is expected to have type seq.Seq.seq (string, seq.Seq.seq string)
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
+rc=1 args= oom0=[oom_kill 15] oom1=[oom_kill 15]

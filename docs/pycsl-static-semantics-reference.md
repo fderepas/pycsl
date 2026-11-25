@@ -2847,11 +2847,18 @@ object) it may alias; closed by a fixpoint over calls (a tainted argument at a p
 callee writes; a tainted receiver of a method that writes `self`; a callee that writes a
 global; a `heapq`/`random.shuffle`/`bisect.insort*`/`operator.i*`... argument mutator). A
 dotted call takes the union over every method of that name. A `\trusted` callee with an
-`#@ assigns` is taken at its declared frame.
+`#@ assigns` is taken at its declared frame. For `PYCSL-FUNCTION-FRAME` only (run #9 u77, rt87
+c15), a dotted call `x.m(..)` whose receiver class is statically known -- `x` a parameter
+annotated with a record class, or a local whose every binding is a constructor of one record
+class, and that occurs nowhere else as a binding target -- takes the union over that class's
+family only (itself, its ancestors, its descendants), falling back to every method of that
+name when the family has none (10532, 10535, 10537 PASS; 10533, 10534, 10536 FAIL); the
+emitted frames and the method rules keep the any-class union.
 
 | Code | Condition | Witnesses |
 |------|-----------|-----------|
 | `PYCSL-METHOD-FRAME` | A verified method declares `#@ assigns` (including `\nothing` / only `self.<f>`) and $W$ contains a parameter the frame does not name. | `4070`, `4078` |
+| `PYCSL-FUNCTION-FRAME` | A module-level function declares `#@ assigns` and $W$ contains a parameter the frame does not name (route #634). Checked in the defining unit (its `let`) and in every importer (its `val`, where $W$ is measured on the imported body, not taken from the declaration). | `10520`-`10522` |
 | `PYCSL-METHOD-GLOBAL-WRITE` | A verified method may write a module-level object (directly or through a callee). | `4083` |
 | `PYCSL-OVERRIDE-FRAME` | An override writes a parameter position its overridden base method does not write (route #277 pairs). | `4082` |
 | `PYCSL-METHOD-ARG-UNFRAMED` | A call resolved exactly to a method that writes a parameter whose stub type is not an `array`. | `4084` |

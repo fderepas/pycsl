@@ -1,0 +1,43 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u74/scratchpad/u74/st/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/audit_proof_reverify.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Imported from 'proof_axiom_allowlist': ['is_lean_axiom_allowed', 'is_rocq_assumption_allowed', 'parse_lean_axioms_line', 'parse_rocq_assumptions_block'] (trusted stubs)
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+[*] Import 'json.loads': external module, no local source found — skipping
+[*] Import 'json.dumps': external module, no local source found — skipping
+[*] Import 'subprocess.run': external module, no local source found — skipping
+[*] Import 'time.monotonic': external module, no local source found — skipping
+[*] --fun filter: verifying ['_to_cache_payload'], trusting ['_cache_key', '_cache_load', '_cache_root', '_cache_store', '_coqc_version', '_lean_version', '_sha256_file', '_split_rocq_print_assumptions', 'is_lean_axiom_allowed', 'is_rocq_assumption_allowed', 'parse_lean_axioms_line', 'parse_rocq_assumptions_block', 'reverifyreport__ok', 'reverifyreport__summary', 'verify_lean_file', 'verify_rocq_file']
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 214, characters 20-24: unused variable path
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 216, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 218, characters 18-28: unused variable proof_file
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 218, characters 39-48: unused variable qualnames
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 218, characters 65-71: unused variable prover
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 218, characters 82-96: unused variable prover_version
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 220, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 222, characters 19-31: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 224, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 226, characters 19-31: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 226, characters 42-48: unused variable prover
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 226, characters 59-62: unused variable key
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 228, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 230, characters 20-32: unused variable project_root
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 230, characters 43-49: unused variable prover
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 230, characters 60-63: unused variable key
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 230, characters 74-81: unused variable payload
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 236, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 240, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 242, characters 37-43: unused variable stdout
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 242, characters 54-63: unused variable qualnames
+Warning, file "src/self-annotate/src/audit_proof_reverify.mlw", line 244, characters 15-19: unused variable result
+File "src/self-annotate/src/audit_proof_reverify.mlw", line 251, characters 178-201:
+This expression has type seq.Seq.seq (string, int, seq.Seq.seq string),
+but is expected to have type int
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

@@ -1,0 +1,436 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use real.RealInfix
+  use real.FromInt
+  use seq.Seq
+  use map.Map
+  use map.Const
+  use option.Option
+  use array.Array
+
+  exception PyCSL_Continue
+
+  exception PyCSL_Break
+
+  exception Return int
+
+  exception Return_seq (Seq.seq int)
+
+  exception Return_seq_str (Seq.seq string)
+  exception BlockingIOError
+  exception BrokenPipeError
+  exception ChildProcessError
+  exception ConnectionAbortedError
+  exception ConnectionError
+  exception ConnectionRefusedError
+  exception ConnectionResetError
+  exception FileExistsError
+  exception FileNotFoundError
+  exception InterruptedError
+  exception IsADirectoryError
+  exception JSONDecodeError string
+  exception NotADirectoryError
+  exception OSError
+  exception PermissionError
+  exception ProcessLookupError
+  exception RecursionError
+  exception TimeoutError
+  exception TypeError
+  exception UnicodeEncodeError
+  exception ValueError
+
+  let pycsl_div (x: int) (y: int) : int
+    requires { [@expl:division by zero] y <> 0 }
+    ensures { result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }
+  = if mod x y <> 0 && y < 0 then div x y - 1 else div x y
+
+  let pycsl_mod (x: int) (y: int) : int
+    requires { [@expl:modulo by zero] y <> 0 }
+    ensures { result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }
+  = if mod x y <> 0 && y < 0 then mod x y + y else mod x y
+
+  (* dict-value-model-r4: the FROZEN certified mixed-value theory (module DictR4Theory of getting-better/dict-r4-theory.mlw, verbatim; Rocq Phase2m_PyValR4.v + Lean PyCSL/PyValR4.lean). Route (e2): `pairs_get` is uninterpreted with its two certified defining equations (realised by the same-named axiom-free Rocq + Lean lemmas). Gated on `_uses_pyval`. *)
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+  use real.Truncate
+  use option.Option
+  use string.String
+  type hval = HNone | HBool bool | HInt int | HFloat real | HStr string | HTuple hval_list | HArr hval_list | HMap hpairs | HNode hval
+  with hval_list = HNil | HCons hval hval_list
+  with hpairs = PNil | PCons string hval hpairs
+  val function hpairs_key_eq (a b: string) : bool ensures { result <-> a = b }
+  val function hstr_len (s: string) : int ensures { result = String.length s }
+  val function hreal_eq (a b: real) : bool ensures { result <-> a = b }
+  val function hreal_int_of (f: real) : option int
+    ensures { result = if FromInt.from_int (truncate f) = f then Some (truncate f) else None }
+  val function hval_opaque_str (h: hval) : string
+  val function hval_opaque_int (h: hval) : int
+  val function hval_len_other (h: hval) : int
+  val function hval_tuple_other (h: hval) : hval
+  val function pairs_get (p: hpairs) (k: string) : option hval
+  axiom pairs_get_nil : forall k. pairs_get PNil k = None
+  axiom pairs_get_cons : forall k k' v t [pairs_get (PCons k' v t) k].
+    pairs_get (PCons k' v t) k = (if k = k' then Some v else pairs_get t k)
+  let rec function pairs_set (p: hpairs) (k: string) (v: hval) : hpairs
+    variant { p }
+    = match p with
+      | PNil -> PCons k v PNil
+      | PCons k' w t -> if hpairs_key_eq k k' then PCons k' v t else PCons k' w (pairs_set t k v)
+      end
+  let function pairs_mem (p: hpairs) (k: string) : bool =
+    match pairs_get p k with None -> false | Some _ -> true end
+  let rec function hpairs_len (p: hpairs) : int
+    variant { p }
+    = match p with PNil -> 0 | PCons _ _ t -> 1 + hpairs_len t end
+  let rec function pairs_nodup (p: hpairs) : bool
+    variant { p }
+    = match p with PNil -> true | PCons k _ t -> not (pairs_mem t k) && pairs_nodup t end
+  let rec function pairs_keys_in (q p: hpairs) : bool
+    variant { q }
+    = match q with PNil -> true | PCons k _ t -> pairs_mem p k && pairs_keys_in t p end
+  let rec function hpairs_keys (p: hpairs) : hval_list
+    variant { p }
+    = match p with PNil -> HNil | PCons k _ t -> HCons (HStr k) (hpairs_keys t) end
+  let function hbool_int (b: bool) : int = if b then 1 else 0
+  let rec function hval_eq (a b: hval) : bool
+    variant { a }
+    = match a with
+      | HNone -> (match b with HNone -> true | _ -> false end)
+      | HBool x -> (match b with
+                    | HBool y -> (if x then y else not y)
+                    | HInt j -> hbool_int x = j
+                    | HFloat g -> (match hreal_int_of g with Some j -> hbool_int x = j | None -> false end)
+                    | _ -> false end)
+      | HInt i -> (match b with
+                   | HBool y -> i = hbool_int y
+                   | HInt j -> i = j
+                   | HFloat g -> (match hreal_int_of g with Some j -> i = j | None -> false end)
+                   | _ -> false end)
+      | HFloat f -> (match b with
+                     | HBool y -> (match hreal_int_of f with Some i -> i = hbool_int y | None -> false end)
+                     | HInt j -> (match hreal_int_of f with Some i -> i = j | None -> false end)
+                     | HFloat g -> hreal_eq f g
+                     | _ -> false end)
+      | HStr s -> (match b with HStr t -> hpairs_key_eq s t | _ -> false end)
+      | HTuple l -> (match b with HTuple m -> hlist_eq l m | _ -> false end)
+      | HArr l -> (match b with HArr m -> hlist_eq l m | _ -> false end)
+      | HMap p -> (match b with HMap q -> pairs_incl p q && pairs_keys_in q p | _ -> false end)
+      | HNode x -> (match b with HNode y -> hval_eq x y | _ -> false end)
+      end
+  with function hlist_eq (l m: hval_list) : bool
+    variant { l }
+    = match l with
+      | HNil -> (match m with HNil -> true | _ -> false end)
+      | HCons x t -> (match m with HCons y u -> hval_eq x y && hlist_eq t u | _ -> false end)
+      end
+  with function pairs_incl (p q: hpairs) : bool
+    variant { p }
+    = match p with
+      | PNil -> true
+      | PCons k v t -> (match pairs_get q k with Some w -> hval_eq v w | None -> false end)
+                       && pairs_incl t q
+      end
+  let rec function hval_canon (v: hval) : hval
+    variant { v }
+    = match v with
+      | HBool b -> HInt (hbool_int b)
+      | HFloat f -> (match hreal_int_of f with Some i -> HInt i | None -> HFloat f end)
+      | HTuple l -> HTuple (hlist_canon l)
+      | _ -> v
+      end
+  with function hlist_canon (l: hval_list) : hval_list
+    variant { l }
+    = match l with HNil -> HNil | HCons x t -> HCons (hval_canon x) (hlist_canon t) end
+  let rec function hval_hashable (v: hval) : bool
+    variant { v }
+    = match v with
+      | HNone -> true | HBool _ -> true | HInt _ -> true | HFloat _ -> true | HStr _ -> true
+      | HTuple l -> hlist_hashable l
+      | _ -> false
+      end
+  with function hlist_hashable (l: hval_list) : bool
+    variant { l }
+    = match l with HNil -> true | HCons x t -> hval_hashable x && hlist_hashable t end
+  let function hval_truthy (h: hval) : bool =
+    match h with
+    | HNone -> false
+    | HBool b -> b
+    | HInt i -> i <> 0
+    | HFloat f -> not (hreal_eq f 0.0)
+    | HStr s -> not (hpairs_key_eq s "")
+    | HTuple l -> (match l with HNil -> false | _ -> true end)
+    | HArr l -> (match l with HNil -> false | _ -> true end)
+    | HMap p -> (match p with PNil -> false | _ -> true end)
+    | HNode _ -> true
+    end
+  let function hstr_of (h: hval) : string =
+    match h with HStr s -> s | _ -> hval_opaque_str h end
+  let function hint_of (h: hval) : int =
+    match h with HInt i -> i | HBool b -> hbool_int b | _ -> hval_opaque_int h end
+  let rec function hval_list_len (l: hval_list) : int
+    variant { l }
+    = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end
+  let rec function hval_list_nth (l: hval_list) (i: int) : hval
+    variant { l }
+    = match l with
+      | HNil -> HInt 0
+      | HCons x t -> if i <= 0 then x else hval_list_nth t (i - 1)
+      end
+  let function hval_len (h: hval) : int =
+    match h with
+    | HStr s -> hstr_len s
+    | HTuple l -> hval_list_len l
+    | HArr l -> hval_list_len l
+    | HMap p -> hpairs_len p
+    | _ -> hval_len_other h
+    end
+  let function hval_tuple (h: hval) : hval =
+    match h with
+    | HTuple l -> HTuple l
+    | HArr l -> HTuple l
+    | HMap p -> HTuple (hpairs_keys p)
+    | _ -> hval_tuple_other h
+    end
+  let rec function hval_list_snoc (l: hval_list) (x: hval) : hval_list
+    variant { l }
+    = match l with HNil -> HCons x HNil | HCons h t -> HCons h (hval_list_snoc t x) end
+  (* r3 views still called by the emitter, over the frozen type (not part of the DictR4Theory companion; definitional or law-free, no axiom): HTuple is a sequence like HArr, a dict's `in` is KEY membership (`pairs_mem`), and every other tag is the UNINTERPRETED `hval_in_other` / `hval_opaque_str` arm (TypeError / substring sites, never a concrete junk value). *)
+  val function hval_in_other (k: string) (h: hval) : bool
+  (* the RAISING arm of a PyVal read (an absent key: KeyError; a non-dict receiver: AttributeError / TypeError): a law-free value OF the receiver and the key -- uninterpreted (never a concrete junk value) and deterministic (two reads of one absent key agree). Dead in Python; asserted absent under a KeyError claim. *)
+  val function hval_get_other (h: hval) (k: string) : hval
+  let rec function hval_list_str_mem (l: hval_list) (x: string) : bool
+    variant { l }
+    = match l with
+      | HNil -> false
+      | HCons h t -> if (match h with HStr s -> hpairs_key_eq s x | _ -> false end) then true else hval_list_str_mem t x
+      end
+  let function hval_str_mem (h: hval) (x: string) : bool =
+    match h with HArr l -> hval_list_str_mem l x | HTuple l -> hval_list_str_mem l x | HMap p -> pairs_mem p x | _ -> hval_in_other x h end
+  let function hval_nth_str (h: hval) (i: int) : string =
+    match h with HArr l -> hstr_of (hval_list_nth l i) | HTuple l -> hstr_of (hval_list_nth l i) | _ -> hval_opaque_str h end
+  val function hval_values_len (m: map string (option hval)) : int
+  val function hval_values_get (m: map string (option hval)) (i: int) : hval
+  val function hval_keys_get (m: map string (option hval)) (i: int) : string
+  val function hval_as_map (h: hval) : map string (option hval)
+
+  type reverifyreport = { mutable proof_file: int; mutable prover: string; mutable compile_ok: int; mutable compile_stdout: string; mutable compile_stderr: string; mutable elapsed_compile_s: real; mutable qualname_results: seq (string, int, seq string); mutable cached: int }
+
+  type _union__cache_load_0 = Arm_0_0 int | Arm_0_None
+
+
+  exception Return__union__cache_load_0 _union__cache_load_0
+
+  (* Abstract operations for unsupported Python patterns *)
+  val all_1 (a: array int) : bool
+  val ext_json_dumps_op (obj: 'a) (indent: int) : string raises { RecursionError, TypeError, ValueError }
+  val ext_path_mkdir_op (p: string) (parents: bool) (exist_ok: bool) : unit raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, ValueError }
+  val ext_path_read_bytes_op (p: string) : array int raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, ValueError }
+  val ext_path_write_text_op (p: string) (s: string) : int raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, UnicodeEncodeError, ValueError }
+  val function ext_sha256_hexdigest_op (b: array int) : string
+  val ext_sorted_str_op (a: array string) : array string
+  val function ext_str_enc_bytes (s: string) : array int
+  val ext_str_encode_check_op (s: string) : unit raises { UnicodeEncodeError }
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+  val function path_join_op (a b: string) : string
+  predicate permut (a: array int) (b: array int)
+  val real_hcarrier_op (x: real) : int
+  val sorted_1 (a: array int) : array int
+    ensures { Array.length result = Array.length a }
+    ensures { forall _si : int. 0 <= _si < Array.length result - 1 ->
+                result[_si] <= result[_si + 1] }
+    ensures { permut result a }
+  val str_concat_op (a: string) (b: string) : string
+    ensures { result = (concat a b) }
+    ensures { String.length result = String.length a + String.length b }
+  val str_find_from_op (s: string) (sub: string) (start: int) : int
+    ensures { result >= -1 }
+    ensures { (result >= 0) -> (result >= start /\ result + String.length sub
+      <= String.length s /\ String.substring s result (String.length sub) = sub) }
+  val str_join_arr (sep: string) (xs: array string) : string
+    ensures { String.length result >= 0 }
+  val str_length_op (s: string) : int
+    ensures { result = (String.length s) }
+  val str_sub_op (s: string) (lo len: int) : string
+    ensures { (0 <= lo /\ 0 <= len) -> result = (String.substring s lo len) }
+    ensures { (0 <= lo /\ 0 <= len /\ lo + len <= String.length s) -> String.length result = len }
+
+  let _sha256_file (path: string) : string
+    requires { true }
+    ensures  { true }
+    raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, ValueError }
+  =
+    (ext_sha256_hexdigest_op (ext_path_read_bytes_op path))
+
+  let _cache_key (proof_file: string) (qualnames: array string) (prover: string) (prover_version: string) : string
+    requires { true }
+    ensures  { true }
+    raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, UnicodeEncodeError, ValueError }
+  =
+    let parts = (let _alit = Array.make 4 ((_sha256_file proof_file)) in _alit[1] <- (str_join_arr "," (ext_sorted_str_op qualnames)); _alit[2] <- prover; _alit[3] <- prover_version; _alit) in
+    (let _x7v_e = (str_join_arr "|" parts) in ext_str_encode_check_op _x7v_e; ext_sha256_hexdigest_op (ext_str_enc_bytes _x7v_e))
+
+  let _cache_root (project_root: string) : string
+    requires { true }
+    ensures  { true }
+    raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, ValueError }
+  =
+    let root = ref (path_join_op project_root ".audit-cache") in
+    let _ = (ext_path_mkdir_op !root true true) in ();
+    !root
+
+  val detect_encoding (b: int) : int
+
+  val loads (s: int) (cls: int) (object_hook: int) (parse_float: int) (parse_int: int) (parse_constant: int) (object_pairs_hook: int) : int
+    raises { JSONDecodeError, TypeError }
+
+  val _cache_load (project_root: string) (prover: string) (key: string) : _union__cache_load_0
+    requires { true }
+    ensures  { true }
+    raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, ValueError }
+
+  val dumps (obj: int) (skipkeys: int) (ensure_ascii: int) (check_circular: int) (allow_nan: int) (cls: int) (indent: int) (separators: int) (default: int) (sort_keys: int) : int
+    raises { UnicodeEncodeError }
+
+  let _cache_store (project_root: string) (prover: string) (key: string) (payload: map int (option int)) : unit
+    requires { true }
+    ensures  { true }
+    raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, RecursionError, TimeoutError, TypeError, UnicodeEncodeError, ValueError }
+  =
+    let d = ref (path_join_op (_cache_root project_root) prover) in
+    let _ = (ext_path_mkdir_op !d true true) in ();
+    let f = ref (path_join_op !d (str_concat_op key ".json")) in
+    let _ = (ext_path_write_text_op !f (ext_json_dumps_op payload (2))) in ()
+
+  val _coqc_version () : string
+    requires { true }
+    ensures  { true }
+
+  val _lean_version () : string
+    requires { true }
+    ensures  { true }
+
+  let _split_rocq_print_assumptions (stdout: string) (qualnames: array string) : map string (option string)
+    requires { true }
+    ensures  { true }
+  =
+    let block_starts_len = ref 0 in
+    let start = ref 0 in
+    let pos = ref 0 in
+    let next_start = ref 0 in
+    let markers = ref 0 in
+    let marker = ref 0 in
+    let idx = ref 0 in
+    let py_end = ref 0 in
+    let _for_target = ref 0 in
+    let block_starts = ref Seq.empty in
+    markers := (any int);
+    pos := 0;
+    try
+    while (!pos < (str_length_op stdout)) do
+      invariant { (0 <= !pos) }
+      variant { ((String.length stdout) - !pos) }
+      next_start := (- 1);
+      let _seqlit_idx_marker = (Seq.cons "Closed under the global context" (Seq.cons "Axioms:" (Seq.cons "Section Variables:" (Seq.cons "Parameters:" (Seq.cons "Constants:" (Seq.empty: seq string)))))) in
+      let _idx_marker = ref 0 in
+      while !_idx_marker < (Seq.length _seqlit_idx_marker) do
+        invariant { 0 <= !_idx_marker }
+        variant { (Seq.length _seqlit_idx_marker) - !_idx_marker }
+        invariant { ((!next_start = (- 1)) || (!next_start >= !pos)) }
+        let marker = ref ((Seq.get _seqlit_idx_marker !_idx_marker)) in
+        idx := (str_find_from_op stdout !marker !pos);
+        if ((if (!idx <> (- 1)) && ((if (!next_start = (- 1)) || (!idx < !next_start) then 1 else 0) <> 0) then 1 else 0) <> 0) then begin
+          next_start := !idx
+        end;
+        _idx_marker := !_idx_marker + 1
+      done;
+      if (!next_start = (- 1)) then begin
+        raise PyCSL_Break
+      end;
+      block_starts := Seq.snoc !block_starts !next_start;
+      pos := (!next_start + 1)
+    done
+    with PyCSL_Break -> () end;
+    let py_result = ref (const (None: option string)) in
+    let _seqlit_idx_marker = (Seq.cons "Closed under the global context" (Seq.cons "Axioms:" (Seq.cons "Section Variables:" (Seq.cons "Parameters:" (Seq.cons "Constants:" (Seq.empty: seq string)))))) in
+    let _idx__for_target = ref 0 in
+    while !_idx__for_target < (Array.length qualnames) do
+      invariant { 0 <= !_idx__for_target }
+      variant { (Array.length qualnames) - !_idx__for_target }
+      try
+        let i = ref !_idx__for_target in
+        let qn = ref (qualnames[!_idx__for_target]) in
+      if (!i >= (Seq.length !block_starts)) then begin
+        py_result := map_update_some !py_result !qn "";
+        raise PyCSL_Continue
+      end;
+      start := (Seq.get !block_starts !i);
+      let py_end = ref (if ((!i + 1) < (Seq.length !block_starts)) then (Seq.get !block_starts (!i + 1)) else (str_length_op stdout)) in
+      py_result := map_update_some !py_result !qn (str_sub_op stdout !start ((!py_end) - (!start)))
+      with PyCSL_Continue -> () end;
+      _idx__for_target := !_idx__for_target + 1
+    done;
+    !py_result
+
+  let _to_cache_payload (report: reverifyreport) : map string (option hval)
+    requires { true }
+    ensures  { true }
+  =
+    assert { [@expl:PyCSL-R4 distinct literal keys] "compile_ok" <> "compile_stderr" /\ "compile_ok" <> "compile_stdout" /\ "compile_ok" <> "elapsed_compile_s" /\ "compile_ok" <> "qualname_results" /\ "compile_stderr" <> "compile_stdout" /\ "compile_stderr" <> "elapsed_compile_s" /\ "compile_stderr" <> "qualname_results" /\ "compile_stdout" <> "elapsed_compile_s" /\ "compile_stdout" <> "qualname_results" /\ "elapsed_compile_s" <> "qualname_results" };
+    (map_update_some (map_update_some (map_update_some (map_update_some (map_update_some (const (None: option hval)) "compile_ok" (HInt report.compile_ok)) "compile_stdout" (HStr report.compile_stdout)) "compile_stderr" (HStr report.compile_stderr)) "elapsed_compile_s" (HInt (real_hcarrier_op report.elapsed_compile_s))) "qualname_results" (HArr (let _u74s1 = report.qualname_results in let _u74a1 = ref HNil in for _u74i1 = Seq.length _u74s1 - 1 downto 0 do let (_u74x1_0, _u74x1_1, _u74x1_2) = Seq.get _u74s1 _u74i1 in _u74a1 := HCons (HArr (HCons (HStr _u74x1_0) (HCons (HInt _u74x1_1) (HCons (HArr (let _u74b1 = ref HNil in for _u74j1 = Seq.length _u74x1_2 - 1 downto 0 do _u74b1 := HCons (HStr (Seq.get _u74x1_2 _u74j1)) !_u74b1 done; !_u74b1)) HNil)))) !_u74a1 done; !_u74a1)))
+
+  val is_lean_axiom_allowed (name: string) : int
+    requires { true }
+    ensures  { true }
+
+  val is_rocq_assumption_allowed (name: string) : int
+    requires { true }
+    ensures  { true }
+
+  val parse_lean_axioms_line (line: string) : array string
+    requires { true }
+    ensures  { true }
+
+  val parse_rocq_assumptions_block (block: string) : (int, array int)
+    requires { true }
+    ensures  { true }
+
+  let reverifyreport__ok (self: reverifyreport) : int
+    requires { true }
+    ensures  { true }
+    ensures  { self.cached = old self.cached }
+    ensures  { self.compile_ok = old self.compile_ok }
+    ensures  { self.compile_stderr = old self.compile_stderr }
+    ensures  { self.compile_stdout = old self.compile_stdout }
+    ensures  { self.elapsed_compile_s = old self.elapsed_compile_s }
+    ensures  { self.proof_file = old self.proof_file }
+    ensures  { self.prover = old self.prover }
+    ensures  { self.qualname_results = old self.qualname_results }
+  =
+    try
+    if (not (self.compile_ok <> 0)) then begin
+      raise (Return 0)
+    end else begin
+      raise (Return (if (all_1 (any (array int))) then 1 else 0))
+    end
+    with Return r -> r end
+
+  val reverifyreport__summary (self: reverifyreport) : string
+    requires { true }
+    ensures  { true }
+
+  val verify_lean_file (proof_file: string) (qualnames: array string) (project_root: string) (use_cache: int) : reverifyreport
+    requires { true }
+    ensures  { true }
+    raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, UnicodeEncodeError, ValueError }
+
+  val verify_rocq_file (proof_file: string) (qualnames: array string) (project_root: string) (use_cache: int) : reverifyreport
+    requires { true }
+    ensures  { true }
+    raises { BlockingIOError, BrokenPipeError, ChildProcessError, ConnectionAbortedError, ConnectionError, ConnectionRefusedError, ConnectionResetError, FileExistsError, FileNotFoundError, InterruptedError, IsADirectoryError, NotADirectoryError, OSError, PermissionError, ProcessLookupError, TimeoutError, UnicodeEncodeError, ValueError }
+
+end

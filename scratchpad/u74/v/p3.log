@@ -1,0 +1,7 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u74/scratchpad/u74/st/src/self-annotate/src (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/struct_format.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: line 99: PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND: `slots` is passed to the parameter `slots` of `StructFormat`, declared a tuple, and may be a list. A program-class construction is lowered to a record literal and its constructor body is judged at the DECLARED kinds of its parameters, never emitted, so an argument of another kind is never checked: CPython runs the body on the real value and raises (route #551; measured: `v: Any = k; c = C(v)` with `def __init__(self, s: str): self.n = len(s)` proved `no_exception \all`, CPython TypeError). Pass a value of the declared kind (a parameter / local annotated with it, a literal), or declare the parameter as what you pass.
+rc=1

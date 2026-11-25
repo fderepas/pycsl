@@ -1,0 +1,85 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u77/scratchpad/u77/c/h/b1r/b1r.py'...
+[*] Memory model: hoare
+=== SOUNDNESS REPORT (JSON) ===
+{
+  "file": "/home/fabrice/git/pycsl-u77/scratchpad/u77/c/h/b1r/b1r.py",
+  "summary": {
+    "Modelled": 2,
+    "Specified": 0,
+    "Stubbed": 0,
+    "Confinement": 0
+  },
+  "vcs": [
+    {
+      "function": "mk",
+      "bucket": "Modelled",
+      "has_contract": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    },
+    {
+      "function": "g",
+      "bucket": "Modelled",
+      "has_contract": true,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "trusted_dependencies": []
+    }
+  ],
+  "model_assumptions": [
+    {
+      "name": "FLOAT-FINITE",
+      "statement": "every float value is finite and non-NaN (float is modelled as the Why3 real: x == x, x <= x and trichotomy hold)",
+      "counterexample": "x = float('nan'): x == x is False (corpus 2500-2502)",
+      "strict_mode": "--strict-float-finite",
+      "relied_on_by": [
+        "mk: a `float` record field read (r.x): a PyVal value built from it is `HFloat`, a Why3 real (`hval_eq` reflexive; route #606, rt87 b1)"
+      ]
+    },
+    {
+      "name": "BUILTIN-EXACT",
+      "statement": "a value whose static type is a builtin (int/float/str/bool/bytes/tuple/list/dict/set) is an exact instance of it, not a subclass overriding a dunder",
+      "counterexample": "class I(int): __sub__ -> 7; x - x == 7 for x = I(5) (corpus 2506)",
+      "strict_mode": null,
+      "relied_on_by": [
+        "g: `==` on \\result: int"
+      ]
+    },
+    {
+      "name": "LATIN1-STR",
+      "statement": "every str value consists of code points 0..255 (str is modelled as the Why3 string of string.Char, whose codes are < 256): ord(c) < 256, and chr(n) is modelled only for 0 <= n < 256; str values in general rely on it (the str sort is the 8-bit string), ord/chr sites directly",
+      "counterexample": "s = '\u20ac': ord(s) == 8364, yet ord(s) < 256 proves; ord(chr(300)) != 300 proves (corpus 3020-3021)",
+      "strict_mode": "--strict-latin1",
+      "relied_on_by": [
+        "g: str values (8-bit string model) a string literal",
+        "mk: str values (8-bit string model) a string literal"
+      ]
+    }
+  ],
+  "cited_lemmas": []
+}
+
+=== SOUNDNESS REPORT (summary) ===
+file: /home/fabrice/git/pycsl-u77/scratchpad/u77/c/h/b1r/b1r.py   functions/VCs: 2
+  Modelled    : 2
+  Specified   : 0
+  Stubbed     : 0
+  Confinement : 0
+  --- declared model assumptions (not proved; see the reference docs) ---
+    FLOAT-FINITE: every float value is finite and non-NaN (float is modelled as the Why3 real: x == x, x <= x and trichotomy hold)
+      counterexample: x = float('nan'): x == x is False (corpus 2500-2502)
+      strict mode: --strict-float-finite
+      relied on by mk: a `float` record field read (r.x): a PyVal value built from it is `HFloat`, a Why3 real (`hval_eq` reflexive; route #606, rt87 b1)
+    BUILTIN-EXACT: a value whose static type is a builtin (int/float/str/bool/bytes/tuple/list/dict/set) is an exact instance of it, not a subclass overriding a dunder
+      counterexample: class I(int): __sub__ -> 7; x - x == 7 for x = I(5) (corpus 2506)
+      strict mode: none (always assumed)
+      relied on by g: `==` on \result: int
+    LATIN1-STR: every str value consists of code points 0..255 (str is modelled as the Why3 string of string.Char, whose codes are < 256): ord(c) < 256, and chr(n) is modelled only for 0 <= n < 256; str values in general rely on it (the str sort is the 8-bit string), ord/chr sites directly
+      counterexample: s = '€': ord(s) == 8364, yet ord(s) < 256 proves; ord(chr(300)) != 300 proves (corpus 3020-3021)
+      strict mode: --strict-latin1
+      relied on by g: str values (8-bit string model) a string literal
+      relied on by mk: str values (8-bit string model) a string literal
+rc=0 args=--no-proof --soundness-report oom0=[oom_kill 15] oom1=[oom_kill 15]

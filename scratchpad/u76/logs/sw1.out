@@ -1,0 +1,11 @@
+base start Tue Nov 24 21:12:53 UTC 2026 ba48d5888 ru oom_kill 15
+base bd rc=0 emitted 3344 of 6390 source file(s) into /home/fabrice/git/pycsl-u76/scratchpad/u76/sw/base/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u76/scratchpad/u76/sw/base/bd/pyref (6 jobs) 
+base mir rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u76/scratchpad/u76/sw/base/mir --min-files 45
+head start Tue Nov 24 22:31:28 UTC 2026 d5b3ab94e u7 oom_kill 15
+head bd rc=0 emitted 3357 of 6410 source file(s) into /home/fabrice/git/pycsl-u76/scratchpad/u76/sw/head1/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u76/scratchpad/u76/sw/head1/bd/pyref (6 jobs) 
+head mir rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u76/scratchpad/u76/sw/head1/mir --min-files 45
+compare root rc=1 [!]   GONE 9063_u30_r568_w04_any_receiver_pure_caller.mlw — it emitted before and does not now. If that is an intended new refusal, pass --expect-gone 9063_u30_r568_w04_any_receiver_pure_caller. [!] byte-diff-compare: NOT BYTE-INERT. [*] byte-diff-compare: 3343 baseline / 3356 candidate .mlw; 0 MOVED (0 unexpected), 2 GONE (2 unexpected), 0 APPEARED, 15 new source file(s) ignored. 
+compare pyref rc=0 [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare mir rc=1 [!]   MOVED audit_proof_reverify.mlw — if that is an intended SOURCE repair, pass --expect-moved audit_proof_reverify. [!] byte-diff-compare: NOT BYTE-INERT. [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 2 MOVED (2 unexpected), 0 GONE (0 unexpected), 0 APPEARED. 
+diff -rq mir rc=1 2 lines
+sw end Tue Nov 24 23:45:54 UTC 2026 oom_kill 15

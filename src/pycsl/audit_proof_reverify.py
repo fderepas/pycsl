@@ -419,7 +419,7 @@ def verify_lean_file(proof_file: Path, qualnames: List[str],
 # ---------------------------------------------------------------------------
 
 
-def _to_cache_payload(report: ReverifyReport) -> dict:
+def _to_cache_payload(report: ReverifyReport) -> Dict[str, PyVal]:
     return {
         "compile_ok": report.compile_ok,
         "compile_stdout": report.compile_stdout,

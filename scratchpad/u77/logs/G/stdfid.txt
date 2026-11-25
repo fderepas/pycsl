@@ -1,0 +1,6 @@
+/home/fabrice/git/pycsl-u77h/src/pycsl_lib/hlib/__init__.py:34: SyntaxWarning: "\l" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\l"? A raw string is also an option.
+  satisfy its frame-preservation `ensures`, and re-establish a `\length` class
+/home/fabrice/git/pycsl-u77h/src/pycsl_lib/stat/__init__.py:96: SyntaxWarning: "\l" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\l"? A raw string is also an option.
+  weaken the contract to what is true of BOTH (`\length(\result) == 10`), which needs
+[*] stdlib-contract-fidelity: 5612 contract evaluation(s) against the real stdlib; 12 diverging function(s).
+[+] stdlib-contract-fidelity: OK — 12 known divergence(s), no new one.

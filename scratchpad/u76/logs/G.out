@@ -1,0 +1,17 @@
+G start Wed Nov 25 02:06:44 UTC 2026 2c8ad9e43 u7 oom_kill 15
+lg emitted 53
+check-assigns-writes-survival rc=0 [+] assigns-writes-survival: OK — HOLE 0 (ceiling 0), HOLE-NOWRITES 8 (ceiling 8), TRAP 1398 (ratchet 1399) + TRAP-NMS 1501 (ratchet 1501), both may only shrink.
+check-trusted-frame-honesty rc=0 [+] frame-honesty: OK — measured trusted 0 model-visible / 1 total, converted 0 model-visible / 63 total (ratchets 0/1 and 0/63).
+check-getattr-erasure rc=0 [+] getattr-erasure: OK — DECLARED 0 (pinned); 42 file(s) with sites, every one at or below its row; totals ABSENT 27, UNKNOWN 73 (reported, not gated).
+check-assigns-underdeclaration rc=0 [+] assigns-underdeclaration: OK — 540 non-empty `#@ assigns` clause(s) (invisible to check-trusted-frame-honesty, which is scoped to `\nothing`); TRAP 3 field-occurrence(s) across 2 method(s), HOLE 0. Every omitted field is UNDECLARED in its class, hence absent from the emitted record, hence unmentionable.
+check-self-annotate-sync rc=0
+self-annotate-mirror-check rc=0
+doc-coherency rc=0
+check-sibling-concrete-fidelity rc=0 [+] sibling-concrete-fidelity: OK — no new divergence, every mirror-only def resolves, every class view is a subset of live.
+check-stdlib-contract-fidelity rc=0 [+] stdlib-contract-fidelity: OK — 12 known divergence(s), no new one.
+planes rc=1     ok       check-cross-module-contract-parity.py      [!] soundness-planes: 1 of 62 RED — check-claim-vacuity.py(rc=1)     (fast set only; 23 slow plane(s) NOT CHECKED — re-run with --slow) 
+count-trusted-directives rc=0 [*] trusted-directives: declared_in 25 · attached 25 · unattached 0  (a DISTINCT class, NOT in `markers`: cross-mixin declarations certified by bin/check-declaration-conformance.py; same `val` emission) [+] trusted-directives: OK 
+trusted (canonical grep) 364
+allowlist diff lines vs L21: 0
+dup corpus ids: 0
+G end Wed Nov 25 03:46:44 UTC 2026 oom_kill 15

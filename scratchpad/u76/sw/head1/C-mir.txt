@@ -1,0 +1,4 @@
+[!]   MOVED audit_proof.mlw — if that is an intended SOURCE repair, pass --expect-moved audit_proof.
+[!]   MOVED audit_proof_reverify.mlw — if that is an intended SOURCE repair, pass --expect-moved audit_proof_reverify.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 2 MOVED (2 unexpected), 0 GONE (0 unexpected), 0 APPEARED.
