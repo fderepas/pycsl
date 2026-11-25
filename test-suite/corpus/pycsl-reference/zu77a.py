@@ -15,7 +15,7 @@ class R:
 
 @dataclass
 class S:
-    n: int
+    n: int = 0
 
     #@ ensures \result == 0
     #@ assigns self.n
