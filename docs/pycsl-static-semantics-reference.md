@@ -2847,7 +2847,13 @@ object) it may alias; closed by a fixpoint over calls (a tainted argument at a p
 callee writes; a tainted receiver of a method that writes `self`; a callee that writes a
 global; a `heapq`/`random.shuffle`/`bisect.insort*`/`operator.i*`... argument mutator). A
 dotted call takes the union over every method of that name. A `\trusted` callee with an
-`#@ assigns` is taken at its declared frame.
+`#@ assigns` is taken at its declared frame. For `PYCSL-FUNCTION-FRAME` only (run #9 u77, rt87
+c15), a dotted call `x.m(..)` whose receiver class is statically known -- `x` a parameter
+annotated with a record class, or a local whose every binding is a constructor of one record
+class, and that occurs nowhere else as a binding target -- takes the union over that class's
+family only (itself, its ancestors, its descendants), falling back to every method of that
+name when the family has none (10532, 10535, 10537 PASS; 10533, 10534, 10536 FAIL); the
+emitted frames and the method rules keep the any-class union.
 
 | Code | Condition | Witnesses |
 |------|-----------|-----------|

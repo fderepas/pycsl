@@ -6951,7 +6951,11 @@ pinned in the corpus by a counterexample that PROVES under the default model (he
 \texttt{real}$ and `real` has no NaN, so reflexivity of `==`/`<=` and trichotomy hold for
 every float value: `ensures x == x` (2500), `ensures x <= x` (2501), `requires x != y ensures
 x < y or y < x` (2502) PROVE for `x: float`, and CPython refutes each with `float("nan")`.
-Reported for every comparison/`min`/`max` touching a float.
+Reported for every comparison/`min`/`max` touching a float, and (run #9 u77, rt87 b1) for every
+function whose body reads a `float`-typed record field at all: such a field stored as a PyVal
+value is the `HFloat` real (`_pyval_wrap`), on which `hval_eq` is reflexive, so `{"a": r.x}`
+then `d["a"] == d["a"]` proves (10530; refused under the flag, 10531) and the comparison may
+sit in another function, where no float operand is visible.
 *Strict mode* `--strict-float-finite` (opt-in) lowers, in both paths,
 
     a OP b  ⟶  (let _pf_a = a in let _pf_b = b in
