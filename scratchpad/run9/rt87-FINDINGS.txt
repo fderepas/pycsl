@@ -1,0 +1,123 @@
+rt87 FINDINGS (driver run #9): defensive review of u74 (_to_cache_payload conversion) + u76 repairs.
+Head: run9-u76 src bb2f6efe7, tree /home/fabrice/git/pycsl-rt87.
+Base: merge-base ba48d5888 (= L21), tree /home/fabrice/git/pycsl-rt87b. Both trees are removed at the end. No commits.
+Note: the brief points to scratchpad/rt87/FINDINGS.txt + c/*.py as the prior review. That directory did not exist.
+The prior review of u74 is scratchpad/rt84 (F1, F2). I attacked u76's repairs of rt84 F1 / F2, not re-ran them.
+
+Method
+- Probes are benign: tiny dataclass / list / dict / set / int functions. Layout: c/<id>/o_<id>.py is the owner (defining
+  module) and c/<id>/x_<id>.py is the importer (`from o_<id> import ...`). Every false claim is `\result == 0`
+  (or 1), and CPython prints 5 (or the opposite value).
+- CPython: `timeout 60 bash -c 'ulimit -v 2000000; cd c/<id>; /usr/bin/python3 -E -s -B x_<id>.py'` (use -I for
+  single-file probes). The printed value is quoted in the table.
+- pycsl: tools/run.sh <h|b> <id> <stem> [args]. Settings: cwd = tree root, --import-path c/<tag>/<id>, --keep-mlw,
+  PYTHON_CPU_COUNT=2, TMPDIR=scratchpad/rt87/tmp, cap 3700 s, oom_kill recorded before and after.
+  - QUICK --no-proof: `HEAVY_QUICK=1 scratchpad/heavy/heavy.sh tools/q.sh ...`. Logs: c/<h|b>/<id>/<stem>.q.log.
+  - Full hoare proof: `HEAVY_PRIO=1 scratchpad/heavy/heavy.sh tools/p.sh ...` (p1..p4.out). Logs:
+    c/<h|b>/<id>/<stem>.log, with the .mlw next to them.
+- oom_kill was 15 -> 15 on every job, so no result is VOID. No log contains EDQUOT, "Disk quota exceeded" or
+  "No space left".
+- No safety-classifier stop occurred. Only one heavy job of mine ran at a time.
+
+FINDINGS TABLE  (P = full proof "All contracts formally proven" rc 0; NP = full proof FAILED/INCOMPLETE; q = --no-proof)
+| id | shape | CPython | base L21 | head u76 | class |
+|----|-------|---------|----------|----------|-------|
+| a1 | owner `f(r: R)` `#@ assigns r.a`, writes r.a AND r.b (loop); importer `requires r.b == 0`, f(r), returns r.b, claims 0 | 5 | owner P, importer P (FALSE) | owner P, importer P (FALSE) | PRE-EXISTING; route #634 NOT closed for a PARTIAL record frame |
+| a1d | a1 importer with --deep | 5 | -- | q: emission byte-identical to a1 (same false proof) | same |
+| d1b | owner `f(d: Dict[str,int])` `#@ assigns \nothing`, `d["k"] = 5` (loop); importer writes d["z"] = 1, f(d), returns d["k"], claims 0 | 5 | owner P, importer P (FALSE) | owner P, importer P (FALSE) | PRE-EXISTING; #634 DICT twin not closed |
+| s1 | owner `f(s: Set[int])` `#@ assigns \nothing`, `s.add(5)` (loop); importer s.add(7), f(s), claims `5 not in s` | 1 (claim 0) | owner P, importer P (FALSE) | owner P, importer P (FALSE) | PRE-EXISTING; #634 SET twin not closed |
+| g9 | owner: global record `cfg = Cfg(0)`; `reset()` assigns cfg.n; `get()` ensures result == cfg.n; `f()` `#@ assigns \nothing` writes cfg.n = 5 (loop). Importer: reset(); f(); return get(), claims 0 | 5 | owner P, importer P (FALSE) | owner P, importer P (FALSE) | PRE-EXISTING; module-GLOBAL write under `assigns \nothing` (u76 did not measure it; confirmed open) |
+| b1 | `x: float` field; `d: Dict[str,PyVal] = {"a": r.x}`; claims `d["a"] == d["a"]` | 0 for R(nan) | q: L3-tc fail-closed | P | INTRODUCED path (u74/u76 carrier). It relies on the DECLARED FLOAT-FINITE assumption but is NOT REPORTED (below) |
+| b1s | b1 with --strict-float-finite | -- | -- | q REFUSED PYCSL-R606-PYVAL-FLOAT-COMPARE-STRICT | fail-safe |
+| c15 | honest `f(r: R)` `#@ assigns \nothing` returning `r.total()` (R.total is pure, `assigns \nothing`); an UNRELATED class S has a `total` that writes self.n | 3, r unchanged | P | q REFUSED PYCSL-FUNCTION-FRAME ("may write `r`") | INTRODUCED over-refusal |
+| 0337 (u76) | dishonest `assigns \nothing` with `arr[i] = 0` | -- | -- | refused | true positive (u76 already reported it) |
+| a2 / a9 / a15 | setattr(r,"b",5) / r.__setattr__ / r.__dict__["b"] = 5 | 5 | owner q fail-closed (L3-tc / rebinding refusal) | same | fail-safe |
+| a3 | closure `def inner(): r.b = 5` | 5 | owner q refused (lift not faithful) | same | fail-safe |
+| a4 / m1 | nested def / a method on a fresh Box writing the forwarded parameter | 5 | owner q SUCCESS (a4), importer refused | owner q PYCSL-FUNCTION-FRAME | closed by u76 |
+| a5 / a5b / a5c | `for q in [r]`, `[r][0]`, `(r,0)[0]` aliases | 5 | owner L3-tc fail | same | fail-safe (a list/tuple literal of records is not representable) |
+| a6 | `r.b, i = 5, i+1` | 5 | refused route #301 | same | fail-safe |
+| a7 / a10 / l1 / l3 / l6 / l8 | method call r.set_b(); write in `finally`; `xs[0] += 5`; append; slice store; insert/pop | 5 / 1 | owner q SUCCESS or refused | owner q PYCSL-FUNCTION-FRAME | closed by u76 (fail-safe) |
+| a7b / a7c / a7d / a12 / a13 | METHOD frames: `assigns \nothing` / none / `assigns self.b` / `assigns self.a` writing self.b; owner + importer, and one module | 5 | owner `let` carries `ensures self.<f> = old self.<f>` for each unnamed field | same; a13 NP | fail-safe (methods are field-granular, module functions are not, see a1) |
+| a14 | method with `assigns q.a` writing q.b of a record param | 5 | refused PYCSL-METHOD-ARG-UNFRAMED | same | fail-safe |
+| l9 | list `assigns xs[0]` writing xs[1]; importer claims xs[1] == 0 | 5 | -- | importer NP (val `writes { xs }`, whole array) | fail-safe |
+| g2 / g1 / g8 / g4 / g6 | `global X` write; module list `G[0] = 5`; upper-case / imported global record read directly | 5 | refused / tc fail / R325 | same | fail-safe |
+| g7 | g9's f with the caller in the SAME module | 5 | -- | NP (Why3 infers the let's effect) | fail-safe |
+| d1 | d1b without the importer's own write | 5 | importer L3-tc ("write effect does not happen") | same | fail-closed by accident (d1b passes) |
+| b2 / b3 / b5 / b6 / b8 / b9 / b16 | `is True`; isinstance bool (R(True)); str(); Optional[float]; `== r.x`; -0.0 truthiness; 0.1+0.2 == 0.3 | -- | -- | refused route #42 / NP (b3: `HInt _ -> any bool`) / L3-tc / R325 | fail-safe |
+| c1 / c2 / c10 | honest copies `xs[:]`, `xs.copy()`, `xs[1:]` then a write to the copy | xs unchanged | c1/c10 NP, c2 refused | q PYCSL-FUNCTION-FRAME | honest programs refused, but L21 could not prove them either: no INTRODUCED claim |
+
+KEY FINDING 1 (a1, false proof at head, PRE-EXISTING): u76's PYCSL-FUNCTION-FRAME is ROOT-granular, while the
+importer's `val` frame is FIELD-granular.
+- `_info316["declared"]` keeps only the ROOT of each `assigns` target (Module6_WhyMLTranspiler.py: "declared frame:
+  roots of `assigns` targets"). So `#@ assigns r.a` puts r in `declared`, and a body write to r.b is never
+  `undeclared`. The new check in functions.py therefore cannot fire.
+- The importer emits `val f (r: r) : int ... writes { r.a }` (c/h/a1/x_a1.mlw), and the caller keeps r.b = 0.
+- The owner's `let f` has NO `writes` clause (c/h/a1/o_a1.mlw), so Why3 infers the r.b write and the owner proves.
+- CPython 5, both units P on both trees (c/{h,b}/a1/{o,x}_a1.log). With --deep the importer emission is identical (a1d).
+- Methods are safe here because their `let` carries `ensures self.b = old self.b` for every field the frame does not
+  name (a13 NP). Module functions get no such clause.
+Fix direction (either one):
+- (a) emit the declared frame on the owner's `let` as `writes { r.a }`, so Why3 rejects the undeclared r.b store at
+  type-check;
+- (b) make `declared` / `undeclared` field-granular for record parameters, the way the method path's field ensures
+  already are.
+
+KEY FINDING 2 (d1b, s1, false proofs at head, PRE-EXISTING): the #634 dict / set twin is still open.
+- The parameter seeding in transpile skips dict / set parameters ("governed by WL-05 / route #244"). The refusal also
+  removes `_func_mutated_collection_params` from `_u316` (the `_x316` exclusion).
+- The owner's let gets `writes { d }`, honest in Why3, so it proves.
+- The importer's `val f (d: ref (map string (option int)))` has NO `writes` because the declared frame is `assigns
+  \nothing`. The caller keeps d["k"] = 0.
+- d1 fails closed only by accident: the importer's own `writes { d }` is then unused, which is a type error. One write
+  of the caller's own (d1b) removes the accident.
+- Logs: c/{h,b}/d1b/*.log, c/{h,b}/s1/*.log.
+Fix direction: for a function with `assigns`, refuse when a dict / set parameter is in the function's
+`_func_mutated_collection_params` and is not named in the frame. Or always give the importer's val
+`writes { d }` from the body measurement.
+
+KEY FINDING 3 (g9, false proof at head, PRE-EXISTING, the brief's "u76 did not measure it" case): a module function
+declaring `#@ assigns \nothing` that writes a module-GLOBAL record field.
+- `undeclared` lists parameters only, and `<global>` is never compared with the declaration.
+  PYCSL-METHOD-GLOBAL-WRITE covers methods only.
+- The importer gets `val f () : int` with no `writes { cfg.n }`. The program never names `cfg` in its own spec:
+  `reset(); f(); return get()` (getter `ensures \result == cfg.n`). So the R325 refusal that stops g4 / g6 never
+  triggers.
+- Same-module callers are safe (g7 NP).
+- Logs: c/{h,b}/g9/*.log, emission c/h/g9/x_g9.mlw.
+Fix direction: refuse `<global>` in eff when it is not covered by a global `assigns` target, the way the method rule
+does. Or emit the measured global writes in the val.
+
+KEY FINDING 4 (b1, INTRODUCED path, reporting gap): a float field wrapped by the u76 carrier reaches a PyVal compare,
+and `--soundness-report` does NOT list FLOAT-FINITE.
+- The u76 carrier yields `HFloat x` for a value that may be a NaN, and `hval_eq` is reflexive. So
+  `d["a"] == d["a"]` PROVES (head P), while CPython gives False for R(nan). At L21 the same program fails L3-tc.
+- This relies on the declared FLOAT-FINITE assumption, and `--strict-float-finite` refuses it (b1s, R606). So it is
+  not a false proof under the declared model.
+- But the head soundness report (c/h/b1s/o_b1s.q.log) lists only BUILTIN-EXACT and LATIN1-STR, so the reliance is
+  invisible in the default mode. The cause is in pycsl.py. `_ma_pv` looks for the string "PyVal" in symbol_table /
+  param_annotations, and finds none: the annotation `Dict[str, PyVal]` with `PyVal = Any` is not recorded under that
+  name. `_ma_fields` sees `float` only on a FieldGet that is an operand of the comparison, and here the field is read
+  inside the dict literal.
+- The equivalent float-PARAM program (b1q) fails L3-tc on both trees (`HInt x` with x: real). So this NaN-able path
+  into HFloat is new with u74 / u76.
+Fix direction: count a function as "holding a PyVal value" when its body hits the u76 float-field arm. Or report
+FLOAT-FINITE for any function whose dict literal holds a float field.
+
+KEY FINDING 5 (c15, INTRODUCED over-refusal): the #316 method-tail resolution now also judges MODULE functions.
+- A dotted call `r.total()` resolves its candidates by method name only (`c.endswith("__total")`), whatever the
+  receiver's class.
+- An unrelated class S with a self-writing `total` makes the honest `f(r: R)`, `#@ assigns \nothing`, refused with
+  "may write `r`".
+- L21 proves it (c/b/c15/o_c15.log, P). Head refuses it (c/h/c15/o_c15.q.log).
+Fix direction: resolve the receiver's class through `_record_param_classes` / the annotation when it is known.
+
+u76 repairs that hold (no finding)
+- F1 float carrier: no false claim found. Checked: integral vs non-integral, bool in a float slot (`is True` is
+  refused route #42; isinstance bool goes through `any bool`, so it stays undecided), -0.0 truthiness, Optional[float]
+  (R325), str(), and comparison with a plain float (L3-tc).
+- PYCSL-FUNCTION-FRAME catches direct, alias, nested-def, callee, Box-method forwarding, `finally`, aug-subscript,
+  append, slice and insert/pop writes. Over-refusals found: c15 only, plus 0337 (a true positive).
+Not probed: generators, async, user `\trusted` functions (frame by declaration, by design), pycsl_lib stub bodies now
+measured in importers (the u76 sweep shows no movement).
+
+Paths: /home/fabrice/git/pycsl/scratchpad/rt87/{FINDINGS.txt, progress.txt, tools/, c/<id>/ (sources), c/h, c/b (logs+mlw), q1.out, p1..p4.out}
