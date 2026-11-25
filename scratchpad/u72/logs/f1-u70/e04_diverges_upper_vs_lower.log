@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e04_diverges_upper_vs_lower.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e04_diverges_upper_vs_lower.py: /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e04_diverges_upper_vs_lower.py: PYCSL-R327-IDENT-COLLISION (route #327) — the functions 'F' and 'f' lower to ONE WhyML identifier 'f'. Rename one of them.

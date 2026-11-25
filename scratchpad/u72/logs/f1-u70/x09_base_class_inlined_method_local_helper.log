@@ -1,0 +1,19 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x09_base_class_inlined_method_local_helper.py'...
+[*] Memory model: hoare
+[*] Imported base class from 'rt80_cls_h': C (record + 1 method stub(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_b_h16jxv.mlw", line 13, characters 15-27:
+Sub-goal postcondition of goal helper'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_b_h16jxv.mlw", line 21, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 16 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_b_h16jxv.mlw", line 17, characters 12-16: unused variable self
+Warning, file "/tmp/.pycsl_b_h16jxv.mlw", line 27, characters 12-16: unused variable self
+
+[+] Verification SUCCESS! All contracts formally proven.

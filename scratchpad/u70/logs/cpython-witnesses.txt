@@ -1,0 +1,8 @@
+10420_r624_module_qualified_call_local_def_false.py :: result 1 rc=0
+10421_r624_alias_qualified_call_local_def_false.py :: result 1 rc=0
+10422_r625_two_libs_same_function_false.py :: result 3 rc=0
+10423_r625_qualified_and_from_import_two_libs_false.py :: result 3 rc=0
+10424_r624_qualified_call_no_clash_ctl.py ::  rc=0
+10425_r624_from_import_alias_beside_local_def_ctl.py ::  rc=0
+10426_r625_alias_two_libs_ctl.py ::  rc=0
+10427_r624_same_dependency_function_twice_ctl.py ::  rc=0

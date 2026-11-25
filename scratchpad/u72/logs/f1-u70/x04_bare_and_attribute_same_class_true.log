@@ -1,0 +1,18 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x04_bare_and_attribute_same_class_true.py'...
+[*] Memory model: hoare
+[*] Imported class from 'rt80_cls_a': Base (record + 1 method stub(s) + 0 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_bpb5edr4.mlw", line 23, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 18 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_bpb5edr4.mlw", line 19, characters 15-19: unused variable self
+Warning, file "/tmp/.pycsl_bpb5edr4.mlw", line 22, characters 18-19: unused variable x
+Warning, file "/tmp/.pycsl_bpb5edr4.mlw", line 22, characters 25-26: unused variable y
+Warning, file "/tmp/.pycsl_bpb5edr4.mlw", line 27, characters 12-16: unused variable self
+Warning, file "/tmp/.pycsl_bpb5edr4.mlw", line 30, characters 12-16: unused variable self
+
+[+] Verification SUCCESS! All contracts formally proven.

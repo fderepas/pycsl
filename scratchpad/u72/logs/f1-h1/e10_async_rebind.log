@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e10_async_rebind.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+Coroutine 'f' (line 10) carries a `#@` contract, but `async def` is NOT MODELLED: the weaver attaches contracts only to `FunctionDef`, and the IR emitter has no `AsyncFunctionDef` visitor, so both the contract and the whole coroutine body would be silently DROPPED while the run still reports 'All contracts formally proven'. Remove the contract, or make the function synchronous.

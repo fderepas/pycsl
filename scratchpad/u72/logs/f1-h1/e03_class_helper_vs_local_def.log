@@ -1,0 +1,24 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/e03_class_helper_vs_local_def.py'...
+[*] Memory model: hoare
+[*] Imported class from 'rt80_cls_h': C (record + 1 method stub(s) + 1 helper(s))
+[*] Imported from 'rt80_cls_h': ['C'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_4nt6c81h.mlw", line 19, characters 15-27:
+Sub-goal postcondition of goal helper'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_4nt6c81h.mlw", line 24, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 69 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_4nt6c81h.mlw", line 15, characters 12-16: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_4nt6c81h.mlw", line 15, characters 12-16: unused variable self
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

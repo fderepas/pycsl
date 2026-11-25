@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w10_class_rebind.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_61o0i7yb.mlw", line 8, characters 2-31:
+Symbol c_v is already defined in the current scope
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

@@ -1,0 +1,4 @@
+1471_route143_contract_calls_a_helper_the_importer_redefines.py
+  b0: Imported contract of 'g' (from 'r143_fnlib.py') reads the module-level name 'lim', which denotes THAT module's binding; in '1471_route143_contract_calls_a_helper_the_importer_redefines.py' the name is bound by the import
+  h1: [ir-semantic]: `caller` (line 15) claims `#@ no_exception ValueError` (its own or a caller's) and reaches `g`, the function `g` of /home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/multi_file_lib/r143_fnli
+DIFFERENT 1 of 184

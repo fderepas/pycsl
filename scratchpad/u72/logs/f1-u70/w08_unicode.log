@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w08_unicode.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w08_unicode.py: /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w08_unicode.py: PYCSL-R327-IDENT-COLLISION (route #327) — the functions 'é' and 'e' lower to ONE WhyML identifier 'e'. Rename one of them.

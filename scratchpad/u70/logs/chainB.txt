@@ -1,0 +1,64 @@
+tree /home/fabrice/git/pycsl-u70-h1 c40ecbb4315ac3a3652715278d1aaf125cf96e64 start Sun Nov 22 23:48:27 UTC 2026 oom_kill 15
+byte-diff-sweep rc=0 emitted 3332 of 6366 source file(s) into /home/fabrice/git/pycsl-u70/scratchpad/u70/logs/G/h1/bd (6 jobs) emitted 2185 of 2217 python-reference file(s) into /home/fabrice/git/pycsl-u70/scratchpad/u70/logs/G/h1/bd/pyref (6 jobs) 
+mirror-emit-sweep rc=0     Compare with: bin/byte-diff-compare.py <baseline> /home/fabrice/git/pycsl-u70/scratchpad/u70/logs/G/h1/mir --min-files 45
+end Mon Nov 23 00:51:49 UTC 2026 oom_kill 15
+compare root rc=0 [*] byte-diff-compare: 3325 baseline / 3331 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 6 new source file(s) ignored. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare pyref rc=0 [*] byte-diff-compare: 2185 baseline / 2185 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+compare mirror rc=0 [*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED. [+] byte-diff-compare: OK — byte-inert in all three directions. 
+mirror diff -rq lines=0
+## wit p /home/fabrice/git/pycsl-u70-h1 c40ecbb43 files of /home/fabrice/git/pycsl-u70-h1 c40ecbb43 Mon Nov 23 00:52:28 UTC 2026
+10420_r624_module_qualified_call_local_def_false hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the imported function `val1` of `qa70.py` has the same name as a function the program defines itself: pycsl gives every 
+10421_r624_alias_qualified_call_local_def_false hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the imported function `val1` of `qa70.py` has the same name as a function the program defines itself: pycsl gives every 
+10422_r625_two_libs_same_function_false hdr=FAIL rc=1 3s oom 15->15 :: [!] PIPELINE ERROR: :: the imported function `helper` of `qb70.py` has the same name as the function of that name in `qa70.py`: pycsl gives eve
+10423_r625_qualified_and_from_import_two_libs_false hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the imported function `helper` of `qa70.py` has the same name as the function of that name in `qb70.py`: pycsl gives eve
+10424_r624_qualified_call_no_clash_ctl hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10425_r624_from_import_alias_beside_local_def_ctl hdr=PASS rc=0 5s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10426_r625_alias_two_libs_ctl hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10427_r624_same_dependency_function_twice_ctl hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+qa70 hdr=none rc=0 5s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+qb70 hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+## end Mon Nov 23 00:53:02 UTC 2026
+## wit p /home/fabrice/git/pycsl-u70-b0 daa36070b files of /home/fabrice/git/pycsl-u70-h1 c40ecbb43 Mon Nov 23 00:53:02 UTC 2026
+10420_r624_module_qualified_call_local_def_false hdr=FAIL rc=0 5s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10421_r624_alias_qualified_call_local_def_false hdr=FAIL rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10422_r625_two_libs_same_function_false hdr=FAIL rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10423_r625_qualified_and_from_import_two_libs_false hdr=FAIL rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10424_r624_qualified_call_no_clash_ctl hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10425_r624_from_import_alias_beside_local_def_ctl hdr=PASS rc=0 5s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10426_r625_alias_two_libs_ctl hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+10427_r624_same_dependency_function_twice_ctl hdr=PASS rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+qa70 hdr=none rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+qb70 hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+## end Mon Nov 23 00:53:43 UTC 2026
+## p /home/fabrice/git/pycsl-u70-b0 daa36070b Mon Nov 23 00:53:43 UTC 2026 oom_kill 15
+w14 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+w14b rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+w14c rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+w17 rc=1 3s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+w18 rc=1 3s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+w19 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+w19c rc=1 3s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+u01 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+u02 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+u03 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+u04 rc=1 2s oom 15->15 :: a name's runtime binding is not the `def` the model resolves it to (a second star import `from rt77libb import :: [!] PIPELINE ERROR:
+u05 rc=1 1s oom 15->15 :: Imported contract of 'f' (from 'u70libt.py') reads the module-level name '_h', which denotes THAT module's bin :: [!] PIPELINE ERROR:
+u06 rc=1 2s oom 15->15 :: a name's runtime value is not the one the model reads (imported name `val1` bound again in the same scope). An :: [!] PIPELINE ERROR:
+u07 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+## end Mon Nov 23 00:54:28 UTC 2026
+## p /home/fabrice/git/pycsl-u70-h1 c40ecbb43 Mon Nov 23 00:54:28 UTC 2026 oom_kill 15
+w14 rc=1 3s oom 15->15 :: the imported function `val1` of `rt77lib_val.py` has the same name as a function the program defines itself: p :: [!] PIPELINE ERROR:
+w14b rc=1 2s oom 15->15 :: the imported function `val1` of `rt77lib_val.py` has the same name as a function the program defines itself: p :: [!] PIPELINE ERROR:
+w14c rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+w17 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+w18 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+w19 rc=1 2s oom 15->15 :: the imported function `helper` of `rt77libb.py` has the same name as the function of that name in `rt77liba.py :: [!] PIPELINE ERROR:
+w19c rc=1 2s oom 15->15 :: the imported function `helper` of `rt77libb.py` has the same name as the function of that name in `rt77liba.py :: [!] PIPELINE ERROR:
+u01 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+u02 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+u03 rc=1 2s oom 15->15 :: the imported function `helper` of `rt77liba.py` has the same name as the function of that name in `rt77libb.py :: [!] PIPELINE ERROR:
+u04 rc=1 2s oom 15->15 :: a name's runtime binding is not the `def` the model resolves it to (a second star import `from rt77libb import :: [!] PIPELINE ERROR:
+u05 rc=1 2s oom 15->15 :: the imported function `_h` of `u70libt.py` has the same name as a function the program defines itself: pycsl g :: [!] PIPELINE ERROR:
+u06 rc=1 2s oom 15->15 :: a name's runtime value is not the one the model reads (imported name `val1` bound again in the same scope). An :: [!] PIPELINE ERROR:
+u07 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven.
+## end Mon Nov 23 00:55:07 UTC 2026

@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/g03_star_beside_other_lib_qualified.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt80_libb': ['helper'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_fxarwtk7.mlw", line 10, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w13_nested_class_same_name.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+line 13: the class statement `C` inside function `outer` binds `C` in that function's scope, but the model keeps ONE program-wide meaning per name and `C` is bound again at line 1, so a read of `C` would be lowered as the OTHER binding (measured: `K = 5`, then `class K: pass; return n // K` in a function proved `no_exception`, CPython TypeError) (route #511). Give the local class a name bound nowhere else in the file, or move it to module level.

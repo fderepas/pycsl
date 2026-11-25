@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w14_module_qualified_call_local_shadow.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] ../pycsl-u72/scratchpad/u72/probes/rt77/rt77lib_val.py: the imported function `val1` of `rt77lib_val.py` has the same name as a function the program defines itself: pycsl gives every function ONE WhyML name, so one of the two definitions would be dropped and a call meant for it (a module-qualified `mod.val1()`, or the dependency's own call of it) would be verified against the other one's contract, while CPython runs each module's own function (routes #624 / #625: `import lib` beside a local `def val1`, or two libraries that both define it). FIX: rename one of the two functions, or import it under a distinct name (`from mod import val1 as other`).

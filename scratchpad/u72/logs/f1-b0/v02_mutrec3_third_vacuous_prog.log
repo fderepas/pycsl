@@ -1,0 +1,107 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/v02_mutrec3_third_vacuous_prog.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 17, characters 18-42:
+Sub-goal loop invariant init of goal h'vc.
+Prover result is: Valid (0.00s, 41 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 18, characters 16-24:
+Sub-goal loop variant decrease of goal h'vc.
+Prover result is: Valid (0.00s, 105 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 17, characters 18-42:
+Sub-goal loop invariant preservation of goal h'vc.
+Prover result is: Valid (0.00s, 73 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal h'vc.
+Prover result is: Valid (0.00s, 65 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 24, characters 20-31:
+Sub-goal variant decrease of goal h'vc.
+Prover result is: Valid (0.00s, 93 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 24, characters 20-31:
+Sub-goal precondition of goal h'vc.
+Prover result is: Valid (0.00s, 81 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 10, characters 15-28:
+Sub-goal postcondition of goal h'vc.
+Prover result is: Valid (0.00s, 74 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 36, characters 18-42:
+Sub-goal loop invariant init of goal g'vc.
+Prover result is: Valid (0.00s, 50 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 37, characters 16-24:
+Sub-goal loop variant decrease of goal g'vc.
+Prover result is: Valid (0.01s, 305 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 36, characters 18-42:
+Sub-goal loop invariant preservation of goal g'vc.
+Prover result is: Valid (0.00s, 367 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 29, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 52 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 44, characters 22-33:
+Sub-goal variant decrease of goal g'vc.
+Prover result is: Valid (0.00s, 151 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 44, characters 22-33:
+Sub-goal precondition of goal g'vc.
+Prover result is: Valid (0.01s, 209 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 29, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 127 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 46, characters 22-33:
+Sub-goal variant decrease of goal g'vc.
+Prover result is: Valid (0.00s, 149 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 46, characters 22-33:
+Sub-goal precondition of goal g'vc.
+Prover result is: Valid (0.01s, 392 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 29, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 130 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 59, characters 18-42:
+Sub-goal loop invariant init of goal f'vc.
+Prover result is: Valid (0.00s, 50 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 60, characters 16-24:
+Sub-goal loop variant decrease of goal f'vc.
+Prover result is: Valid (0.00s, 305 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 59, characters 18-42:
+Sub-goal loop invariant preservation of goal f'vc.
+Prover result is: Valid (0.00s, 367 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 52, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 52 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 66, characters 20-31:
+Sub-goal variant decrease of goal f'vc.
+Prover result is: Valid (0.00s, 84 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 66, characters 20-31:
+Sub-goal precondition of goal f'vc.
+Prover result is: Valid (0.01s, 244 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_nvk94e0p.mlw", line 52, characters 15-28:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 61 steps).
+
+[-] NON-VACUITY GATE FAILED: the following function(s) verify VACUOUSLY — their assumed context is logically inconsistent, so every postcondition is discharged for free (the 'green' is meaningless):
+    h  (proves `ensures false`)
+    Root cause is usually several nonlinear integer-division facts coexisting in one context (helper `result == …//…` ensures, division-bound inequalities, disjunctive value-equalities). See getting-better/csys-vacuity-investigation/ROOT-CAUSE.md.
+    (Opt out with --no-check-vacuity; tune with --vacuity-timelimit.)
+
+[-] Verification FAILED (vacuous proof). Check the solver output.

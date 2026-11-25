@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u70/scratchpad/u70/probes/u07_qualified_no_clash_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt77liba': ['helper'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_j2oe2o3h.mlw", line 10, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 14 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

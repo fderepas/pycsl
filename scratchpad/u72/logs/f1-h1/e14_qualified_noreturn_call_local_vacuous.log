@@ -1,0 +1,13 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/e14_qualified_noreturn_call_local_vacuous.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt77lib_nr': ['stop'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_8ysv_s3a.mlw", line 13, characters 28-29: unused variable x
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_8ysv_s3a.mlw", line 21, characters 14-38:
+this expression raises unlisted exception ValueError
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

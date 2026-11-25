@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/e05_class_method_contract_helper_local.py'...
+[*] Memory model: hoare
+[*] Imported class from 'rt80_cls_h2': C (record + 1 method stub(s) + 1 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_omdjwhuw.mlw", line 14, characters 26-49:
+unbound function or predicate symbol 'helper_from_rt80_cls_h2'
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

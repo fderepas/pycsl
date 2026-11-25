@@ -1,0 +1,32 @@
+## q /home/fabrice/git/pycsl-u70-b0 daa36070b Sun Nov 22 19:07:32 UTC 2026 oom_kill 15
+w14 rc=0 94s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+w14b rc=0 5s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+w14c rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+w17 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+w18 rc=0 6s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+w19 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+w19c rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+u01 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+u02 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+u03 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+u04 rc=1 2s oom 15->15 :: a name's runtime binding is not the `def` the model resolves it to (a second star import `from rt77libb import :: [!] PIPELINE ERROR:
+u05 rc=1 3s oom 15->15 :: Imported contract of 'f' (from 'u70libt.py') reads the module-level name '_h', which denotes THAT module's bin :: [!] PIPELINE ERROR:
+u06 rc=1 4s oom 15->15 :: a name's runtime value is not the one the model reads (imported name `val1` bound again in the same scope). An :: [!] PIPELINE ERROR:
+u07 rc=0 5s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+## end Sun Nov 22 19:09:55 UTC 2026
+## q /home/fabrice/git/pycsl-u70 daa36070b Sun Nov 22 19:09:55 UTC 2026 oom_kill 15
+w14 rc=1 89s oom 15->15 :: the imported function `val1` of `rt77lib_val.py` has the same name as a function the program defines itself: p :: [!] PIPELINE ERROR:
+w14b rc=1 4s oom 15->15 :: the imported function `val1` of `rt77lib_val.py` has the same name as a function the program defines itself: p :: [!] PIPELINE ERROR:
+w14c rc=0 10s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+w17 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+w18 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+w19 rc=1 3s oom 15->15 :: the imported function `helper` of `rt77libb.py` has the same name as the function of that name in `rt77liba.py :: [!] PIPELINE ERROR:
+w19c rc=1 4s oom 15->15 :: the imported function `helper` of `rt77libb.py` has the same name as the function of that name in `rt77liba.py :: [!] PIPELINE ERROR:
+u01 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+u02 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+u03 rc=1 5s oom 15->15 :: the imported function `helper` of `rt77liba.py` has the same name as the function of that name in `rt77libb.py :: [!] PIPELINE ERROR:
+u04 rc=1 4s oom 15->15 :: a name's runtime binding is not the `def` the model resolves it to (a second star import `from rt77libb import :: [!] PIPELINE ERROR:
+u05 rc=1 4s oom 15->15 :: the imported function `_h` of `u70libt.py` has the same name as a function the program defines itself: pycsl g :: [!] PIPELINE ERROR:
+u06 rc=1 3s oom 15->15 :: a name's runtime value is not the one the model reads (imported name `val1` bound again in the same scope). An :: [!] PIPELINE ERROR:
+u07 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+## end Sun Nov 22 19:12:21 UTC 2026

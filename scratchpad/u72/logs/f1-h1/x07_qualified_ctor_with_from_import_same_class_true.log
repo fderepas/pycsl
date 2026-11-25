@@ -1,0 +1,16 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x07_qualified_ctor_with_from_import_same_class_true.py'...
+[*] Memory model: hoare
+[*] Imported class from 'rt80_cls_a': Base (record + 1 method stub(s) + 0 helper(s))
+[*] Imported from 'rt80_cls_a': ['Base'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_d71g6cvg.mlw", line 17, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_d71g6cvg.mlw", line 13, characters 15-19: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_d71g6cvg.mlw", line 19, characters 8-9: unused variable b
+
+[+] Verification SUCCESS! All contracts formally proven.

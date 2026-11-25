@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w11_multifile_helper_shadow.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt77lib_api': ['api'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_xcaw4lh8.mlw", line 10, characters 26-49:
+unbound function or predicate symbol 'helper_from_rt77lib_api'
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

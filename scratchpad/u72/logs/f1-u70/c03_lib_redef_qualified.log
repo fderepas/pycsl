@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/c03_lib_redef_qualified.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+`f` is bound 2 times in the module (lines 3, 8) and the `FunctionDef` at line 3 carries a `#@` claim: CPython keeps only the LAST binding, so that claim would be verified against nothing and SILENTLY DROPPED while the run still reported 'All contracts formally proven' (route #463). Give each definition its own name, or delete the dead one.

@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x02_direct_reexport_vs_qualified_other.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt80_reex': ['f'] (trusted stubs)
+[*] Imported from 'rt80_base2': ['f'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_92pquq66.mlw", line 10, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 14 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

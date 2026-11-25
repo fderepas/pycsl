@@ -1,0 +1,24 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72-h1/test-suite/corpus/pycsl-reference/10455_r630_local_def_named_like_inherited_method_false.py'...
+[*] Memory model: hoare
+[*] Imported base class from 'qg72': Base (record + 0 method stub(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_t5ht42s4.mlw", line 16, characters 15-27:
+Sub-goal postcondition of goal base__m'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_t5ht42s4.mlw", line 21, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_t5ht42s4.mlw", line 26, characters 15-27:
+Sub-goal postcondition of goal x__m'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_t5ht42s4.mlw", line 15, characters 24-25: unused variable k
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_t5ht42s4.mlw", line 20, characters 18-19: unused variable x
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_t5ht42s4.mlw", line 25, characters 21-22: unused variable k
+
+[+] Verification SUCCESS! All contracts formally proven.

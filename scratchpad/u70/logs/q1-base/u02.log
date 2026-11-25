@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u70/scratchpad/u70/probes/u02_alias_two_libs_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt77liba': ['ha'] (trusted stubs)
+[*] Imported from 'rt77libb': ['helper'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

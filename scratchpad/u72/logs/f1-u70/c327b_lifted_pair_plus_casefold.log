@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/c327b_lifted_pair_plus_casefold.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/c327b_lifted_pair_plus_casefold.py: /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/c327b_lifted_pair_plus_casefold.py: PYCSL-R327-IDENT-COLLISION (route #327) — the functions 'f' and 'F' lower to ONE WhyML identifier 'f'. Rename one of them.

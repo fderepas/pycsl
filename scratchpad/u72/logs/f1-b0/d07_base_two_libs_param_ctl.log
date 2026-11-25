@@ -1,0 +1,27 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/d07_base_two_libs_param_ctl.py'...
+[*] Memory model: hoare
+[*] Imported base class from 'rt80_cls_a': Base (record + 1 method stub(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 23, characters 15-28:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 19 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 19, characters 15-19: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 22, characters 18-19: unused variable x
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 22, characters 25-26: unused variable y
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 27, characters 12-16: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 30, characters 12-16: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 19, characters 15-19: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 22, characters 18-19: unused variable x
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 22, characters 25-26: unused variable y
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 27, characters 12-16: unused variable self
+Warning, file "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_tv7z47sf.mlw", line 30, characters 12-16: unused variable self
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u70/scratchpad/u70/probes/u01_same_dep_twice_ctl.py'...
+[*] Memory model: hoare
+[*] Imported from 'rt77lib_val': ['val1'] (trusted stubs)
+[*] Imported from 'rt77lib_val': ['val1'] (trusted stubs, module-qualified)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_0oqyaif9.mlw", line 10, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 14 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

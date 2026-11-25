@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/d05_base_two_libs_param.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt80/d05_base_two_libs_param.py: the tail `Base` is reached through more than one module (or is also written as a bare base name): pycsl reads a class base by its bare tail name and would give the subclass the methods, fields and invariant of one module's class while CPython uses the class the base expression actually names (route #629, extends route #345: `class X(liba.Base)` beside `class Y(libb.Base)`, or `from libb import Base` beside `class X(liba.Base)`). FIX: import the base classes under distinct names (`from liba import Base as BaseA`) and use those names as bases.

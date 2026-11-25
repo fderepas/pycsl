@@ -1,0 +1,7 @@
+/home/fabrice/git/pycsl-u72-u70/src/pycsl/frontend/Module3_Weaver.py:388: UserWarning: Function 'outer' (line 3): \trusted has no reviewer — add `reviewer: <name>` to document who is accountable for this trust assumption.
+  self._dispatch_function_contracts(node, self.contracts_map[node.lineno])
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w16_trusted_parent_nested_py_constant_ctl.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w16_trusted_parent_nested_py_constant_ctl.py: /home/fabrice/git/pycsl-u72/scratchpad/u72/probes/rt77/w16_trusted_parent_nested_py_constant_ctl.py: PYCSL-R327-IDENT-COLLISION (route #327) — the functions 'constant' and 'py_constant' lower to ONE WhyML identifier 'py_constant'. Rename one of them.

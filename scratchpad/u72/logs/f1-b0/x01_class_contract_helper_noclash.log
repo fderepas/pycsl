@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u72/scratchpad/u72/probes/u72/x01_class_contract_helper_noclash.py'...
+[*] Memory model: hoare
+[*] Imported class from 'rt80_cls_h2': C (record + 1 method stub(s) + 1 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+File "/home/fabrice/git/pycsl-u72/scratchpad/u72/tmp/.pycsl_s9a_30mk.mlw", line 14, characters 26-32:
+unbound function or predicate symbol 'helper'
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
