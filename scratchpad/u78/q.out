@@ -1,0 +1,19 @@
+h 10540_u78k1_descendant_override_writes_self_same_module_false rc=1 
+h 10541_u78k1_descendant_override_writes_self_owner_false rc=1 
+h 10542_u78k1_imported_descendant_override_writes_self_false rc=1 
+h 10543_u78f19_param_default_other_class_false rc=1 
+h 10544_u78k1_grandchild_override_writes_self_false rc=1 
+h 10545_u78f19_kwonly_param_default_other_class_false rc=1 
+h o88f19 rc=1 
+h o88f23 rc=1 
+h o88f23x rc=1 
+b 10540_u78k1_descendant_override_writes_self_same_module_false rc=1 L3-tc ✗
+b 10541_u78k1_descendant_override_writes_self_owner_false rc=0 L3-tc ✓
+b 10542_u78k1_imported_descendant_override_writes_self_false rc=0 L3-tc ✓
+b 10543_u78f19_param_default_other_class_false rc=0 L3-tc ✓
+b 10544_u78k1_grandchild_override_writes_self_false rc=0 L3-tc ✓
+b 10545_u78f19_kwonly_param_default_other_class_false rc=0 L3-tc ✓
+b o88f19 rc=0 L3-tc ✓
+b o88f23 rc=1 L3-tc ✗
+b o88f23x rc=0 L3-tc ✓
+QDONE

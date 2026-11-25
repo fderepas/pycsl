@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u78/scratchpad/u78/q/src/10541_u78k1_descendant_override_writes_self_owner_false.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+rc=0 tree=/home/fabrice/git/pycsl-u78b oom0=[oom_kill 15] oom1=[oom_kill 15]
