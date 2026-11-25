@@ -884,8 +884,14 @@ class Module6_WhyMLTranspiler(
             # shadowing nested parameter, a `global`/`nonlocal` list) disqualifies it, and
             # the conservative any-class rule applies.
             _rc77: Dict[str, Any] = {}
+            # (run #9 u78, rt88 f19) a parameter with a DEFAULT (`r: R = S(0)`: the default
+            # is whatever object the expression builds, the annotation does not bind it) or
+            # a keyword-only one (a non-literal keyword-only default is not even recorded in
+            # `param_defaults`) is NOT narrowed.
             for _p316 in _pp316:
-                if _ann316.get(_p316) in _rec316:
+                if (_ann316.get(_p316) in _rec316
+                        and _p316 not in (_f316.get("param_defaults") or {})
+                        and _p316 not in (_f316.get("kwonly_params") or [])):
                     _rc77[_p316] = _ann316[_p316]
             for _t316, _v316 in _bind316:
                 _c77 = (_v316.get("func") if isinstance(_v316, dict)
@@ -1008,8 +1014,23 @@ class Module6_WhyMLTranspiler(
                     # receiver's class, its ancestors and its descendants (an inherited
                     # method is cloned under the subclass prefix, an override under its own),
                     # lower-cased as the method names are; None = not narrowed.
+                    # (run #9 u78, rt88 K1) `apply_inheritance` clears every merged
+                    # `bases` list, so `_bs77` below never sees a base and the family is
+                    # `{C}` alone: a descendant's override was NOT included. An override is
+                    # reachable through a `C`-typed receiver, so the edge is NOT narrowed
+                    # when ANY override pair of the module (`ir["overrides"]`: merge pairs,
+                    # route #278's MRO pairs incl. class-body bindings, imported classes
+                    # merged into this IR) involves a method of this name: the any-class
+                    # union applies, as before u77.
                     _h77 = _fn316.split(".")[0] if _fn316.count(".") == 1 else None
                     _C77 = _rc77.get(_h77) if _h77 else None
+                    if isinstance(_C77, str) and any(
+                            isinstance(_o78, dict) and (
+                                str(_o78.get("sub_method", "")).endswith("__" + _tail316)
+                                or str(_o78.get("base_method", "")).endswith(
+                                    "__" + _tail316))
+                            for _o78 in (self.ir.get("overrides") or [])):
+                        _C77 = None
                     if isinstance(_C77, str):
                         _an77 = {_C77}
                         _de77 = {_C77}

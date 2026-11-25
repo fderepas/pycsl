@@ -1,0 +1,27 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u78/scratchpad/u78/wit/src/10535_u77c15_receiver_class_local_ctor_ctl.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u78/scratchpad/u78/tmp/.pycsl_os_zw7iv.mlw", line 16, characters 15-37:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/home/fabrice/git/pycsl-u78/scratchpad/u78/tmp/.pycsl_os_zw7iv.mlw", line 22, characters 15-43:
+Sub-goal postcondition of goal r__total'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/home/fabrice/git/pycsl-u78/scratchpad/u78/tmp/.pycsl_os_zw7iv.mlw", line 23, characters 15-34:
+Sub-goal postcondition of goal r__total'vc.
+Prover result is: Valid (0.01s, 7 steps).
+
+File "/home/fabrice/git/pycsl-u78/scratchpad/u78/tmp/.pycsl_os_zw7iv.mlw", line 24, characters 15-34:
+Sub-goal postcondition of goal r__total'vc.
+Prover result is: Valid (0.00s, 8 steps).
+
+File "/home/fabrice/git/pycsl-u78/scratchpad/u78/tmp/.pycsl_os_zw7iv.mlw", line 29, characters 15-27:
+Sub-goal postcondition of goal s__total'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0 flags=[] tree=/home/fabrice/git/pycsl-u78 oom0=[oom_kill 15] oom1=[oom_kill 15]

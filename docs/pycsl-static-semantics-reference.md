@@ -2849,11 +2849,17 @@ global; a `heapq`/`random.shuffle`/`bisect.insort*`/`operator.i*`... argument mu
 dotted call takes the union over every method of that name. A `\trusted` callee with an
 `#@ assigns` is taken at its declared frame. For `PYCSL-FUNCTION-FRAME` only (run #9 u77, rt87
 c15), a dotted call `x.m(..)` whose receiver class is statically known -- `x` a parameter
-annotated with a record class, or a local whose every binding is a constructor of one record
-class, and that occurs nowhere else as a binding target -- takes the union over that class's
-family only (itself, its ancestors, its descendants), falling back to every method of that
-name when the family has none (10532, 10535, 10537 PASS; 10533, 10534, 10536 FAIL); the
-emitted frames and the method rules keep the any-class union.
+annotated with a record class that has NO default and is not keyword-only, or a local whose
+every binding is a constructor of one record class, and that occurs nowhere else as a binding
+target -- takes the union over that class's methods only (an inherited method is cloned under
+the class's own prefix), falling back to every method of that name when the class has none
+(10532, 10535, 10537 PASS; 10533, 10534, 10536 FAIL). The narrowing is NOT applied when the
+resolved IR records ANY override pair (`ir["overrides"]`: merge pairs, route #278 MRO pairs,
+classes of merged modules) involving a method named `m`: a descendant's override is reachable
+through a base-typed receiver, and the merge clears every `bases` list, so descendants cannot be
+enumerated from the type declarations (run #9 u78, rt88 K1: 10540-10542, 10544 FAIL; a default
+such as `r: R = S(0)` binds a non-`R` object, rt88 f19: 10543, 10545 FAIL). The emitted frames
+and the method rules keep the any-class union.
 
 | Code | Condition | Witnesses |
 |------|-----------|-----------|
