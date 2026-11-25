@@ -1,0 +1,16 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/10524_r634x_imported_assigns_field_written_field_false.py'...
+[*] Memory model: hoare
+[*] Imported class from 'zu76b': R (record + 0 method stub(s) + 1 helper(s))
+[*] Imported from 'zu76b': ['f'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u76/scratchpad/u76/tmp/.pycsl_9aqqr9w5.mlw", line 14, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Unknown (why3: Unknown
+(sat)) (0.00s, 296 steps).
+
+[-] 1 goal(s) remain unproven after all provers:
+    Prover result is: Unknown (why3: Unknown
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
