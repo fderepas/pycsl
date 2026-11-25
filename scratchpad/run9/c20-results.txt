@@ -48,3 +48,8 @@ VOID-EDQUOT full frontend/pure_ast.py  rc=1 valid=0 total=0 Verification_FAILED_
 VOID-EDQUOT full module6_whyml/ir_scanner.py  rc=1 valid=0 total=0 Verification_FAILED_or_INCOMPLETE 9630s oom 15->15 tree=a6620b5ac vac=4f0d913f4e py=b7c03f843f bin=bbf894665d conf=7f7c546820 pv=2ba89a01 dirty=0
 full frontend/pure_ast.py  rc=1 VOID-EDQUOT valid=3864 total=3868 Verification_FAILED_or_INCOMPLETE 948s oom 15->15 tree=a6620b5ac vac=4f0d913f4e py=b7c03f843f bin=bbf894665d conf=7f7c546820 pv=2ba89a01 dirty=0
 full module6_whyml/ir_scanner.py  rc=1 VOID-EDQUOT valid=62 total=76 Verification_FAILED_or_INCOMPLETE 961s oom 15->15 tree=a6620b5ac vac=4f0d913f4e py=b7c03f843f bin=bbf894665d conf=7f7c546820 pv=2ba89a01 dirty=0
+full module6_whyml/ir_scanner.py  rc=0 valid=1319 total=1319 Verification_SUCCESS 22331s oom 15->15 tree=a6620b5ac vac=4f0d913f4e py=b7c03f843f bin=bbf894665d conf=7f7c546820 pv=2ba89a01 dirty=0
+full frontend/pure_ast.py  rc=0 valid=3866 total=3866 Verification_SUCCESS 41129s oom 15->15 tree=a6620b5ac vac=4f0d913f4e py=b7c03f843f bin=bbf894665d conf=7f7c546820 pv=2ba89a01 dirty=0
+full frontend/Module5_IREmitter.py  rc=0 valid=2656 total=2656 Verification_SUCCESS 40005s oom 15->15 tree=a6620b5ac vac=4f0d913f4e py=b7c03f843f bin=bbf894665d conf=7f7c546820 pv=2ba89a01 dirty=0
+full core_ir_semantic.py  rc=0 valid=1536 total=1536 Verification_SUCCESS 28557s oom 15->15 tree=a6620b5ac vac=4f0d913f4e py=b7c03f843f bin=bbf894665d conf=7f7c546820 pv=2ba89a01 dirty=0
+main module6_whyml/stmt_control_flow.py  rc=0 valid=16326 total=16326 Verification_SUCCESS 3762s oom 15->15 tree=a6620b5ac vac=4f0d913f4e py=b7c03f843f bin=bbf894665d conf=7f7c546820 pv=2ba89a01 dirty=0
