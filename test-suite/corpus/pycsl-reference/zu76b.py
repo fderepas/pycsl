@@ -8,7 +8,6 @@ class R:
     b: int
 
 
-#@ requires True
 #@ ensures \result == r.a
 #@ assigns r.b
 def f(r: R) -> int:

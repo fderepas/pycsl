@@ -13,7 +13,6 @@ class R:
     x: float
 
 
-#@ requires True
 #@ ensures \result == 1
 #@ assigns \nothing
 def f(r: R) -> int:
