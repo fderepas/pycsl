@@ -1709,3 +1709,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-11-25T16:29Z | 1435 | STATUS (run hour 91.1). Main = L23 (\trusted 365), ledger 3, oom_kill 15. v85 (L24) F 75 / 85 ok; v86 (L25) F 62 / 85 ok; none red. Final report draft committed (sections 0-9). |
 2026-11-25T16:57Z | 1436 | STATUS (run hour 91.6). Main = L23 (\trusted 365), ledger 3, oom_kill 15. v85 (L24) F 77 / 85 ok (check-assumed-facts tail); v86 (L25) F 64 / 85 ok; none red. |
 2026-11-25T17:26Z | 1437 | STATUS (run hour 92.0). Main = L23 (\trusted 365), ledger 3, oom_kill 15. v85 (L24) F 77 / 85 ok; v86 (L25) F 68 / 85 ok; none red. ~4 h left. |
+2026-11-25T17:55Z | 1438 | STATUS (run hour 92.5). Main = L23 (\trusted 365), ledger 3, oom_kill 15. v85 (L24) F 82 / 85 ok; v86 (L25) F 69 / 85 ok; none red. |
