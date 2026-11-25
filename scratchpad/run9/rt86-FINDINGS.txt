@@ -1,0 +1,153 @@
+rt86 FINDINGS (driver run #9): defensive review of the import resolver, round 6 (u73 + u75).
+Head: run9-u75 src 0891f99e7, tree /home/fabrice/git/pycsl-rt86.
+Base: ghost-assign-bc6 ef1f69255 (src = L21; merge-base ba48d5888), tree /home/fabrice/git/pycsl-rt86b.
+Both trees are removed at the end. No commits. Work dir: /home/fabrice/git/pycsl/scratchpad/rt86.
+
+Method
+- Probes are benign: tiny int functions only. No bytecode, no zip, no payload. The source strings in k8 / k10 / k11 are
+  the same benign stand-in rt83 s2 used: `import pkg, pkg.c; pkg.b = pkg.c`.
+  Files: probes/<id>/P/prog.py. Generators: tools/mk1.py, mk2.py, mk3.py.
+  Every probe claims `pkg.b.one() == 1`. b.py returns 1, c.py returns 2, and K.one() returns 2.
+  So CPython prints 2 whenever the claim is false.
+- CPython: tools/cpy.sh. Both /usr/bin/python3 and the .venv python3 (3.14.4), -B, ulimit -v 2000000, script mode,
+  cwd = tmp. Logs: logs/cpy1.txt to cpy4.txt (summary: tools/cpysum.sh <log>). The two interpreters agree on every probe.
+- pycsl --no-proof on head and base: HEAVY_QUICK=1 heavy.sh tools/q2.sh. Logs: logs/q1.txt, q2.txt, q3.txt, and the
+  per-probe logs/.mlw under logs/q-rt86/<id>/ and logs/q-rt86b/<id>/.
+- Full proof (hoare default, PYTHON_CPU_COUNT=2, cap 3700 s, cwd = tree root) of every probe whose --no-proof gave
+  SUCCESS: HEAVY_PRIO=1 heavy.sh tools/p2.sh. Logs: logs/p1.txt, p2.txt, and logs/p-rt86/<id>/, logs/p-rt86b/<id>/.
+  oom_kill was 15 -> 15 on every proof, so no result is VOID. No output contains EDQUOT.
+- No safety-classifier stop occurred.
+- Process note: the QUICK batches q2 and q3 ran while my PRIO proof batch was still QUEUED. It had not started:
+  both proof slots were held by a soundness-planes --slow run and u76 G.sh until 03:46Z. So no two jobs of mine ever
+  ran at once.
+
+FINDINGS TABLE (P = full proof SUCCESS "All contracts formally proven"; q = --no-proof verdict)
+| id | shape (all in the PROGRAM file unless noted) | CPython | base L21 | head u75 | class |
+|----|----------------------------------------------|---------|----------|----------|-------|
+| k1 | `_r = [functools.update_wrapper(pkg, _Src, assigned=("b",), updated=()) for pkg in [pkg]]` (comprehension target named like the import) | 2 | P SUCCESS (false) | P SUCCESS (false) | PRE-EXISTING; BYPASS of rule M (u75 bug, below) |
+| k1f | k1 inside a program function called at top level | 2 | P (false) | P (false) | same |
+| k2 | `_r = [0 for pkg in [functools.update_wrapper(pkg, _Src, ...)]]` (the hand-off in the FIRST iterator) | 2 | P (false) | P (false) | same |
+| k2g | k2 as a generator: `list(0 for pkg in (update_wrapper(pkg, ...),))` | 2 | P (false) | P (false) | same |
+| k2d | k2 in a dependency function the program calls | 2 | q REFUSED (#483 "module used as a value") | q REFUSED (same) | fail-safe |
+| k9 | `def _mk(name, bases, ns): functools.update_wrapper(bases[0], _Src, assigned=("b",), updated=()); return 0` and `class C(pkg, metaclass=_mk): pass` | 2 | P (false) | P (false) | PRE-EXISTING; bypass of u73/u75's class-base rule (no hook needed) |
+| k9f | k9 with the class statement inside a program function | 2 | P (false) | P (false) | same |
+| k9d | k9 in a dependency | 2 | q REFUSED (metaclass not modelled) | same | fail-safe |
+| k3w | `from hw import *` (hw defines `def print(*a)` that calls update_wrapper(a[0], ...)), then `import pkg.b`, then `print(pkg)` | 2 | P (false) | P (false) | PRE-EXISTING; bypass of rule M's "unshadowed builtin" exemption |
+| k3 / k3h | the same, with the wildcard AFTER `import pkg.b` (print / hasattr) | 2 | q REFUSED (wildcard after a binding) | same | fail-safe |
+| k5n | `class D(typing.NamedTuple): x: functools.update_wrapper(pkg, _Src, ...) = 0` (NamedTuple evaluates the class annotation) | 2 | P (false) | P (false) | PRE-EXISTING; an annotation is only an escape for rule M, and an implicit evaluator consumes it |
+| k5 | the same with `@dataclasses.dataclass` | 2 | q REFUSED (annotation head not resolvable) | same | fail-safe |
+| k6 | `import xml.sax; xml.sax.make_parser(["pkg.w"])` (w.py, a writer `pkg.b = pkg.c`, is never reached by the walk) | 2 | P (false) | P (false) | PRE-EXISTING; route #635 list gap |
+| k6d | k6 in a dependency | 2 | q REFUSED (#483) | same | fail-safe |
+| k8 | `import site; site.addsitedir(<P>/sd)`; sd/x.pth holds the line `import pkg, pkg.c; pkg.b = pkg.c` | 2 | P (false) | P (false) | PRE-EXISTING; route #635 list gap |
+| k10 | `from _pyrepl.console import InteractiveColoredConsole; InteractiveColoredConsole().runsource("import pkg, pkg.c; pkg.b = pkg.c")` | 2 | P (false) | P (false) | PRE-EXISTING; route #635 list gap (a subclass of the listed code.InteractiveConsole) |
+| k10d | k10 in a dependency | 2 | q REFUSED (#483) | same | fail-safe |
+| k11 | `def h(x: "exec('import pkg, pkg.c; pkg.b = pkg.c') or int") -> None` and `typing.get_type_hints(h)` | 2 | P (false) | P (false) | PRE-EXISTING; the u73 "annotation evaluator" escape does not refuse by itself |
+| k7 | local tzdata/__init__.py (a writer), `zoneinfo.ZoneInfo("Rt86/None")` | 2 | q REFUSED (TRANSITIVE-SHADOW, #613) | same | fail-safe (no finding) |
+| k4 / k4f / k4d / k4i / k4u | `print` rebound without a `builtins` mention (`setattr(len.__self__, "print", hook)`, `__import__("builtins").print = hook`), then `print(pkg)` | 2 | q REFUSED / tc FAIL | same | fail-safe (computed receiver at module scope, #483, a WhyML tc error) |
+| k12 / k12f | `pkg.b.__class__ = M` (a ModuleType subclass with a data-descriptor `one`) | 2 | q REFUSED (name rebound, `.__class__` written) | same | fail-safe |
+| m2 m3 m6 m7 m8 | rule M controls: `*[pkg]`, `wrapper=pkg` keyword, a local alias in a loop, `for m in [pkg]` comprehension, a set-comprehension condition | 2 | q SUCCESS (m6: tc FAIL) | q REFUSED (MODULE-VALUE) | closed by u75 (OK) |
+| m5 | `getattr(pkg, "_" + "b", None)` | 1 | q REFUSED (computed receiver) | same | -- |
+| m1 | `def _f(m=pkg) -> None: pass` (a module as a default, never handed on) | 1 (= claim) | P SUCCESS (faithful, logs/p2.txt) | REFUSED (MODULE-VALUE) | INTRODUCED over-refusal (fail-closed by design) |
+| m4 | `_l = lambda: pkg` (never called) | 1 (= claim) | P SUCCESS (faithful, logs/p2.txt) | REFUSED (MODULE-VALUE) | INTRODUCED over-refusal (fail-closed by design) |
+| o3 | hw.py: `LIMIT = 1` plus an unrelated `def rd(o, n): return 1 if getattr(o, n, None) is None else 0`; prog: `from hw import LIMIT`, g() returns LIMIT | 1 (= claim) | P SUCCESS (faithful) | REFUSED (MODULE-VALUE: "LIMIT ... may hold a module object since a reached module has an attribute read by a computed or reflective name") | INTRODUCED over-refusal (realistic) |
+| o1 | a dependency function does `isinstance(x, Base)` with `from .k import Base` | 1 | q FAIL (R325 opaque fallback) | q REFUSED (MODULE-VALUE, "a function / class of a local module") | no claim (base fails too); shows the c7 cost also hits code inside dependencies |
+| o4 | `t = [math.floor, math.ceil]` in a program function | 1 | q FAIL (R325) | q FAIL (R325) | no claim |
+
+KEY FINDING 1: the rule M local-scope narrowing has a BUG for the comprehension's first iterator (k1, k1f, k2, k2g).
+These are false proofs at head. They were also false at L21, so the class is PRE-EXISTING, but this is a hole in the
+new u75 code, not an untouched area.
+Where: src/pycsl/frontend/ir_resolve.py, the `_lc675` loop (diff lines ~693-697 of
+`git diff ba48d5888 0891f99e7 -- src/pycsl/frontend/ir_resolve.py`):
+    elif (isinstance(_pp675, (ListComp, SetComp, DictComp, GeneratorExp))
+          and not any(_g.iter is _ch675 for _g in _pp675.generators[:1])):
+        _sb675 = [_g.target for _g in _pp675.generators]
+Walking up from the Name, `_ch675` is the child of the ListComp on the path. For a name inside a generator, that child
+is the `comprehension` node, never `generators[0].iter`, so the exclusion never fires.
+As a result, a name in the FIRST iterator (which CPython evaluates in the ENCLOSING scope) counts as comprehension-local
+whenever some target of the comprehension has the same name. The import-bound module is then exempt from rule M.
+The first iterator then hands the module to update_wrapper (k2), or binds it to the target used in the element (k1).
+CPython prints 2. Both trees prove `pkg.b.one() == 1`.
+The dependency variant (k2d) is refused by #483. So the hole is in the PROGRAM file, where #483 does not judge.
+Fix direction: keep the previous node on the upward path (`_gc`). The path from the Name is Name -> List ->
+comprehension -> ListComp, so at the ListComp `_gc` is the iter subtree. Then exclude the case
+`_ch675 is _pp675.generators[0] and _gc is _pp675.generators[0].iter`.
+
+KEY FINDING 2: a FUNCTION metaclass receives the module class base (k9, k9f). PRE-EXISTING. It bypasses the
+u73/u75 class-base reasoning.
+u75 section 1: "PEP 560 calls `__mro_entries__` only for a base that is not a type, so a class base never hands the
+module out". That is false when the class statement has `metaclass=<a plain function>`. `__build_class__` then calls
+the function directly with `bases = (pkg,)`. The metaclass is not a type, so there is no metaclass computation and no
+check of the bases. No module hook is needed.
+At head, an import-bound module in a class base is only an escape (`_ex671` / `_cb673`). It refuses only together with
+a module hook (MODULE-HOOK) or a submodule-named store. Here `bases[0]` is a parameter, and the store happens inside
+update_wrapper.
+Evidence: logs/p-rt86{,b}/k9/, logs/p-rt86{,b}/k9f/, logs/cpy3.txt. The dependency variant is refused
+("metaclass not modelled").
+Fix direction: a class base that can be a module (F / S / M) refuses whenever the ClassDef has ANY keyword
+(`metaclass=` especially), or always (fail-closed). A module is never a valid base without a hook anyway, so
+always-refuse costs nothing on true programs: `class C(module)` is a TypeError in CPython without
+`__mro_entries__`.
+
+KEY FINDING 3: the "unshadowed builtin" exemption misses wildcard bindings (k3w). PRE-EXISTING.
+`_bn675` collects `alias.asname or alias.name`, which is "*" for a wildcard. A builtin name such as `print` / `hasattr`
+/ `repr` bound by `from hw import *` therefore still counts as the builtin. `print(pkg)` hands the module to hw's
+function, which calls update_wrapper.
+L21 proves it as well. pycsl models `print` as the builtin. The older wildcard-after-binding rule catches only the
+order wildcard-then-binding (k3 / k3h, refused).
+Fix: count a wildcard import as binding every exempt builtin name (or follow the wildcard's names). Do the same in
+`_gb675` (the hasattr / getattr binding check for the o7 admission).
+
+KEY FINDING 4: implicit annotation evaluators (k5n, k11). PRE-EXISTING.
+u73/u75 treat an import-bound name in a class / parameter annotation only as an escape. The u73 annotation-evaluator
+escape (`get_type_hints`, ...) also does not refuse by itself. Two shapes pass:
+- `typing.NamedTuple` evaluates class annotations at class creation (k5n). The annotation
+  `functools.update_wrapper(pkg, ...)` ran and replaced pkg.b. pycsl ignores the annotation and proves the claim.
+  dataclass is refused (k5).
+- `typing.get_type_hints(h)` evals a STRING annotation (k11), which no AST rule sees. The u73 escape (`get_type_hints`
+  imported or read as an attribute) only records a reflective escape, and no store follows.
+Fix direction: any call argument or Call inside an evaluated annotation is a rule-M value use, the same as outside it.
+An annotation evaluator (`get_type_hints`, `get_annotations`, `ForwardRef`, annotationlib, inspect) in a program that
+also has a local import should join route #326's list (strings run).
+
+KEY FINDING 5: the route #635 list is incomplete. Three more stdlib APIs import or run code by string (k6, k8, k10).
+PRE-EXISTING (program file only; the dependency variants are refused by #483):
+- `xml.sax.make_parser(["pkg.w"])`: `_create_parser` does `__import__(name)` and runs w.py, a module the walk never
+  reaches (k6).
+- `site.addsitedir(d)`: executes the `import` lines of d/*.pth (k8). It also changes sys.path.
+- `_pyrepl.console.InteractiveColoredConsole().runsource(src)`: a subclass of `code.InteractiveConsole`, under a
+  different top-level name (k10).
+Read from the source but NOT probed (the stand-in would need a crafted pickle or an env var, which the brief rules
+out or which is too remote):
+- `multiprocessing.reduction.ForkingPickler.loads` (= pickle.loads under a non-listed name).
+- `xml.dom.domreg` / `xml.sax` with PYTHON_DOM / PY_SAX_PARSER (env-selected `__import__`).
+- `sysconfig` with `_PYTHON_SYSCONFIGDATA_NAME`.
+- `py_compile` / `compileall`, which write caches.
+A name list cannot be closed. Fix direction: route #483's allow-list approach (`_OKS483`) applied to the program's
+stdlib imports, at least when the program also resolves a local package. u75 section 1 says it did not measure the
+cost of this.
+
+INTRODUCED over-refusals (vs L21; all fail-safe)
+- o3 (realistic): a dependency constant `LIMIT = 1` read by the program, plus ANY computed-name `getattr(o, n, None)`
+  anywhere in a reached module. u75 makes every "V" value a module suspect once one reflective escape exists, even
+  when the reflective read cannot store anything and the value is a plain int.
+  L21: P SUCCESS (faithful, CPython 1). Head: REFUSED (MODULE-VALUE).
+  The narrowing is sound but very coarse. A computed-name getattr READ cannot plant a module in `LIMIT`. Only a
+  planting store can, and SN already requires one (`_ps675`). Requiring `_ps675` for V as well, as for SN, would
+  admit o3, and I see no soundness loss: a V binding is a constant of a local file, and replacing it needs a store
+  into that module.
+- m1 (`def _f(m=pkg)`) and m4 (`lambda: pkg`) never hand the module on (CPython 1). Head refuses both; base PROVES both (logs/p2.txt).
+  This is the documented fail-closed cost of rule M.
+- o1: the c7 cost (a local class handed to `isinstance`) also applies inside dependency code. Base cannot prove o1
+  either (R325), so there is no claim.
+
+No finding / closed
+- Rule M controls m2, m3, m6, m7, m8 (starred list, keyword argument, local alias, comprehension with a different
+  target name, comprehension condition) are REFUSED at head and were admitted at L21. u75 closed these.
+- Default argument / lambda / with / computed getattr: refused (m1, m4, m5).
+- k12 (`module.__class__` assignment) and k4* (rebinding builtins without a `builtins` mention) are refused by older
+  rules or fail type-checking, on both trees.
+- k7 (zoneinfo -> local tzdata) is refused by #613.
+- The dependency variants of every finding (k2d, k6d, k9d, k10d) are refused by #483 / the metaclass check, so every
+  open hole needs the PROGRAM file.
+Known OPEN (V1D, v1f, aliased run-time setattr inside a program function, reflectively obtained modules) were not
+re-probed.
