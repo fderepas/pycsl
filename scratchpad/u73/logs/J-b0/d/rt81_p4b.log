@@ -1,0 +1,15 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt81/p4b/P/prog.py'...
+[*] Memory model: hoare
+[*] Imported from 'zv81p4b.b': ['one'] (trusted stubs, module-qualified)
+[*] Import 'unittest.mock.patch': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp/.pycsl__xwppg9l.mlw", line 22, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp/.pycsl__xwppg9l.mlw", line 26, characters 14-18: unused variable self
+
+[+] Verification SUCCESS! All contracts formally proven.

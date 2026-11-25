@@ -1,0 +1,10 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/zu73c/__init__.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp/.pycsl_7ufay4o4.mlw", line 27, characters 14-18: unused variable self
+
+[+] Verification SUCCESS! All contracts formally proven.

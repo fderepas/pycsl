@@ -4237,25 +4237,61 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
     #   * dynamic-import machinery (`importlib`, `imp`, `zipimport`, `pkgutil`, `runpy`,
     #     `__import__`), which runs code pycsl never reads and can preload a module under
     #     any name, when the program ALSO has an import pycsl resolves to a local file;
+    #     (#49) run #9 u73 -- review rt81 p4 / p4b (route #633, PRE-EXISTING): the STRING
+    #     resolvers that import a dotted name and set / return what they find join this list:
+    #     `unittest` (`unittest.mock.patch("pkg.b", K).start()` imports `pkg` and SETS its
+    #     attribute `b`; CPython printed 2, pycsl PROVED `pkg.b.one() == 1`), its backport
+    #     `mock`, `pydoc` (`locate`), `logging.config` (dotted-name resolution in configs) and
+    #     `pickle` / `_pickle` / `shelve` (unpickling imports and calls by name);
     #   * a locally-resolved dependency whose OWN top-level code does the first (importing
     #     it runs that code before the importer's later imports).
+    #     (#49) run #9 u75 -- review rt83 s2 / s3 / s4 (route #635, PRE-EXISTING): the
+    #     standard-library modules that RUN a source string or a code object pycsl never
+    #     reads join it too -- `timeit` (`timeit.timeit("import pkg, pkg.c; pkg.b = pkg.c")`
+    #     replaced the submodule `pkg.b`: CPython printed 2, pycsl PROVED `pkg.b.one() == 1`),
+    #     `code` / `codeop` (`InteractiveInterpreter().runsource(src)`), `cProfile` / `profile`
+    #     / `pdb` / `bdb` / `trace` (`run(cmd)`), `doctest` (runs docstring examples) and the
+    #     `test` package (`test.support` helpers set attributes by name) -- when the name is
+    #     the standard library's (a local module of that name is the program's own, read and
+    #     verified like any other);
     if validated_ast is not None:
         sys_names = set()
         dyn = None
         state = None
+        _sx675 = ("timeit", "code", "codeop", "cProfile", "profile", "pdb", "bdb", "trace",
+                  "doctest", "test")
         for n in _ast.walk(validated_ast):
             if isinstance(n, _ast.Import):
                 for a in n.names:
                     if a.name == "sys":
                         sys_names.add(a.asname or "sys")
                     if a.name.split(".")[0] in ("importlib", "imp", "zipimport", "pkgutil",
-                                                "runpy"):
+                                                "runpy", "unittest", "mock", "pydoc", "pickle",
+                                                "_pickle", "shelve") \
+                            or (a.name + ".").startswith("logging.config."):
                         dyn = dyn or "import " + a.name
+                    if a.name.split(".")[0] in _sx675:
+                        try:
+                            _lx675 = _resolve_module_path(a.name.split(".")[0], 0, main_file)
+                        except Exception:
+                            _lx675 = None
+                        if _lx675 is None:
+                            dyn = dyn or "import " + a.name
             elif isinstance(n, _ast.ImportFrom) and not (getattr(n, "level", 0) or 0) \
                     and n.module:
                 if n.module.split(".")[0] in ("importlib", "imp", "zipimport", "pkgutil",
-                                              "runpy"):
+                                              "runpy", "unittest", "mock", "pydoc", "pickle",
+                                              "_pickle", "shelve") \
+                        or (n.module + ".").startswith("logging.config.") \
+                        or (n.module == "logging" and any(a.name == "config" for a in n.names)):
                     dyn = dyn or "from " + n.module + " import ..."
+                if n.module.split(".")[0] in _sx675:
+                    try:
+                        _lx675 = _resolve_module_path(n.module.split(".")[0], 0, main_file)
+                    except Exception:
+                        _lx675 = None
+                    if _lx675 is None:
+                        dyn = dyn or "from " + n.module + " import ..."
                 if n.module == "sys":
                     for a in n.names:
                         if a.name in ("path", "modules", "meta_path", "path_hooks",
@@ -5005,6 +5041,36 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             _wpk671: Optional[Tuple[str, str]] = None
             # (u71, rt79 r1) the first place a module object may escape into a value
             _esc671: Optional[Tuple[str, int, str]] = None
+            # (u73, rt81 p2 / x3, routes #631 / #632) the first module-level hook binding
+            # (`__mro_entries__` / `__getattr__` / `__dir__`: module, name, line) of every reached
+            # module; the first import-rooted class base (module, line)
+            _hkm673: Dict[str, Tuple[str, str, int]] = {}
+            _cb673: Optional[Tuple[str, int]] = None
+            # (u75, rt83 o7) a hook-name literal admitted as a pure read (the 2nd argument of
+            # `hasattr` / `getattr`): (module, line); the first mention of `builtins` /
+            # `__builtins__` (which could make that call a store)
+            _hkx675: Optional[Tuple[str, int]] = None
+            _bi675: Optional[Tuple[str, int]] = None
+            # (u75, rt83 u1 / t1 / v2, route #636) the first module object (or submodule /
+            # function / class of a local module) handed out as a value: (module, line, what);
+            # caches: module resolution, parsed trees, a name's binding kind in a local file
+            _mo675: Optional[Tuple[str, int, str]] = None
+            _rp675: Dict[Tuple[Any, ...], Tuple[Any, ...]] = {}
+            _tp675: Dict[str, Any] = {}
+            _ba675: Dict[Tuple[str, str], Tuple[Any, ...]] = {}
+            # (u75) the first escape that is not an import-bound value (a reflective name /
+            # attribute, a module-producing import, an installed library, ...); the import-bound
+            # uses judged only if one exists: (module, line, what, "esc" / "base" / "argm")
+            _rx675: Optional[Tuple[str, int, str]] = None
+            _vp675: List[Tuple[str, int, str, str, str]] = []
+            # (u75) the first store that could PLANT a module object in a standard-library
+            # module's attribute: an attribute store / delete / literal setattr through an
+            # import-rooted receiver, a namespace mapping (`__dict__`, `vars`, `globals`), a
+            # setattr / delattr of a computed name
+            _ps675: Optional[Tuple[str, int]] = None
+            # (u75, route #635) the first import, in a reached module other than the program,
+            # of a standard-library module that imports by name or runs source strings
+            _dy675: Optional[Tuple[str, int, str]] = None
             while (_wl660 and _bad660 is None and _pfx661 is None and _bnd666 is None
                    and _wcr671 is None):
                 _m660 = _wl660.pop(0)
@@ -5039,21 +5105,101 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 _mc671: Set[str] = set()
                 _pa671: Dict[int, Any] = {}
                 _ann671: Set[int] = set()
+                # (u75) a byte-identical copy of an interpreter standard-library file (the
+                # admitted repo-root `json/`, route #611 r12) is standard-library code: rule M
+                # does not judge it, as it judges no other standard-library module
+                _cp675 = False
+                try:
+                    _pt675 = os.path.abspath(_m660).split(os.sep)
+                    _sl675 = sysconfig.get_paths()["stdlib"]
+                    for _k675 in range(1, min(len(_pt675), 6)):
+                        _rl675 = _pt675[-_k675:]
+                        if (_rl675[0][:-3] if _rl675[0].endswith(".py")
+                                else _rl675[0]) in sys.stdlib_module_names:
+                            _sf675 = os.path.join(_sl675, *_rl675)
+                            if (os.path.isfile(_sf675) and __import__("pathlib").Path(
+                                    _sf675).read_bytes() == __import__("pathlib").Path(
+                                        _m660).read_bytes()):
+                                _cp675 = True
+                                break
+                except (OSError, KeyError, ValueError):
+                    _cp675 = False
+                # (u75, rt83 o4 / o5) every import binding of a name: ("imp", dotted module the
+                # name is bound to) / ("from", module, level, target); the nodes of parameter /
+                # return / module / class annotations; whether the module binds `getattr` /
+                # `hasattr` itself
+                _ib675: Dict[str, List[Tuple[Any, ...]]] = {}
+                _ann675: Set[int] = set()
+                _gb675 = False
+                # (u75) every name the module binds anywhere (a builtin it shadows is no builtin)
+                _bn675: Set[str] = set()
                 for _z671 in _a613.walk(_tr660):
+                    if isinstance(_z671, _a613.Name) and not isinstance(_z671.ctx, _a613.Load):
+                        _bn675.add(_z671.id)
+                    elif isinstance(_z671, (_a613.FunctionDef, _a613.AsyncFunctionDef,
+                                            _a613.ClassDef)):
+                        _bn675.add(_z671.name)
+                    elif isinstance(_z671, _a613.alias):
+                        _bn675.add(_z671.asname or _z671.name.split(".")[0])
+                    elif isinstance(_z671, _a613.arg):
+                        _bn675.add(_z671.arg)
+                    elif isinstance(_z671, (_a613.Global, _a613.Nonlocal)):
+                        _bn675.update(_z671.names)
+                    elif isinstance(_z671, _a613.ExceptHandler) and _z671.name:
+                        _bn675.add(_z671.name)
                     for _c671 in _a613.iter_child_nodes(_z671):
                         _pa671[id(_c671)] = _z671
                     if isinstance(_z671, _a613.Import):
                         _mc671.update(_al.asname or _al.name.split(".")[0] for _al in _z671.names)
+                        for _al in _z671.names:
+                            _ib675.setdefault(_al.asname or _al.name.split(".")[0], []).append(
+                                ("imp", _al.name if _al.asname else _al.name.split(".")[0]))
                     elif isinstance(_z671, _a613.ImportFrom):
                         _mc671.update(_al.asname or _al.name for _al in _z671.names
                                       if _al.name != "*")
-                    for _q671 in ([_z671.annotation] if isinstance(_z671, (_a613.arg,
-                                                                           _a613.AnnAssign))
-                                  else [_z671.returns] if isinstance(
-                                      _z671, (_a613.FunctionDef, _a613.AsyncFunctionDef))
-                                  else []):
-                        if _q671 is not None:
-                            _ann671.update(id(_y) for _y in _a613.walk(_q671))
+                        for _al in _z671.names:
+                            if _al.name != "*":
+                                _ib675.setdefault(_al.asname or _al.name, []).append(
+                                    ("from", _z671.module or "", _z671.level or 0, _al.name))
+                    if isinstance(_z671, (_a613.arg, _a613.FunctionDef, _a613.AsyncFunctionDef,
+                                          _a613.AnnAssign)):
+                        _q675 = (_z671.returns if isinstance(_z671, (
+                            _a613.FunctionDef, _a613.AsyncFunctionDef)) else _z671.annotation)
+                        if _q675 is not None:
+                            _ann675.update(id(_y) for _y in _a613.walk(_q675))
+                    if ((isinstance(_z671, _a613.Name) and _z671.id in ("getattr", "hasattr")
+                         and not isinstance(_z671.ctx, _a613.Load))
+                            or (isinstance(_z671, _a613.alias)
+                                and (_z671.asname or _z671.name) in ("getattr", "hasattr"))
+                            or (isinstance(_z671, (_a613.FunctionDef, _a613.AsyncFunctionDef,
+                                                   _a613.ClassDef))
+                                and _z671.name in ("getattr", "hasattr"))
+                            or (isinstance(_z671, _a613.arg) and _z671.arg in ("getattr",
+                                                                               "hasattr"))
+                            or (isinstance(_z671, (_a613.Global, _a613.Nonlocal))
+                                and {"getattr", "hasattr"} & set(_z671.names))):
+                        _gb675 = True
+                    # (u75) a mention of `builtins` / `__builtins__` (it can rebind `getattr`)
+                    if ((isinstance(_z671, _a613.alias) and _z671.name.split(".")[0] == "builtins")
+                            or (isinstance(_z671, _a613.ImportFrom)
+                                and (_z671.module or "").split(".")[0] == "builtins")
+                            or (isinstance(_z671, _a613.Name) and _z671.id == "__builtins__")
+                            or (isinstance(_z671, _a613.Attribute)
+                                and _z671.attr == "__builtins__")):
+                        _bi675 = _bi675 or (_m660, getattr(_z671, "lineno", 0) or 0)
+                    # (u73, rt81 p1b / p6b, route #631) only a FUNCTION-LOCAL variable
+                    # annotation is never evaluated (PEP 526 / 649; measured); a parameter /
+                    # return / module / class annotation hands its value out through
+                    # `__annotations__` (`dict(f.__annotations__)["a"]` is the module object),
+                    # so an import-bound name there is a value position
+                    if isinstance(_z671, _a613.AnnAssign):
+                        _y673 = _pa671.get(id(_z671))
+                        while _y673 is not None and not isinstance(_y673, (
+                                _a613.FunctionDef, _a613.AsyncFunctionDef, _a613.Lambda,
+                                _a613.ClassDef)):
+                            _y673 = _pa671.get(id(_y673))
+                        if isinstance(_y673, (_a613.FunctionDef, _a613.AsyncFunctionDef)):
+                            _ann671.update(id(_y) for _y in _a613.walk(_z671.annotation))
                 for _z669 in _a613.walk(_tr660):
                     if isinstance(_z669, _a613.Import):
                         _imc669.update(_q for _al in _z669.names for _q in _al.name.split("."))
@@ -5065,9 +5211,85 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                        if _m660 != _mf660 or _al.name == "*")
                     # (u71, rt79 w2 / route #626) code that can change a package's `__all__`
                     # from outside its `__init__` (`pkg.__all__ ...`, a literal "__all__" name)
+                    # (#49) run #9 u73 -- review rt81 x4 / x1b (route #632, PRE-EXISTING): an
+                    # import binding of `__all__` (`from pkg import __all__ as A`, `from . import
+                    # __all__ as A`) hands the package's list out and `A.append("w")` extends it in
+                    # place (CPython loaded w.py, 5; pycsl PROVED 4): any import alias naming or
+                    # binding `__all__` counts as an outside mention too
                     if ((isinstance(_z669, _a613.Attribute) and _z669.attr == "__all__")
-                            or (isinstance(_z669, _a613.Constant) and _z669.value == "__all__")):
+                            or (isinstance(_z669, _a613.Constant) and _z669.value == "__all__")
+                            or (isinstance(_z669, _a613.alias)
+                                and "__all__" in (_z669.name, _z669.asname))):
                         _alx671 = _alx671 or (_m660, getattr(_z669, "lineno", 0) or 0)
+                    # (#49) run #9 u73 -- review rt81 p2 / x3 (routes #631 / #632, PRE-EXISTING):
+                    # a MODULE-LEVEL hook -- `__mro_entries__` (PEP 560: `class C(pkg)` calls it with
+                    # the module object itself in `bases`), `__getattr__` (PEP 562: it answers
+                    # every missing attribute, `__mro_entries__` and `__all__` included) or
+                    # `__dir__` -- runs code pycsl never connects to the statement that triggers
+                    # it (measured p2: `def __mro_entries__(bases): setattr(bases[0], "b", K)`,
+                    # x3: `__getattr__` answering "__all__" with ["w"]). Recorded fail-closed:
+                    # a def outside class bodies, a module-scope store / delete, an import
+                    # binding, a `global`, an attribute store / delete of the name, or the literal
+                    # string (setattr / namespace dict)
+                    # (#49) run #9 u75 -- review rt83 o6 / o7 (u73 INTRODUCED over-refusals): a
+                    # def or a Name store binds the name in ITS OWN scope, so one inside a class
+                    # body (`class P: __getattr__ = _fwd`, a proxy idiom) or a function body
+                    # (without a `global`, recorded below) is no module hook; the scope is the
+                    # nearest enclosing def / lambda / class whose BODY holds the binding
+                    # (decorators, defaults, bases are evaluated outside). The literal is a pure
+                    # READ as the 2nd argument of a two-argument `hasattr` / `getattr` call
+                    # (`hasattr(x, "__getattr__")`) in a module that does not bind those names;
+                    # it is admitted unless a reached module mentions `builtins` /
+                    # `__builtins__` (judged after the walk). Writes through a literal stay
+                    # refused (setattr, `globals()[...]`).
+                    _sc675 = None
+                    if ((isinstance(_z669, (_a613.FunctionDef, _a613.AsyncFunctionDef))
+                         and _z669.name in ("__mro_entries__", "__getattr__"))
+                            or (isinstance(_z669, _a613.Name)
+                                and _z669.id in ("__mro_entries__", "__getattr__")
+                                and not isinstance(_z669.ctx, _a613.Load))):
+                        _sc675 = "module"
+                        _ch675 = _z669
+                        _pp675 = _pa671.get(id(_z669))
+                        while _pp675 is not None:
+                            if ((isinstance(_pp675, (_a613.FunctionDef, _a613.AsyncFunctionDef,
+                                                     _a613.ClassDef))
+                                 and any(_s is _ch675 for _s in _pp675.body))
+                                    or (isinstance(_pp675, _a613.Lambda)
+                                        and _pp675.body is _ch675)):
+                                _sc675 = "local"
+                                break
+                            _ch675 = _pp675
+                            _pp675 = _pa671.get(id(_pp675))
+                    _rl675 = False
+                    if (isinstance(_z669, _a613.Constant) and not _gb675
+                            and _z669.value in ("__mro_entries__", "__getattr__")):
+                        _pp675 = _pa671.get(id(_z669))
+                        _rl675 = (isinstance(_pp675, _a613.Call)
+                                  and isinstance(_pp675.func, _a613.Name)
+                                  and _pp675.func.id in ("hasattr", "getattr")
+                                  and len(_pp675.args) == 2 and not _pp675.keywords
+                                  and _pp675.args[1] is _z669)
+                        if _rl675:
+                            _hkx675 = _hkx675 or (_m660, getattr(_z669, "lineno", 0) or 0)
+                    if _m660 not in _hkm673:
+                        for _q673 in ("__mro_entries__", "__getattr__"):
+                            if ((isinstance(_z669, (_a613.FunctionDef, _a613.AsyncFunctionDef))
+                                 and _z669.name == _q673 and _sc675 == "module")
+                                    or (isinstance(_z669, _a613.Name) and _z669.id == _q673
+                                        and not isinstance(_z669.ctx, _a613.Load)
+                                        and _sc675 == "module")
+                                    or (isinstance(_z669, _a613.alias)
+                                        and _q673 in (_z669.name, _z669.asname))
+                                    or (isinstance(_z669, (_a613.Global, _a613.Nonlocal))
+                                        and _q673 in _z669.names)
+                                    or (isinstance(_z669, _a613.Attribute) and _z669.attr == _q673
+                                        and not isinstance(_z669.ctx, _a613.Load))
+                                    or (isinstance(_z669, _a613.Constant)
+                                        and isinstance(_z669.value, str)
+                                        and _z669.value == _q673 and not _rl675)):
+                                _hkm673[_m660] = (_m660, _q673, getattr(_z669, "lineno", 0) or 0)
+                                break
                     if isinstance(_z669, _a613.Attribute) and isinstance(_z669.value, _a613.Attribute):
                         _atc669.add(_z669.value.attr)
                     _rv671 = None
@@ -5086,8 +5308,38 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         _rv671 = _rv671.func if isinstance(_rv671, _a613.Call) else _rv671.value
                     if isinstance(_rv671, _a613.Name) and _rv671.id in _mc671:
                         _ast669[-1] = _ast669[-1][:3] + (True,)
+                        _ps675 = _ps675 or (_m660, getattr(_z669, "lineno", 0) or 0)
+                    # (#49) run #9 u75 -- review rt83 s2 / s3 / s5 (route #635): route #326's
+                    # dynamic-import / string-execution list judges the PROGRAM's imports, and
+                    # route #483 a dependency's IMPORT-TIME code only; a dependency FUNCTION the
+                    # program calls can import `timeit` / `importlib` / ... and run a string
+                    # pycsl never reads just as well: in every reached module other than the
+                    # program, an import (anywhere) of such a standard-library module REFUSES
+                    if (_dy675 is None and _m660 != _mf660
+                            and isinstance(_z669, (_a613.Import, _a613.ImportFrom))
+                            and not (isinstance(_z669, _a613.ImportFrom) and _z669.level)):
+                        for _q675 in ([_al.name for _al in _z669.names]
+                                      if isinstance(_z669, _a613.Import)
+                                      else [(_z669.module or "") + "." + _al.name
+                                            for _al in _z669.names]):
+                            if (_q675.split(".")[0] in (
+                                    "importlib", "imp", "zipimport", "pkgutil", "runpy",
+                                    "unittest", "mock", "pydoc", "pickle", "_pickle", "shelve",
+                                    "timeit", "code", "codeop", "cProfile", "profile", "pdb",
+                                    "bdb", "trace", "doctest", "test")
+                                    or (_q675 + ".").startswith("logging.config.")):
+                                try:
+                                    _lx675 = _resolve_module_path(_q675.split(".")[0], 0, _m660)
+                                except Exception:
+                                    _lx675 = None
+                                if _lx675 is None:
+                                    _dy675 = (_m660, getattr(_z669, "lineno", 0) or 0,
+                                              _q675.split(".")[0] if not _q675.startswith(
+                                                  "logging.config") else "logging.config")
+                                    break
                     # (u71) a module object may escape into a value (see above)
                     _ex671 = None
+                    _nb675 = False
                     if isinstance(_z669, _a613.ImportFrom) and any(
                             _al.name == "*" for _al in _z669.names):
                         _ex671 = "a wildcard import"
@@ -5102,28 +5354,45 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         elif any(_q.split(".")[0] in (
                                 "importlib", "inspect", "pkgutil", "runpy", "pydoc", "gc",
                                 "ctypes", "builtins", "__main__", "pickle", "marshal", "copyreg",
-                                "zipimport", "imp")
+                                "zipimport", "imp", "annotationlib")
                                 for _q in ([_al.name for _al in _z669.names]
                                            if isinstance(_z669, _a613.Import)
                                            else [] if _z669.level else [_z669.module or ""])):
                             _ex671 = "an import of a module that can produce module objects"
+                        # (u73, rt81 p1b, route #631) an annotation evaluator imported by name
+                        elif isinstance(_z669, _a613.ImportFrom) and any(_al.name in (
+                                "get_type_hints", "get_annotations", "evaluate_forward_ref",
+                                "ForwardRef", "call_annotate_function") for _al in _z669.names):
+                            _ex671 = "an import of an annotation evaluator"
                     elif isinstance(_z669, _a613.Name) and isinstance(_z669.ctx, _a613.Load) and (
                             _z669.id in ("globals", "vars", "locals", "eval", "exec", "compile",
-                                         "__import__", "__builtins__")):
+                                         "__import__", "__builtins__", "__loader__", "__spec__",
+                                         "__annotations__", "__annotate__")):
                         _ex671 = f"the reflective name `{_z669.id}`"
+                    # (#49) run #9 u73 -- review rt81 p7 / p1b (route #631): a loader / spec
+                    # (`pkg.__loader__.load_module("pkg")` RETURNS the module from a callee
+                    # position) and an annotation reader (`f.__annotations__`,
+                    # `typing.get_type_hints(f)`) hand a module object out
                     elif isinstance(_z669, _a613.Attribute) and _z669.attr in (
                             "modules", "__dict__", "__globals__", "__builtins__", "__class__",
                             "_getframe", "f_globals", "f_locals", "f_back", "tb_frame",
-                            "gi_frame", "cr_frame", "__self__", "__closure__", "cell_contents"):
+                            "gi_frame", "cr_frame", "__self__", "__closure__", "cell_contents",
+                            "__loader__", "__spec__", "load_module", "exec_module",
+                            "module_from_spec", "__annotations__", "__annotate__",
+                            "get_type_hints", "get_annotations", "evaluate_forward_ref"):
                         _ex671 = f"the attribute `{_z669.attr}`"
                     elif (isinstance(_z669, _a613.Name) and isinstance(_z669.ctx, _a613.Load)
                           and _z669.id in _mc671 and id(_z669) not in _ann671):
                         _y671 = _z669
                         _p671 = _pa671.get(id(_y671))
+                        _op675: List[Tuple[str, ...]] = []
                         while (isinstance(_p671, (_a613.Attribute, _a613.Subscript))
                                and _p671.value is _y671 and isinstance(_p671.ctx, _a613.Load)):
+                            _op675.append(("attr", _p671.attr) if isinstance(_p671, _a613.Attribute)
+                                          else ("sub",))
                             _y671 = _p671
                             _p671 = _pa671.get(id(_y671))
+                        _nb675 = True
                         if not ((isinstance(_p671, _a613.Call) and _p671.func is _y671)
                                 or (isinstance(_p671, (_a613.Attribute, _a613.Subscript))
                                     and _p671.value is _y671)
@@ -5131,13 +5400,461 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                 or (isinstance(_p671, (_a613.FunctionDef, _a613.AsyncFunctionDef,
                                                        _a613.ClassDef))
                                     and any(_y is _y671 for _y in _p671.decorator_list))
-                                or (isinstance(_p671, _a613.ClassDef)
-                                    and any(_y is _y671 for _y in _p671.bases))
                                 or (isinstance(_p671, _a613.ExceptHandler)
                                     and _p671.type is _y671)
                                 or (isinstance(_p671, _a613.Tuple) and isinstance(
                                     _pa671.get(id(_p671)), _a613.ExceptHandler))):
-                            _ex671 = f"the imported name `{_z669.id}` used as a value"
+                            # (#49) run #9 u75 -- review rt83 o4 / o5 (u73 INTRODUCED over-refusals)
+                            # and u1 / u3 / v2 / t1 / v3 (route #636, PRE-EXISTING false proofs).
+                            # WHAT the value can be, from the import binding(s) of the name and the
+                            # attribute / subscript chain read off it: "F" (a local module file),
+                            # "S" (a standard-library module object), "M" (unknown: a submodule,
+                            # an unresolvable / installed module, a name the module binds by an
+                            # import or not at all), "L" (a name a local module binds ONLY by
+                            # undecorated `def` / `class` statements), "V" (a local module's
+                            # name bound otherwise, e.g. `X = 3`), "SN" (a standard-library
+                            # module's non-module attribute, read from the interpreter's own
+                            # module: route #613 refuses a local shadow). A module object reaches
+                            # an "L" / "V" / "SN" binding only through a store whose value is a
+                            # module, i.e. an import-rooted value (refused below, rule M) or a
+                            # reflective escape (`globals()`, `sys.modules`, `__dict__`, an
+                            # import of `importlib` / `inspect` / an installed library, ...):
+                            # those three count as module-like once such an escape exists
+                            # (judged after the walk).
+                            _st675: Tuple[Any, ...] = ()
+                            for _b675 in _ib675.get(_z669.id, [("?",)]):
+                                _s675: Tuple[Any, ...] = ("M",)
+                                # the steps: resolve a module statement name from a file, then
+                                # read attributes / subscripts; a re-export (`from X import a` in
+                                # the source module) is followed (at most 8 times)
+                                _ops675: List[Tuple[Any, ...]] = (
+                                    ([("mod", _b675[1], _b675[2] if _b675[0] == "from" else 0,
+                                       _m660)] + ([("attr", _b675[3])] if _b675[0] == "from"
+                                                  else []))
+                                    if _b675[0] in ("imp", "from") else [("bad",)]) + list(_op675)
+                                _nr675 = 0
+                                while _ops675:
+                                    _o675 = _ops675.pop(0)
+                                    if _o675[0] == "bad":
+                                        _s675 = ("M",)
+                                        break
+                                    if _o675[0] == "mod":
+                                        _md675, _lv675, _fx675 = _o675[1], _o675[2], _o675[3]
+                                        _vl675 = ([_fx675] if _lv675 or _fx675 == _mf660 or (
+                                            os.path.dirname(_fx675) == os.path.dirname(_mf660)
+                                            and (os.path.dirname(os.path.realpath(_fx675))
+                                                 if os.path.realpath(os.path.dirname(_fx675))
+                                                 != os.path.dirname(os.path.realpath(_fx675))
+                                                 else os.path.dirname(_fx675)) == _fp669)
+                                            else [_fx675, _mf660])
+                                        _kr675 = (_md675, _lv675, tuple(_vl675))
+                                        if _kr675 not in _rp675:
+                                            # (as the walk: the PROGRAM's view decides; a
+                                            # disagreement the walk refuses never gets here)
+                                            _rs675: List[str] = []
+                                            for _fr675 in _vl675:
+                                                try:
+                                                    _h675 = (_resolve_module_path(_md675, _lv675, _fr675)
+                                                             if (_md675 or _lv675) else None)
+                                                    _rs675.append(os.path.abspath(_h675)
+                                                                  if _h675 is not None else "")
+                                                except Exception:
+                                                    _rs675.append("?")
+                                            _r675: Tuple[Any, ...] = ("M",)
+                                            _h675 = ("?" if "?" in _rs675 or (
+                                                _rs675[0] != _rs675[-1] and _rs675[0] != "")
+                                                     else _rs675[-1])
+                                            if (_h675 not in ("", "?") and _h675.endswith(".py")
+                                                    and os.path.commonpath([_h675, _lib660]) != _lib660):
+                                                _r675 = ("F", _h675)
+                                            elif (_h675 != "?" and not _lv675 and (
+                                                    _h675 == "" or os.path.commonpath(
+                                                        [_h675, _lib660]) == _lib660)
+                                                  and (_md675.split(".")[0] in sys.stdlib_module_names
+                                                       or _md675.split(".")[0]
+                                                       in sys.builtin_module_names)):
+                                                _om675 = sys.modules.get(_md675)
+                                                if _om675 is None and _md675.split(".")[0] in (
+                                                        "typing", "collections", "abc", "enum",
+                                                        "dataclasses", "numbers", "decimal",
+                                                        "fractions", "datetime", "math", "cmath",
+                                                        "string", "itertools", "functools",
+                                                        "operator", "types", "random", "json",
+                                                        "heapq", "bisect", "copy", "contextlib",
+                                                        "statistics", "array", "struct", "time",
+                                                        "re", "os", "io", "pathlib", "http",
+                                                        "textwrap", "keyword", "unicodedata",
+                                                        "calendar", "errno", "stat", "string",
+                                                        "base64", "binascii", "zlib", "hashlib",
+                                                        "uuid", "csv", "shlex", "fnmatch", "glob",
+                                                        "queue", "weakref", "platform", "warnings",
+                                                        "traceback", "pprint", "difflib", "locale",
+                                                        "codecs", "secrets", "html", "urllib",
+                                                        "email", "xml", "itertools", "graphlib",
+                                                        "sys"):
+                                                    try:
+                                                        _om675 = __import__("importlib").import_module(
+                                                            _md675)
+                                                    except Exception:
+                                                        _om675 = None
+                                                if isinstance(_om675, type(sys)):
+                                                    _r675 = ("S", _om675)
+                                            _rp675[_kr675] = _r675
+                                        _s675 = _rp675[_kr675]
+                                        continue
+                                    if _s675[0] == "F" and _o675[0] == "attr":
+                                        _kb675 = (_s675[1], _o675[1])
+                                        if _kb675 not in _ba675:
+                                            if _s675[1] not in _tp675:
+                                                try:
+                                                    _tp675[_s675[1]] = _a613.parse(__import__(
+                                                        "pathlib").Path(_s675[1]).read_bytes())
+                                                except (OSError, SyntaxError, ValueError,
+                                                        RecursionError, MemoryError):
+                                                    _tp675[_s675[1]] = None
+                                            _T675 = _tp675[_s675[1]]
+                                            _q675 = _o675[1]
+                                            _rr675: Tuple[Any, ...] = ("M",)
+                                            if _T675 is not None:
+                                                # a submodule (any directory entry of that name;
+                                                # an `__init__` that touches `__path__`)
+                                                # a submodule is followed to its file when
+                                                # FileFinder's choice is plain (a package
+                                                # `a/__init__.py`, else `a.py`; no extension
+                                                # artifact): "F" of that file, else "M"
+                                                _sb675 = False
+                                                if os.path.basename(_s675[1]) == "__init__.py":
+                                                    _dd675 = os.path.dirname(_s675[1])
+                                                    try:
+                                                        _en675 = [_e for _e in os.listdir(_dd675)
+                                                                  if _e.split(".", 1)[0] == _q675]
+                                                    except OSError:
+                                                        _en675 = ["?"]
+                                                    _sb675 = bool(_en675)
+                                                    if _sb675 and not any(
+                                                            (isinstance(_y, _a613.Name)
+                                                             and _y.id == "__path__")
+                                                            or (isinstance(_y, _a613.Attribute)
+                                                                and _y.attr == "__path__")
+                                                            for _y in _a613.walk(_T675)):
+                                                        _sd675 = os.path.join(_dd675, _q675)
+                                                        try:
+                                                            _in675 = ([_e for _e in os.listdir(
+                                                                _sd675) if _e.split(".", 1)[0]
+                                                                       == "__init__"]
+                                                                      if os.path.isdir(_sd675)
+                                                                      else [])
+                                                        except OSError:
+                                                            _in675 = ["?"]
+                                                        if (_in675 and "__init__.py" in _in675
+                                                                and all(_e == "__init__.py"
+                                                                        or _e.endswith(".pyc")
+                                                                        for _e in _in675)):
+                                                            _rr675 = ("F", os.path.join(
+                                                                _sd675, "__init__.py"))
+                                                        elif (not _in675
+                                                              and (_q675 + ".py") in _en675
+                                                              and all(_e in (_q675, _q675 + ".py")
+                                                                      or _e.endswith(".pyc")
+                                                                      for _e in _en675)):
+                                                            _rr675 = ("F", os.path.join(
+                                                                _dd675, _q675 + ".py"))
+                                                if not _sb675:
+                                                    _df675 = [_y for _y in _T675.body if isinstance(
+                                                        _y, (_a613.FunctionDef,
+                                                             _a613.AsyncFunctionDef,
+                                                             _a613.ClassDef))
+                                                              and _y.name == _q675
+                                                              and not _y.decorator_list]
+                                                    _ot675 = False  # another binding form
+                                                    _im675 = False  # an import / wildcard
+                                                    for _y in _a613.walk(_T675):
+                                                        if ((isinstance(_y, _a613.alias)
+                                                             and (_y.name == "*" or (
+                                                                 _y.asname or _y.name.split(
+                                                                     ".")[0]) == _q675))
+                                                                or (isinstance(_y, (
+                                                                    _a613.Global, _a613.Nonlocal))
+                                                                    and _q675 in _y.names)):
+                                                            _im675 = True
+                                                        elif ((isinstance(_y, _a613.Name)
+                                                               and _y.id == _q675
+                                                               and not isinstance(
+                                                                   _y.ctx, _a613.Load))
+                                                              or (isinstance(_y, (
+                                                                  _a613.FunctionDef,
+                                                                  _a613.AsyncFunctionDef,
+                                                                  _a613.ClassDef))
+                                                                  and _y.name == _q675
+                                                                  and not any(_y is _d
+                                                                              for _d in _df675))
+                                                              or (isinstance(_y, _a613.ExceptHandler)
+                                                                  and _y.name == _q675)
+                                                              or (isinstance(_y, (
+                                                                  _a613.MatchAs, _a613.MatchStar))
+                                                                  and _y.name == _q675)
+                                                              or (isinstance(_y, _a613.MatchMapping)
+                                                                  and _y.rest == _q675)
+                                                              or (isinstance(_y, _a613.Attribute)
+                                                                  and _y.attr == _q675
+                                                                  and not isinstance(
+                                                                      _y.ctx, _a613.Load))
+                                                              or (isinstance(_y, _a613.Constant)
+                                                                  and isinstance(_y.value, str)
+                                                                  and _y.value == _q675)):
+                                                            _ot675 = True
+                                                    if not _im675 and _df675 and not _ot675:
+                                                        _rr675 = ("L",)
+                                                    elif not _im675 and _ot675:
+                                                        _rr675 = ("V",)
+                                                    elif _im675 and not _ot675 and not _df675:
+                                                        # a plain re-export: ONE top-level
+                                                        # import binds it, nothing else does
+                                                        _al675 = [(_y, _al) for _y in _T675.body
+                                                                  if isinstance(_y, (_a613.Import,
+                                                                                     _a613.ImportFrom))
+                                                                  for _al in _y.names
+                                                                  if (_al.asname or _al.name.split(
+                                                                      ".")[0]) == _q675]
+                                                        _na675 = sum(
+                                                            1 for _y in _a613.walk(_T675)
+                                                            if (isinstance(_y, _a613.alias)
+                                                                and (_y.name == "*" or (
+                                                                    _y.asname or _y.name.split(
+                                                                        ".")[0]) == _q675))
+                                                            or (isinstance(_y, (_a613.Global,
+                                                                                _a613.Nonlocal))
+                                                                and _q675 in _y.names))
+                                                        if len(_al675) == 1 and _na675 == 1:
+                                                            _y, _al = _al675[0]
+                                                            if isinstance(_y, _a613.ImportFrom):
+                                                                _rr675 = ("R", _y.module or "",
+                                                                          _y.level or 0, _al.name,
+                                                                          _s675[1])
+                                                            else:
+                                                                _rr675 = ("R", _al.name if _al.asname
+                                                                          else _al.name.split(".")[0],
+                                                                          0, None, _s675[1])
+                                            _ba675[_kb675] = _rr675
+                                        _s675 = _ba675[_kb675]
+                                        if _s675[0] == "R":
+                                            _nr675 += 1
+                                            _ops675[:0] = ([("mod", _s675[1], _s675[2], _s675[4])]
+                                                           + ([("attr", _s675[3])]
+                                                              if _s675[3] is not None else []))
+                                            _s675 = ("M",)
+                                            if _nr675 > 8:
+                                                break
+                                    elif _s675[0] == "S" and _o675[0] == "attr":
+                                        _w675 = _s675[1].__dict__.get(_o675[1], _ba675)
+                                        _s675 = (("M",) if _w675 is _ba675 else ("S", _w675)
+                                                 if isinstance(_w675, type(sys)) else ("SN", _w675))
+                                    elif (_s675[0] == "SN" and _o675[0] == "attr"
+                                          and _s675[1] is not None):
+                                        try:
+                                            _w675 = __import__("inspect").getattr_static(
+                                                _s675[1], _o675[1], _ba675)
+                                        except Exception:
+                                            _w675 = _ba675
+                                        _s675 = (("M",) if _w675 is _ba675
+                                                 or isinstance(_w675, type(sys))
+                                                 else ("SN", _w675))
+                                    elif _s675[0] == "SN":
+                                        _s675 = (("M",) if _s675[1] is sys.modules
+                                                 or isinstance(_s675[1], type(sys))
+                                                 else ("SN", None))
+                                    elif _s675[0] not in ("L", "V"):
+                                        _s675 = ("M",)
+                                if not _st675:
+                                    _st675 = _s675
+                                elif _st675 != _s675:
+                                    _st675 = ("M",)
+                            _ml675 = _st675[0] in ("F", "S", "M")
+                            _l675 = getattr(_z669, "lineno", 0) or 0
+                            _ip675 = (isinstance(_p671, _a613.ClassDef)
+                                      and any(_y is _y671 for _y in _p671.bases))
+                            # (u75) a name bound LOCALLY in an enclosing function / lambda /
+                            # comprehension scope (a parameter, a store or a comprehension
+                            # target in that scope, outside nested scopes, with no `global` /
+                            # `nonlocal` / import of it there) is not the import binding (route
+                            # #610 control 10117: `def g(os: C): return os.n`)
+                            _lc675 = False
+                            _ch675 = _z669
+                            _pp675 = _pa671.get(id(_z669))
+                            while _pp675 is not None and not _lc675:
+                                _sb675 = None
+                                if (isinstance(_pp675, (_a613.FunctionDef, _a613.AsyncFunctionDef))
+                                        and any(_s is _ch675 for _s in _pp675.body)) or (
+                                        isinstance(_pp675, _a613.Lambda)
+                                        and _pp675.body is _ch675):
+                                    _ag675 = _pp675.args
+                                    if _z669.id in [_a.arg for _a in (
+                                            _ag675.posonlyargs + _ag675.args + _ag675.kwonlyargs
+                                            + [_x for _x in (_ag675.vararg, _ag675.kwarg)
+                                               if _x is not None])]:
+                                        _lc675 = True
+                                        break
+                                    _sb675 = (list(_pp675.body) if isinstance(_pp675.body, list)
+                                              else [_pp675.body])
+                                elif (isinstance(_pp675, (_a613.ListComp, _a613.SetComp,
+                                                          _a613.DictComp, _a613.GeneratorExp))
+                                      and not any(_g.iter is _ch675
+                                                  for _g in _pp675.generators[:1])):
+                                    _sb675 = [_g.target for _g in _pp675.generators]
+                                if _sb675 is not None:
+                                    _st2675 = list(_sb675)
+                                    _ls675 = False
+                                    _gl675 = False
+                                    while _st2675:
+                                        _y = _st2675.pop()
+                                        if isinstance(_y, (_a613.Global, _a613.Nonlocal)) and \
+                                                _z669.id in _y.names:
+                                            _gl675 = True
+                                        elif isinstance(_y, _a613.alias) and (
+                                                _y.asname or _y.name.split(".")[0]) == _z669.id:
+                                            _gl675 = True
+                                        elif (isinstance(_y, _a613.Name) and _y.id == _z669.id
+                                              and not isinstance(_y.ctx, _a613.Load)):
+                                            _ls675 = True
+                                        if isinstance(_y, (_a613.FunctionDef,
+                                                           _a613.AsyncFunctionDef, _a613.ClassDef)):
+                                            if _y.name == _z669.id:
+                                                _ls675 = True
+                                            _st2675 += (list(_y.decorator_list) + (
+                                                list(_y.bases) + [_k.value for _k in _y.keywords]
+                                                if isinstance(_y, _a613.ClassDef)
+                                                else list(_y.args.defaults) + [
+                                                    _q for _q in _y.args.kw_defaults
+                                                    if _q is not None]))
+                                        elif isinstance(_y, _a613.Lambda):
+                                            _st2675 += list(_y.args.defaults)
+                                        elif isinstance(_y, (_a613.ListComp, _a613.SetComp,
+                                                             _a613.DictComp, _a613.GeneratorExp)):
+                                            _st2675 += [_y.generators[0].iter]
+                                        else:
+                                            _st2675 += list(_a613.iter_child_nodes(_y))
+                                    if _ls675 and not _gl675:
+                                        _lc675 = True
+                                        break
+                                    if _gl675:
+                                        break
+                                _ch675 = _pp675
+                                _pp675 = _pa671.get(id(_pp675))
+                            if _lc675:
+                                _ex671 = f"the imported name `{_z669.id}` used as a value"
+                            elif _ip675 or id(_z669) in _ann675:
+                                # (u73, rt81 p2 / p2b / p8, route #631) a class BASE / parameter /
+                                # return / module / class annotation hands the value on (PEP 560
+                                # `__mro_entries__(bases)`, `__annotations__`); u75: only when it
+                                # can be a MODULE object (a class base that is a class never
+                                # reaches `__mro_entries__`; `List[int]` is no module)
+                                _w675 = ("used as a class base" if _ip675
+                                         else "used in an annotation")
+                                if _ml675:
+                                    _ex671 = f"the imported name `{_z669.id}` {_w675}"
+                                    if _ip675:
+                                        _cb673 = _cb673 or (_m660, _l675)
+                                else:
+                                    _vp675.append((_m660, _l675, f"the imported name "
+                                                   f"`{_z669.id}` {_w675}",
+                                                   "base" if _ip675 else "esc", _st675[0]))
+                            else:
+                                _ex671 = f"the imported name `{_z669.id}` used as a value"
+                                # (u75, route #636) RULE M: a module object, or a submodule /
+                                # function / class of a local module, handed out as a VALUE --
+                                # a call argument (`functools.update_wrapper(pkg, _Src,
+                                # assigned=("b",))`, `swap_attr(pkg.b, "one", f)` set its
+                                # attributes inside the standard library, where no store is
+                                # seen), an assigned / returned / stored value, an operand
+                                # (`x == pkg` and `x + pkg` hand it to the other operand's
+                                # method) -- REFUSES. Exempt: an identity test (`is` / `is not`),
+                                # and, for a MODULE object (whose special methods are ModuleType's
+                                # C code: a module-level hook is never looked up for them), a
+                                # truth test, a unary operand or an f-string field
+                                if not ((isinstance(_p671, _a613.Compare)
+                                         and all(isinstance(_y, (_a613.Is, _a613.IsNot))
+                                                 for _y in _p671.ops))
+                                        or (_ml675 and (
+                                            isinstance(_p671, (_a613.UnaryOp,
+                                                               _a613.FormattedValue))
+                                            or (isinstance(_p671, (_a613.If, _a613.While,
+                                                                   _a613.Assert, _a613.IfExp))
+                                                and _p671.test is _y671)))):
+                                    _w675 = (f"`{_a613.unparse(_y671)}` ("
+                                             + {"F": "a local module", "S": "a module",
+                                                "M": "possibly a module object",
+                                                "L": "a function / class of a local module",
+                                                "V": "a value a local module binds",
+                                                "SN": "a standard-library attribute"}[
+                                                 _st675[0]] + ")")
+                                    # a MODULE object read by a builtin that only reads it
+                                    # (`hasattr(sys, "meta_path")`, `print(m)`, `len`, `id`,
+                                    # `repr`, `str`, `dir`, `type(m)`, ...: ModuleType's C
+                                    # methods, no store) -- unless the module rebinds the builtin
+                                    # or a reached module mentions `builtins` (after the walk)
+                                    _bx675 = (_ml675 and isinstance(_p671, _a613.Call)
+                                              and isinstance(_p671.func, _a613.Name)
+                                              and _p671.func.id in (
+                                                  "hasattr", "print", "repr", "str", "id", "len",
+                                                  "callable", "type", "dir", "hash", "bool")
+                                              and _p671.func.id not in _bn675
+                                              and any(_y is _y671 for _y in _p671.args)
+                                              and not any(isinstance(_y, _a613.Starred)
+                                                          for _y in _p671.args)
+                                              and (_p671.func.id != "hasattr" or (
+                                                  len(_p671.args) == 2 and not _p671.keywords
+                                                  and _p671.args[0] is _y671
+                                                  and isinstance(_p671.args[1], _a613.Constant)
+                                                  and isinstance(_p671.args[1].value, str)))
+                                              and (_p671.func.id not in ("type", "dir", "len",
+                                                                         "id", "hash", "bool",
+                                                                         "callable", "repr")
+                                                   or (len(_p671.args) == 1
+                                                       and not _p671.keywords)))
+                                    if _cp675:
+                                        pass
+                                    elif _bx675:
+                                        _vp675.append((_m660, _l675, _w675, "argb", _st675[0]))
+                                    elif _ml675 or _st675[0] == "L":
+                                        _mo675 = _mo675 or (_m660, _l675, _w675)
+                                    else:
+                                        _vp675.append((_m660, _l675, _w675, "argm",
+                                                       _st675[0]))
+                    # (u75) a namespace / frame attribute read by its NAME (`getattr(f,
+                    # "__globals__")`, `operator.attrgetter("__dict__")`), or an attribute read by
+                    # a computed name, reaches what the attribute list above guards
+                    if _ex671 is None and (
+                            (isinstance(_z669, _a613.Constant) and _z669.value in (
+                                "__dict__", "__globals__", "__builtins__", "__class__",
+                                "_getframe", "f_globals", "f_locals", "f_back", "tb_frame",
+                                "gi_frame", "cr_frame", "__self__", "__closure__",
+                                "cell_contents", "__loader__", "__spec__", "__annotations__",
+                                "__annotate__"))
+                            or (isinstance(_z669, _a613.Call) and (
+                                (isinstance(_z669.func, _a613.Name)
+                                 and _z669.func.id in ("getattr", "attrgetter", "methodcaller"))
+                                or (isinstance(_z669.func, _a613.Attribute)
+                                    and _z669.func.attr in ("attrgetter", "methodcaller")))
+                                and not all(isinstance(_y, _a613.Constant)
+                                            and isinstance(_y.value, str)
+                                            for _y in (_z669.args[1:2] if isinstance(
+                                                _z669.func, _a613.Name) and _z669.func.id ==
+                                                "getattr" else _z669.args[:1])))):
+                        _ex671 = "an attribute read by a computed or reflective name"
+                    if _ex671 is not None and not _nb675:
+                        _rx675 = _rx675 or (_m660, getattr(_z669, "lineno", 0) or 0, _ex671)
+                    if ((isinstance(_z669, _a613.Name) and _z669.id in ("vars", "globals",
+                                                                       "locals", "__builtins__"))
+                            or (isinstance(_z669, _a613.Attribute)
+                                and _z669.attr in ("__dict__", "__builtins__"))
+                            or (isinstance(_z669, _a613.Constant) and _z669.value in (
+                                "__dict__", "__builtins__"))
+                            or (isinstance(_z669, _a613.Call) and isinstance(_z669.func, _a613.Name)
+                                and _z669.func.id in ("setattr", "delattr")
+                                and not (len(_z669.args) >= 2
+                                         and isinstance(_z669.args[1], _a613.Constant)
+                                         and isinstance(_z669.args[1].value, str)))):
+                        _ps675 = _ps675 or (_m660, getattr(_z669, "lineno", 0) or 0)
                     if _ex671 is not None and _esc671 is None:
                         _esc671 = (_m660, getattr(_z669, "lineno", 0) or 0, _ex671)
                 # (#49) run #9 u66 -- review rt76 r2 / r2d (route #621, PRE-EXISTING). A package
@@ -5328,9 +6045,15 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         # (u71, rt79 r1) an installed library may hand out a module object
                         if (_vw660[-1][0] == "none" and not _lv660 and "." not in _d660
                                 and _d660 not in sys.stdlib_module_names
-                                and _d660 not in sys.builtin_module_names and _esc671 is None):
-                            _esc671 = (_m660, 0, f"an import of `{_d660}`, which is no program "
-                                                 f"module (an installed library)")
+                                and _d660 not in sys.builtin_module_names):
+                            _esc671 = _esc671 or (_m660, 0, f"an import of `{_d660}`, which is no "
+                                                            f"program module (an installed library)")
+                            # (u75) a PREFIX only the V2D expansion added (`multi_file_lib` of
+                            # `from multi_file_lib.m import K`, a local namespace directory whose
+                            # full name resolved to a file) is no installed library's code
+                            if (_d660, _lv660) in _org666:
+                                _rx675 = _rx675 or (_m660, 0, f"an import of `{_d660}`, an "
+                                                              f"installed library")
                         continue
                     _hf660 = _vw660[-1][1]
                     # (#49) run #9 u71 -- review rt79 d8 / w2 (route #626, PRE-EXISTING): CPython's
@@ -5379,6 +6102,83 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                             _why671 = ("its `__all__` is not one top-level assignment of a "
                                        "literal list / tuple of identifier strings (it is "
                                        "computed, extended, re-bound or mentioned elsewhere)")
+                            # (#49) run #9 u73 -- review rt81 x3 / x9 (route #632, PRE-EXISTING):
+                            # CPython reads `pkg.__all__` with getattr, so a module-level PEP 562
+                            # `__getattr__` answers it when no binding exists (`"_" + "_all__"`
+                            # -> ["w"]: CPython loaded w.py, 5; pycsl PROVED 4), and it runs for
+                            # every `__all__` name the package does not bind: an `__init__` with
+                            # a module-level `__getattr__` / `__dir__` (the rule recorded for
+                            # every reached module above, applied to this file) is unreadable
+                            # (u75, rt83 o6 / o7) a def / Name store binds in its own scope
+                            # (a class / function body binding is no module hook), and the 2nd
+                            # argument of a two-argument `hasattr` / `getattr` is a read (see
+                            # the walk's hook rule; admitted unless a reached module mentions
+                            # `builtins`)
+                            _pm674: Dict[int, Any] = {id(_c): _p for _p in _a613.walk(_ti671)
+                                                      for _c in _a613.iter_child_nodes(_p)}
+                            _gb674 = any(
+                                (isinstance(_y, _a613.Name) and _y.id in ("getattr", "hasattr")
+                                 and not isinstance(_y.ctx, _a613.Load))
+                                or (isinstance(_y, _a613.alias)
+                                    and (_y.asname or _y.name) in ("getattr", "hasattr"))
+                                or (isinstance(_y, (_a613.FunctionDef, _a613.AsyncFunctionDef,
+                                                    _a613.ClassDef))
+                                    and _y.name in ("getattr", "hasattr"))
+                                or (isinstance(_y, _a613.arg) and _y.arg in ("getattr", "hasattr"))
+                                or (isinstance(_y, (_a613.Global, _a613.Nonlocal))
+                                    and bool({"getattr", "hasattr"} & set(_y.names)))
+                                for _y in _a613.walk(_ti671))
+                            for _y671 in _a613.walk(_ti671):
+                                _sc674 = "module"
+                                if isinstance(_y671, (_a613.FunctionDef, _a613.AsyncFunctionDef,
+                                                      _a613.Name)):
+                                    _ch674 = _y671
+                                    _pp674 = _pm674.get(id(_y671))
+                                    while _pp674 is not None:
+                                        if ((isinstance(_pp674, (_a613.FunctionDef,
+                                                                 _a613.AsyncFunctionDef,
+                                                                 _a613.ClassDef))
+                                             and any(_s is _ch674 for _s in _pp674.body))
+                                                or (isinstance(_pp674, _a613.Lambda)
+                                                    and _pp674.body is _ch674)):
+                                            _sc674 = "local"
+                                            break
+                                        _ch674 = _pp674
+                                        _pp674 = _pm674.get(id(_pp674))
+                                _rl674 = False
+                                if isinstance(_y671, _a613.Constant) and not _gb674:
+                                    _pp674 = _pm674.get(id(_y671))
+                                    _rl674 = (isinstance(_pp674, _a613.Call)
+                                              and isinstance(_pp674.func, _a613.Name)
+                                              and _pp674.func.id in ("hasattr", "getattr")
+                                              and len(_pp674.args) == 2 and not _pp674.keywords
+                                              and _pp674.args[1] is _y671)
+                                if any(((isinstance(_y671, (_a613.FunctionDef,
+                                                            _a613.AsyncFunctionDef))
+                                         and _y671.name == _q and _sc674 == "module")
+                                        or (isinstance(_y671, _a613.Name) and _y671.id == _q
+                                            and not isinstance(_y671.ctx, _a613.Load)
+                                            and _sc674 == "module")
+                                        or (isinstance(_y671, _a613.alias)
+                                            and _q in (_y671.name, _y671.asname))
+                                        or (isinstance(_y671, (_a613.Global, _a613.Nonlocal))
+                                            and _q in _y671.names)
+                                        or (isinstance(_y671, _a613.Attribute)
+                                            and _y671.attr == _q
+                                            and not isinstance(_y671.ctx, _a613.Load))
+                                        or (isinstance(_y671, _a613.Constant)
+                                            and isinstance(_y671.value, str)
+                                            and _y671.value == _q and not _rl674))
+                                       for _q in ("__getattr__", "__dir__", "__mro_entries__")):
+                                    _ok671 = False
+                                    _why671 = ("it defines a module-level `__getattr__` / "
+                                               "`__dir__` hook (PEP 562), which answers "
+                                               "`__all__` and every name the package does not "
+                                               "bind with code pycsl does not follow")
+                                    break
+                                if _rl674 and _y671.value in ("__getattr__", "__dir__",
+                                                              "__mro_entries__"):
+                                    _hkx675 = _hkx675 or (_hf660, getattr(_y671, "lineno", 0) or 0)
                             if _ok671 and _cn671 == 0:
                                 _nl671 = []
                             elif (_ok671 and _cn671 == 1 and len(_as671) == 1
@@ -5540,6 +6340,30 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                 and os.path.commonpath([_f660, _lib660]) != _lib660):
                             _seen660.add(_f660)
                             _wl660.append(_f660)
+            # (u75) the import-bound uses whose binding cannot hold a module object unless a
+            # reflective escape exists: with one, they count (a class base / annotation escape,
+            # a rule-M value)
+            if _bi675 is not None:
+                for _v675 in _vp675:
+                    if _v675[3] == "argb":
+                        _mo675 = _mo675 or (_v675[0], _v675[1], _v675[2] + (
+                            f", read by a builtin while a reached module mentions `builtins` "
+                            f"(line {_bi675[1]} of {_bi675[0]})"))
+            if _rx675 is not None:
+                for _v675 in _vp675:
+                    if _v675[3] == "argb":
+                        continue
+                    # a standard-library attribute holds a module only after a planting store
+                    if _v675[4] == "SN" and _ps675 is None:
+                        continue
+                    if _v675[3] == "argm":
+                        _mo675 = _mo675 or (_v675[0], _v675[1], _v675[2] + (
+                            f", which may hold a module object since a reached module has "
+                            f"{_rx675[2]} (line {_rx675[1]})"))
+                    else:
+                        _esc671 = _esc671 or _v675[:3]
+                        if _v675[3] == "base":
+                            _cb673 = _cb673 or _v675[:2]
             # (u71, route #626) a wildcard of a package is followed through its `__all__`; code
             # that can change an `__all__` from outside (`pkg.__all__ = ...`, `.append`, a
             # literal "__all__" name for setattr / a namespace dict) makes that list unknown
@@ -5565,6 +6389,86 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     f"explicitly.",
                     filename=main_file, stage="imports",
                     code="PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN")
+            # (#49) run #9 u73 -- review rt81 p2 / p2b / p8 (route #631, PRE-EXISTING): `class
+            # C(pkg)` hands the package MODULE OBJECT to its module-level `__mro_entries__(bases)`
+            # (PEP 560; a module-level `__getattr__` answers that lookup too), a function the
+            # class statement calls without naming it, whose `setattr(bases[0], "b", K)` replaced
+            # the submodule `pkg.b` (CPython printed 2, pycsl PROVED `zv81p2.b.one() == 1`; in
+            # the PROGRAM, which route #483 does not judge). A module-level `__getattr__` also
+            # answers every attribute the module does not bind: `from pkg import b` takes
+            # `__getattr__("b")` before the submodule b.py pycsl resolves (u73 probe g1). RULE
+            # (refusal-only, fail-closed): a module-level `__mro_entries__` / `__getattr__` hook
+            # in any reached module other than the program REFUSES; in the program (whose module
+            # object is `__main__`) as soon as a module object can be used as a class base: an
+            # import-rooted class base anywhere, or any module-object escape (above).
+            _hk673 = next(iter([_h for _h in _hkm673.values() if _h[0] != _mf660]
+                               + [_h for _h in _hkm673.values() if _h[0] == _mf660
+                                  and (_cb673 is not None or _esc671 is not None)]), None)
+            # (u75, rt83 o7) a hook-name literal admitted as the 2nd argument of `hasattr` /
+            # `getattr` is a read only while the builtins are the interpreter's own
+            if _hk673 is None and _hkx675 is not None and _bi675 is not None:
+                _hk673 = (_hkx675[0], "__getattr__", _hkx675[1])
+            if (_hk673 is not None
+                    and _bad660 is None and _pfx661 is None and _bnd666 is None):
+                _dm673 = (os.path.relpath(_hk673[0]) if _hk673[0].startswith(os.getcwd() + os.sep)
+                          else _hk673[0])
+                raise _E613(
+                    f"the local module {_dm673}, which the program reaches, binds the module-level "
+                    f"hook `{_hk673[1]}` (line {_hk673[2]}): CPython calls a module-level "
+                    f"`__getattr__` for every attribute the module does not bind (a from-import "
+                    f"target, `pkg.<name>`, `__mro_entries__`), and a module's `__mro_entries__"
+                    f"(bases)` with the module object itself when the module is a class base "
+                    f"(PEP 560 / 562), running code that no statement of the program names and "
+                    f"that can replace or shadow the module's attributes (review rt81 p2: "
+                    f"`def __mro_entries__(bases): setattr(bases[0], \"b\", K)` in zv81p2/__init__.py "
+                    f"and `class C(zv81p2)` in the program; CPython printed 2 where pycsl PROVED "
+                    f"`zv81p2.b.one() == 1`). FIX: remove the module-level hook, or do not use a "
+                    f"module as a class base.",
+                    filename=main_file, stage="imports",
+                    code="PYCSL-SEM-IMPORT-MODULE-HOOK")
+            # (#49) run #9 u75 -- review rt83 u1 / u3 / v2 / t1 / v3 (route #636, PRE-EXISTING):
+            # library code that SETS attributes of an object it is handed --
+            # `functools.update_wrapper(pkg, _Src, assigned=("b",), updated=())` runs
+            # `setattr(pkg, "b", _Src.b)`, `test.support.swap_attr(pkg.b, "one", f)` -- replaced
+            # the submodule `pkg.b` (or the dependency function `pkg.b.one`) where no store of
+            # the program is seen (CPython printed 2, pycsl PROVED `pkg.b.one() == 1`). RULE M
+            # (refusal-only, fail-closed): in every reached module, an import-bound name -- or
+            # an attribute / subscript chain read off one -- that can be a MODULE object, or a
+            # submodule / function / class of a local module, used as a VALUE (a call argument
+            # to any callee, an assigned, returned, stored, yielded or iterated value; only an
+            # operator operand or a test is exempt) REFUSES. A binding that cannot hold a
+            # module (a local module's `X = 3`, a standard-library constant) counts only once a
+            # reflective escape exists.
+            if (_mo675 is not None
+                    and _bad660 is None and _pfx661 is None and _bnd666 is None):
+                _dm675 = (os.path.relpath(_mo675[0]) if _mo675[0].startswith(os.getcwd() + os.sep)
+                          else _mo675[0])
+                raise _E613(
+                    f"the local module {_dm675}, which the program reaches, uses {_mo675[2]} as a "
+                    f"value (line {_mo675[1]}): a module object -- or a function / class of a local "
+                    f"module -- handed to other code can have its attributes set there "
+                    f"(`functools.update_wrapper(pkg, _Src, assigned=(\"b\",))` runs `setattr(pkg, "
+                    f"\"b\", ...)` inside the standard library), replacing the submodules and "
+                    f"functions pycsl resolves its dotted names to, with no store pycsl can see "
+                    f"(review rt83 u1: CPython printed 2 where pycsl PROVED `pkg.b.one() == 1`). "
+                    f"FIX: call or read through the module (`pkg.b.one()`, `pkg.X`) instead of "
+                    f"passing or storing the module object (or its function / class) itself.",
+                    filename=main_file, stage="imports",
+                    code="PYCSL-SEM-IMPORT-MODULE-VALUE")
+            if (_dy675 is not None
+                    and _bad660 is None and _pfx661 is None and _bnd666 is None):
+                _dm675 = (os.path.relpath(_dy675[0]) if _dy675[0].startswith(os.getcwd() + os.sep)
+                          else _dy675[0])
+                raise _E613(
+                    f"the local module {_dm675}, which the program reaches, imports the standard "
+                    f"library's `{_dy675[2]}` (line {_dy675[1]}), which imports modules by name or "
+                    f"runs source strings pycsl never reads, so what the program's dotted names "
+                    f"denote is decided at run time in code pycsl does not see (review rt83 s2: "
+                    f"`timeit.timeit(\"import pkg, pkg.c; pkg.b = pkg.c\")`; CPython printed 2 where "
+                    f"pycsl PROVED `pkg.b.one() == 1`). FIX: do not import it from a module the "
+                    f"verified program reaches.",
+                    filename=main_file, stage="imports",
+                    code="PYCSL-SEM-IMPORT-STATE-MANIPULATED")
             # (#49) run #9 u69 -- review rt78 o1 (u66 INTRODUCED over-refusal of route #621): a
             # package `__init__` whose top level defines `def b()` beside an unimported submodule
             # b.py, and `from pkg import b` in the program (CPython: the function, result 1;

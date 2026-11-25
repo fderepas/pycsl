@@ -1,0 +1,11 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u73/scratchpad/u73/probes/rt78/s7/P/prog.py'...
+[*] Memory model: hoare
+[*] Imported from 'dep78': ['g'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl-u73/scratchpad/u73/tmp/.pycsl_mwsjy854.mlw", line 10, characters 15-27:
+Sub-goal postcondition of goal h'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,7 @@
+[*] Declared VERIFICATION IMAGE rooted at /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/vi/x1b/P (--verification-image): a model CPython never executes; NO claim about a CPython run
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u73/scratchpad/u73/probes/vi/x1b/P/prog.py'...
+[*] Memory model: hoare
+[*] Imported from 'dp81x1b': ['three'] (trusted stubs)
+[*] Imported from 'hw81x1b': ['one'] (trusted stubs, module-qualified)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

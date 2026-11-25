@@ -1,0 +1,64 @@
+chain3 start Wed Nov 25 00:09:44 UTC 2026 46a2b74ce
+CR rc=0 rows=6
+census rows appended
+compare root (declared GONE 6026) rc=0 [*] byte-diff-compare: 3348 baseline / 3355 candidate .mlw; 0 MOVED (0 unexpected), 1 GONE (0 unexpected), 0 APPEARED, 8 new source file(s) ignored. [+] byte-diff-compare: OK — byte-inert in all three directions apart from 0 DECLARED mover(s) and 1 declared refusal(s), each named on the command line. 
+[W] 10490_r635_timeit_string_rebinds_submodule_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the program manipulates the import system (`import timeit (with `zu75a.b` resolved to a local file)`), so what its `impo
+[W] 10491_r635_code_interpreter_runsource_rebinds_submodule_false.py hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the program manipulates the import system (`import code (with `zu75b.b` resolved to a local file)`), so what its `import
+[W] 10492_r635_dependency_function_runs_timeit_string_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu75c_run.py, which the program reaches, imports the standard library
+[W] 10493_r636_update_wrapper_sets_package_submodule_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/10493_r636_update_wrapper_sets_package_submodule_false.py, which the 
+[W] 10494_r636_update_wrapper_replaces_dependency_function_false.py hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/10494_r636_update_wrapper_replaces_dependency_function_false.py, whic
+[W] 10495_r636_module_through_local_function_to_update_wrapper_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/10495_r636_module_through_local_function_to_update_wrapper_false.py, 
+[W] 10496_r631o_parameter_annotation_typing_alias_beside_store_ctl.py hdr=PASS rc=0 13s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] 10497_r631o_imported_class_as_base_beside_store_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] 10498_r631o_dependency_class_body_getattr_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] 10499_r631o_dependency_hasattr_hook_name_read_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] 10500_r636o_module_constant_and_stdlib_attribute_arguments_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75c_run.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75i_proxy.py hdr=none rc=0 13s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75j_probe.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75a___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75a_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75a_c.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75b___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75b_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75b_c.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75c___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75c_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75c_c.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75d___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75d_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75e___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75e_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75f___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75f_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75g___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75g_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75g_k.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75h___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75h_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75h_k.py hdr=none rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75i___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75i_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75j___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75j_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75k___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75k_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[W] zu75k_k.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+GATES start Wed Nov 25 00:12:06 UTC 2026 46a2b74ce oom_kill 15
+[LG] emitted 53
+[LG] check-assigns-writes-survival rc=0
+[LG] check-trusted-frame-honesty rc=0
+[LG] check-getattr-erasure rc=0
+[LG] check-self-annotate-sync rc=0
+[LG] self-annotate-mirror-check rc=0
+[LG] doc-coherency rc=0
+[LG] trusted 365
+[LG]  M bin/refusal-witness-census.tsv
+planes rc=0     NOT CHECKED: 23 prover/emission plane(s) — among them     check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival     and check-stdlib-modules-verify. Re-run with --slow before a GATE. 
+rwc rc=0 [*]   plus 10 refusal(s) UNMATCHABLE by this instrument: their message has no string literal of 25+ characters, so no witness can ever mark them demonstrated. Closing them is a compiler/census change, not a corpus one. [+] refusal-witness-coverage: OK — 496 demonstrated, 5 undemonstrated (floor 208 / ceiling 5); 14 not source-reachable, 10 unmatchable (ceiling 10). 
+corpus-executes rc=0     known-load-failure  x1_h466g.py route #466 witness fixture (7265): the other half of that cycle, by design.     known-load-failure  x1_h466h.py route #466 witness fixture (7268): its own import of x1_h466a raises, by design. [+] corpus-executes: OK — every PASS-expected corpus file loads as Python, and every self-check its author wrote passes. 
+frontend-only-conformance rc=0 front-end-only: no core/Module6/prover module in sys.modules (import-based, no subprocess for the conformance check) determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1) 
+check-dropped-mutation rc=0 [+] dropped-mutation: CTXBIND 49 < ratchet 51 — lower the constant. [+] dropped-mutation: OK — measured 0 dropped / 49 ctxbind / 5 tryfinal / 0 dangling (ratchets 0 / 51 / 5 / 0). 
+check-vacuous-drivers rc=0 [*] vacuous-drivers: python-reference     54 of them are EMPTY PLACEHOLDERS — a docstring and a single `return <literal>` UNDER a contract the tail return alone discharges, so the body exercises nothing (ratchet 54). [+] vacuous-drivers: OK — every suite at or below its ratchet. 
+GATES end Wed Nov 25 01:37:20 UTC 2026 oom_kill 15
+chain3 end Wed Nov 25 01:37:20 UTC 2026

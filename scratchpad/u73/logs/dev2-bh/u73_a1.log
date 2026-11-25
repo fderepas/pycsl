@@ -1,0 +1,9 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u73/scratchpad/u73/probes/u73/a1/P/prog.py'...
+[*] Memory model: hoare
+[*] Import 'typing.get_type_hints': external module, no local source found — skipping
+[*] Imported from 'zv83a1.b': ['one'] (trusted stubs, module-qualified)
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+Warning, file "/home/fabrice/git/pycsl-u73/scratchpad/u73/probes/u73/a1/P/prog.mlw", line 18, characters 10-11: unused variable a
+File "/home/fabrice/git/pycsl-u73/scratchpad/u73/probes/u73/a1/P/prog.mlw", line 18, character 2 to line 20, character 6:
+Symbol _h is already defined in the current scope

@@ -1,0 +1,366 @@
+## PB b1 /home/fabrice/git/pycsl-u75-b1 53c770046 start Tue Nov 24 23:41:41 UTC 2026
+[q:rt83] u75/probes/rt83/f1 rc=1 2s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[q:rt83] u75/probes/rt83/f1t rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+[q:rt83] u75/probes/rt83/f2 rc=1 2s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[q:rt83] u75/probes/rt83/f3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [parse]: PyCSL Syntax Error around line 11:
+[q:rt83] u75/probes/rt83/f4 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/f4/P/prog.py, which the program reache
+[q:rt83] u75/probes/rt83/f5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/f5/P/prog.py, which the program reache
+[q:rt83] u75/probes/rt83/f6 rc=1 2s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[q:rt83] u75/probes/rt83/f7 rc=1 3s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[q:rt83] u75/probes/rt83/f8 rc=1 2s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[q:rt83] u75/probes/rt83/h11 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/h11/P/zv83h11/__init__.py, which the p
+[q:rt83] u75/probes/rt83/h12 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+[q:rt83] u75/probes/rt83/h12f rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+[q:rt83] u75/probes/rt83/h13 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 9).
+[q:rt83] u75/probes/rt83/h13f rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 10)
+[q:rt83] u75/probes/rt83/h14 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/h14/P/zv83h14/c.py (line 10) runs, at im
+[q:rt83] u75/probes/rt83/h2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/h2/P/zv83h2/__init__.py (line 17) runs, 
+[q:rt83] u75/probes/rt83/h2c rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.__class__` written on `zv83h2c..
+[q:rt83] u75/probes/rt83/h2s rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/h2s/P/zv83h2s/__init__.py (line 17) runs
+[q:rt83] u75/probes/rt83/h5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.__class__` written on `_s...` at
+[q:rt83] u75/probes/rt83/h6 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/h6/P/zv83h6/s.py (line 3) runs, at impor
+[q:rt83] u75/probes/rt83/h7 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 7).
+[q:rt83] u75/probes/rt83/h8 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 1).
+[q:rt83] u75/probes/rt83/h9 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/h9/P/zv83h9/k.py (line 3) runs, at impor
+[q:rt83] u75/probes/rt83/m1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic] /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/m1/P/prog.py line 10: an in-place mutatio
+[q:rt83] u75/probes/rt83/m2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+[q:rt83] u75/probes/rt83/m3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 9).
+[q:rt83] u75/probes/rt83/o1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`import unittest (with `zv83o1.b` resolved to a local file)`), so w
+[q:rt83] u75/probes/rt83/o2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`import pickle (with `zv83o2.b` resolved to a local file)`), so wha
+[q:rt83] u75/probes/rt83/o4 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/o4/P/prog.py, which the program reache
+[q:rt83] u75/probes/rt83/o5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/o5/P/prog.py, which the program reache
+[q:rt83] u75/probes/rt83/o5c rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt83] u75/probes/rt83/o6 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/o6/P/hw83o6.py, which the program reac
+[q:rt83] u75/probes/rt83/o7 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/o7/P/hw83o7.py, which the program reac
+[q:rt83] u75/probes/rt83/r1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.__getattr__` written on `zv83r1.
+[q:rt83] u75/probes/rt83/r1c rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt83] u75/probes/rt83/s0 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (a constant `exec` naming a function or class
+[q:rt83] u75/probes/rt83/s1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (the namespace builtin `setattr` reached as an attribute
+[q:rt83] u75/probes/rt83/s2 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt83] u75/probes/rt83/s3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt83] u75/probes/rt83/s4 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt83] u75/probes/rt83/s5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/s5/P/hw83s5.py (line 1) runs, at import 
+[q:rt83] u75/probes/rt83/s6 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (the namespace builtin `setattr` read as a value at line
+[q:rt83] u75/probes/rt83/t1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt83] u75/probes/rt83/t3 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (the namespace mapping `.__dict__` used outside a name b
+[q:rt83] u75/probes/rt83/t4 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (the namespace mapping `.__dict__` used outside a name b
+[q:rt83] u75/probes/rt83/t5 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: function '_sw' writes _cm through a `global` declaration, and no certified lowering models it: the store lands
+[q:rt83] u75/probes/rt83/u1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt83] u75/probes/rt83/u2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic] /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/rt83/u2/P/prog.py line 14: an in-place mutatio
+[q:rt83] u75/probes/rt83/u3 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt83] u75/probes/rt83/v1 rc=1 1s oom 15->15 :: no-code :: [!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success: :: 
+[q:rt83] u75/probes/rt83/v2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt83] u75/probes/rt83/v3 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt83] u75/probes/rt83/y1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt81] u73/probes/rt81/a1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/a1/P/sw81a1.py, which the program reac
+[q:rt81] u73/probes/rt81/a10 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/a10/P/sw81a10.py (line 8) runs, at impor
+[q:rt81] u73/probes/rt81/a11 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/a11/P/sw81a11.py, which the program re
+[q:rt81] u73/probes/rt81/a12 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/a12/P/sw81a12.py, which the program re
+[q:rt81] u73/probes/rt81/a13 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/a13/P/sw81a13.py (line 10) runs, at impo
+[q:rt81] u73/probes/rt81/a2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/a2/P/zv81a2/__init__.py, which the pro
+[q:rt81] u73/probes/rt81/a3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/a3/P/sw81a3.py, which the program reac
+[q:rt81] u73/probes/rt81/a4 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+[q:rt81] u73/probes/rt81/a5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (the namespace builtin `setattr` read as a value at line
+[q:rt81] u73/probes/rt81/a6 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`from sys import modules`), so what its `import` statements load is
+[q:rt81] u73/probes/rt81/a7 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/a7/P/sx81a7.py (line 8) runs, at import 
+[q:rt81] u73/probes/rt81/a8 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/a8/P/sx81a8.py (line 8) runs, at import 
+[q:rt81] u73/probes/rt81/a9 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/a9/P/sw81a9.py (line 10) runs, at import
+[q:rt81] u73/probes/rt81/p1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+[q:rt81] u73/probes/rt81/p1b rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/p1b/P/prog.py, which the program reach
+[q:rt81] u73/probes/rt81/p2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/p2/P/zv81p2/__init__.py, which the pro
+[q:rt81] u73/probes/rt81/p2b rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/p2b/P/zv81p2b/__init__.py, which the p
+[q:rt81] u73/probes/rt81/p3 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+[q:rt81] u73/probes/rt81/p3b rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: an element store through a value the model does not represent as a list is out of scope: the store lowers to t
+[q:rt81] u73/probes/rt81/p4 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`from unittest import ... (with `zv81p4.b` resolved to a local file
+[q:rt81] u73/probes/rt81/p4b rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`import unittest.mock (with `zv81p4b.b` resolved to a local file)`)
+[q:rt81] u73/probes/rt81/p5 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/p5/P/prog.py, which the program reache
+[q:rt81] u73/probes/rt81/p6 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+[q:rt81] u73/probes/rt81/p6b rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/p6b/P/prog.py, which the program reach
+[q:rt81] u73/probes/rt81/p7 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/p7/P/prog.py, which the program reache
+[q:rt81] u73/probes/rt81/p8 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/p8/P/zv81p8/__init__.py, which the pro
+[q:rt81] u73/probes/rt81/x1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/x1/P/dp81x1.py, which the program reac
+[q:rt81] u73/probes/rt81/x1b rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/x1b/P/dp81x1b.py, which the program re
+[q:rt81] u73/probes/rt81/x2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/x2/P/dp81x2.py, which the program reac
+[q:rt81] u73/probes/rt81/x3 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/x3/P/dp81x3.py, which the program reac
+[q:rt81] u73/probes/rt81/x4 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/x4/P/dp81x4.py, which the program reac
+[q:rt81] u73/probes/rt81/x5 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/x5/P/zw81x5/w.py (line 9) runs, at impor
+[q:rt81] u73/probes/rt81/x6 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/x6/P/zw81x6/__init__.py, which the
+[q:rt81] u73/probes/rt81/x7 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/x7/P/zw81x7/w.py (line 9) runs, at impor
+[q:rt81] u73/probes/rt81/x8 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/x8/P/zw81x8/sub/__init__.py, which
+[q:rt81] u73/probes/rt81/x9 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/x9/P/dp81x9.py, which the program reac
+[q:rt81] u73/probes/rt81/z1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [imports]: the `--import-path` entry  is not an existing directory: pycsl resolves imports only from directory
+[q:rt81] u73/probes/rt81/z1n rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import zz81z1` resolves only through pycsl's own working directory (zz81z1.py), and CPython never searches th
+[q:rt81] u73/probes/rt81/z2 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt81] u73/probes/rt81/z3 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [imports]: the `--import-path` entry /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/z3/X/lnk is not an
+[q:rt81] u73/probes/rt81/z4 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt81] u73/probes/rt81/z5 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [imports]: the `--import-path` entry /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/z5/missing is not 
+[q:rt81] u73/probes/rt81/z6 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt81] u73/probes/rt81/z7 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:rt81] u73/probes/rt81/z8 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [imports]: the `--import-path` entry /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt81/z8/X/lib.zip/sub i
+[q:u73] u73/probes/u73/a1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u73/a1/P/prog.py, which the program reaches
+[q:u73] u73/probes/u73/c1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:u73] u73/probes/u73/c1f rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:u73] u73/probes/u73/c2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:u73] u73/probes/u73/g1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u73/g1/P/zv83g1/__init__.py, which the prog
+[q:u73] u73/probes/u73/k1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`from unittest.mock import ... (with `zv83k1.b` resolved to a local
+[q:u73] u73/probes/u73/k2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`from unittest import ... (with `zv83k2.b` resolved to a local file
+[q:u73] u73/probes/u73/l1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u73/l1/P/prog.py, which the program reaches
+[q:u73] u73/probes/u73/m1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u73/m1/P/zv83m1.py, which the program reach
+[q:u73] u73/probes/u73/m2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u73/m2/P/zv83m2/__init__.py, which the prog
+[q:u73] u73/probes/u73/o1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u73/o1/P/zv83o1/__init__.py, which the prog
+[q:u73] u73/probes/u73/q1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u73/q1/P/prog.py, which the program reaches
+[q:u73] u73/probes/u73/q2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u73/q2/P/prog.py, which the program reaches
+[q:u73] u73/probes/u73/q4 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u73/q4/P/dp83q4.py, which the program reach
+[q:u75] u75/probes/u75/a1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/u75/a1/P/prog.py, which the program reaches
+[q:u75] u75/probes/u75/a2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/u75/a2/P/prog.py, which the program reaches
+[q:u75] u75/probes/u75/a3 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/u75/a3/P/prog.py, which the program reaches
+[q:u75] u75/probes/u75/a4 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/u75/a4/P/prog.py, which the program reaches
+[q:u75] u75/probes/u75/a5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/u75/a5/P/prog.py, which the program reaches
+[q:u75] u75/probes/u75/c1 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:u75] u75/probes/u75/c2 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:u75] u75/probes/u75/c3 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:u75] u75/probes/u75/c4 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:u75] u75/probes/u75/c7 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:u75] u75/probes/u75/d1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/u75/d1/P/hw75d1.py (line 2) runs, at import t
+[q:u75] u75/probes/u75/e1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/u75/e1/P/hw75e1.py, which the program reach
+[q:u75] u75/probes/u75/e2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/u75/e2/P/hw75e2.py, which the program reach
+[q:u75] u75/probes/u75/e3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u75/probes/u75/e3/P/zv75e3/__init__.py, which the prog
+[q:p] r1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r1/P/zr76/__init__.py, which the p
+[q:p] r2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r2/P/zr76/__init__.py, which the p
+[q:p] r5 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] r5b rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] r4 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import lark.zr76`: pycsl's resolution took /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r4/P/lark/z
+[q:p] r3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r3/X2/zr76/__init__.py, which the 
+[q:p] r9 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r9/X2/pkr76/__init__.py, which the
+[q:p] r6 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] r6-treecwd rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] r2s rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r2s/P/zr76/__init__.py, which the 
+[q:p] r7 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r7/P/zr76/__init__.py (line 3) runs, at 
+[q:p] r8 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r8/P/zpa76/__init__.py (line 2) runs, at
+[q:p] r2d rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r2d/X2/zr76/__init__.py, which the
+[q:p] r2r rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r2r/X2/pkr76/__init__.py, which th
+[q:p] r14 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] r12 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] r2d-dep rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r2d/X2/zr76/__init__.py, which the
+[q:p] r2r-dep rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] r15 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import zn76.b`: pycsl's resolution took /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r15/P/zn76/b.p
+[q:p] r16 rc=1 1s oom 15->15 :: PYCSL-SEM-IMPORT-NAMESPACE-PORTION-SHADOWED :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r16/X2/depr76.py, which the program re
+[q:p] r17 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] v2d rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u64/v2d/X2/depv2.py, which the program reac
+[q:p] w5 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u64/w5/X2/depv2.py, which the program reach
+[q:p] v2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u64/v2/P/prog.py, which the program reaches
+[q:p] x1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u64/x1/P/depx1.py, which the program reache
+[q:p] x2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u64/x2/P/prog.py, which the program reaches
+[q:p] x3 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] v2down rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] v1f rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] r12c rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import zz76` resolves only through pycsl's own working directory (zz76.py), and CPython never searches the wo
+[q:p] b21 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u66/b21/P/zk66/__init__.py, which the p
+[q:p] a22 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u66/a22/P/prog.py, which the program reache
+[q:p] s1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt78/s1/P/dep78.py, which the program reach
+[q:p] s1-dep rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] s7 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] s7-dep rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import hz78` resolves only through pycsl's own working directory (hz78.py), and CPython never searches the wo
+[q:p] s7-treecwd rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] s1f rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] c1 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] o1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] t4 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt78/t4/P/zt784/d.py, which the program rea
+[q:p] t8 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt78/t8/P/zt788/sub/__init__.py, which the 
+[q:p] t1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt78/t1/P/zt781/__init__.py (line 3) runs, at
+[q:p] t2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt78/t2/P/zt782/__init__.py, which the prog
+[q:p] t3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt78/t3/P/zt783/d.py, which the program rea
+[q:p] t5 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt78/t5/P/zt785/__init__.py (line 3) runs, at
+[q:p] t6 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.b` written on `zt786...` at line
+[q:p] t7 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt78/t7/P/zt787/__init__.py, which the prog
+[q:p] a1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`b` rebound at line 7). Every call is resolv
+[q:p] a1-noX rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`b` rebound at line 7). Every call is resolv
+[q:p] a3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: `import za783.b`: pycsl's resolution took /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt78/a3/X2/za783/b
+[q:p] a3-noX rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt78/a3/P/za783/__init__.py (line 2) runs, at
+[q:p] t9 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (attribute `.b` written on `_p...` at line 4)
+[q:p] t10 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+[q:p] t11 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u69/t11/P/zu693/d.py, which the program rea
+[q:p] t12 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u69/t12/P/zu694/d.py, which the program rea
+[q:p] t13 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u69/t13/P/zu695/d.py, which the program rea
+[q:p] o2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u69/o2/P/zu696/__init__.py, which the p
+[q:p] s8 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u69/s8/P/hz88.py (line 2) runs, at import tim
+[q:p] o3 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u69/o3/P/zu697/__init__.py, which the p
+[q:p] o4 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u69/o4/P/zu698/__init__.py, which the p
+[q:p] a1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/a1/P/sub79/dep.py, which the program r
+[q:p] a2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/a2/P/depa792.py, which the program rea
+[q:p] d1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/d1/P/ldd1.py (line 1) runs, at import ti
+[q:p] d2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/d2/P/ldd2.py (line 1) runs, at import ti
+[q:p] d3 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/d3/P/ldd3.py (line 1) runs, at import ti
+[q:p] d4 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`import importlib (with `zv7d4` resolved to a local file)`), so wha
+[q:p] d5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/d5/P/ldd5.py (line 1) runs, at import ti
+[q:p] d6 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the program manipulates the import system (`import importlib (with `zv7d6` resolved to a local file)`), so wha
+[q:p] d7 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/d7/P/zv7od7/__init__.py, which the
+[q:p] d8 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/d8/P/zv7od8/__init__.py, which the
+[q:p] d9 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/d9/P/zv7od9/__init__.py, which the
+[q:p] e1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/e1/P/zv7e1/d.py (line 7) runs, at import
+[q:p] e2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/e2/P/zv7e2/d.py (line 7) runs, at import
+[q:p] e3 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/e3/P/zv7e3/d.py (line 7) runs, at import
+[q:p] e4 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/e4/P/zv7e4/d.py (line 7) runs, at import
+[q:p] e5 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/e5/P/zv7e5/d.py (line 7) runs, at import
+[q:p] e6 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/e6/P/zv7e6/d.py (line 7) runs, at import
+[q:p] e7 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/e7/P/zv7e7/d.py (line 7) runs, at import
+[q:p] e8 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/e8/P/zv7e8/d.py (line 4) runs, at import
+[q:p] e9 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 5).
+[q:p] e10 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 5).
+[q:p] e11 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/e11/P/zv7e11/d.py (line 3) runs, at impo
+[q:p] g1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/g1/P/zv7g1/__init__.py, which the prog
+[q:p] g2 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] g3 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/g3/P/zv7g3/__init__.py, which the prog
+[q:p] g4 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/g4/P/zv7g4/__init__.py, which the prog
+[q:p] g5 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/g5/P/zv7g5/__init__.py, which the prog
+[q:p] r1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] w1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: a name's runtime binding is not the `def` the model resolves it to (`from zv7w1 import *` at line 2 after a bi
+[q:p] w2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/w2/P/zv7w2/b.py (line 9) runs, at import
+[q:p] w3 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/w3/P/zv7w3/b.py (line 9) runs, at import
+[q:p] z1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [imports]: the `--import-path` entry /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/z1/X/lib.zip is no
+[q:p] w2-dep rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt79/w2/P/zv7w2/b.py (line 9) runs, at import
+[q:p] w2-hw rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] n1 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/n1/P/depn1.py, which the program reache
+[q:p] n2 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/n2/P/depn2.py, which the program reache
+[q:p] n3 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] n4 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/n4/P/zun4/b.py (line 8) runs, at import t
+[q:p] n5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/n5/P/zun5/sub/b.py (line 8) runs, at impo
+[q:p] n6 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/n6/P/depn6.py, which the program reache
+[q:p] n7 rc=0 1s oom 15->15 :: no-code :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped). :: 
+[q:p] y2 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/y2/P/zuy2/d.py, which the program reach
+[q:p] y3 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/y3/P/zuy3/d.py, which the program reach
+[q:p] y4 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/y4/P/zuy4/d.py, which the program reach
+[q:p] y5 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/y5/P/zuy5/d.py, which the program reach
+[q:p] y6 rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/y6/P/prog.py, which the program reaches
+[q:p] n1-dep rc=1 1s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the local module /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/u71/n1/P/depn1.py, which the program reache
+[q:w] 10490_r635_timeit_string_rebinds_submodule_false.py hdr=FAIL rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] 10491_r635_code_interpreter_runsource_rebinds_submodule_false.py hdr=FAIL rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] 10492_r635_dependency_function_runs_timeit_string_false.py hdr=FAIL rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/test-suite/corpus/pycsl-reference/zu75c_run.py (line 2) runs, at import time,
+[q:w] 10493_r636_update_wrapper_sets_package_submodule_false.py hdr=FAIL rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] 10494_r636_update_wrapper_replaces_dependency_function_false.py hdr=FAIL rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] 10495_r636_module_through_local_function_to_update_wrapper_false.py hdr=FAIL rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] 10496_r631o_parameter_annotation_typing_alias_beside_store_ctl.py hdr=PASS rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/10496_r631o_parameter_annotation_typing_alias_beside_store_ctl.py, wh
+[q:w] 10497_r631o_imported_class_as_base_beside_store_ctl.py hdr=PASS rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/10497_r631o_imported_class_as_base_beside_store_ctl.py, which the pro
+[q:w] 10498_r631o_dependency_class_body_getattr_ctl.py hdr=PASS rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu75i_proxy.py, which the program reaches, binds the module-level hoo
+[q:w] 10499_r631o_dependency_hasattr_hook_name_read_ctl.py hdr=PASS rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu75j_probe.py, which the program reaches, binds the module-level hoo
+[q:w] 10500_r636o_module_constant_and_stdlib_attribute_arguments_ctl.py hdr=PASS rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75c_run.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75i_proxy.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75j_probe.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75a___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75a_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75a_c.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75b___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75b_b.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75b_c.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75c___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75c_b.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75c_c.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75d___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75d_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75e___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75e_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75f___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75f_b.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75g___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75g_b.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75g_k.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75h___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75h_b.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75h_k.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75i___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75i_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75j___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75j_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75k___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75k_b.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[q:w] zu75k_k.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof ski :: 
+[p:d] u75/probes/rt83/o5c rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/rt83/r1c rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[p:d] u75/probes/rt83/s2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/rt83/s3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/rt83/s4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/rt83/t1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/rt83/u1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/rt83/u3 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/rt83/v2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/rt83/v3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/rt83/y1 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[p:d] u73/probes/rt81/z2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u73/probes/rt81/z4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u73/probes/rt81/z6 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u73/probes/rt81/z7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u73/probes/u73/c1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u73/probes/u73/c1f rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u73/probes/u73/c2 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/u75/c1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/u75/c2 rc=0 4s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/u75/c3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/u75/c4 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:d] u75/probes/u75/c7 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] r1 rc=1 2s oom 15->15 :: no-code :: [!] PIPELINE ERROR: :: the package __init__ /home/fabrice/git/pycsl-u75/scratchpad/u73/probes/rt76/r1/P/zr76/__init__.py, which the p
+[p:p] r5 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] r5b rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[p:p] r6 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] r6-treecwd rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] r14 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] r12 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[p:p] r2r-dep rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[p:p] r17 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] x3 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] v2down rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] v1f rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] s1-dep rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] s7 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] s7-treecwd rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] s1f rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] c1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] o1 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] g2 rc=1 2s oom 15->15 :: no-code :: [-] Verification FAILED or INCOMPLETE. Check the solver output. :: 
+[p:p] r1 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] w2-hw rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] n3 rc=0 2s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:p] n7 rc=0 3s oom 15->15 :: no-code :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] 10490_r635_timeit_string_rebinds_submodule_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] 10491_r635_code_interpreter_runsource_rebinds_submodule_false.py hdr=FAIL rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] 10492_r635_dependency_function_runs_timeit_string_false.py hdr=FAIL rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: [ir-semantic]: /home/fabrice/git/pycsl-u75/test-suite/corpus/pycsl-reference/zu75c_run.py (line 2) runs, at import time,
+[p:w] 10493_r636_update_wrapper_sets_package_submodule_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] 10494_r636_update_wrapper_replaces_dependency_function_false.py hdr=FAIL rc=0 4s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] 10495_r636_module_through_local_function_to_update_wrapper_false.py hdr=FAIL rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] 10496_r631o_parameter_annotation_typing_alias_beside_store_ctl.py hdr=PASS rc=1 2s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/10496_r631o_parameter_annotation_typing_alias_beside_store_ctl.py, wh
+[p:w] 10497_r631o_imported_class_as_base_beside_store_ctl.py hdr=PASS rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/10497_r631o_imported_class_as_base_beside_store_ctl.py, which the pro
+[p:w] 10498_r631o_dependency_class_body_getattr_ctl.py hdr=PASS rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu75i_proxy.py, which the program reaches, binds the module-level hoo
+[p:w] 10499_r631o_dependency_hasattr_hook_name_read_ctl.py hdr=PASS rc=1 1s oom 15->15 :: [!] PIPELINE ERROR: :: the local module test-suite/corpus/pycsl-reference/zu75j_probe.py, which the program reaches, binds the module-level hoo
+[p:w] 10500_r636o_module_constant_and_stdlib_attribute_arguments_ctl.py hdr=PASS rc=0 3s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75c_run.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75i_proxy.py hdr=none rc=0 13s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75j_probe.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75a___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75a_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75a_c.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75b___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75b_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75b_c.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75c___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75c_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75c_c.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75d___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75d_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75e___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75e_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75f___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75f_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75g___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75g_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75g_k.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75h___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75h_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75h_k.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75i___init__.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75i_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75j___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75j_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75k___init__.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75k_b.py hdr=none rc=0 2s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+[p:w] zu75k_k.py hdr=none rc=0 1s oom 15->15 :: [+] Verification SUCCESS! All contracts formally proven. :: 
+## PB b1 end Tue Nov 24 23:52:09 UTC 2026

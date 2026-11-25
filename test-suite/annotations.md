@@ -1537,7 +1537,45 @@ re-bound) or that other code can change is REFUSED (`PYCSL-SEM-IMPORT-WILDCARD-A
 #626, review rt79 w2: the `__all__` submodule's import-time writer made CPython print 5 where pycsl
 PROVED 4). Every `--import-path` entry must be an existing directory (`PYCSL-SEM-IMPORT-PATH-NOT-DIRECTORY`,
 u71, route #627, review rt79 z1: CPython's zipimport loads modules from a zip archive on sys.path, which
-pycsl skipped). Relative imports stay package-relative; the
+pycsl skipped). The module-object escapes that make every store receiver judged also include an
+import-bound name used as a CLASS BASE (PEP 560 hands the module to its `__mro_entries__`), in a
+parameter / return / module / class annotation (only a function-local variable annotation is never
+evaluated), the attributes / names `__loader__`, `__spec__`, `load_module`, `exec_module`,
+`module_from_spec`, `__annotations__`, `__annotate__`, `get_type_hints`, `get_annotations`, and an
+import of `annotationlib` or of an annotation evaluator (u73, route #631, review rt81 p2 / p1b / p7). A
+module-level `__mro_entries__` / `__getattr__` hook (a def outside class bodies, a store, an import
+binding, a `global`, an attribute store or the literal string) in a reached module other than the
+program is REFUSED (`PYCSL-SEM-IMPORT-MODULE-HOOK`; in the program once a module object can be a class
+base or escapes): CPython calls it with the module object when the module is a class base, and
+`__getattr__` answers every name the module does not bind (u73, route #631, review rt81 p2: CPython
+printed 2 where pycsl PROVED 1). A wildcard of a package whose `__init__` has a module-level `__getattr__`
+/ `__dir__` / `__mro_entries__` hook, and any import alias naming or binding `__all__` in a reached
+module, make the wildcard's `__all__` unknown (`PYCSL-SEM-IMPORT-WILDCARD-ALL-UNKNOWN` in the walk, route
+#483 in the import-time closure, which now applies the outside-mention rule too) (u73, route #632,
+review rt81 x3 / x4 / x1b). `unittest` (`mock.patch("pkg.b", K)` sets a module attribute by its dotted
+name), `mock`, `pydoc`, `logging.config`, `pickle`, `_pickle` and `shelve` join route #326's dynamic-import
+list (u73, route #633, review rt81 p4). The class-base / annotation escape counts only a name that can
+be a MODULE object (bound by `import X`, by a from-import of a submodule / an unresolvable or installed
+module / a name the source module binds by an import or not at all): a class or function a local module
+binds only by `def` / `class`, a typing alias such as `List[int]` (read from the interpreter's own
+module) or a local constant count only once a reflective escape exists (u75, review rt83 o4 / o5). The
+hook scan binds a def / Name store in its own scope (a class-body `__getattr__ = f` or a function local is
+no module hook) and reads `hasattr(x, "__getattr__")` / `getattr(x, "__getattr__")` as a read unless a
+reached module mentions `builtins` (u75, review rt83 o6 / o7). `timeit`, `code`, `codeop`, `cProfile`,
+`profile`, `pdb`, `bdb`, `trace`, `doctest` and `test` (the standard library's, not a local module of
+that name) join route #326's list, and any reached module other than the program importing a module of
+that list is REFUSED (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`; u75, route #635, review rt83 s2 / s3: a
+string run by `timeit.timeit` replaced a submodule, CPython printed 2 where pycsl PROVED 1). An
+import-bound module object, or a submodule / function / class of a local module, used as a VALUE (a call
+argument to any callee, an assigned / returned / stored / iterated value, an operand; only an identity
+test, and for a module object a truth test / unary operand / f-string field or a read by an unshadowed
+`hasattr` (literal name) / `print` / `repr` / `str` / `id` / `len` / `type` / `dir` / `hash` / `bool` /
+`callable` while no reached module mentions `builtins`, is exempt; a re-export `from X import a` is
+followed to X; a byte-identical standard-library copy such as the repo-root `json/` is not judged; a
+standard-library attribute counts as a possible module only once a reflective escape AND a planting
+store (an import-rooted attribute store, `__dict__` / `vars` / `globals`, a computed `setattr`) exist) is REFUSED (`PYCSL-SEM-IMPORT-MODULE-VALUE`; u75, route #636, review rt83 u1 / v2 / t1:
+`functools.update_wrapper(pkg, _Src, assigned=("b",))` sets `pkg.b` inside the standard library).
+Relative imports stay package-relative; the
 check is skipped under the declared `--verification-image`, which makes no CPython-run
 claim): CPython
 never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or

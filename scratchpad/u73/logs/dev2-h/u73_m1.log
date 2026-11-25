@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-u73/scratchpad/u73/probes/u73/m1/P/prog.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[imports] /home/fabrice/git/pycsl-u73/scratchpad/u73/probes/u73/m1/P/prog.py: the local module scratchpad/u73/probes/u73/m1/P/zv83m1.py, which the program reaches, binds the module-level hook `__mro_entries__` (line 5), and scratchpad/u73/probes/u73/m1/P/prog.py (line 5) uses an imported name as a class base: CPython calls a module's `__mro_entries__(bases)` -- found directly or through its `__getattr__` -- with the module object itself when the module is a class base (PEP 560 / 562), running code that no statement of the program names and that can replace the module's attributes (review rt81 p2: `def __mro_entries__(bases): setattr(bases[0], "b", K)` in zv81p2/__init__.py and `class C(zv81p2)` in the program; CPython printed 2 where pycsl PROVED `zv81p2.b.one() == 1`). FIX: remove the module-level hook, or do not use a module as a class base.
