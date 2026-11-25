@@ -1,0 +1,70 @@
+rt88 FINDINGS (driver run #9): defensive review of u77 (run9-u76 -> run9-u77, src only).
+Head tree /home/fabrice/git/pycsl-rt88h @ run9-u77; base /home/fabrice/git/pycsl-rt88b @ run9-u76 (both removed at the end). No commits.
+
+VERDICT: no claim CPython contradicts was proved at head that run9-u76 refused or failed. No hidden FLOAT-FINITE reliance found.
+No INTRODUCED over-refusal. One latent defect (K1): u77's "descendants" resolution is dead code. Today it is fail-closed by WhyML typing.
+
+Method
+- Probe sources: scratchpad/rt88/c/<id>/{o88<id>.py owner, x88<id>.py importer}. Logs: c/h/<id>/ and c/b/<id>/, with
+  *.q.log = --no-proof, *.r.log = --no-proof --soundness-report, *.log = full proof, plus .mlw files.
+- CPython: timeout 60 bash -c 'ulimit -v 2000000; cd c/<id>; /usr/bin/python3 -E -s -B <file>'. Every probe's CPython output
+  contradicts its claim (or is an honest control).
+- pycsl: tools/run.sh (cwd = tree root, --import-path c/<tag>/<id>, --keep-mlw, PYTHON_CPU_COUNT=2,
+  TMPDIR=scratchpad/rt88/tmp, cap 3700 s). QUICK: HEAVY_QUICK=1 heavy.sh tools/q.sh. Full proofs: HEAVY_PRIO=1 heavy.sh tools/p.sh.
+  One heavy job at a time. oom_kill was 15 -> 15 on every job. No EDQUOT or quota error appeared. No classifier stop occurred.
+- NOTE: `--soundness-report` short-circuits before Module 6 (pycsl.py ~3875), so frame refusals do not show in *.r.log.
+  Frame results come only from the *.q.log / *.log runs.
+
+TABLE  (P = "All contracts formally proven" rc 0; q-ok = --no-proof rc 0; FF = report lists FLOAT-FINITE)
+| id | shape | CPython | base u76 | head u77 | class |
+|----|-------|---------|----------|----------|-------|
+| f1 | f(r: R, t) assigns \nothing; r.total(t); R.total pure, unrelated S.total writes t (owner + importer) | t unchanged (0) | q REFUSED FUNCTION-FRAME (both) | P owner, P importer | intended repair (control), honest |
+| f10 | same, but r: S (the writer) | t.v=1 | REFUSED | REFUSED | true positive kept |
+| f2 / f11 | nested def closing over q; q = R(..) then a top-level rebinding q = S(..) / W(r) (SSA late-binding attack) | 1 / 5 | refused (closure lift not faithful / nested store out of scope) | same | fail-safe |
+| f3 | R.__new__ returns an S | 1 | refused UB-7.6 | same | fail-safe |
+| f4 / f4b / f4c | local `R = S` shadowing the class (top level / in an if / `for R in [S]`) | 1 | FUNCTION-FRAME / ir-semantic | same | fail-safe (top-level split renames the ctor head R -> R@1, so it is not narrowed) |
+| f5 | q.__class__ = S | 1 | refused __class__ store | same | fail-safe |
+| f6 | module-level R.total = S.total | 1 | refused (name rebound) | same | fail-safe |
+| f9 | R.__getattribute__ redirects total | 1 | refused (hook) | same | fail-safe |
+| f18 | class-body alias total = w | 1 | R582 | same | fail-safe |
+| f7 / f7b | multiple inheritance M(S, R), param annotated R | 1 / 5 | override-frame refusals (m__total vs r__total) | same | fail-safe |
+| f8 / f8b / f8c / f22 / f22b | subclass D(R) overriding total writes t, in the importer / in a 3rd module | 1 / 5 | ctor arity refusal or PYCSL-OVERRIDE-FRAME | same | fail-safe (OVERRIDE-FRAME guards param positions) |
+| f23 | same module: R.total pure (no assigns), D(R).total writes SELF (no assigns); f(r: R) assigns \nothing; g passes D(0), claims d.a == 0 | 5 | q REFUSED FUNCTION-FRAME ("may write r") | q L3-tc: "has type d, expected r" | fail-closed only by WhyML typing (see K1) |
+| f23x | f23 with f in the owner and D + g in the importer | 5 | owner REFUSED; importer L3-tc | owner q-ok (f ACCEPTED); importer L3-tc | INTRODUCED acceptance of f; no false proof (D cannot reach an R slot) |
+| f19 / f19b / f19c | f(t, r: R = S(0)): the default is an S | 1 | REFUSED | owner f q-ok; a caller of f(t) is L3-tc (type s vs r), same module and importer | INTRODUCED acceptance of f; no false proof |
+| f20 / f21 | cast(R, S(0)) / s: Any = S(0) passed to f | 1 | REFUSED | R325 / L3-tc | fail-safe |
+| L1-L9 | q = R(1) rebound to S(0) via walrus / for / unpack / if / del+if / while / try / global / top-level SSA | 1 | REFUSED (L5 ir-semantic, L8 global refused) | identical refusals | fail-safe (disqualification and the split are correct) |
+| a1 | b1 shape, R imported from another module | 0 (claim 1) | P, FF NOT listed | P, FF listed (f: r.x) | gap was in u76, covered by u77 |
+| a2 / a2x | float field read in a METHOD (self.x) / its importer h(r) = r.m() | 0 | P, FF not listed | P, FF listed (r__m) in both owner and importer reports | covered by u77 |
+| a7 | field `x: Final[float]` | 0 | P, FF not listed | P, FF listed | covered by u77 |
+| a4 / a5 / a8 | field `x: Real` (alias) / `"float"` / `Annotated[float, ..]` | 0 | R325 refused | R325 refused | fail-safe (no carrier, no FF needed) |
+
+K1 (latent, INTRODUCED dead code; fail-closed today): u77's descendant (and ancestor) resolution never sees a base.
+- frontend/ir_resolve.py merge_one ends with `td["bases"] = []  # mark merged` for every subclass.
+- So `_bs77` in Module6_WhyMLTranspiler.transpile maps every class to [], and the family of R is just {R}.
+- Ancestors do not matter: inherited methods are cloned under the subclass prefix (u77's c15i still refuses).
+- Descendants DO matter. A same-module override D.total that writes SELF (not a parameter position, so PYCSL-OVERRIDE-FRAME is
+  silent) is dropped from the measurement of f(r: R). f23x's owner f `assigns \nothing` is accepted at head; base refused it.
+- Today no D value can reach an R-typed slot: WhyML types d and r differently (f23, f23x importer, f19, f21 all hit L3-tc).
+  So no false proof exists. The guarantee rests on that typing accident, not on the frame check.
+- The u77 report's claim that the family includes descendants is wrong as implemented.
+Fix direction:
+- (a) build `_bs77` from data that survives the merge: keep `td["orig_bases"]` before `td["bases"] = []`, or use
+  `self.ir["overrides"]` (sub_method -> base method pairs) to add every override of a candidate;
+- or (b) when the narrowed class has ANY override in `ir["overrides"]`, do not narrow.
+- Add a witness: f23x's owner should be REFUSED.
+
+FLOAT-FINITE (a): the u77 detector works on the fully resolved IR (after imports and inheritance), so imported records, methods,
+importers of methods and Final[float] are all reported. The u76 carrier fires only when `_field_type_of == "float"`. Every
+non-`float` spelling tried (alias, string, Annotated, Optional) is refused at R325 and never reaches the carrier. No omission found.
+
+(c) over-refusals: none. `_effn316` starts from the same sets as `_eff316`, and narrowing only removes candidates, so
+`_effn316` is a subset of `_eff316`; `_bodyw634` likewise. Every probe that base accepted, head accepted too (f22b owner,
+a-probes, f1 controls).
+
+Not run: full proofs of the head-accepted owners f19 / f23x. Both were queued behind the busy heavy slots (a 3.7 h planes run
+and int83f/int85 sweeps), and the 590 s queue timeout expired before they started. These owners' claims hold for R instances.
+The q-ok emission is in c/h/{f19,f23x}/. Not probed: staticmethod / classmethod / property receivers (narrowing does not
+treat them differently), Optional[R] (not narrowed by the code: `_ann316[p] in _rec316` only).
+
+Paths: /home/fabrice/git/pycsl/scratchpad/rt88/{FINDINGS.txt, progress.txt, tools/, c/<id>/, c/h, c/b, q1..q7.out, p1.out, p2.out}
